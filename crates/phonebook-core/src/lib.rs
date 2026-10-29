@@ -1,4 +1,8 @@
 #![no_std]
+#![cfg_attr(
+    not(any(test, kani)),
+    deny(clippy::panic, clippy::unwrap_used, clippy::expect_used)
+)]
 
 extern crate alloc;
 
