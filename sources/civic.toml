@@ -1,0 +1,211 @@
+[[providers]]
+id = "consumer"
+layout = "consumer"
+category = "consumer_affairs"
+index_url = "https://www.kokusen.go.jp/map/index.html"
+url = "https://www.kokusen.go.jp/map/data/consumercenters_list.csv"
+license_url = "https://www.kokusen.go.jp/info/data/opendata_policy.html"
+license = "NCAC open-data terms"
+reuse_marker = "営利・非営利を問わず自由に利用することができます"
+data_as_of = "2026-08-31"
+
+[[providers]]
+id = "child-guidance"
+layout = "child"
+category = "child_consultation"
+index_url = "https://www.cfa.go.jp/policies/jidougyakutai/jisou-ichiran/"
+license_url = "https://www.cfa.go.jp/copyright-policy/"
+license = "PDL-1.0"
+reuse_marker = "PDL1.0"
+data_as_of = "2026-04-01"
+
+[[providers]]
+id = "labour-consultation"
+layout = "table"
+category = "labour_consultation"
+index_url = "https://www.mhlw.go.jp/general/seido/chihou/kaiketu/soudan.html"
+license_url = "https://www.mhlw.go.jp/chosakuken/index.html"
+license = "PDL-1.0"
+reuse_marker = "PDL1.0"
+data_as_of = "Not specified by source"
+name_column = "コーナー名"
+
+[[providers]]
+id = "labour-offices"
+layout = "labour"
+category = "labour_bureau"
+index_url = "https://www.mhlw.go.jp/kouseiroudoushou/shozaiannai/roudoukyoku/index.html"
+license_url = "https://www.mhlw.go.jp/chosakuken/index.html"
+license = "PDL-1.0"
+reuse_marker = "PDL1.0"
+data_as_of = "Not specified by source"
+
+[[providers]]
+id = "parent-employment"
+layout = "parent"
+category = "parent_employment_support"
+index_url = "https://www.mhlw.go.jp/mothers_hellowork/secchikasho.html"
+license_url = "https://www.mhlw.go.jp/chosakuken/index.html"
+license = "PDL-1.0"
+reuse_marker = "PDL1.0"
+data_as_of = "Not specified by source"
+
+[[providers]]
+id = "graduate-employment"
+layout = "table"
+category = "graduate_employment_support"
+index_url = "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000184061.html"
+license_url = "https://www.mhlw.go.jp/chosakuken/index.html"
+license = "PDL-1.0"
+reuse_marker = "PDL1.0"
+data_as_of = "Not specified by source"
+
+[[providers]]
+id = "youth-employment"
+layout = "table"
+category = "youth_employment_support"
+index_url = "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000191617.html"
+license_url = "https://www.mhlw.go.jp/chosakuken/index.html"
+license = "PDL-1.0"
+reuse_marker = "PDL1.0"
+data_as_of = "Not specified by source"
+
+[[providers]]
+id = "local-employment"
+layout = "table"
+category = "local_employment_support"
+index_url = "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/koyou/hurusatohellowork_00001.html"
+license_url = "https://www.mhlw.go.jp/chosakuken/index.html"
+license = "PDL-1.0"
+reuse_marker = "PDL1.0"
+data_as_of = "2026-04-01"
+
+[[providers]]
+id = "relocation-employment"
+layout = "table"
+category = "relocation_employment_support"
+index_url = "https://www.mhlw.go.jp/www2/topics/seido/anteikyoku/chihou_idou/sien01-1.htm"
+license_url = "https://www.mhlw.go.jp/chosakuken/index.html"
+license = "PDL-1.0"
+reuse_marker = "PDL1.0"
+data_as_of = "Not specified by source"
+
+[[providers]]
+id = "foreign-employment"
+layout = "foreign"
+category = "foreign_employment_support"
+index_url = "https://www.mhlw.go.jp/stf/newpage_12638.html"
+license_url = "https://www.mhlw.go.jp/chosakuken/index.html"
+license = "PDL-1.0"
+reuse_marker = "PDL1.0"
+data_as_of = "Not specified by source"
+
+[[providers]]
+id = "withdrawal-support"
+layout = "withdrawal"
+category = "social_withdrawal_support"
+index_url = "https://hikikomori-voice-station.mhlw.go.jp/support/"
+license_url = "https://www.mhlw.go.jp/chosakuken/index.html"
+license = "PDL-1.0"
+reuse_marker = "PDL1.0"
+data_as_of = "2025-04-01"
+
+[[providers]]
+id = "universities"
+layout = "higher"
+category = "university"
+index_url = "https://www.mext.go.jp/a_menu/koutou/ichiran/mext_00050.html"
+license_url = "https://www.mext.go.jp/b_menu/1351168.htm"
+license = "MEXT website reuse terms"
+reuse_marker = "自由に利用できます"
+data_as_of = "2025 academic year"
+download_pattern = '^(?:01国立大学一覧|02公立大学一覧|03-[1-8]私立大学一覧|05放送大学)'
+downloads = 11
+
+[[providers]]
+id = "junior-colleges"
+layout = "higher"
+category = "junior_college"
+index_url = "https://www.mext.go.jp/a_menu/koutou/ichiran/mext_00051.html"
+license_url = "https://www.mext.go.jp/b_menu/1351168.htm"
+license = "MEXT website reuse terms"
+reuse_marker = "自由に利用できます"
+data_as_of = "2025 academic year"
+download_pattern = '^(?:01公立短期大学一覧|02-[1-6]私立短期大学一覧)'
+downloads = 7
+
+[[providers]]
+id = "technical-colleges"
+layout = "higher"
+category = "technical_college"
+index_url = "https://www.mext.go.jp/a_menu/koutou/ichiran/mext_00052.html"
+license_url = "https://www.mext.go.jp/b_menu/1351168.htm"
+license = "MEXT website reuse terms"
+reuse_marker = "自由に利用できます"
+data_as_of = "2025 academic year"
+download_pattern = '^01高等専門学校'
+downloads = 1
+
+[[providers]]
+id = "agriculture-employment"
+layout = "table"
+category = "agriculture_employment_support"
+index_url = "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/koyou/nouringyou/index.html"
+license_url = "https://www.mhlw.go.jp/chosakuken/index.html"
+license = "PDL-1.0"
+reuse_marker = "PDL1.0"
+data_as_of = "Not specified by source"
+name_column = "コーナー設置ハローワーク"
+
+[[providers]]
+id = "legal-affairs"
+layout = "table"
+category = "legal_affairs"
+index_url = "https://www.moj.go.jp/MINJI/minji10.html"
+license_url = "https://www.moj.go.jp/hisho06_00280.html"
+license = "PDL-1.0"
+reuse_marker = "PDL1.0"
+data_as_of = "Not specified by source"
+name_column = "局名"
+
+[[providers]]
+id = "fire-brigades"
+layout = "fire"
+category = "fire_brigade_office"
+index_url = "https://www.fdma.go.jp/relocation/syobodan/welcome/search/"
+license_url = "https://www.fdma.go.jp/about/others/post3.html"
+license = "PDL-1.0"
+reuse_marker = "PDL1.0"
+data_as_of = "Not specified by source"
+
+[[providers]]
+id = "police-consultation"
+layout = "seed"
+category = "police_consultation"
+index_url = "https://www.npa.go.jp/hanzaihigai/portal/search/kensaku/support/"
+url = "https://www.npa.go.jp/bureau/soumu/soudan/soudanmadoguti.pdf"
+sha256 = "57d7d241db141d93cebe9e7bc0eec006f05e4539e264ab897fdeddf948ce1159"
+license_url = "https://www.npa.go.jp/rules/index.html"
+license = "PDL-1.0"
+reuse_marker = "PDL1.0"
+data_as_of = "Not specified by source"
+
+[[providers]]
+id = "pension-offices"
+layout = "pension"
+category = "pension_office"
+index_url = "https://www.nenkin.go.jp/section/soudan/index.html"
+license_url = "https://www.nenkin.go.jp/info/aboutweb/aboutsite.html"
+license = "Japan Pension Service website reuse terms"
+reuse_marker = "転載フリー"
+data_as_of = "Not specified by source"
+
+[[providers]]
+id = "tax-offices"
+layout = "tax"
+category = "tax_office"
+index_url = "https://www.nta.go.jp/about/organization/access/map.htm"
+license_url = "https://www.nta.go.jp/chuijiko/copy.htm"
+license = "PDL-1.0"
+reuse_marker = "公共データ利用規約（第1.0版）"
+data_as_of = "Not specified by source"

@@ -1,0 +1,33 @@
+{% include "head.html" %}
+<main id="main" class="data-page">
+<h2>データと出典</h2>
+<p>どのデータが入っているか、どこから来たかを説明します。</p>
+<section>
+<h3>連絡先を保存する</h3>
+<p>連絡先をvCardファイルに保存できます。</p>
+<p>件数が多いため、検索結果から必要な連絡先だけ保存することもできます。</p>
+<p>CSVの文字列は、数式として読まれうる先頭文字に「'」を付けています。元の値が必要な場合はJSONを使ってください。</p>
+<a class="button primary" href="/export?format=vcf"><img class="icon" src="/icons/download.svg" width="22" height="22" alt="">全部の連絡先（vCard）</a>
+<p>{{ contacts }} 件・{{ date }} 作成</p>
+<details><summary>開発者向けのデータ</summary><nav class="downloads"><a href="/export?format=csv">CSV ↓</a><a href="/export?format=json">JSON ↓</a><a href="/coverage.json">都道府県・種類別の件数（JSON）</a></nav></details>
+</section>
+<section>
+<h3>APIで取得する</h3>
+<p>施設の検索、出典の確認、JSON・CSVの一括取得ができます。登録やAPIキーは不要です。</p>
+<a class="button" href="/api/docs">APIの使い方・リクエストを試す</a>
+</section>
+<section>
+<h3>できること・できないこと</h3>
+<ul><li>公開されている施設や窓口の電話番号をさがせます。</li><li>個人の電話帳は含みません。</li><li>番号が今も使えるかは確認していません。</li><li>緊急の事件・事故は110、火災・救急は119です。</li></ul>
+</section>
+<section>
+<h3>入っているデータ</h3>
+<table class="data-table"><caption>{{ catalog.len() }}種類の公開データと利用条件</caption><thead><tr><th scope="col">種類</th><th scope="col">公開した組織</th><th scope="col">利用条件</th></tr></thead><tbody>
+{% for row in catalog %}<tr><th scope="row">{{ row.category }}<span class="cell-count">{{ row.contacts }}件</span>{% if row.empty_prefectures > 0 %}<span class="cell-count">{{ row.empty_prefectures }}都道府県で掲載なし</span>{% endif %}</th><td>{{ row.publisher }}</td><td>{% if !row.license_url.is_empty() %}<a href="{{ row.license_url }}" rel="noopener noreferrer" target="_blank">{{ row.license }}</a>{% else %}{{ row.license }}{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+<p>種類によっては、掲載のない都道府県があります。</p>
+<p><a href="/coverage.json">都道府県・種類別の件数（JSON）</a></p>
+</section>
+<details class="provenance-details"><summary>電話帳の識別情報</summary><p>SHA-256</p><code>{{ snapshot }}</code><p>データの取り違えや問い合わせ時の確認に使えます。</p></details>
+</main>
+{% include "footer.html" %}

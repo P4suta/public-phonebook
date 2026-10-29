@@ -1,0 +1,10 @@
+{% include "head.html" %}
+<main id="main" class="error-page">
+<section class="error-panel">
+<h2><img class="icon" src="/icons/alert.svg" width="22" height="22" alt="">{{ title }}</h2>
+<p>{{ message }}</p>
+<a class="button primary" href="/">はじめから さがす</a>
+<details class="provenance-details"><summary>問い合わせ時の確認番号</summary><code>{{ request_id }}</code></details>
+</section>
+</main>
+{% include "footer.html" %}

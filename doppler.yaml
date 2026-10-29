@@ -1,0 +1,3 @@
+setup:
+  - project: public-phonebook
+    config: prd

@@ -1,0 +1,19 @@
+{% include "head.html" %}
+<main id="main" class="source-page">
+<p class="back"><a href="{{ back_url }}"><img class="icon" src="/icons/back.svg" width="22" height="22" alt="">連絡先に もどる</a></p>
+<h2>この番号の出典</h2>
+<div class="source-contact"><h3>{{ contact.name }}</h3>{% for phone in contact.phones %}<p>{{ phone.original }}</p>{% endfor %}</div>
+<section class="source-description">
+<h3>{{ publisher.name }}</h3><p>{{ publisher.description }}</p>
+{% if !listing_url.is_empty() %}<p><a href="{{ listing_url }}" rel="noopener noreferrer" target="_blank">公開元のページを見る</a></p>{% endif %}
+<dl class="source-facts">
+<div><dt>資料の日付</dt><dd>{{ source_date }}</dd></div>
+<div><dt>取得日（UTC）</dt><dd>{{ retrieved_date }}</dd></div>
+<div><dt>利用条件</dt><dd>{% if !license_url.is_empty() %}<a href="{{ license_url }}" rel="noopener noreferrer" target="_blank">{{ contact.license }}</a>{% else %}{{ contact.license }}{% endif %}</dd></div>
+{% if !attribution.is_empty() %}<div><dt>出典の書き方</dt><dd lang="en">{{ attribution }}</dd></div>{% endif %}
+</dl>
+{% if !original_url.is_empty() %}<section class="original-data"><h3>元のファイル</h3><p>公開元のファイルをそのまま開きます。</p><p>表計算ソフトが必要なことがあります。</p><a class="button" href="{{ original_url }}" rel="noopener noreferrer" target="_blank"><img class="icon" src="/icons/file.svg" width="22" height="22" alt="">元のファイルを開く（{{ original_format }}）</a></section>{% endif %}
+<details class="provenance-details"><summary>データの識別情報</summary><dl class="source-facts"><div><dt>連絡先ID</dt><dd><code>{{ contact.id }}</code></dd></div><div><dt>元データのID</dt><dd><code>{{ contact.source_record_id }}</code></dd></div><div><dt>資料ID</dt><dd><code>{{ source.id }}</code></dd></div><div><dt>資料のSHA-256</dt><dd><code>{{ source.sha256 }}</code></dd></div><div><dt>一覧のSHA-256</dt><dd><code>{{ source.index_sha256 }}</code></dd></div><div><dt>利用条件のSHA-256</dt><dd><code>{{ source.license_sha256 }}</code></dd></div><div><dt>電話帳のSHA-256</dt><dd><code>{{ snapshot }}</code></dd></div></dl></details>
+</section>
+</main>
+{% include "footer.html" %}

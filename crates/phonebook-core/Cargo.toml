@@ -1,0 +1,12 @@
+[package]
+name = "phonebook-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+proof-negative-control = []
+
+[lints]
+workspace = true

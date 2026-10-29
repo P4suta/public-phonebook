@@ -1,0 +1,13 @@
+/target/
+/data/
+/node_modules/
+/test-results/
+/playwright-report/
+/.mise.local.toml
+/.wrangler/
+/cloudflare/.wrangler/
+/cloudflare/worker-configuration.d.ts
+/.cloudflare/
+/dist/
+/fuzz/target/
+/fuzz/artifacts/

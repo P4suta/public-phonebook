@@ -1,0 +1,22 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
+  "files": {
+    "includes": [
+      "tests/**",
+      "web/**",
+      "cloudflare/**/*.ts",
+      "cloudflare/*.json",
+      "cloudflare.config.ts",
+      "vite.config.ts",
+      "playwright*.ts",
+      "tsconfig.json",
+      "package.json",
+      "biome.json"
+    ]
+  },
+  "formatter": { "indentStyle": "space" },
+  "linter": {
+    "enabled": true,
+    "rules": { "preset": "none", "suspicious": { "noExplicitAny": "error" } }
+  }
+}

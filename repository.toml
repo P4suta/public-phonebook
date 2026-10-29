@@ -1,0 +1,6 @@
+name = "Public Phonebook"
+summary = "A searchable public contact directory covering all 47 prefectures of Japan"
+install = "mise install\nmise x -- npm ci\nmise x -- cargo build --locked"
+usage = "curl --fail-with-body --get --data-urlencode 'q=横浜市役所' https://dial.page/api/contacts"
+copyright = "Yasunobu"
+license = "MIT OR Apache-2.0"

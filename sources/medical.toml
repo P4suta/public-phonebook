@@ -1,0 +1,54 @@
+[[providers]]
+id = "hokkaido"
+url = "https://kouseikyoku.mhlw.go.jp/hokkaido/gyomu/gyomu/hoken_kikan/zentai_ichiran.html"
+prefectures = [1]
+downloads = 3
+
+[[providers]]
+id = "tohoku"
+compact_layout = true
+url = "https://kouseikyoku.mhlw.go.jp/tohoku/gyomu/gyomu/hoken_kikan/itiran.html"
+prefectures = [2, 3, 4, 5, 6, 7]
+downloads = 5
+
+[[providers]]
+id = "kantoshinetsu"
+compact_layout = true
+url = "https://kouseikyoku.mhlw.go.jp/kantoshinetsu/chousa/shitei.html"
+prefectures = [8, 9, 10, 11, 12, 13, 14, 15, 19, 20]
+downloads = 5
+
+[[providers]]
+id = "tokaihokuriku"
+compact_layout = true
+url = "https://kouseikyoku.mhlw.go.jp/tokaihokuriku/newpage_00287.html"
+prefectures = [16, 17, 21, 22, 23, 24]
+downloads = 3
+
+[[providers]]
+id = "kinki"
+compact_layout = true
+url = "https://kouseikyoku.mhlw.go.jp/kinki/tyousa/shinkishitei.html"
+prefectures = [18, 25, 26, 27, 28, 29, 30]
+downloads = 3
+
+[[providers]]
+id = "chugokushikoku"
+compact_layout = true
+url = "https://kouseikyoku.mhlw.go.jp/chugokushikoku/chousaka/iryoukikanshitei.html"
+prefectures = [31, 32, 33, 34, 35]
+downloads = 3
+
+[[providers]]
+id = "shikoku"
+compact_layout = true
+url = "https://kouseikyoku.mhlw.go.jp/shikoku/gyomu/gyomu/hoken_kikan/shitei/"
+prefectures = [36, 37, 38, 39]
+downloads = 3
+
+[[providers]]
+id = "kyushu"
+compact_layout = true
+url = "https://kouseikyoku.mhlw.go.jp/kyushu/gyomu/gyomu/hoken_kikan/index_00006.html"
+prefectures = [40, 41, 42, 43, 44, 45, 46, 47]
+downloads = 8

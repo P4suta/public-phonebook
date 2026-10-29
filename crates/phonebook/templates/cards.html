@@ -1,0 +1,17 @@
+{% import "components.html" as ui %}
+{% for c in cards %}
+<article class="contact" data-contact-id="{{ c.id }}" aria-labelledby="contact-name-{{ c.id }}">
+<div class="contact-main">
+{% call ui::tags(c) %}{% endcall %}
+<h3 id="contact-name-{{ c.id }}"><a class="contact-name" href="{{ c.detail_url }}">{{ c.name }}</a></h3>
+<p class="address"><img class="icon" src="/icons/location.svg" width="16" height="16" alt="">{{ c.address }}</p>
+</div>
+<div class="contact-actions">
+{% for phone in c.phones %}{% call ui::phone(phone) %}{% endcall %}{% endfor %}
+<div class="secondary-actions">
+<a class="button save" href="/contacts/{{ c.id }}.vcf" aria-describedby="contact-name-{{ c.id }}"><img class="icon" src="/icons/save.svg" width="22" height="22" alt="">連絡先に保存</a>
+<a class="button" href="{{ c.detail_url }}" aria-describedby="contact-name-{{ c.id }}">くわしく<img class="icon" src="/icons/next.svg" width="22" height="22" alt=""></a>
+</div>
+</div>
+</article>
+{% endfor %}

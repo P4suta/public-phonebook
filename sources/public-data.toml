@@ -1,0 +1,96 @@
+[[providers]]
+id = "care"
+kind = "care"
+index_url = "https://www.mhlw.go.jp/stf/kaigo-kouhyou_opendata.html"
+license_url = "https://creativecommons.org/licenses/by/4.0/"
+license = "CC-BY-4.0"
+release = "20260709"
+data_as_of = "2026-06-30"
+keys = [
+  "110",
+  "120",
+  "130",
+  "140",
+  "150",
+  "155",
+  "160",
+  "170",
+  "210",
+  "220",
+  "230",
+  "320",
+  "331",
+  "332",
+  "334",
+  "335",
+  "336",
+  "337",
+  "361",
+  "362",
+  "364",
+  "410",
+  "430",
+  "510",
+  "520",
+  "530",
+  "540",
+  "550",
+  "551",
+  "710",
+  "720",
+  "730",
+  "760",
+  "770",
+  "780",
+]
+
+[[providers]]
+id = "disability"
+kind = "disability"
+index_url = "https://www.wam.go.jp/content/wamnet/pcpub/top/sfkopendata/"
+license_url = "https://www.wam.go.jp/content/wamnet/pcpub/top/sfkopendata/"
+license = "WAM NET open-data terms"
+release = "202609"
+data_as_of = "2026-09-30"
+keys = [
+  "11",
+  "12",
+  "13",
+  "14",
+  "15",
+  "21",
+  "22",
+  "24",
+  "32",
+  "33",
+  "34",
+  "41",
+  "42",
+  "43",
+  "45",
+  "46",
+  "52",
+  "53",
+  "54",
+  "60",
+  "61",
+  "62",
+  "63",
+  "64",
+  "65",
+  "66",
+  "67",
+  "68",
+  "69",
+  "70",
+]
+
+[[providers]]
+id = "isil"
+kind = "isil"
+index_url = "https://www.ndl.go.jp/library/isil"
+license_url = "https://www.ndl.go.jp/library/isil"
+license = "Public domain"
+release = "20261005"
+data_as_of = "2026-10-05"
+keys = ["libraries_public", "libraries", "museums", "archives"]

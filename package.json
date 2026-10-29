@@ -1,0 +1,35 @@
+{
+  "name": "public-phonebook",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit && cf workers types && tsc -p cloudflare/tsconfig.json",
+    "lint": "biome check tests web cloudflare cloudflare.config.ts vite.config.ts playwright.config.ts playwright.national.config.ts playwright.cloudflare.config.ts playwright.production.config.ts tsconfig.json package.json biome.json",
+    "build:web": "tsc -p web/tsconfig.json",
+    "dev:cloudflare": "cf dev",
+    "build:cloudflare": "cf build",
+    "test:web": "node --test tests/web/*.test.ts",
+    "e2e": "playwright test",
+    "e2e:national": "playwright test --config playwright.national.config.ts",
+    "e2e:cloudflare": "playwright test --config playwright.cloudflare.config.ts",
+    "e2e:production": "playwright test --config playwright.production.config.ts",
+    "browsers": "playwright install chromium firefox webkit",
+    "audit": "npm audit --audit-level=moderate"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@cloudflare/containers": "0.3.7",
+    "@cloudflare/vite-plugin": "2.0.0-beta.v.7",
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2",
+    "cf": "1.0.0-beta.25",
+    "csv-parse": "7.0.3",
+    "typescript": "7.0.2",
+    "vite": "8.3.5"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "workerd@1.20261023.1": true,
+    "fsevents@2.3.3": false
+  }
+}
