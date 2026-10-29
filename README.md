@@ -13,7 +13,7 @@ mise x -- cargo build --locked
 ## Usage
 
 ```sh
-curl --fail-with-body --get --data-urlencode 'q=横浜市役所' https://dial.page/api/contacts
+curl --fail-with-body --get --data-urlencode 'q=横浜市役所' https://www.dial.page/api/contacts
 ```
 
 ## License

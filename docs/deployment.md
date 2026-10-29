@@ -46,7 +46,8 @@ Run `mise x -- just service-check` for the complete local service gate, includin
 
 ## Production publication
 
-The configured production origin is `https://dial.page`.
+The configured production origin is `https://www.dial.page`.
+The apex domain has no directory binding or redirect.
 The custom domain belongs to the Worker, which delegates directory requests to one immutable Rust container.
 Workers.dev and preview URLs remain disabled.
 

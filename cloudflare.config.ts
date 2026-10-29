@@ -21,7 +21,7 @@ const directory = defineContainer({
 
 const worker = defineWorker({
   name: "public-phonebook",
-  domains: ["dial.page"],
+  domains: ["www.dial.page"],
   entrypoint,
   compatibilityDate: "2026-10-23",
   compatibilityFlags: ["enable_ctx_exports"],

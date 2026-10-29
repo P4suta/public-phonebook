@@ -1,7 +1,7 @@
 # Public data API
 
 The API serves the same organizational directory as the website without requiring an account, an API key, or HTML scraping.
-The production origin is `https://dial.page`.
+The production origin is `https://www.dial.page`.
 Local Cloudflare development uses `http://127.0.0.1:8787`.
 Open `/api/docs` for an interactive request form, response headers, and copyable request examples.
 Open `/api/openapi.json` for the OpenAPI 3.1 description generated from the Rust request and response types.
@@ -11,7 +11,7 @@ The contract is unreleased and uses unversioned paths.
 ## First request
 
 ```sh
-phonebook_url=https://dial.page
+phonebook_url=https://www.dial.page
 curl --fail-with-body --get \
   --data-urlencode 'q=横浜市役所' \
   "$phonebook_url/api/contacts"

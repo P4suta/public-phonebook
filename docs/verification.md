@@ -8,7 +8,7 @@ Run `mise x -- just workflow-check` to validate the hosted workflow's syntax and
 
 ## Production origin
 
-Run `mise x -- just e2e-production` after deploying the checked candidate to `https://dial.page`.
+Run `mise x -- just e2e-production` after deploying the checked candidate to `https://www.dial.page`.
 The command reuses all 14 local Cloudflare workflows against the public origin without starting a local server.
 After those pass, one additional workflow downloads the complete national CSV and reconciles every record and coverage cell.
 It verifies the exact prepared snapshot, contact count, coverage, static asset hashes, schema validators, browser protections, search, source navigation, downloads, API errors, narrow layouts, and accessibility.

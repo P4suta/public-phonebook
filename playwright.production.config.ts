@@ -14,7 +14,7 @@ const configuration = defineConfig({
     ["html", { outputFolder: "playwright-report/production", open: "never" }],
   ],
   use: {
-    baseURL: "https://dial.page",
+    baseURL: "https://www.dial.page",
     headless: true,
     locale: "ja-JP",
     video: "on",
