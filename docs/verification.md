@@ -119,7 +119,7 @@ The monochrome design check also runs in the default `just check` gate on Chromi
 It requires the service name as the main heading and immediate access to search.
 It inspects parsed stylesheet rules, inline declarations, visible computed styles, and generated pseudo-elements for non-binary colours, gradients, shadows, transparency, filters, and blending.
 Twelve prohibited style fixtures must be rejected, while black-and-white typography and solid rules must pass.
-The full fixture suite runs these four design checks and 36 behavioral workflows on all five browser configurations, for 200 cases.
+The full fixture suite runs these four design checks and 38 behavioral workflows on all five browser configurations, for 210 cases.
 The nine service workflows cover automatic loading, recovery, snapshot changes, malformed pages, immediate municipality choices after a prefecture change, repeated page suspension, JavaScript-disabled navigation, all Figma screen states, local fonts, and icon geometry.
 Recovery retains displayed records and receives its own accessibility check and screenshot.
 The checks cover authored CSS and supported rendered states, not antialiasing pixels or the semantic clarity of arbitrary prose.
@@ -194,7 +194,8 @@ The catalog must contain exactly the category identifiers declared by the schema
 Planted missing metadata and a numeric canonical-phone value must be rejected.
 These checks establish the tested response contracts, not the truth of source records or a proof of the schema libraries.
 
-Three additional browser workflows verify API discovery, anonymous requests despite a website cookie, safe display of source text, URL selection, response headers, error recovery, narrow layouts, and accessibility.
+Five additional browser workflows verify API discovery, anonymous requests despite a website cookie, safe display of source text, URL selection, response headers, error recovery, narrow layouts, and accessibility.
+Delayed module delivery keeps the inline action hidden until its handler is ready, while a native GET action remains available before enhancement and with JavaScript turned off.
 Cross-origin fetch and schema revalidation use a real HTTP consumer on a separately allocated loopback port.
 The test owns and closes that server explicitly and leaves browser network protections enabled.
 The Cloudflare cases also exercise the real API, bulk retrieval, source links, preflight, schema validators, edge problems, and the local API script.

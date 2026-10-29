@@ -16,6 +16,8 @@ type ExplorerState =
 function enhanceApi(): void {
   const form = document.getElementById("api-search");
   const query = document.getElementById("api-q");
+  const direct = document.getElementById("api-direct");
+  const submit = document.getElementById("api-submit");
   const address = document.getElementById("api-url");
   const select = document.getElementById("api-select-url");
   const status = document.getElementById("api-status");
@@ -26,6 +28,8 @@ function enhanceApi(): void {
   if (
     !(form instanceof HTMLFormElement) ||
     !(query instanceof HTMLInputElement) ||
+    !(direct instanceof HTMLButtonElement) ||
+    !(submit instanceof HTMLButtonElement) ||
     !(address instanceof HTMLInputElement) ||
     !(select instanceof HTMLButtonElement) ||
     !(status instanceof HTMLElement) ||
@@ -141,6 +145,8 @@ function enhanceApi(): void {
   });
   examples();
   render();
+  direct.hidden = true;
+  submit.hidden = false;
 }
 
 if (typeof document !== "undefined") enhanceApi();

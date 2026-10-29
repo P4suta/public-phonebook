@@ -7,7 +7,7 @@
 <h3>検索して試す</h3>
 <form id="api-search" class="search" action="/api/contacts" method="get">
 <label for="api-q">施設名か電話番号</label>
-<div class="search-bar"><input id="api-q" name="q" value="横浜市役所" maxlength="512" type="search"><button class="primary" type="submit">JSONを取得</button></div>
+<div class="search-bar"><input id="api-q" name="q" value="横浜市役所" maxlength="512" type="search"><button id="api-direct" class="primary" type="submit">JSONを開く</button><button id="api-submit" class="primary" type="submit" hidden>JSONを取得</button></div>
 </form>
 <p id="api-status" role="status">施設名の一部か、電話番号を入力してください。</p>
 <label for="api-url">リクエストURL</label><input id="api-url" class="api-url" type="url" readonly value="/api/contacts?q=横浜市役所">

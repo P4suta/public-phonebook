@@ -166,3 +166,69 @@ test("the API explorer shows HTTP problems and recovers after malformed response
     page.getByLabel("APIのレスポンス", { exact: true }),
   ).toContainText("13:dental");
 });
+
+test("the inline API action appears only after a delayed module is ready", async ({
+  page,
+}) => {
+  let release = (): void => {
+    throw new Error("The script gate is not installed");
+  };
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api.js", async (route) => {
+    await gate;
+    await route.continue();
+  });
+  try {
+    await page.goto("/api/docs", { waitUntil: "commit" });
+    await expect(
+      page.getByLabel("施設名か電話番号", { exact: true }),
+    ).toBeVisible();
+    const inline = page.getByRole("button", {
+      name: "JSONを取得",
+      exact: true,
+    });
+    const direct = page.getByRole("button", {
+      name: "JSONを開く",
+      exact: true,
+    });
+    await expect(inline).toBeHidden();
+    await expect(direct).toBeVisible();
+    await page.getByLabel("施設名か電話番号", { exact: true }).fill("試験");
+    release();
+    await expect(inline).toBeVisible();
+    await expect(direct).toBeHidden();
+    await inline.click();
+    await expect(page.getByRole("status")).toContainText("HTTP 200");
+    await expect(page).toHaveURL(/\/api\/docs$/);
+    await expect(
+      page.getByLabel("APIのレスポンス", { exact: true }),
+    ).toContainText("13:dental");
+  } finally {
+    release();
+  }
+});
+
+test.describe("the native API explorer", () => {
+  test.use({ javaScriptEnabled: false });
+  test("keeps labelled GET submission available without JavaScript", async ({
+    page,
+  }) => {
+    await page.goto("/api/docs");
+    await expect(
+      page.getByRole("button", { name: "JSONを取得", exact: true }),
+    ).toBeHidden();
+    await page.getByLabel("施設名か電話番号", { exact: true }).fill("試験");
+    const response = page.waitForResponse(
+      (value) => new URL(value.url()).pathname === "/api/contacts",
+    );
+    await page.getByRole("button", { name: "JSONを開く", exact: true }).click();
+    const result = await response;
+    expect(result.status()).toBe(200);
+    expect(new URL(result.url()).searchParams.get("q")).toBe("試験");
+    const payload: unknown = await result.json();
+    object(payload);
+    expect(array(payload.data)).toHaveLength(1);
+  });
+});
