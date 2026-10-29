@@ -207,6 +207,17 @@ Revisit this boundary if those dependencies gain suitable source-level verifier 
 
 ## Cloudflare checks
 
+Six finite lifecycle cases import the production Container adapter with typed ports and a controlled delay boundary.
+They cover pinned startup, internet access turned off, health refusal, probe-body release, twenty concurrent requests, client cancellation, timeout restoration, image replacement, idle restart, allocation recovery, the 45-attempt readiness bound, and recovery after failure.
+The native Container API supplies inactivity timing and process isolation semantics; these fixtures do not prove Cloudflare's implementation.
+The local Worker and production checks exercise that integration with the real provider runtime.
+
+The Rust recipe test executes the actual Just recipes with recording command adapters.
+All seven variadic recipes must preserve spaced values, empty values, Japanese, quotes, substitution syntax, glob characters, and newlines.
+Each recipe must propagate the recorded child exit code 23.
+The test also exercises the nested service gate and its dependencies without running a deployment or an import.
+The original recipe fails this test by splitting a spaced argument and dropping an empty argument.
+
 `npm run e2e:cloudflare` runs fourteen cases through `cf dev`, Vite, workerd, and the Linux image on desktop Chromium and iPhone browser emulation.
 It checks snapshot identity, all 47 prefectures and 39 category cells, real search and downloads, source navigation, request protections, HEAD handling, static file hashes, cache validators, fonts, layout, and Axe rules.
 No remote account is needed for these local checks.
@@ -216,7 +227,8 @@ Snapshot fixtures reject corrupted archives, output replacement, mismatched mani
 The service image uses read-only root-owned data and a non-root app user.
 The local Cloudflare runtime adds Docker capabilities for its networking adapter.
 These local results do not establish production capability isolation, billing limits, global availability, load capacity, or account permissions.
-Production deployment and physical device imports remain explicit unverified boundaries.
+Production deployment requires separate verification of account capabilities and public HTTPS behavior.
+Physical device imports remain an explicit unverified boundary.
 
 ## Device interoperability
 

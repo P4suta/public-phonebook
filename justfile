@@ -13,35 +13,42 @@ cloudflare-dev:
 cloudflare-build:
     npm run build:cloudflare
 
+[positional-arguments]
 cloudflare-deploy *args:
-    doppler run --no-fallback --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID -- npm exec --no -- cf deploy --prebuilt {{ args }}
+    doppler run --no-fallback --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID -- npm exec --no -- cf deploy --prebuilt "$@"
 
 e2e-production:
     npm run e2e:production
 
+[positional-arguments]
 update-data *args:
-    cargo run --locked -p public-phonebook -- update {{ args }}
+    cargo run --locked -p public-phonebook -- update "$@"
 
 validate-data:
     cargo run --locked -p public-phonebook -- verify-data
 
+[positional-arguments]
 e2e *args:
-    npm run e2e -- {{ args }}
+    npm run e2e -- "$@"
 
+[positional-arguments]
 e2e-national *args:
-    npm run e2e:national -- {{ args }}
+    npm run e2e:national -- "$@"
 
+[positional-arguments]
 check *args: format lint test audit secrets workflow-check design-check web-check
-    cargo run --locked -p xtask -- check {{ args }}
+    cargo run --locked -p xtask -- check "$@"
 
+[positional-arguments]
 service-check *args:
-    just check --data --proofs --fuzz --browsers --cloudflare {{ args }}
+    just check --data --proofs --fuzz --browsers --cloudflare "$@"
 
 fuzz-replay:
     cargo run --locked -p xtask -- fuzz-replay
 
+[positional-arguments]
 prove *args:
-    cargo run --locked -p xtask -- prove {{ args }}
+    cargo run --locked -p xtask -- prove "$@"
 
 build-web:
     npm run build:web

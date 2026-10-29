@@ -1,13 +1,22 @@
-import { Container } from "@cloudflare/containers";
+import { DurableObject } from "cloudflare:workers";
+import { DirectoryRuntime } from "./container-runtime.js";
 import { handleRequest } from "./service.js";
 
-const DIRECTORY_PORT = 8080;
+export class Phonebook extends DurableObject<Env> {
+  readonly #directory: DirectoryRuntime;
+  readonly #restored: Promise<void>;
 
-export class Phonebook extends Container<Env> {
-  override defaultPort = DIRECTORY_PORT;
-  override sleepAfter = "10m";
-  override enableInternet = false;
-  override pingEndpoint = "/healthz";
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    if (!ctx.container) throw new Error("The directory container is missing");
+    this.#directory = new DirectoryRuntime(ctx.container);
+    this.#restored = ctx.blockConcurrencyWhile(() => this.#directory.restore());
+  }
+
+  override async fetch(request: Request): Promise<Response> {
+    await this.#restored;
+    return this.#directory.fetch(request);
+  }
 }
 
 export default {

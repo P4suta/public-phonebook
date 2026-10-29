@@ -9,10 +9,10 @@ import * as entrypoint from "./cloudflare/worker.ts" with { type: "cf-worker" };
 
 const directory = defineContainer({
   name: "public-phonebook-directory",
-  image: { dockerfile: "./cloudflare/Dockerfile", buildContext: "." },
-  instanceType: "basic",
-  maxInstances: 1,
-  schedulingPolicy: "default",
+  images: {
+    directory: { dockerfile: "./cloudflare/Dockerfile", buildContext: "." },
+  },
+  schedulingPolicy: "durable-object",
   ssh: { enabled: false },
   observability: { logs: { enabled: true } },
 });

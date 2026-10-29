@@ -5,6 +5,12 @@ The project uses the pinned `cf` CLI and Cloudflare Vite Plugin.
 Wrangler is not a project dependency.
 The Rust server remains available for direct local development.
 
+The Container uses the `durable-object` scheduling policy and the native Durable Object Container API.
+The Worker selects one canonical directory object and starts its named, digest-pinned image on the `lite` instance size.
+The adapter serializes startup, checks health before forwarding, and replaces an obsolete image before serving another request.
+Cloudflare stops an idle instance after ten minutes.
+The policy has no application-wide instance limit; the fixed object name supplies the service's single-instance bound.
+
 ## Local commands
 
 Install dependencies with `mise x -- npm ci`.
@@ -94,6 +100,9 @@ A busy service returns 503 and Retry-After instead of accumulating an unbounded 
 Worker invocation logs are disabled and query strings are redacted in observability configuration.
 Rust logs contain route patterns rather than user-supplied paths or search text.
 Container egress and SSH are disabled in configuration.
+The Durable Object policy gives container processes root capabilities regardless of their user ID.
+File ownership and mode bits express the intended read-only layout but do not establish a production isolation boundary.
+The HTTP service exposes no process execution API and opens the prepared database read-only.
 The offline importer uses an HTTPS-only transport.
 
 CSV text cells with declared formula-leading characters receive a leading apostrophe.
