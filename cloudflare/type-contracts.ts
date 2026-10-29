@@ -1,7 +1,7 @@
 import type { Phonebook } from "./worker.js";
 
 export function requireTypedContainerBinding(
-  env: Env,
+  ctx: ExecutionContext,
 ): DurableObjectStub<Phonebook> {
-  return env.PHONEBOOK.getByName("binding-contract");
+  return ctx.exports.Phonebook.getByName("binding-contract");
 }

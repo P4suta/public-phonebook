@@ -20,11 +20,15 @@ export class Phonebook extends DurableObject<Env> {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
     return handleRequest(request, {
       assets: (value) => env.ASSETS.fetch(value),
       origin: (value) =>
-        env.PHONEBOOK.getByName("public-directory").fetch(value),
+        ctx.exports.Phonebook.getByName("public-directory").fetch(value),
     });
   },
 } satisfies ExportedHandler<Env>;

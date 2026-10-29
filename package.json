@@ -7,7 +7,7 @@
     "lint": "biome check tests web cloudflare cloudflare.config.ts vite.config.ts playwright.config.ts playwright.national.config.ts playwright.cloudflare.config.ts playwright.production.config.ts tsconfig.json package.json biome.json",
     "build:web": "tsc -p web/tsconfig.json",
     "dev:cloudflare": "cf dev",
-    "build:cloudflare": "cf build",
+    "build:cloudflare": "cf build && cf deploy --dry-run --prebuilt",
     "test:web": "node --test tests/web/*.test.ts",
     "e2e": "playwright test",
     "e2e:national": "playwright test --config playwright.national.config.ts",

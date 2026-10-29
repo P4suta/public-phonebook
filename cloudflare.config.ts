@@ -7,6 +7,8 @@ import {
 } from "cf/config";
 import * as entrypoint from "./cloudflare/worker.ts" with { type: "cf-worker" };
 
+const DIRECTORY_CLASS = "Phonebook" satisfies keyof typeof entrypoint;
+
 const directory = defineContainer({
   name: "public-phonebook-directory",
   images: {
@@ -22,10 +24,11 @@ const worker = defineWorker({
   domains: ["dial.page"],
   entrypoint,
   compatibilityDate: "2026-10-23",
+  compatibilityFlags: ["enable_ctx_exports"],
   workersDev: false,
   previewUrls: false,
   exports: {
-    Phonebook: exports.durableObject({
+    [DIRECTORY_CLASS]: exports.durableObject({
       storage: "sqlite",
       container: directory,
     }),
@@ -48,12 +51,6 @@ const worker = defineWorker({
 });
 
 export default defineConfig({
-  worker: {
-    ...worker,
-    env: {
-      ...worker.env,
-      PHONEBOOK: bindings.durableObject({ worker, exportName: "Phonebook" }),
-    },
-  },
+  worker,
   containers: [directory],
 });

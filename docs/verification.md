@@ -164,7 +164,7 @@ TypeScript strict checking covers browser source, Worker source, configuration, 
 Unchecked indexed access and exact optional properties are enabled.
 The feed page has a private data field and a private constructor, so an unchecked object cannot satisfy its type structurally.
 Five expected compile errors exercise invalid construction, mutation, loading without a controller, and suspension without a resumable state.
-A separate compile-only fixture requires the inferred Durable Object binding to carry the actual container class.
+A separate compile-only fixture requires the inferred loopback namespace to carry the actual container class.
 External SDK declarations and generated runtime types remain an explicit trust boundary.
 The gate regenerates runtime types with the pinned CLI and checks the owned adapters.
 `just web-check` recompiles browser TypeScript to an isolated directory and compares the exact emitted JavaScript with the embedded file.
@@ -221,7 +221,9 @@ The original recipe fails this test by splitting a spaced argument and dropping 
 `npm run e2e:cloudflare` runs fourteen cases through `cf dev`, Vite, workerd, and the Linux image on desktop Chromium and iPhone browser emulation.
 It checks snapshot identity, all 47 prefectures and 39 category cells, real search and downloads, source navigation, request protections, HEAD handling, static file hashes, cache validators, fonts, layout, and Axe rules.
 No remote account is needed for these local checks.
-`cf build` and `cf deploy --dry-run --prebuilt` check local Build Output without publishing it.
+The Cloudflare build command runs `cf build` and `cf deploy --dry-run --prebuilt` together to check local Build Output without publishing it.
+The dry run rejects an explicit cross-Worker Container reference that local runtime tests can otherwise accept.
+The production route uses the current Worker's typed loopback namespace instead of declaring an external namespace reference.
 
 Snapshot fixtures reject corrupted archives, output replacement, mismatched manifests, modified database bytes, and startup without the required manifest.
 The service image uses read-only root-owned data and a non-root app user.

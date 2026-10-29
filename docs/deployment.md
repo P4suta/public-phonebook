@@ -6,6 +6,7 @@ Wrangler is not a project dependency.
 The Rust server remains available for direct local development.
 
 The Container uses the `durable-object` scheduling policy and the native Durable Object Container API.
+The Worker reaches its own class through the typed `ctx.exports.Phonebook` loopback namespace.
 The Worker selects one canonical directory object and starts its named, digest-pinned image on the `lite` instance size.
 The adapter serializes startup, checks health before forwarding, and replaces an obsolete image before serving another request.
 Cloudflare stops an idle instance after ten minutes.
@@ -34,6 +35,7 @@ A cold build compiles the Rust server.
 The Docker build limits Cargo to two jobs and caches dependencies for subsequent builds.
 
 Run `mise x -- just cloudflare-build` to produce Cloudflare Build Output locally.
+Every build also runs the deployment dry run and rejects invalid Container and Durable Object links before publication.
 Run `mise x -- npm exec --no -- cf deploy --dry-run --prebuilt` to inspect that output without publishing.
 Run `mise x -- npm run e2e:cloudflare` to check the Worker and Linux container together.
 The suite owns port 8787 and refuses an existing listener.

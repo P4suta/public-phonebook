@@ -26,6 +26,7 @@ Serve static assets through the Worker asset binding.
 Use one fixed Durable Object name and one initial container instance.
 This is an explicit capacity ceiling, not a throughput claim.
 Use the native Durable Object Container API with the supported Durable Object scheduling policy.
+Resolve the current Worker's class through its typed `ctx.exports` loopback namespace.
 Select a named digest-pinned image and the `lite` instance size at startup.
 Share startup readiness across concurrent requests, replace an obsolete image, and restore the native ten-minute inactivity timeout after object reconstruction.
 The fixed name enforces the service's instance bound because this policy has no application-wide maximum.
@@ -82,4 +83,5 @@ See [deployment commands](../deployment.md) and [verification boundaries](../ver
 - [Typed Cloudflare configuration](https://developers.cloudflare.com/cf/projects/cloudflare-config/)
 - [Durable Object Container API](https://developers.cloudflare.com/containers/api/durable-object-container/)
 - [Container scheduling policies](https://developers.cloudflare.com/containers/configuration/scheduling-policy/)
+- [Worker loopback bindings](https://developers.cloudflare.com/workers/runtime-apis/context/#exports)
 - [Local Container development](https://developers.cloudflare.com/containers/guides/local-dev/)
