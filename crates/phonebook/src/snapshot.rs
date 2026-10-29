@@ -32,6 +32,15 @@ pub fn prepare(directory: &Path, output: &Path) -> Result<Manifest> {
         .tempdir_in(parent)?;
     let database = temporary.path().join("phonebook.sqlite");
     fs::copy(directory.join("phonebook.sqlite"), &database)?;
+    crate::store::index_names(&database)?;
+    let comparison =
+        crate::audit::compare_snapshot(&database, &directory.join("phonebook.sqlite"))?;
+    ensure!(
+        comparison.added_contacts == 0
+            && comparison.removed_contacts == 0
+            && comparison.changed_contacts == 0,
+        "Service preparation changed contact records"
+    );
     let coverage = crate::store::load_coverage(&database)?;
     let manifest = Manifest {
         schema: 1,

@@ -90,3 +90,32 @@ fn prepared_service_mode_refuses_a_missing_manifest_before_binding_a_port() {
         String::from_utf8_lossy(&result.stderr).contains("Service snapshot manifest is required")
     );
 }
+
+#[test]
+fn legacy_bundles_gain_a_covering_name_index_without_changing_the_source_or_records() {
+    let (directory, _) = database();
+    let input = directory.path().join("input/phonebook.sqlite");
+    rusqlite::Connection::open(&input)
+        .unwrap()
+        .execute_batch("DROP INDEX IF EXISTS contact_name;")
+        .unwrap();
+    let before = snapshot::digest(&input).unwrap();
+    let output = directory.path().join("indexed");
+    let manifest = snapshot::prepare(input.parent().unwrap(), &output).unwrap();
+    let prepared = output.join("phonebook.sqlite");
+    let connection = store::open(&prepared).unwrap();
+    let columns = connection
+        .prepare("SELECT name FROM pragma_index_info('contact_name') ORDER BY seqno")
+        .unwrap()
+        .query_map([], |row| row.get::<_, String>(0))
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap();
+    assert_eq!(columns, ["name", "id"]);
+    assert_eq!(snapshot::digest(&input).unwrap(), before);
+    assert_eq!(manifest.sha256, snapshot::digest(&prepared).unwrap());
+    let comparison = public_phonebook::audit::compare_snapshot(&prepared, &input).unwrap();
+    assert_eq!(comparison.added_contacts, 0);
+    assert_eq!(comparison.removed_contacts, 0);
+    assert_eq!(comparison.changed_contacts, 0);
+}

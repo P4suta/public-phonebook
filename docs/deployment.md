@@ -26,6 +26,7 @@ The default check rejects an embedded JavaScript file that differs from that out
 A Cloudflare build needs an audited national snapshot and a working Docker engine.
 Run `mise x -- just prepare-service` once in a fresh build context.
 This writes `data/service/` without changing the active database.
+Preparation adds a covering name index to the copied database and checks every contact against the source before computing the manifest identity.
 The command refuses an existing output directory.
 Use a fresh destination for another candidate and select its audited files in the Docker build input.
 Never overwrite files used by a running service.

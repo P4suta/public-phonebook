@@ -141,6 +141,10 @@ Each suite owns its server and stops it through the configured shutdown lifecycl
 Existing listeners are refused rather than reused, and failed checks have no automatic retries.
 
 SQLite's bundled C implementation and dependency internals remain external trust boundaries.
+Name search uses a covering index to identify matches before loading their payloads.
+The bundled planner checks reject payload scans for the production predicate, and 270 reference comparisons cover literal substrings, Unicode normalization, region and category filters, ordering, and first-page limits.
+Legacy snapshot preparation checks index columns, preserves the source bytes, compares every contact with the source, and binds the indexed copy to its manifest.
+These finite checks exercise SQLite's query and index contracts without claiming a proof of its optimizer or storage implementation.
 The application forbids its own unsafe Rust and uses safe library interfaces.
 The existing finite integration checks are the current alternative for these external boundaries.
 Revisit this scope if custom unsafe code, shared mutable database writes, native device integration, or a parser with a suitable source-level verifier is introduced.

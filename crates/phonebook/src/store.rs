@@ -6,6 +6,8 @@ use std::io::Write;
 use std::path::Path;
 use unicode_normalization::UnicodeNormalization;
 
+const NAME_INDEX: &str = "CREATE INDEX IF NOT EXISTS contact_name ON contacts(name,id);";
+
 pub fn normalized(value: &str) -> String {
     value
         .nfkc()
@@ -174,6 +176,7 @@ pub fn build_database(path: &Path, contacts: &[Contact], report: &Coverage) -> R
         [serde_json::to_string(report)?],
     )?;
     transaction.execute_batch("CREATE INDEX contact_region ON contacts(prefecture,municipality,category); CREATE INDEX contact_category ON contacts(category); PRAGMA user_version=1;")?;
+    transaction.execute_batch(NAME_INDEX)?;
     transaction.commit()?;
     let result: String = connection.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;
     ensure!(result == "ok", "Database integrity check failed: {result}");
@@ -194,6 +197,62 @@ pub fn stage_snapshot(
 pub fn open(path: &Path) -> Result<Connection> {
     Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
         .context("Run `mise x -- just update-data` before starting the directory")
+}
+
+pub(crate) fn index_names(path: &Path) -> Result<()> {
+    let connection =
+        Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE)?;
+    connection.execute_batch(NAME_INDEX)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod search_plans {
+    use super::*;
+
+    #[test]
+    fn name_queries_scan_only_covering_names_and_lookup_matching_payloads() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection.execute_batch("CREATE TABLE contacts(id TEXT PRIMARY KEY, prefecture TEXT, municipality TEXT, category TEXT, name TEXT, payload TEXT); CREATE INDEX contact_name ON contacts(name,id);").unwrap();
+        for prefecture in ["", "13"] {
+            let (condition, values) = filter(&Search {
+                q: "横浜市役所".into(),
+                prefecture: prefecture.into(),
+                ..Default::default()
+            })
+            .unwrap();
+            for selection in ["count(*)", "payload"] {
+                let suffix = if selection == "payload" {
+                    " ORDER BY id LIMIT 50"
+                } else {
+                    ""
+                };
+                let sql = format!(
+                    "EXPLAIN QUERY PLAN SELECT {selection} FROM contacts{condition}{suffix}"
+                );
+                let details = connection
+                    .prepare(&sql)
+                    .unwrap()
+                    .query_map(params_from_iter(&values), |row| row.get::<_, String>(3))
+                    .unwrap()
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .unwrap();
+                assert!(
+                    details
+                        .iter()
+                        .any(|value| value.contains("COVERING INDEX contact_name")),
+                    "{details:?}"
+                );
+                assert!(
+                    !details
+                        .iter()
+                        .any(|value| value.starts_with("SCAN contacts")
+                            && !value.contains("COVERING INDEX")),
+                    "{details:?}"
+                );
+            }
+        }
+    }
 }
 
 pub fn load_coverage(path: &Path) -> Result<Coverage> {
@@ -254,7 +313,7 @@ fn filter(search: &Search) -> Result<(String, Vec<String>)> {
             clauses.push("id IN (SELECT contact_id FROM phones WHERE number = ?)".to_owned());
             values.push(String::from(number));
         } else {
-            clauses.push("instr(name, ?) > 0".to_owned());
+            clauses.push("id IN (SELECT id FROM contacts WHERE instr(name, ?) > 0)".to_owned());
             values.push(query);
         }
     }
