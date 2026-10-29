@@ -7,8 +7,9 @@ The Rust server remains available for direct local development.
 
 The Container uses the `durable-object` scheduling policy and the native Durable Object Container API.
 The Worker reaches its own class through the typed `ctx.exports.Phonebook` loopback namespace.
-The Worker selects one canonical directory object and starts its named, digest-pinned image on the `lite` instance size.
-The adapter serializes startup, checks health before forwarding, and replaces an obsolete image before serving another request.
+The Worker selects one canonical directory object and starts its named, digest-pinned image on the `standard-1` instance size, with half a CPU and 4 GiB of memory.
+The adapter serializes startup, checks health before forwarding, and replaces an obsolete image or resource profile before serving another request.
+The startup profile is recorded in Container labels and checked even when the image digest is unchanged.
 Cloudflare stops an idle instance after ten minutes.
 The policy has no application-wide instance limit; the fixed object name supplies the service's single-instance bound.
 

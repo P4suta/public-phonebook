@@ -207,8 +207,8 @@ Revisit this boundary if those dependencies gain suitable source-level verifier 
 
 ## Cloudflare checks
 
-Six finite lifecycle cases import the production Container adapter with typed ports and a controlled delay boundary.
-They cover pinned startup, internet access turned off, health refusal, probe-body release, twenty concurrent requests, client cancellation, timeout restoration, image replacement, idle restart, allocation recovery, the 45-attempt readiness bound, and recovery after failure.
+Seven finite lifecycle cases import the production Container adapter with typed ports and a controlled delay boundary.
+They cover pinned startup, internet access turned off, health refusal, probe-body release, twenty concurrent requests, client cancellation, timeout restoration, image and resource-profile replacement, idle restart, allocation recovery, the 45-attempt readiness bound, and recovery after failure.
 The native Container API supplies inactivity timing and process isolation semantics; these fixtures do not prove Cloudflare's implementation.
 The local Worker and production checks exercise that integration with the real provider runtime.
 

@@ -27,8 +27,9 @@ Use one fixed Durable Object name and one initial container instance.
 This is an explicit capacity ceiling, not a throughput claim.
 Use the native Durable Object Container API with the supported Durable Object scheduling policy.
 Resolve the current Worker's class through its typed `ctx.exports` loopback namespace.
-Select a named digest-pinned image and the `lite` instance size at startup.
-Share startup readiness across concurrent requests, replace an obsolete image, and restore the native ten-minute inactivity timeout after object reconstruction.
+Select a named digest-pinned image and the `standard-1` instance size at startup.
+Keep the resource profile in Container labels so an unchanged image still restarts when its requested resources change.
+Share startup readiness across concurrent requests, replace an obsolete image or profile, and restore the native ten-minute inactivity timeout after object reconstruction.
 The fixed name enforces the service's instance bound because this policy has no application-wide maximum.
 
 Prepare service bundles only after the national audit verifies the database and archived source hashes.

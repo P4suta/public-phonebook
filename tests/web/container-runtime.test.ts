@@ -15,6 +15,7 @@ class FakeContainer implements DirectoryContainer {
   running = false;
   images: Record<string, string> = { directory: IMAGE };
   image: string | null = null;
+  labels: Record<string, string> = { profile: "standard-1" };
   starts: DirectoryStartOptions[] = [];
   timeouts: number[] = [];
   requests: Request[] = [];
@@ -34,10 +35,16 @@ class FakeContainer implements DirectoryContainer {
     }
     this.running = true;
     this.image = options.image;
+    this.labels = { ...options.labels };
   }
 
-  async inspect(): Promise<{ image: string } | null> {
-    return this.running ? { image: this.image ?? "" } : null;
+  async inspect(): Promise<{
+    image: string;
+    labels: Record<string, string>;
+  } | null> {
+    return this.running
+      ? { image: this.image ?? "", labels: this.labels }
+      : null;
   }
 
   async destroy(): Promise<void> {
@@ -103,7 +110,12 @@ test("cold startup pins the image, blocks internet, waits for health and release
   const response = await directory.fetch(request);
   assert.equal(await response.text(), "directory");
   assert.deepEqual(container.starts, [
-    { image: IMAGE, instance: "lite", enableInternet: false },
+    {
+      image: IMAGE,
+      instance: "standard-1",
+      enableInternet: false,
+      labels: { profile: "standard-1" },
+    },
   ]);
   assert.equal(container.probes, 4);
   assert.equal(container.canceled, 2);
@@ -204,4 +216,25 @@ test("a missing image refuses startup without inventing a registry reference", a
   );
   assert.equal(container.starts.length, 0);
   assert.equal(container.requests.length, 0);
+});
+
+test("a changed or missing resource profile replaces the running image before serving", async () => {
+  for (const labels of [{}, { profile: "lite" }, { profile: "standard-1" }]) {
+    const { directory, container } = fixture();
+    container.running = true;
+    container.image = IMAGE;
+    container.labels = labels;
+    await directory.fetch(new Request("https://directory.example/"));
+    const replace = labels.profile !== "standard-1";
+    assert.equal(container.destroyed, Number(replace));
+    assert.equal(container.starts.length, Number(replace));
+    if (replace)
+      assert.deepEqual(container.starts[0], {
+        image: IMAGE,
+        instance: "standard-1",
+        enableInternet: false,
+        labels: { profile: "standard-1" },
+      });
+    assert.equal(container.requests.length, 1);
+  }
 });

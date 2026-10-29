@@ -1,4 +1,5 @@
 const DIRECTORY_PORT = 8080;
+const INSTANCE_TYPE = "standard-1";
 const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1_000;
 const READINESS_ATTEMPTS = 45;
 const READINESS_DELAY_MS = 500;
@@ -8,12 +9,14 @@ const READINESS_URL = "http://container/healthz";
 
 export interface DirectoryStartOptions {
   readonly image: string;
-  readonly instance: "lite";
+  readonly instance: typeof INSTANCE_TYPE;
   readonly enableInternet: false;
+  readonly labels: { readonly profile: typeof INSTANCE_TYPE };
 }
 
 export interface DirectoryImage {
   readonly image: string;
+  readonly labels: Readonly<Record<string, string>>;
 }
 
 export interface DirectoryPort {
@@ -66,7 +69,11 @@ export class DirectoryRuntime {
     const image = this.#container.images.directory;
     if (!image) throw new Error("The directory image is missing");
     const current = await this.#container.inspect();
-    if (current && current.image !== image) await this.#container.destroy();
+    if (
+      current &&
+      (current.image !== image || current.labels.profile !== INSTANCE_TYPE)
+    )
+      await this.#container.destroy();
     const port = this.#container.getTcpPort(DIRECTORY_PORT);
     let lastFailure: unknown;
     for (let attempt = 0; attempt < READINESS_ATTEMPTS; attempt += 1) {
@@ -74,8 +81,9 @@ export class DirectoryRuntime {
         if (!this.#container.running)
           this.#container.start({
             image,
-            instance: "lite",
+            instance: INSTANCE_TYPE,
             enableInternet: false,
+            labels: { profile: INSTANCE_TYPE },
           });
         await this.#container.setInactivityTimeout(INACTIVITY_TIMEOUT_MS);
         const response = await port.fetch(
