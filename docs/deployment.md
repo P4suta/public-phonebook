@@ -65,6 +65,10 @@ Manual dispatch verifies the initial default-branch publication without a duplic
 The required `Checks` job depends on successful verification, including workflow lint, strict types, behavior tests, dependency and secret scans, and the monochrome browser gate.
 Formal proofs, parser corpus replay, complete browser suites, and national data checks remain part of candidate verification.
 
+No workflow publishes GitHub releases.
+Future releases must remain drafts until every final asset and its verification evidence is attached.
+Publish each release once and never replace published assets or move its tag.
+
 ## Data and recovery
 
 `snapshot.json` identifies the exact database, contact count, source count, and generation time.

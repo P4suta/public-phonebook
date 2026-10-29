@@ -18,9 +18,6 @@ curl --fail-with-body --get --data-urlencode 'q=横浜市役所' https://dial.pa
 
 ## License
 
-Licensed under either license:
-
-- [Apache License, Version 2.0](LICENSE-APACHE)
-- [Massachusetts Institute of Technology (MIT) license](LICENSE-MIT)
+Licensed under the [Apache License, Version 2.0](LICENSE-APACHE) or the [Massachusetts Institute of Technology (MIT) license](LICENSE-MIT), at your option.
 
 Contributions use both licenses unless you state other terms.
