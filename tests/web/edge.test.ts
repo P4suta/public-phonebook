@@ -323,3 +323,29 @@ test("export bodies remain streaming and cancellation reaches the origin", async
   await response.body?.cancel();
   assert.equal(cancelled, true);
 });
+
+test("HTML pages forbid intermediary transformations without changing API caching", async () => {
+  for (const contentType of [
+    "text/html",
+    "Text/HTML; charset=utf-8",
+    "application/json",
+  ]) {
+    const response = await handleRequest(
+      new Request("https://directory.example/"),
+      {
+        assets: unused,
+        async origin() {
+          return new Response("content", {
+            headers: { "content-type": contentType },
+          });
+        },
+      },
+    );
+    assert.equal(
+      response.headers.get("cache-control"),
+      contentType === "application/json"
+        ? "no-store"
+        : "no-store, no-transform",
+    );
+  }
+});

@@ -10,6 +10,8 @@ The Worker reaches its own class through the typed `ctx.exports.Phonebook` loopb
 The Worker selects one canonical directory object and starts its named, digest-pinned image on the `standard-1` instance size, with half a CPU and 4 GiB of memory.
 The adapter serializes startup, checks health before forwarding, and replaces an obsolete image or resource profile before serving another request.
 The startup profile is recorded in Container labels and checked even when the image digest is unchanged.
+Readiness permits 180 probes with a half-second delay between attempts and a one-second limit per probe.
+Cold startup includes verification of the complete national database and can take more than a minute.
 Cloudflare stops an idle instance after ten minutes.
 The policy has no application-wide instance limit; the fixed object name supplies the service's single-instance bound.
 
@@ -92,6 +94,9 @@ Import failures and audit failures must leave the active snapshot intact.
 A deployment must include its image identity, snapshot manifest, source-bound proof receipt, dependency checks, and browser evidence.
 
 ## Public boundary
+
+HTML responses use `Cache-Control: no-store, no-transform` to prohibit intermediary changes, including Cloudflare's automatic Web Analytics script injection.
+The production browser checks reject injected analytics scripts and requests to external origins.
 
 The service accepts GET and HEAD.
 It has no accounts, private contact uploads, write API, cookies, analytics scripts, or third-party font requests.

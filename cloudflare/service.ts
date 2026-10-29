@@ -205,6 +205,13 @@ export async function handleRequest(
     response = apiFailure(status, id);
   }
   const headers = new Headers(response.headers);
+  const mediaType = headers
+    .get("content-type")
+    ?.split(";")[0]
+    ?.trim()
+    .toLowerCase();
+  const privateCache =
+    mediaType === "text/html" ? "no-store, no-transform" : "no-store";
   for (const [name, value] of Object.entries(protections))
     headers.set(name, value);
   headers.set(
@@ -212,7 +219,7 @@ export async function handleRequest(
     (asset || url.pathname === "/api/openapi.json") &&
       (response.ok || response.status === HTTP.notModified)
       ? "public, max-age=0, must-revalidate"
-      : "no-store",
+      : privateCache,
   );
   if (publicApi) {
     headers.set("access-control-allow-origin", "*");

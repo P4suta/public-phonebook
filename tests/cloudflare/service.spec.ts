@@ -90,7 +90,10 @@ test("privacy and browser protections survive Worker, origin and routing errors"
     expect(response.headers()["content-security-policy"]).toContain(
       "frame-ancestors 'none'",
     );
-    expect(response.headers()["cache-control"]).toBe("no-store");
+    expect(response.headers()["cache-control"]).toBe("no-store, no-transform");
+    expect(await response.text()).not.toContain(
+      "static.cloudflareinsights.com",
+    );
     expect(response.headers()["x-request-id"]).not.toBe("untrusted");
     expect(response.headers()["x-public-phonebook-snapshot"]).toMatch(
       /^[0-9a-f]{64}$/,

@@ -8,7 +8,7 @@ import {
 
 const IMAGE = "registry.example/directory@sha256:" + "a".repeat(64);
 const IDLE_MS = 600_000;
-const MAX_ATTEMPTS = 45;
+const MAX_ATTEMPTS = 180;
 const CONCURRENT_REQUESTS = 20;
 
 class FakeContainer implements DirectoryContainer {
@@ -237,4 +237,14 @@ test("a changed or missing resource profile replaces the running image before se
       });
     assert.equal(container.requests.length, 1);
   }
+});
+
+test("a slow cold start stays pending until the national snapshot is ready", async () => {
+  const { directory, container, pauses } = fixture();
+  container.failures = 90;
+  await directory.fetch(new Request("https://directory.example/"));
+  assert.equal(container.probes, 91);
+  assert.equal(pauses.length, 90);
+  assert.equal(container.starts.length, 1);
+  assert.equal(container.requests.length, 1);
 });
