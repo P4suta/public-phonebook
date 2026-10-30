@@ -1,12 +1,12 @@
 import { globalStyle, style } from "@vanilla-extract/css";
-import { foundation, rem } from "./foundations.ts";
+import { foundation, px, rem } from "./foundations.ts";
 import { tokens } from "./theme.css.ts";
 
-const referenceSpacing = { tabPadding: 12, gap: 8 } as const;
+const rule = `${tokens.control.border} solid #000`;
 
 export const page = style({
   width: "100%",
-  maxWidth: "1600px",
+  maxWidth: px(foundation.layout.referenceWidth),
   marginInline: "auto",
   padding: tokens.space["24"],
   display: "flex",
@@ -99,7 +99,7 @@ globalStyle(`${scope} ::selection`, {
 });
 globalStyle(`${scope} .cm-selectionBackground`, {
   backgroundColor: "transparent !important",
-  outline: "1px solid #000",
+  outline: rule,
 });
 globalStyle("[data-api-reference] h1", {
   fontSize: rem(foundation.font.page.size),
@@ -146,14 +146,14 @@ globalStyle(`${scope} [role="dialog"] :has(> input[type="checkbox"])`, {
 globalStyle(`${scope} [class~="group/copy-button"]`, {
   opacity: "1 !important",
 });
-globalStyle(`${scope} [class~="shadow-border"]`, { border: "1px solid #000" });
+globalStyle(`${scope} [class~="shadow-border"]`, { border: rule });
 globalStyle(`${scope} .scalar-container.scalar-client--open`, {
   backgroundColor: "#fff",
 });
 globalStyle(`${scope} .app-exit-button`, {
   color: "#fff",
   backgroundColor: "#000 !important",
-  border: "1px solid #000",
+  border: rule,
 });
 globalStyle(`${scope} .address-bar-bg-states`, {
   minHeight: rem(foundation.control.height),
@@ -162,7 +162,7 @@ globalStyle(`${scope} .address-bar-bg-states > div > [style]`, {
   backgroundColor: "#000 !important",
   top: "auto",
   bottom: 0,
-  height: "2px",
+  height: `calc(2 * ${tokens.control.border})`,
 });
 globalStyle(`${scope} [class~="group/cell"] [class~="border-[1px]"]`, {
   opacity: 1,
@@ -175,7 +175,7 @@ globalStyle(`${scope} .cm-editor *`, {
 globalStyle(`${scope} .cm-tooltip`, {
   backgroundColor: "#fff !important",
   color: "#000",
-  border: "1px solid #000",
+  border: rule,
 });
 globalStyle(`${scope} button svg`, {
   width: rem(foundation.control.icon),
@@ -192,8 +192,8 @@ globalStyle(`${scope} [role="tab"]`, {
   width: "auto",
   height: "auto",
   whiteSpace: "normal",
-  paddingInline: rem(referenceSpacing.tabPadding),
-  gap: rem(referenceSpacing.gap),
+  paddingInline: rem(foundation.space["12"]),
+  gap: rem(foundation.space["8"]),
 });
 globalStyle(`${scope} [role="tab"]::before, ${scope} [role="tab"]::after`, {
   content: "none",
@@ -202,8 +202,8 @@ globalStyle(`${scope} :is(.sr-only,.screenreader-only)`, {
   top: "0 !important",
   left: "0 !important",
   margin: "0 !important",
-  width: "1px !important",
-  height: "1px !important",
+  width: `${tokens.control.border} !important`,
+  height: `${tokens.control.border} !important`,
 });
 globalStyle(`${scope} [class~="group/copy-label"]`, {
   position: "static",
@@ -233,8 +233,8 @@ globalStyle(`${scope} .endpoint-path`, {
   textOverflow: "clip",
 });
 globalStyle(`${scope} :is(button,input,select,textarea):focus-visible`, {
-  outline: "3px solid #000",
-  outlineOffset: "3px",
+  outline: `${tokens.control.focus} solid #000`,
+  outlineOffset: tokens.control.focusOffset,
 });
 globalStyle(`${scope} [aria-current="true"], ${scope} [aria-selected="true"]`, {
   fontWeight: foundation.font.rowHeading.weight,

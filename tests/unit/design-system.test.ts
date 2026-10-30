@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import * as v from "valibot";
 import { expect, it } from "vitest";
-import { foundation } from "../../src/ui/foundations.ts";
+import { foundation, scale } from "../../src/ui/foundations.ts";
 
 it("keeps the implemented hierarchy aligned with the retained Figma specification", async () => {
   const raw: unknown = JSON.parse(
@@ -34,7 +34,9 @@ it("keeps the implemented hierarchy aligned with the retained Figma specificatio
     expect(spec.roles[role], role).toEqual(type);
     expect(type.size, role).toBeGreaterThanOrEqual(14);
     expect(type.size, role).toBeLessThanOrEqual(32);
-    expect(type.lineHeight / type.size, role).toBeGreaterThanOrEqual(1.25);
+    expect(type.lineHeight / type.size, role).toBeGreaterThanOrEqual(
+      scale.lineRatio,
+    );
   }
   expect(
     foundation.font.phone.size / foundation.font.facility.size,

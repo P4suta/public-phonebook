@@ -7,7 +7,7 @@
       "id": "S:93ccc4f4fe36d1a6c6063b1765099c0fdecd2d8c,",
       "name": "Phonebook/Brand",
       "size": 28,
-      "lineHeight": 36,
+      "lineHeight": 44,
       "weight": 700,
       "style": "Phonebook/Brand"
     },
@@ -15,7 +15,7 @@
       "id": "S:bac1f9b57d45b2b678222ffc4fb25a6bbe3f95ae,",
       "name": "Phonebook/Heading",
       "size": 24,
-      "lineHeight": 32,
+      "lineHeight": 36,
       "weight": 700,
       "style": "Phonebook/Heading"
     },
@@ -47,7 +47,7 @@
       "id": "S:cc696a00f578cae3abe9f92e53b4f545daf97997,",
       "name": "Phonebook/Small",
       "size": 14,
-      "lineHeight": 20,
+      "lineHeight": 24,
       "weight": 400,
       "style": "Phonebook/Small"
     },
@@ -55,7 +55,7 @@
       "id": "S:88da4cf91e1eedbc66abe3a232ef82414ed8689e,",
       "name": "Phonebook/Action",
       "size": 14,
-      "lineHeight": 20,
+      "lineHeight": 24,
       "weight": 700,
       "style": "Phonebook/Action"
     },
@@ -63,7 +63,7 @@
       "id": "S:c7986f620f3eef70288f118473efa78a80940934,",
       "name": "Phonebook/Phone",
       "size": 24,
-      "lineHeight": 32,
+      "lineHeight": 36,
       "weight": 700,
       "style": "Phonebook/Phone"
     },
@@ -79,7 +79,7 @@
       "id": "S:59eaf11c5353641d138eb4ca8336a5833aa3e619,",
       "name": "Phonebook/Brand compact",
       "size": 24,
-      "lineHeight": 32,
+      "lineHeight": 36,
       "weight": 700,
       "style": "Phonebook/Brand compact"
     },
@@ -87,7 +87,7 @@
       "id": "S:ee6f8c9d2f4905291f7176abed61884901001bad,",
       "name": "Phonebook/Section",
       "size": 20,
-      "lineHeight": 28,
+      "lineHeight": 32,
       "weight": 700,
       "style": "Phonebook/Section"
     },
@@ -317,13 +317,6 @@
       "syntax": "var(--dial-primitive-size-36)"
     },
     {
-      "id": "VariableID:240:1715",
-      "name": "primitive/size/40",
-      "value": 40,
-      "scopes": [],
-      "syntax": "var(--dial-primitive-size-40)"
-    },
-    {
       "id": "VariableID:240:1716",
       "name": "primitive/size/44",
       "value": 44,
@@ -363,7 +356,7 @@
       "name": "control/height",
       "value": {
         "type": "VARIABLE_ALIAS",
-        "id": "VariableID:240:1716"
+        "id": "VariableID:240:1717"
       },
       "scopes": ["WIDTH_HEIGHT"],
       "syntax": "var(--dial-control-height)"
@@ -463,7 +456,7 @@
       "name": "font/brand/line-height",
       "value": {
         "type": "VARIABLE_ALIAS",
-        "id": "VariableID:240:1714"
+        "id": "VariableID:240:1716"
       },
       "scopes": ["LINE_HEIGHT"],
       "syntax": "var(--dial-font-brand-line-height)"
@@ -483,7 +476,7 @@
       "name": "font/page/line-height",
       "value": {
         "type": "VARIABLE_ALIAS",
-        "id": "VariableID:240:1713"
+        "id": "VariableID:240:1714"
       },
       "scopes": ["LINE_HEIGHT"],
       "syntax": "var(--dial-font-page-line-height)"
@@ -563,7 +556,7 @@
       "name": "font/meta/line-height",
       "value": {
         "type": "VARIABLE_ALIAS",
-        "id": "VariableID:240:1710"
+        "id": "VariableID:240:1711"
       },
       "scopes": ["LINE_HEIGHT"],
       "syntax": "var(--dial-font-meta-line-height)"
@@ -583,7 +576,7 @@
       "name": "font/action/line-height",
       "value": {
         "type": "VARIABLE_ALIAS",
-        "id": "VariableID:240:1710"
+        "id": "VariableID:240:1711"
       },
       "scopes": ["LINE_HEIGHT"],
       "syntax": "var(--dial-font-action-line-height)"
@@ -603,7 +596,7 @@
       "name": "font/phone/line-height",
       "value": {
         "type": "VARIABLE_ALIAS",
-        "id": "VariableID:240:1713"
+        "id": "VariableID:240:1714"
       },
       "scopes": ["LINE_HEIGHT"],
       "syntax": "var(--dial-font-phone-line-height)"
@@ -643,7 +636,7 @@
       "name": "font/brand-compact/line-height",
       "value": {
         "type": "VARIABLE_ALIAS",
-        "id": "VariableID:240:1713"
+        "id": "VariableID:240:1714"
       },
       "scopes": ["LINE_HEIGHT"],
       "syntax": "var(--dial-font-brand-compact-line-height)"
@@ -663,7 +656,7 @@
       "name": "font/section/line-height",
       "value": {
         "type": "VARIABLE_ALIAS",
-        "id": "VariableID:240:1712"
+        "id": "VariableID:240:1713"
       },
       "scopes": ["LINE_HEIGHT"],
       "syntax": "var(--dial-font-section-line-height)"

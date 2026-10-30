@@ -1,10 +1,10 @@
 import { globalFontFace, globalStyle, style } from "@vanilla-extract/css";
 
-import { foundation, rem } from "./foundations.ts";
+import { foundation, px, scale, viewport } from "./foundations.ts";
 import { tokens, typography } from "./theme.css.ts";
 
-const bodyLineHeight = 1.5;
 const skipLinkLayer = 10;
+const rule = `${tokens.control.border} solid ${tokens.color.ink}`;
 
 globalFontFace("Noto Sans JP", {
   src: 'url("/fonts/noto-sans-jp.woff2") format("woff2")',
@@ -18,7 +18,7 @@ globalStyle("html", {
   background: tokens.color.paper,
   fontFamily: '"Noto Sans JP", sans-serif',
   fontSize: "100%",
-  lineHeight: bodyLineHeight,
+  lineHeight: scale.lineRatio,
   colorScheme: "light",
 });
 globalStyle("body", { margin: 0 });
@@ -42,26 +42,25 @@ globalStyle("::selection", {
 });
 globalStyle(".skip-link", {
   position: "absolute",
-  left: "24px",
-  top: "-100px",
+  left: tokens.layout.gutter,
+  bottom: "100%",
   background: tokens.color.paper,
-  border: `1px solid ${tokens.color.ink}`,
-  padding: "12px",
+  border: rule,
+  padding: tokens.space["12"],
   zIndex: skipLinkLayer,
 });
-globalStyle(".skip-link:focus", { top: "16px" });
+globalStyle(".skip-link:focus", { top: tokens.space["16"], bottom: "auto" });
 
 export const page = style({
   width: `min(${tokens.layout.width}, calc(100% - 2 * ${tokens.layout.gutter}))`,
   marginInline: "auto",
   minHeight: "100svh",
-  paddingBlock: "24px 48px",
+  paddingBlock: `${tokens.space["24"]} ${tokens.space["48"]}`,
 });
 export const home = style({
-  paddingTop: `max(24px, calc(50svh - ${rem(88)}))`,
-  "@media": {
-    "(max-width: 600px)": { paddingTop: `max(24px, calc(50svh - ${rem(84)}))` },
-  },
+  display: "flex",
+  flexDirection: "column",
+  paddingBlock: tokens.layout.gutter,
 });
 export const stack = style({
   display: "flex",
@@ -69,10 +68,12 @@ export const stack = style({
   gap: tokens.space["24"],
   minWidth: 0,
 });
+globalStyle(`${home} > ${stack}`, { marginBlock: "auto" });
 export const brand = style({
   ...typography("brand"),
   textAlign: "center",
-  "@media": { "(max-width: 600px)": { ...typography("brandCompact") } },
+  marginBlockEnd: `calc(${tokens.space["48"]} - ${tokens.space["24"]})`,
+  "@media": { [viewport.compact]: { ...typography("brandCompact") } },
 });
 export const heading = style({
   ...typography("page"),
@@ -97,7 +98,7 @@ export const button = style({
   gap: tokens.space["8"],
   minHeight: tokens.control.height,
   padding: `${tokens.space["8"]} ${tokens.space["12"]}`,
-  border: `${tokens.control.border} solid ${tokens.color.ink}`,
+  border: rule,
   color: tokens.color.ink,
   background: tokens.color.paper,
   ...typography("action"),
@@ -127,7 +128,7 @@ export const searchGroup = style({
   flexDirection: "column",
   gap: tokens.space["8"],
 });
-export const searchLabel = style({ ...typography("rowHeading") });
+export const fieldLabel = style({ ...typography("rowHeading") });
 export const searchHint = style({
   ...typography("body"),
   whiteSpace: "pre-line",
@@ -136,7 +137,7 @@ export const searchField = style({
   display: "flex",
   width: "100%",
   "@media": {
-    "(max-width: 600px)": { flexDirection: "column", gap: tokens.space["8"] },
+    [viewport.compact]: { flexDirection: "column", gap: tokens.space["8"] },
   },
 });
 export const input = style({
@@ -145,11 +146,11 @@ export const input = style({
   flex: "1 1 0",
   height: tokens.control.searchHeight,
   paddingInline: tokens.space["16"],
-  border: `${tokens.control.border} solid ${tokens.color.ink}`,
+  border: rule,
   borderRadius: 0,
   background: tokens.color.paper,
   ...typography("label"),
-  "@media": { "(max-width: 600px)": { flex: "none" } },
+  "@media": { [viewport.compact]: { flex: "none" } },
   selectors: {
     "&:focus-visible": {
       outline: `${tokens.control.focus} solid ${tokens.color.ink}`,
@@ -164,13 +165,13 @@ export const searchButton = style([
     flexShrink: 0,
     height: tokens.control.searchHeight,
     paddingInline: tokens.space["16"],
-    "@media": { "(max-width: 600px)": { width: "100%" } },
+    "@media": { [viewport.compact]: { width: "100%" } },
   },
 ]);
 export const filters = style({
   display: "grid",
   gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: "12px",
+  gap: tokens.space["12"],
   alignItems: "flex-start",
   selectors: {
     '&[data-has-city="true"]': {
@@ -178,7 +179,7 @@ export const filters = style({
     },
   },
   "@media": {
-    "(max-width: 600px)": {
+    [viewport.compact]: {
       gridTemplateColumns: "minmax(0, 1fr)",
       selectors: {
         '&[data-has-city="true"]': {
@@ -192,11 +193,9 @@ export const filter = style({
   display: "flex",
   flexDirection: "column",
   gap: tokens.space["8"],
-  flex: "1 1 180px",
   minWidth: 0,
-  ...typography("meta"),
   "@media": {
-    "(max-width: 600px)": {
+    [viewport.compact]: {
       selectors: {
         [`${filters}[data-has-city="true"] &:last-child`]: {
           gridColumn: "1 / -1",
@@ -212,8 +211,8 @@ export const selection = style({
 });
 export const select = style({
   appearance: "none",
-  border: `1px solid ${tokens.color.ink}`,
-  padding: "8px 40px 8px 12px",
+  border: rule,
+  padding: `${tokens.space["8"]} calc(${tokens.space["12"]} + ${tokens.control.selectIcon} + ${tokens.space["8"]}) ${tokens.space["8"]} ${tokens.space["12"]}`,
   width: "100%",
   minHeight: tokens.control.height,
   ...typography("label"),
@@ -222,10 +221,10 @@ export const select = style({
 });
 export const chevron = style({
   position: "absolute",
-  right: "12px",
+  right: tokens.space["12"],
   pointerEvents: "none",
-  width: "20px",
-  height: "20px",
+  width: tokens.control.selectIcon,
+  height: tokens.control.selectIcon,
 });
 export const toolbar = style([actions, { justifyContent: "space-between" }]);
 export const results = style({
@@ -274,12 +273,12 @@ export const card = style({
   gap: tokens.space["16"],
   minWidth: 0,
   paddingBlock: tokens.space["16"],
-  borderBottom: `1px solid ${tokens.color.ink}`,
+  borderBottom: rule,
   "@media": {
-    [`(min-width: ${foundation.layout.columnsAt}px)`]: {
+    [viewport.columns]: {
       selectors: {
         '&[data-layout="result"]': {
-          gridTemplateColumns: "minmax(0, 1fr) minmax(0, 360px)",
+          gridTemplateColumns: `minmax(0, 1fr) minmax(0, ${px(foundation.layout.phoneColumn)})`,
           columnGap: tokens.space["32"],
         },
       },
@@ -302,7 +301,7 @@ export const contactNumbers = style({
   gap: tokens.space["16"],
   minWidth: 0,
   "@media": {
-    [`(min-width: ${foundation.layout.columnsAt}px)`]: {
+    [viewport.columns]: {
       selectors: {
         [`${card}[data-layout="result"] &`]: {
           gridColumn: "2",
@@ -323,7 +322,7 @@ export const contactLocation = style({
   gap: tokens.space["8"],
   minWidth: 0,
   "@media": {
-    [`(min-width: ${foundation.layout.columnsAt}px)`]: {
+    [viewport.columns]: {
       selectors: {
         [`${card}[data-layout="result"] &`]: {
           gridColumn: "1",
@@ -344,7 +343,7 @@ export const phoneGroup = style([
   group,
   {
     "@media": {
-      [`(min-width: ${foundation.layout.columnsAt}px)`]: {
+      [viewport.columns]: {
         selectors: {
           [`${card}[data-layout="result"] &`]: {
             flex: 1,
@@ -409,8 +408,8 @@ export const telephone = style({
       justifyContent: "space-between",
     },
     "&:hover:not(:focus-visible)": {
-      outline: `1px solid ${tokens.color.ink}`,
-      outlineOffset: "-1px",
+      outline: rule,
+      outlineOffset: `calc(-1 * ${tokens.control.border})`,
     },
   },
 });
@@ -435,11 +434,11 @@ globalStyle(`${numberCopyHint} > svg`, {
   height: tokens.control.icon,
   flexShrink: 0,
 });
-export const section = style([stack, { paddingTop: "24px" }]);
+export const section = style([stack, { paddingTop: tokens.space["24"] }]);
 export const srOnly = style({
   position: "absolute",
-  width: "1px",
-  height: "1px",
+  width: tokens.control.border,
+  height: tokens.control.border,
   padding: 0,
   overflow: "hidden",
   clipPath: "inset(50%)",
@@ -451,8 +450,8 @@ export const status = style({
   overflowWrap: "anywhere",
 });
 export const code = style({
-  border: `1px solid ${tokens.color.ink}`,
-  padding: "16px",
+  border: rule,
+  padding: tokens.space["16"],
   fontFamily: "monospace",
   fontSize: tokens.font.meta.size,
   lineHeight: tokens.font.body.lineHeight,
@@ -464,11 +463,11 @@ export const code = style({
 export const definition = style({
   display: "grid",
   gridTemplateColumns: "minmax(0, 1fr)",
-  gap: "8px",
+  gap: tokens.space["8"],
   margin: 0,
 });
 globalStyle(`${definition} dd`, {
-  margin: "0 0 16px",
+  margin: `0 0 ${tokens.space["16"]}`,
   overflowWrap: "anywhere",
 });
 globalStyle(`${definition} dt`, {
@@ -479,7 +478,7 @@ export const dataRow = style([
   {
     gap: tokens.space["8"],
     paddingBlock: tokens.space["16"],
-    borderBottom: `1px solid ${tokens.color.ink}`,
+    borderBottom: rule,
   },
 ]);
 globalStyle(`${dataRow} h3`, { ...typography("rowHeading") });
