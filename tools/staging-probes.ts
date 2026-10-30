@@ -6,6 +6,7 @@ import { DatasetManifestSchema } from "../src/core/models.ts";
 import { checkedFetch } from "./public-request.ts";
 
 const deniedStatuses = [302, 303, 401, 403];
+const workerHeaders = ["content-security-policy", "x-request-id"];
 const requestTimeoutMs = 15000;
 const requestMethods = ["GET", "HEAD", "OPTIONS"];
 const protectedPaths = [
@@ -18,6 +19,19 @@ const protectedPaths = [
   "/api/openapi.json",
   "/api/datasets",
 ];
+export function deniesAnonymousRequest(
+  method: string,
+  response: Pick<Response, "status" | "headers">,
+): boolean {
+  if (deniedStatuses.includes(response.status)) return true;
+  // Access rejects an OPTIONS request without preflight headers before the Worker runs.
+  return (
+    method === "OPTIONS" &&
+    response.status === httpStatus.badRequest &&
+    workerHeaders.every((header) => !response.headers.has(header))
+  );
+}
+
 export async function probeStaging(): Promise<void> {
   const paths = [...protectedPaths];
   const access = {
@@ -49,8 +63,10 @@ export async function probeStaging(): Promise<void> {
         redirect: "manual",
         signal: AbortSignal.timeout(requestTimeoutMs),
       });
-      if (!deniedStatuses.includes(response.status))
-        throw new Error(`Anonymous staging ${method} was not denied`);
+      if (!deniesAnonymousRequest(method, response))
+        throw new Error(
+          `Anonymous staging ${method} ${path} returned ${response.status}`,
+        );
       const location = response.headers.get("location");
       if (
         location &&
