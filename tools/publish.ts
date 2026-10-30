@@ -5,7 +5,6 @@ import * as v from "valibot";
 import { environments } from "../src/core/environment.ts";
 import { DatasetManifestSchema } from "../src/core/models.ts";
 import { canPromote } from "../src/core/publication-policy.ts";
-import { cloudflare } from "./cloudflare.ts";
 import { command, requireCommand } from "./process.ts";
 import { fileDigest } from "./snapshot.ts";
 
@@ -104,13 +103,22 @@ async function main(args: readonly string[]): Promise<void> {
     join(directory, `${environment}-candidate.json`),
     `${JSON.stringify({ environment, candidate, sourceCommit, snapshot: prepared.snapshot, artifactSha256 }, null, jsonIndentation)}\n`,
   );
-  await cloudflare([
+  const cf = resolve("node_modules/.bin/cf");
+  await requireCommand(cf, [
     "deploy",
     "--prebuilt",
     "--mode",
     environment,
     "--tag",
     sourceCommit,
+  ]);
+  await requireCommand(cf, [
+    "workers",
+    "triggers",
+    "deploy",
+    "--prebuilt",
+    "--mode",
+    environment,
   ]);
   process.env.DIAL_PUBLIC_ORIGIN = environments[environment].origin;
   process.env.DIAL_PUBLIC_BUNDLE = bundle;

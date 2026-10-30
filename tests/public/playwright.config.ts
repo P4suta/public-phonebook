@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 import { environments } from "../../src/core/environment.ts";
 
@@ -20,9 +21,12 @@ export default defineConfig({
   timeout: 60000,
   reporter: [
     ["list"],
-    ["json", { outputFile: `test-results/public-${environment}.json` }],
+    [
+      "json",
+      { outputFile: resolve(`test-results/public-${environment}.json`) },
+    ],
   ],
-  outputDir: `test-results/public-${environment}`,
+  outputDir: resolve(`test-results/public-${environment}`),
   use: {
     baseURL: origin,
     trace: "retain-on-failure",
