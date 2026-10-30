@@ -15,10 +15,10 @@ function DataPage(): ReactElement {
   return (
     <main id="main" className={css.page}>
       <div className={css.stack}>
-        <BackButton />
+        <BackButton href="/about">サイトの説明にもどる</BackButton>
         <h1 className={css.heading}>データについて</h1>
         <p className={css.body}>施設や窓口が公開した電話番号をさがせます。</p>
-        <h2 className={css.subheading}>入っているデータ</h2>
+        <h2 className={css.subheading}>さがせる施設や窓口</h2>
         <p className={css.body}>
           {catalog.prefectures.length}都道府県、
           {catalog.contacts.toLocaleString("ja-JP")}件の施設や窓口があります。
@@ -30,12 +30,20 @@ function DataPage(): ReactElement {
                 <CategoryIcon category={category.id} />
                 {category.label}
               </h3>
-              <p>{category.publisher}</p>
-              <div className={css.actions}>
-                <OfficialLink href={category.licenseUrl}>
-                  利用条件を見る（{category.license}）
-                </OfficialLink>
-              </div>
+              {category.license === "Source-specific reuse terms" ? (
+                <p>
+                  公開した機関や使うときの決まりは、施設ごとの画面にあります。
+                </p>
+              ) : (
+                <>
+                  <p>{category.publisher}</p>
+                  <div className={css.actions}>
+                    <OfficialLink href={category.licenseUrl}>
+                      データを使うときの決まりを見る（{category.license}）
+                    </OfficialLink>
+                  </div>
+                </>
+              )}
             </section>
           ))}
         </div>

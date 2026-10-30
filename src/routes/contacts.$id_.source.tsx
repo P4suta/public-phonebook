@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { getCatalog, getSource } from "../ui/client.ts";
 import { BackButton, LinkButton, OfficialLink } from "../ui/components.tsx";
+import { uiCopy } from "../ui/copy.ts";
 import { getRouteContact } from "../ui/route-data.ts";
 import * as css from "../ui/styles.css.ts";
 import { formatDate } from "./contacts.$id.tsx";
@@ -26,9 +27,13 @@ export const Route = createFileRoute("/contacts/$id_/source")({
 function SourcePage(): ReactElement {
   const { contact, catalog, source } = Route.useLoaderData();
   const { from } = Route.useSearch();
-  const publisher = catalog.categories.find(
-    (category) => category.id === contact.category,
-  )?.publisher;
+  const publisher =
+    source.publisher ??
+    catalog.categories.find((category) => category.id === contact.category)
+      ?.publisher;
+  const publicationUrls = contact.sourceUrls.filter(
+    (url) => url !== source.url,
+  );
   return (
     <main id="main" className={css.page}>
       <div className={css.stack}>
@@ -37,24 +42,26 @@ function SourcePage(): ReactElement {
         >
           施設の情報にもどる
         </BackButton>
-        <h1 className={css.heading}>この電話番号の出典</h1>
+        <h1 className={css.heading}>{uiCopy.sourceTitle}</h1>
         <h2 className={css.subheading}>{contact.name}</h2>
         {contact.phones.map((phone) => (
           <p className={css.heading} key={phone.e164}>
             {phone.display}
           </p>
         ))}
-        <p className={css.body}>{publisher}が公開したデータです。</p>
+        {publisher && (
+          <p className={css.body}>{publisher}が公開したデータです。</p>
+        )}
         <div className={css.actions}>
-          {contact.sourceUrls.map((url, index) => (
+          {publicationUrls.map((url, index) => (
             <OfficialLink href={url} key={url}>
-              {contact.sourceUrls.length === 1
+              {publicationUrls.length === 1
                 ? "データを公開したページを見る"
                 : `データを公開したページを見る（${index + 1}）`}
             </OfficialLink>
           ))}
         </div>
-        {contact.dataAsOf && (
+        {/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/u.test(contact.dataAsOf) && (
           <p>データの日付：{formatDate(contact.dataAsOf)}</p>
         )}
         <p>データを集めた日：{formatDate(contact.retrievedAt)}</p>
@@ -65,10 +72,12 @@ function SourcePage(): ReactElement {
             : contact.license}
         </p>
         <div className={css.actions}>
-          <OfficialLink href={contact.licenseUrl}>利用条件を見る</OfficialLink>
-          <OfficialLink href={source.url}>もとのファイルを開く</OfficialLink>
+          <OfficialLink href={contact.licenseUrl}>
+            データを使うときの決まりを見る
+          </OfficialLink>
+          <OfficialLink href={source.url}>もとの資料を開く</OfficialLink>
           <LinkButton href={`/api/sources/${encodeURIComponent(source.id)}`}>
-            データの識別情報を見る
+            開発者向けの記録を見る
           </LinkButton>
         </div>
       </div>

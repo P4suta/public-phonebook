@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { Miniflare } from "miniflare";
 import * as v from "valibot";
 import { expect, it } from "vitest";
+import { databaseResourceName } from "../../src/core/environment.ts";
 import {
   canPromote,
   importDecision,
@@ -9,6 +10,24 @@ import {
 import type { SqlPort } from "../../tools/remote-statements.ts";
 import { insertStatements } from "../../tools/remote-statements.ts";
 import { checkImportIdentity, copyStage } from "../../tools/seed-database.ts";
+
+it("isolates remote database publications and rejects unbound deployment identities", () => {
+  const identity = "a".repeat(64);
+  expect(databaseResourceName("development")).toBe(
+    "dial-development-directory",
+  );
+  expect(databaseResourceName("staging", identity)).toBe(
+    `dial-staging-directory-${"a".repeat(32)}`,
+  );
+  expect(databaseResourceName("production", identity)).toBe(
+    `dial-production-directory-${"a".repeat(32)}`,
+  );
+  expect(databaseResourceName("production", identity)).not.toBe(
+    databaseResourceName("production", "b".repeat(64)),
+  );
+  expect(() => databaseResourceName("production")).toThrow();
+  expect(() => databaseResourceName("staging", "../../unbound")).toThrow();
+});
 
 it("starts only an empty import and resumes only the same publication", () => {
   expect(importDecision("", "publication")).toBe("start");

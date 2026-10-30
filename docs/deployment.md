@@ -38,7 +38,7 @@ The database is copied only after Miniflare closes its handles.
 R2 receives content-addressed archive keys before the replacement database becomes active.
 The original source remains read-only.
 A failed preparation never produces a ready manifest.
-The old collector's network update commands are retired; this implementation consumes a complete, separately collected publication.
+The native TypeScript collector and overlay preparation are described in [data sources](data-sources.md).
 
 For a built local preview, run `mise x -- just build` followed by `mise x -- npm run preview`.
 Both development and preview run the native Cloudflare Workers runtime with local D1 and R2 bindings.
@@ -49,8 +49,8 @@ No Container is needed.
 | Environment | Worker | Database | Bucket | Site |
 | --- | --- | --- | --- | --- |
 | development | dial-development | dial-development-directory | dial-development-datasets | 127.0.0.1:8787 |
-| staging | dial-staging | dial-staging-directory | dial-staging-datasets | staging.dial.page |
-| production | dial-production | dial-production-directory | dial-production-datasets | www.dial.page |
+| staging | dial-staging | dial-staging-directory-DIGEST | dial-staging-datasets | staging.dial.page |
+| production | dial-production | dial-production-directory-DIGEST | dial-production-datasets | www.dial.page |
 
 `src/core/environment.ts` is the source of these identities.
 The apex has no application domain assignment.
@@ -80,7 +80,9 @@ It imports bound SQL batches through the pinned cf CLI, within D1's parameter an
 An import identity and checkpoint commit in the same native D1 transaction as each batch.
 A lost acknowledgement can resume from the stored checkpoint without duplicate inserts.
 An unowned database or a different publication is refused rather than overwritten.
-A different snapshot requires separately prepared database identities.
+A database identity includes the first 32 hexadecimal characters of its complete database SHA-256.
+The full digest remains the import identity, so a prefix collision cannot overwrite a different publication.
+Repeated preparation reuses the exact database artifact and preserves earlier database resources.
 The final checks compare counts, foreign keys, the complete catalog, and fixed payload samples with the validated source.
 
 The publisher requires a clean committed checkout and a verified remote-data receipt.

@@ -41,14 +41,14 @@ test("typing searches, exact names rank first, and contact actions work", async 
     .getByRole("link", { name: "国立国会図書館の情報を見る", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "この電話番号の出典", exact: true }),
+    page.getByRole("heading", { name: "電話番号のもとの情報", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "電話帳に入れる" }),
   ).toHaveAttribute("href", /contact\.vcf$/);
-  await page.getByRole("link", { name: "電話番号の出典を見る" }).click();
+  await page.getByRole("link", { name: "電話番号のもとの情報を見る" }).click();
   await expect(
-    page.getByRole("link", { name: "もとのファイルを開く" }),
+    page.getByRole("link", { name: "もとの資料を開く" }),
   ).toBeVisible();
   await page.getByRole("link", { name: "施設の情報にもどる" }).click();
   await page.getByRole("link", { name: "検索結果にもどる" }).click();

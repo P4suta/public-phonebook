@@ -14,6 +14,7 @@ import type { Contact } from "../core/models.ts";
 import { formatPhone } from "../core/phone.ts";
 import { cleanAddress } from "../core/search.ts";
 import { copyText } from "./clipboard.ts";
+import { uiCopy } from "./copy.ts";
 import { foundation } from "./foundations.ts";
 import { CategoryIcon } from "./icons.tsx";
 import { opensNewTab } from "./links.ts";
@@ -21,7 +22,7 @@ import * as css from "./styles.css.ts";
 
 const copyFeedback = {
   copied: "コピーしました。",
-  failed: "コピーできませんでした。文字を選んでコピーしてください。",
+  failed: uiCopy.copyFailed,
 } as const;
 
 export function LinkButton({
@@ -67,7 +68,7 @@ export function LinkButton({
 
 export function BackButton({
   href = "/",
-  children = "はじめの画面にもどる",
+  children = uiCopy.searchReturn,
 }: {
   readonly href?: string;
   readonly children?: ReactNode;
@@ -131,7 +132,8 @@ export function CopyButton({
           <>
             <span>{label}</span>{" "}
             <span className={css.numberCopyHint} aria-hidden="true">
-              {icon}コピー
+              {icon}
+              {uiCopy.copy}
             </span>
           </>
         ) : (
@@ -217,7 +219,7 @@ export function ContactCard({
               <CopyButton
                 value={display}
                 label={display}
-                accessibleLabel={`${display} コピー（${contact.name}の電話番号）`}
+                accessibleLabel={`${display} コピーする（${contact.name}の電話番号）`}
                 feedback={feedbackControl}
                 presentation="telephone"
               />

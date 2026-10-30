@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import * as v from "valibot";
 
@@ -29,7 +30,7 @@ test("the national category preview has exact counts and bounded payloads for ev
     snapshot: catalog.snapshot,
     total: catalog.contacts,
   });
-  expect(grouped.groups).toHaveLength(39);
+  expect(grouped.groups).toHaveLength(catalog.categories.length);
   for (const group of grouped.groups) {
     const expected = catalog.categories.find(
       (category) => category.id === group.category,
@@ -60,11 +61,13 @@ test("the native national catalog and every region and category are searchable",
 }) => {
   const catalogBody: unknown = await (await request.get("/api/catalog")).json();
   const catalog = v.parse(CatalogSchema, catalogBody);
-  expect(catalog.contacts).toBe(650933);
-  expect(catalog.phones).toBe(546133);
-  expect(catalog.sourceCount).toBe(724);
+  const localValue: unknown = JSON.parse(
+    await readFile(".local/phonebook/catalog.json", "utf8"),
+  );
+  const local = v.parse(CatalogSchema, localValue);
+  expect(catalog).toEqual(local);
   expect(catalog.prefectures).toHaveLength(47);
-  expect(catalog.categories).toHaveLength(39);
+  expect(catalog.categories.length).toBeGreaterThan(39);
   console.info(
     JSON.stringify({
       operation: "national.api",

@@ -94,6 +94,7 @@ for (const width of [320, 390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     for (const [name, path] of [
       ["home", "/"],
+      ["about", "/about"],
       ["results", "/?q=国立国会図書館&prefecture=13&category=library"],
       ["empty", "/?q=存在しない施設000000"],
       ["data", "/data"],

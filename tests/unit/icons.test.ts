@@ -17,8 +17,8 @@ it("gives every category distinct, consistently sized icon geometry", () => {
   expect(
     new Set(markup.map((value) => value.replaceAll(/class="[^"]*"/gu, "")))
       .size,
-  ).toBe(39);
+  ).toBe(categoryDefinitions.length);
   expect(
     new Set(categoryDefinitions.map((category) => category.icon)).size,
-  ).toBe(39);
+  ).toBe(categoryDefinitions.length);
 });

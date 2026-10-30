@@ -1,13 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { categoryDefinitions } from "../core/catalog.ts";
-import { getCatalog } from "../ui/client.ts";
 import {
   BackButton,
   ContactCard,
   LinkButton,
   OfficialLink,
 } from "../ui/components.tsx";
+import { uiCopy } from "../ui/copy.ts";
 import { getRouteContact } from "../ui/route-data.ts";
 import * as css from "../ui/styles.css.ts";
 
@@ -18,26 +17,14 @@ export const Route = createFileRoute("/contacts/$id")({
         ? raw.from
         : "/",
   }),
-  loader: async ({ params }) => {
-    const [contact, catalog] = await Promise.all([
-      getRouteContact(params.id),
-      getCatalog(),
-    ]);
-    return { contact, catalog };
-  },
+  loader: ({ params }) => getRouteContact(params.id),
   component: ContactPage,
 });
 
 function ContactPage(): ReactElement {
-  const { contact, catalog } = Route.useLoaderData();
+  const contact = Route.useLoaderData();
   const { from } = Route.useSearch();
-  const publisher = catalog.categories.find(
-    (category) => category.id === contact.category,
-  )?.publisher;
   const sourcePath = `/contacts/${encodeURIComponent(contact.id)}/source?from=${encodeURIComponent(from)}`;
-  const category = categoryDefinitions.find(
-    (category) => category.id === contact.category,
-  );
   return (
     <main id="main" className={css.page}>
       <div className={css.stack}>
@@ -50,15 +37,12 @@ function ContactPage(): ReactElement {
             </OfficialLink>
           </div>
         )}
-        <h2 className={css.subheading}>この電話番号の出典</h2>
-        <p className={css.body}>
-          {publisher ?? category?.label}が公開したデータです。
-        </p>
+        <h2 className={css.subheading}>{uiCopy.sourceTitle}</h2>
         {/^\d{4}-\d{2}-\d{2}$/u.test(contact.dataAsOf) && (
           <p>データの日付：{formatDate(contact.dataAsOf)}</p>
         )}
         <div className={css.actions}>
-          <LinkButton href={sourcePath}>電話番号の出典を見る</LinkButton>
+          <LinkButton href={sourcePath}>{uiCopy.sourceAction}</LinkButton>
         </div>
       </div>
     </main>

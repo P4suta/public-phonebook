@@ -23,6 +23,7 @@ test("every screen preserves external navigation and the gate rejects missing pr
   httpFailures.add(404);
   for (const route of [
     "/",
+    "/about",
     "/?q=国立国会図書館",
     path,
     `${path}/source`,
@@ -53,7 +54,9 @@ test("every screen preserves external navigation and the gate rejects missing pr
   }
   expect(external).toBeGreaterThan(3);
   await page.goto("/data");
-  const link = page.getByRole("link", { name: /利用条件を見る/u }).first();
+  const link = page
+    .getByRole("link", { name: /データを使うときの決まりを見る/u })
+    .first();
   await link.evaluate((node) => {
     node.removeAttribute("target");
     node.removeAttribute("rel");

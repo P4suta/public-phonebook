@@ -153,8 +153,8 @@ it("fits the native Figma text measurements and keeps text distinct from its opa
     "background",
   ]);
   expect(audit.pages.map((page) => [page.id, page.texts.length])).toEqual([
-    ["14:2", 439],
-    ["0:1", 257],
+    ["14:2", 520],
+    ["0:1", 256],
     ["14:3", 22],
     ["14:4", 103],
   ]);
@@ -189,6 +189,7 @@ it("keeps canonical screen viewports, scrolling, and symmetric gutters consisten
     "228:1726",
     "152:2",
     "202:1073",
+    "311:2238",
   ]);
   const mobile = new Set([
     "198:145",

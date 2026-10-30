@@ -1,6 +1,22 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>P4suta/renovate-config"],
+  "ignoreDeps": ["xlsx"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^package\\.json$/"],
+      "matchStrings": [
+        "\"xlsx\": \"https://cdn\\.sheetjs\\.com/xlsx-(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)/xlsx-[0-9]+\\.[0-9]+\\.[0-9]+\\.tgz\""
+      ],
+      "depNameTemplate": "sheetjs",
+      "packageNameTemplate": "https://git.sheetjs.com/SheetJS/sheetjs.git",
+      "datasourceTemplate": "git-tags",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^v(?<version>.*)$",
+      "autoReplaceStringTemplate": "\"xlsx\": \"https://cdn.sheetjs.com/xlsx-{{{newValue}}}/xlsx-{{{newValue}}}.tgz\""
+    }
+  ],
   "packageRules": [
     {
       "matchFileNames": ["proof/**"],

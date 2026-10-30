@@ -25,7 +25,7 @@ test("a programmatic click cannot write to either clipboard path", async ({
     if (node instanceof HTMLButtonElement) node.click();
   });
   await expect(card.getByRole("status")).toHaveText(
-    "コピーできませんでした。文字を選んでコピーしてください。",
+    "コピーできませんでした。文字をえらんでコピーしてください。",
   );
   expect(
     await page.locator("html").getAttribute("data-untrusted-write"),
@@ -117,7 +117,7 @@ test("native activation loss uses WebKit compatibility and preserves recovery el
     );
   } else {
     await expect(card.getByRole("status")).toHaveText(
-      "コピーできませんでした。文字を選んでコピーしてください。",
+      "コピーできませんでした。文字をえらんでコピーしてください。",
     );
     expect(
       await page.locator("html").getAttribute("data-selection-copy"),
@@ -269,7 +269,7 @@ test("telephone and API URL copies use the complete displayed values", async ({
     .locator("article")
     .first()
     .getByRole("button", {
-      name: "03-3581-2331 コピー（国立国会図書館の電話番号）",
+      name: "03-3581-2331 コピーする（国立国会図書館の電話番号）",
       exact: true,
     })
     .click();
@@ -303,11 +303,11 @@ test("clipboard denial has a readable recovery message", async ({ page }) => {
   const card = page.locator("article").first();
   await card
     .getByRole("button", {
-      name: "03-3581-2331 コピー（国立国会図書館の電話番号）",
+      name: "03-3581-2331 コピーする（国立国会図書館の電話番号）",
       exact: true,
     })
     .click();
   await expect(card.getByRole("status")).toHaveText(
-    "コピーできませんでした。文字を選んでコピーしてください。",
+    "コピーできませんでした。文字をえらんでコピーしてください。",
   );
 });

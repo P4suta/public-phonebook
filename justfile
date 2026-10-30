@@ -7,8 +7,17 @@ dev:
 build environment="development":
     npm run build -- {{ quote(environment) }}
 
-data-prepare source output:
-    npm run data -- prepare {{ quote(source) }} {{ quote(output) }}
+data-prepare source output collection="":
+    npm run data -- prepare {{ quote(source) }} {{ quote(output) }} {{ quote(collection) }}
+
+data-collect output:
+    node tools/collect.ts run sources/public-facilities.json --output {{ quote(output) }}
+
+data-replay output:
+    node tools/collect.ts run sources/public-facilities.json --output {{ quote(output) }} --offline
+
+data-discover output:
+    node tools/collect.ts catalog sources/contact-directories.json --output {{ quote(output) }}
 
 data-local bundle:
     npm run data:local -- {{ quote(bundle) }}

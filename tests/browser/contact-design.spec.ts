@@ -420,7 +420,7 @@ test("telephone values copy without initiating calls and keyboard feedback prese
   expect(await designIssues(page)).toEqual([]);
   await page.keyboard.press("Enter");
   await expect(card.getByRole("status")).toHaveText(
-    "コピーできませんでした。文字を選んでコピーしてください。",
+    "コピーできませんでした。文字をえらんでコピーしてください。",
   );
   await expect(card.getByRole("status")).toBeVisible();
   await expect(copy).toBeFocused();

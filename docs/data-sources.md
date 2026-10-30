@@ -1,7 +1,7 @@
 # Retained public data and provenance
 
 The local TypeScript directory preserves the collected public snapshot and its source reports.
-It contains 650,933 contact records and 546,133 distinct telephone numbers across 47 prefectures and 39 categories.
+It contains 667,696 contact records and 561,495 distinct telephone numbers across 47 prefectures and 62 populated categories.
 These are published contact points rather than unique legal entities.
 Shared telephone numbers do not merge different facilities or departments.
 Private address books and personal account synchronization are outside the data boundary.
@@ -9,9 +9,9 @@ Private address books and personal account synchronization are outside the data 
 ## Source families
 
 The retained registries in `sources/` record the publications, release inventories, dates, and reuse metadata used during collection.
-They document the archived input; the retired collection adapters are not part of the TypeScript runtime.
-The current preparation tool reads the complete archived SQLite publication without changing it.
-It does not claim to rediscover or refresh upstream websites.
+They include the archived input and the current TypeScript collection manifests.
+The preparation tool reads canonical native publications or the retained legacy archive without modifying either input.
+The collector downloads explicitly licensed public directories, reconciles school identities, and creates a separately checked overlay.
 
 | Categories | Retained publisher or publication |
 | --- | --- |
@@ -23,6 +23,9 @@ It does not claim to rediscover or refresh upstream websites.
 | Libraries, museums, archives | National Diet Library institution registers, 2026-10-05 |
 | Nurseries and five related childcare categories | Children and Families Agency / WAM NET nationwide publication, collected 2026-10-29 |
 | Universities, junior colleges, technical colleges | MEXT higher education lists |
+| Elementary, junior high, high, compulsory, secondary, special-needs, vocational, and miscellaneous schools | Official prefectural and municipal directories reconciled with MEXT school codes |
+| Police headquarters, police stations, police boxes, and residential police boxes | National Police Agency directory dated 2026-04-01 and licensed municipal directories |
+| Community centers, sports facilities, cultural halls, health centers, and other public service offices | Publisher-specific open datasets indexed by BODIK ODM |
 | Consumer consultation | National Consumer Affairs Center open data |
 | Labour bureaus, inspection, consultation, and eight employment categories | MHLW regional and employment-service lists |
 | Child guidance | Children and Families Agency national list |
@@ -64,3 +67,33 @@ Application licensing does not replace source-specific data terms.
 The catalog identifies publishers and reuse links, and each contact preserves its own terms.
 Custom publisher terms remain their published labels rather than being assigned a different standard license.
 Source truth and freshness remain properties of the retained publications and require separate collection review before an update.
+
+## Repeatable collection
+
+`sources/public-facilities.json` selects 453 directory plans with observed minimum contact counts.
+`sources/contact-directories.json` retains the manually reviewed prefectural school adapters.
+Run `mise x -- just data-collect .local/collection/current` to retrieve and verify the selected sources.
+Run `mise x -- just data-replay .local/collection/replayed` to reproduce contact and source output from the verified byte cache without network access.
+Use `mise x -- just data-discover .local/collection/candidates.json` to discover additional licensed candidates for review.
+Discovery does not add unreviewed files directly to a publication.
+
+Source artifacts have SHA-256 identities, byte limits, timeouts, conditional requests, and per-origin request spacing.
+A rate-limited origin stops receiving new requests during its cooldown.
+Each accepted school has a unique compatible active MEXT code, a matching name, and either a matching postal code, address, or exact qualified identity.
+Telephone numbers come from explicit voice fields; fax fields and incomplete local numbers without a published area code are excluded.
+Conflicting numbers in the selected source-date cohort are excluded and reported.
+Shared switchboards do not establish facility identity.
+Publisher update timestamps do not become invented data-reference dates.
+
+The current overlay adds 16,763 contacts, including 6,647 schools in 31 prefectures.
+The active MEXT registry contains 38,516 schools in the admitted categories, so this collection is not complete school coverage.
+The police source and other public directories extend the overlay across all 47 prefectures.
+Seventy-nine conflicting candidate identities are excluded.
+Missing telephone fields, unavailable sources, unmatched schools, inactive schools, and unsupported facility classes remain inspectable collection outcomes.
+
+Prepare an extended native publication with `mise x -- just data-prepare BASE_DATABASE OUTPUT_DIRECTORY COLLECTION_DIRECTORY`.
+An incomplete collection, unknown source reference, duplicate added ID, or attempted replacement of a published contact ID is refused.
+Preparation normalizes addresses in the API and all three downloadable formats.
+It removes recognized postal prefixes and map annotations, normalizes full-width ASCII and numeric separators, and converts bounded block numerals.
+Named places such as 一番町 and 一条通, compatibility kanji, building names, and useful building annotations are preserved.
+Only populated categories appear in the prepared catalog.

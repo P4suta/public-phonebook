@@ -58,6 +58,8 @@ export type Contact = v.InferOutput<typeof ContactSchema>;
 
 export const SourceSchema = v.strictObject({
   id: TextSchema,
+  publisher: v.optional(TextSchema),
+  title: v.optional(TextSchema),
   url: PublicUrlSchema,
   sha256: DigestSchema,
   dataAsOf: v.string(),

@@ -8,15 +8,20 @@ import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
 import { stringify } from "csv-stringify/sync";
 import * as v from "valibot";
+import { normalizeAddress } from "../src/core/address.ts";
 import { categoryDefinitions, prefectureNames } from "../src/core/catalog.ts";
 import {
   type Catalog,
   CatalogSchema,
   type Contact,
+  ContactSchema,
+  type Source,
+  SourceSchema,
 } from "../src/core/models.ts";
 import { nameTokens, normalizeName } from "../src/core/search.ts";
 import { contactVCard } from "../src/core/vcard.ts";
 import { categorySources } from "./category-sources.ts";
+import { mergeContacts, readCollectionOverlay } from "./collection/overlay.ts";
 import { databaseSchema } from "./database-schema.ts";
 import { importContact, importSource } from "./import-contact.ts";
 
@@ -24,6 +29,72 @@ const preparationProgressInterval = 100000;
 const prefectureCodeWidth = 2;
 const archiveCompressionLevel = 6;
 const jsonIndentation = 2;
+
+interface SnapshotInput {
+  readonly generatedAt: string;
+  readonly contacts: number;
+  readonly sources: readonly Source[];
+  readonly municipalities: Catalog["municipalities"];
+  readonly legacy: boolean;
+}
+
+function snapshotInput(input: DatabaseSync): SnapshotInput {
+  const native = input
+    .prepare("SELECT payload FROM metadata WHERE key = 'catalog'")
+    .get();
+  if (native) {
+    const value: unknown = JSON.parse(v.parse(v.string(), native.payload));
+    const catalog = v.parse(CatalogSchema, value);
+    const sources = input
+      .prepare("SELECT payload FROM sources ORDER BY id")
+      .all()
+      .map((row) => {
+        const decoded: unknown = JSON.parse(v.parse(v.string(), row.payload));
+        return v.parse(SourceSchema, decoded);
+      });
+    if (sources.length !== catalog.sourceCount)
+      throw new Error("Source catalog accounting mismatch");
+    return {
+      generatedAt: catalog.generatedAt,
+      contacts: catalog.contacts,
+      sources,
+      municipalities: catalog.municipalities,
+      legacy: false,
+    };
+  }
+  const row = v.parse(
+    v.object({ payload: v.string() }),
+    input.prepare("SELECT payload FROM metadata WHERE key = 'coverage'").get(),
+  );
+  const value: unknown = JSON.parse(row.payload);
+  const metadata = v.parse(
+    v.object({
+      generated_at: v.string(),
+      total_contacts: v.number(),
+      sources: v.array(v.unknown()),
+    }),
+    value,
+  );
+  return {
+    generatedAt: metadata.generated_at,
+    contacts: metadata.total_contacts,
+    sources: metadata.sources.map(importSource),
+    municipalities: [],
+    legacy: true,
+  };
+}
+
+function* readContacts(
+  input: DatabaseSync,
+  legacy: boolean,
+): Generator<Contact> {
+  for (const row of input
+    .prepare("SELECT payload FROM contacts ORDER BY id")
+    .iterate()) {
+    const value: unknown = JSON.parse(v.parse(v.string(), row.payload));
+    yield legacy ? importContact(value) : v.parse(ContactSchema, value);
+  }
+}
 
 export interface SnapshotResult {
   readonly snapshot: string;
@@ -45,6 +116,7 @@ export async function fileDigest(path: string): Promise<string> {
 export async function prepareSnapshot(
   sourcePath: string,
   outputPath: string,
+  collectionDirectory?: string,
 ): Promise<SnapshotResult> {
   const source = resolve(sourcePath);
   const destination = resolve(outputPath);
@@ -71,21 +143,30 @@ export async function prepareSnapshot(
   >();
   let contacts = 0;
   try {
-    const rawCoverage = input
-      .prepare("SELECT payload FROM metadata WHERE key = 'coverage'")
-      .get();
-    const coverage = v.parse(v.object({ payload: v.string() }), rawCoverage);
-    const decoded: unknown = JSON.parse(coverage.payload);
-    const metadata = v.parse(
-      v.object({
-        generated_at: v.string(),
-        total_contacts: v.number(),
-        unique_phone_numbers: v.number(),
-        sources: v.array(v.unknown()),
-      }),
-      decoded,
+    const metadata = snapshotInput(input);
+    const overlay = collectionDirectory
+      ? await readCollectionOverlay(collectionDirectory)
+      : { contacts: [], sources: [] };
+    const sourceMap = new Map(metadata.sources.map((item) => [item.id, item]));
+    for (const source of overlay.sources) {
+      const previous = sourceMap.get(source.id);
+      if (previous && JSON.stringify(previous) !== JSON.stringify(source))
+        throw new Error(`Conflicting source identity: ${source.id}`);
+      sourceMap.set(source.id, source);
+    }
+    const sources = Array.from(sourceMap.values()).sort((a, b) =>
+      a.id.localeCompare(b.id),
     );
-    const sources = metadata.sources.map(importSource);
+    for (const municipality of metadata.municipalities)
+      municipalities.set(municipality.code, municipality);
+    const municipalityCandidates = new Map<string, Catalog["municipalities"]>();
+    for (const item of metadata.municipalities
+      .slice()
+      .sort((a, b) => b.name.length - a.name.length)) {
+      const group = municipalityCandidates.get(item.prefectureCode) ?? [];
+      group.push(item);
+      municipalityCandidates.set(item.prefectureCode, group);
+    }
     const sourceIds = new Set(sources.map((item) => item.id));
     output.exec(databaseSchema);
     output.exec(
@@ -103,12 +184,28 @@ export async function prepareSnapshot(
     csv.write(
       "id,name,category,prefecture_code,municipality_code,address,phone_numbers,website,source_id,source_url,license,license_url,data_as_of\r\n",
     );
-    for (const row of input
-      .prepare("SELECT payload FROM contacts ORDER BY id")
-      .iterate()) {
-      const parsed = v.parse(v.object({ payload: v.string() }), row);
-      const value: unknown = JSON.parse(parsed.payload);
-      const contact = importContact(value);
+    for (const value of mergeContacts(
+      readContacts(input, metadata.legacy),
+      overlay.contacts,
+    )) {
+      const address = normalizeAddress(value.address);
+      const prefectureName =
+        prefectureNames[Number(value.prefectureCode) - 1] ?? "";
+      const municipality = value.municipalityCode
+        ? null
+        : municipalityCandidates
+            .get(value.prefectureCode)
+            ?.find(
+              (item) =>
+                item.prefectureCode === value.prefectureCode &&
+                (address.startsWith(`${prefectureName}${item.name}`) ||
+                  address.startsWith(item.name)),
+            );
+      const contact = {
+        ...value,
+        address,
+        municipalityCode: value.municipalityCode ?? municipality?.code ?? null,
+      };
       if (!sourceIds.has(contact.sourceId))
         throw new Error(`Missing source: ${contact.sourceId}`);
       if (
@@ -153,21 +250,35 @@ export async function prepareSnapshot(
       if (contacts % preparationProgressInterval === 0)
         console.info(JSON.stringify({ phase: "prepare", contacts }));
     }
-    if (contacts !== metadata.total_contacts)
+    if (contacts !== metadata.contacts + overlay.contacts.length)
       throw new Error("The source contact count changed");
+    const countedPhones = v.parse(
+      v.object({ phones: v.number() }),
+      output
+        .prepare("SELECT COUNT(DISTINCT number) AS phones FROM phones")
+        .get(),
+    ).phones;
     const snapshot = hash.digest("hex");
     const catalog: Catalog = v.parse(CatalogSchema, {
       snapshot,
-      generatedAt: metadata.generated_at,
+      generatedAt:
+        [
+          metadata.generatedAt,
+          ...overlay.contacts.map((item) => item.retrievedAt),
+        ]
+          .sort()
+          .at(-1) ?? metadata.generatedAt,
       contacts,
-      phones: metadata.unique_phone_numbers,
+      phones: countedPhones,
       sourceCount: sources.length,
-      categories: categoryDefinitions.map((category) => ({
-        id: category.id,
-        label: category.label,
-        contacts: categoryCounts.get(category.id) ?? 0,
-        ...categorySources.find((source) => source.id === category.id),
-      })),
+      categories: categoryDefinitions
+        .filter((category) => (categoryCounts.get(category.id) ?? 0) > 0)
+        .map((category) => ({
+          id: category.id,
+          label: category.label,
+          contacts: categoryCounts.get(category.id) ?? 0,
+          ...categorySources.find((source) => source.id === category.id),
+        })),
       prefectures: prefectureNames.map((name, index) => {
         const code = String(index + 1).padStart(prefectureCodeWidth, "0");
         return { code, name, contacts: prefectureCounts.get(code) ?? 0 };
