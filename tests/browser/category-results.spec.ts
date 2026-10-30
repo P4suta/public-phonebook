@@ -1,40 +1,63 @@
 import AxeBuilder from "@axe-core/playwright";
+import type { Page } from "@playwright/test";
 import * as v from "valibot";
 import { GroupedSearchResponseSchema } from "../../src/core/models.ts";
 import { expect, test } from "./fixtures.ts";
 
 test.use({ video: "on", screenshot: "off" });
 
-test("exact facility names lead fixed, disjoint category groups", async ({
+async function cardsWithoutCategoryHeading(
+  page: Page,
+): Promise<readonly string[]> {
+  return page.locator("article").evaluateAll((cards) =>
+    cards.flatMap((card) => {
+      const group = card.closest("section[data-result-category]");
+      const heading = group?.querySelector(":scope > h2");
+      return heading && group?.getAttribute("aria-labelledby") === heading.id
+        ? []
+        : [card.getAttribute("aria-labelledby") ?? ""];
+    }),
+  );
+}
+
+test("an exact facility name leads its own category under the category heading", async ({
   page,
 }) => {
   await page.goto("/?q=高知大学");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
   await expect(page.locator("article")).toHaveCount(7);
-  const primary = page.locator("[data-primary-results] article");
-  await expect(primary).toHaveCount(1);
-  await expect(primary.getByRole("heading", { level: 2 })).toHaveText(
-    "高知大学",
-  );
-  await expect(primary.locator("[data-phone] > span").first()).toHaveText(
-    "088-844-0111",
-  );
   const groups = page.locator("[data-result-category]");
+  await expect(groups.locator("article")).toHaveCount(7);
+  expect(await cardsWithoutCategoryHeading(page)).toEqual([]);
   expect(
     await groups.evaluateAll((nodes) =>
       nodes.map((node) => node.getAttribute("data-result-category")),
     ),
   ).toEqual([
+    "university",
     "medical",
     "unlicensed_childcare",
     "workplace_childcare",
     "library",
   ]);
+  const university = groups.first();
+  await expect(
+    university.getByRole("heading", {
+      level: 2,
+      name: "大学 1件",
+      exact: true,
+    }),
+  ).toBeVisible();
+  const exact = university.locator("article").first();
+  await expect(exact.getByRole("heading", { level: 3 })).toHaveText("高知大学");
+  await expect(exact.locator("[data-phone] > span").first()).toHaveText(
+    "088-844-0111",
+  );
   await expect(
     page.locator('[data-result-category="library"] article'),
   ).toHaveCount(3);
   await expect(groups.locator("article h2, article p")).toHaveCount(0);
-  await expect(groups.locator("article h3")).toHaveCount(6);
+  await expect(groups.locator("article h3")).toHaveCount(7);
   const ids = await page
     .locator("[id]")
     .evaluateAll((nodes) => nodes.map((node) => node.id));
@@ -74,6 +97,7 @@ test("a broad search previews each kind and expands only the requested category"
         nodes.map((node) => node.getAttribute("aria-labelledby") ?? "").sort(),
       ),
   ).toEqual(previewIds);
+  expect(await cardsWithoutCategoryHeading(page)).toEqual([]);
   const library = page.locator('[data-result-category="library"]');
   const otherIds = await page
     .locator(

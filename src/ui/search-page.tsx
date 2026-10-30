@@ -14,7 +14,6 @@ import {
   MunicipalityCodeSchema,
   PrefectureCodeSchema,
 } from "../core/catalog.ts";
-import { normalizeName } from "../core/search.ts";
 import {
   hasSearch,
   parseWebSearch,
@@ -22,7 +21,7 @@ import {
 } from "../core/web-search.ts";
 import { Route } from "../routes/index.tsx";
 import { DirectoryError, getContactGroups } from "./client.ts";
-import { ContactCard, LinkButton, LoadingError } from "./components.tsx";
+import { LinkButton, LoadingError } from "./components.tsx";
 import { uiCopy } from "./copy.ts";
 import { ErrorPage } from "./error-page.tsx";
 import { foundation } from "./foundations.ts";
@@ -125,15 +124,6 @@ export function SearchPage(): ReactElement {
   }
 
   const groups = query.data?.groups ?? [];
-  const normalized = normalizeName(search.q);
-  const primary =
-    normalized && !search.cursor
-      ? groups
-          .flatMap((group) => group.results.data)
-          .filter((contact) => normalizeName(contact.name) === normalized)
-          .slice(0, 3)
-      : [];
-  const primaryIds = new Set(primary.map((contact) => contact.id));
   const total = query.data?.meta.total;
   const cities = catalog.municipalities.filter(
     (city) => city.prefectureCode === search.prefecture,
@@ -298,22 +288,12 @@ export function SearchPage(): ReactElement {
               </section>
             )}
             <div className={css.resultGroups}>
-              {primary.length > 0 && (
-                <ol className={css.results} data-primary-results="">
-                  {primary.map((contact) => (
-                    <li key={contact.id}>
-                      <ContactCard contact={contact} returnTo={returnTo} />
-                    </li>
-                  ))}
-                </ol>
-              )}
               {groups.map((group) => (
                 <GroupResults
                   key={`${key}:${group.category}`}
                   group={group}
                   search={search}
                   snapshot={catalog.snapshot}
-                  primaryIds={primaryIds}
                   returnTo={returnTo}
                 />
               ))}
