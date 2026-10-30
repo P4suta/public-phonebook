@@ -1,111 +1,94 @@
-# Public data API
+# Public read API
 
-The API serves the same organizational directory as the website without requiring an account, an API key, or HTML scraping.
-The production origin is `https://dial.page`.
-Local Cloudflare development uses `http://127.0.0.1:8787`.
-Open `/api/docs` for an interactive request form, response headers, and copyable request examples.
-Open `/api/openapi.json` for the OpenAPI 3.1 description generated from the Rust request and response types.
-`mise x -- cargo run --locked -p public-phonebook -- openapi` prints that description without requiring a database.
-The contract is unreleased and uses unversioned paths.
+This document describes the local TypeScript implementation.
+The existing public deployment is unchanged.
+The running API describes its contract at `/api/openapi.json`.
+Open `/developers` for the locally bundled Scalar reference, operation search, code examples, and interactive requests against the current API.
+The viewer reads the generated contract rather than maintaining a second list of operations.
+No API key, cookie, account, or HTML scraping is required.
 
-## First request
+## Discover and search
 
-```sh
-phonebook_url=https://dial.page
-curl --fail-with-body --get \
-  --data-urlencode 'q=横浜市役所' \
-  "$phonebook_url/api/contacts"
-```
-
-The response contains `data`, `meta`, pagination `links`, and complete-result `exports`.
-`meta.total` counts organizational records, including distinct records that share a telephone number.
-Contact resources include original and canonical telephone values, source identity and URL, license and terms URL, source date, retrieval time, attribution, and resource links.
-Identifiers are opaque.
-Follow the supplied links instead of interpreting identifiers or constructing path segments manually.
-The root `/api` response discovers the collections, catalog, documentation, schema, and bulk downloads.
-
-## Resources
-
-| GET path | Result | Parameters |
-| --- | --- | --- |
-| `/api` | API discovery and full-directory downloads | `snapshot` |
-| `/api/contacts` | Contact search | `q`, `prefecture`, `municipality`, `category`, `page`, `snapshot` |
-| `/api/contacts/{id}` | One contact with provenance and links | `snapshot` |
-| `/api/contacts/{id}/vcard` | One vCard 3.0 file | `snapshot` |
-| `/api/sources` | Source reports ordered by identifier | `page`, `snapshot` |
-| `/api/sources/{id}` | One source report, archive identities, and import accounting | `snapshot` |
-| `/api/catalog` | Categories, prefectures, municipalities, and coverage counts | `snapshot` |
-| `/api/export` | Every matching record as JSON, CSV, or vCard | `q`, `prefecture`, `municipality`, `category`, `format`, `snapshot` |
-
-Parameters are optional.
-Unknown names, repeated parameters, invalid values, contradictory regions, page zero, and pages beyond the last page return 400.
-Use `q` for a normalized name fragment or a complete Japanese telephone number.
-The search string admits at most 512 UTF-8 bytes.
-Use a two-digit prefecture code from `01` through `47`, a five-digit municipality code, and a category identifier from the catalog.
-Municipalities must belong to the selected prefecture when both are supplied.
-Use an HTTP client's query encoder for Japanese text, plus signs, and other reserved characters.
-The request target is limited to 8192 bytes after encoding.
-
-## Pagination and consistent snapshots
-
-Collections return 50 records per page.
-Start on page 1 and follow `links.next` until it is `null`.
-The response also supplies `self`, `first`, `previous`, and `last` links.
-Links are origin-relative URI references.
-Resolve them against the response URL, for example with `new URL(link, response.url)`.
-
-JSON collection and resource envelopes identify the database with `meta.snapshot`.
-Successful data responses also carry `X-Public-Phonebook-Snapshot`, including raw exports and vCards.
-Generated links include this identity in their `snapshot` parameter.
-An active database with a different identity returns 409 before selecting or exporting records.
-Discard an incomplete collection and restart from `/api` when this happens.
-The identity is the SHA-256 of the database, not a checksum of each serialized download.
-Response fields may be added; consumers should ignore fields they do not recognize.
-
-## Bulk reuse
-
-Use the `exports.json` or `exports.csv` link returned by a search to retrieve all matches in one transfer.
-The discovery response supplies the equivalent links for the entire directory.
-Export requests have no page parameter and default to JSON.
-JSON preserves original text values.
-CSV applies the project's formula-prefix policy to text cells, while canonical telephone values retain their international representation.
-The download remains a bounded stream and reports preparation failures before download headers.
-Only consume a download after its HTTP transfer completes successfully.
+Start with `GET /api` and `GET /api/catalog`.
+The catalog supplies category IDs, prefecture codes, municipality codes, counts, and the current snapshot.
 
 ```sh
-curl --fail-with-body --get \
-  --data-urlencode 'prefecture=14' \
-  --data-urlencode 'category=medical' \
-  --data-urlencode 'format=json' \
-  "$phonebook_url/api/export" \
-  --output contacts.json
+curl --fail-with-body --get --data-urlencode 'q=国立国会図書館' http://127.0.0.1:8787/api/contacts
 ```
 
-The `license`, `license_url`, `source_url`, and applicable `attribution` fields carry the source-specific reuse information.
-Bulk exports omit empty attribution text and retain the source and terms fields.
-Retain and evaluate those terms when redistributing data.
-The source and retrieval dates do not establish that a telephone number is currently assigned or operational.
-Archive hashes identify imported source bytes; upstream publication URLs can later change.
-The service distributes the derived directory and source metadata, while archived input files remain in the offline data workspace.
+| Parameter | Contract |
+| --- | --- |
+| q | A facility-name substring or complete Japanese telephone number; at most 512 UTF-8 bytes |
+| prefecture | Two-digit code from the catalog |
+| municipality | Five-digit code from the catalog; implies its prefecture |
+| category | One of the catalog's category IDs |
+| limit | Integer from 1 through 100; defaults to 30 |
+| cursor | Opaque continuation token; prefer the returned next link |
 
-## Errors and browsers
+Parameters occur at most once.
+Unknown parameters, malformed encoding, and conflicting regions are rejected.
+Names use NFKC normalization and case folding through JavaScript lowercase conversion.
+Exact names precede prefixes and substrings.
+Ties use the normalized name and stable ID in SQLite binary order.
+Complete telephone numbers use the canonical Japanese E.164 index.
+Shared telephone numbers preserve separate contact records.
+Telephone search accepts national or `+81` spelling, full-width digits, and explicit visual separators.
+It does not extract numbers from labels, internal line breaks, extensions, or lists of numbers.
+The current directory contract admits 10- and 11-digit national numbers rather than emergency short codes or longer device-number allocations.
+Telephone aliases share a cursor identity without colliding with similarly normalized facility-name queries.
 
-Errors use [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457.html) with `application/problem+json`.
-Use `code` for programmatic handling and `request_id` for diagnostics.
-`invalid_parameters` identifies rejected inputs without echoing query values or internal errors.
+A successful search returns `data`, `meta`, and `links`.
+Follow `links.next` until it is null.
+Each cursor binds the snapshot, normalized query, filters, and page size.
+A changed snapshot returns 409; restart without the cursor.
+Query identities are SHA-256 digests rather than copies of the query text.
 
-| Status | Code | Action |
-| --- | --- | --- |
-| 400 | `invalid_query` | Correct the named input using the catalog and schema. |
-| 404 | `not_found` | Discover or search for a resource in the current snapshot. |
-| 405 | `method_not_allowed` | Use GET or HEAD. |
-| 409 | `snapshot_changed` | Restart from discovery to use one snapshot. |
-| 503 | `unavailable` | Wait for `Retry-After` before retrying. |
+## Preview facility categories
 
-The API permits anonymous cross-origin reads and OPTIONS preflight requests.
-Cookies and authorization headers are unnecessary.
-Browser responses expose the request identity, snapshot, retry delay, download disposition, and schema validator headers.
-The schema supports ETag revalidation.
-Searches and exports share the service's bounded capacity rather than an unbounded request queue.
-The JSON API does not depend on rendered cards or the internal `/internal/search` enhancement feed.
-See [verification](verification.md) for current evidence and [deployment](deployment.md) for the local and publication boundaries.
+`GET /api/contact-groups` accepts the same search parameters.
+Without a selected category, it returns every matching category with up to `min(3, limit)` contacts and an exact matching count.
+Groups follow the order of their best contact under the same stable search ranking.
+The response contains `groups: [{ category, results }]` and overall `meta: { snapshot, total }`.
+Each `results` has the flat search response shape, and its `links.self` identifies the containing preview request.
+Follow each `results.links.next` through `/api/contacts` to retrieve all remaining contacts in that category.
+The continuation retains the requested page size, even when the initial preview contains only three contacts.
+A selected category returns a regular page wrapped in one group.
+A cursor without a category is rejected.
+Category membership, disjoint contact identities, snapshot consistency, and the sum of category totals are validated at both service and client boundaries.
+This endpoint supports bounded category previews without downloading the national database or issuing a request for every category.
+
+## Read a contact and its sources
+
+`GET /api/contacts/{id}` returns all telephone numbers, address, website, source URLs, source record identity, dates, and reuse metadata.
+`GET /api/contacts/{id}/contact.vcf` returns one complete vCard 3.0.
+`GET /api/sources` and `GET /api/sources/{id}` expose retained source hashes, retrieval dates, artifacts, and import accounting.
+A source date describes the retained publication and does not assert telephone reachability.
+Each phone retains the publisher's spelling in `display` and its canonical dial destination in `e164`.
+Validation requires both fields to identify the same digits.
+The website formats and copies the canonical value with Japanese numbering metadata while the API and archives preserve the original spelling.
+
+## Download complete data
+
+`GET /api/datasets` supplies the current manifest.
+It lists complete gzip-compressed JSONL, CSV, and vCard files with byte lengths and SHA-256 hashes.
+Use each returned URL directly.
+The URL includes both the contact snapshot and the archive digest, so a changed representation gets a different immutable URL.
+Validate the downloaded byte length and SHA-256 before processing it.
+Downloads contain the complete directory and do not depend on the search page size.
+Source-specific reuse terms remain attached to every record.
+CSV cells beginning with spreadsheet formula characters receive a leading apostrophe.
+CSV generation uses the pinned `csv-stringify` serializer with quoting, CRLF records, and its formula-escaping option.
+JSONL retains the canonical structured values.
+vCard text is escaped and folded at 75 UTF-8 bytes without splitting code points.
+
+## HTTP behavior
+
+GET, HEAD, and OPTIONS are supported.
+Other methods return 405.
+Public CORS permits anonymous reads and exposes validators, snapshot identity, request IDs, continuation links, and retry information.
+Catalog ETags identify the serialized catalog representation.
+Immutable archive URLs carry ETags and support conditional reads.
+Errors use RFC 9457 `application/problem+json` with `code`, `status`, and a generated `requestId`.
+400 denotes invalid input, 404 a missing resource, 409 an obsolete cursor snapshot, and 503 temporary unavailability.
+A 503 response includes Retry-After.
+Error bodies omit SQL, stack traces, credentials, and user queries.

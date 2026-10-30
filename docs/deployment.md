@@ -1,111 +1,101 @@
-# Cloudflare service
+# Local operation and Cloudflare environments
 
-The production entry point is `cloudflare.config.ts`.
-The project uses the pinned `cf` CLI and Cloudflare Vite Plugin.
-Wrangler is not a project dependency.
-The Rust server remains available for direct local development.
+The application uses native Workers, D1, and R2.
+Publication prepares isolated resources and checks a staging candidate before production promotion.
+Per-environment receipts and HTTPS checks establish deployment status.
 
-## Local commands
+## Install and verify
 
-Install dependencies with `mise x -- npm ci`.
-Install browser builds with `mise x -- npm run browsers`.
-Run `mise x -- just dev` for the local Rust server at `http://127.0.0.1:3000`.
-Run `mise x -- npm run build:web` after editing browser TypeScript.
-The default check rejects an embedded JavaScript file that differs from that output.
+```sh
+mise install
+mise x -- npm ci --ignore-scripts
+mise x -- npm run browsers
+mise x -- just check
+```
 
-A Cloudflare build needs an audited national snapshot and a working Docker engine.
-Run `mise x -- just prepare-service` once in a fresh build context.
-This writes `data/service/` without changing the active database.
-The command refuses an existing output directory.
-Use a fresh destination for another candidate and select its audited files in the Docker build input.
-Never overwrite files used by a running service.
+The fast check needs no Cloudflare account, secret, or national database.
+It creates an isolated fixture database and R2 bucket under `.local/check-state`.
+Its browser server uses port 8790 and cannot overwrite the national development state.
 
-Run `mise x -- just cloudflare-dev` for `http://127.0.0.1:8787`.
-Open `/api/docs` to try the public read API and `/api/openapi.json` for its generated contract.
-The [API guide](api.md) describes reuse, complete downloads, snapshot identities, and errors.
-This runs the real local Workers runtime and a Linux container.
-A cold build compiles the Rust server.
-The Docker build limits Cargo to two jobs and caches dependencies for subsequent builds.
+## Prepare national data
 
-Run `mise x -- just cloudflare-build` to produce Cloudflare Build Output locally.
-Run `mise x -- npm exec --no -- cf deploy --dry-run --prebuilt` to inspect that output without publishing.
-Run `mise x -- npm run e2e:cloudflare` to check the Worker and Linux container together.
-The suite owns port 8787 and refuses an existing listener.
-Run `mise x -- just service-check` for the complete local service gate, including the proof inventory and all browser suites.
+The retained source publication is an indexed SQLite archive.
+The TypeScript adapter reads it without modifying it and creates a separate native D1-compatible database and complete downloads.
+The archived collection is data input, not a runtime dependency on Rust.
 
-## Production publication
+```sh
+mise x -- just data-prepare /path/to/public-snapshot.sqlite .local/phonebook
+mise x -- npm run data:check -- .local/phonebook
+mise x -- just data-local .local/phonebook
+mise x -- just dev
+```
 
-The configured production origin is `https://dial.page`.
-The custom domain belongs to the Worker, which delegates directory requests to one immutable Rust container.
-Workers.dev and preview URLs remain disabled.
+Open http://127.0.0.1:8787/.
+Stop the local server before replacing its data.
+The seeder verifies the ready manifest, every record, source references, indexes, counts, database integrity, archive byte lengths, and hashes before activation.
+It discovers the pinned local D1 namespace using a unique marker rather than a hard-coded SQLite filename.
+The database is copied only after Miniflare closes its handles.
+R2 receives content-addressed archive keys before the replacement database becomes active.
+The original source remains read-only.
+A failed preparation never produces a ready manifest.
+The old collector's network update commands are retired; this implementation consumes a complete, separately collected publication.
 
-The Doppler project is `public-phonebook`, and its production config is `prd`.
-Run `mise x -- doppler setup --no-interactive` to select the committed defaults.
-The config supplies `CLOUDFLARE_ACCOUNT_ID` without committing the account selector.
-The application has no runtime secrets.
-Manual publication uses the maintainer's existing Cloudflare OAuth session.
-There is no stored Cloudflare API token, GitHub deployment secret, or automatic publishing job.
-Any future automation credential must come from Doppler with an explicit consumer and scope.
+For a built local preview, run `mise x -- just build` followed by `mise x -- npm run preview`.
+Both development and preview run the native Cloudflare Workers runtime with local D1 and R2 bindings.
+No Container is needed.
 
-Publish only a clean, signed source revision after its checks pass.
-Retain the prepared snapshot manifest and the current source-bound proof and corpus-replay receipts.
-Run `mise x -- just cloudflare-build` on that revision.
-Run `mise x -- just cloudflare-deploy --tag VERIFIED_SOURCE_SHA --message 'Verified production candidate'` to publish the prebuilt output.
-Replace `VERIFIED_SOURCE_SHA` with the full checked commit identity.
-The command fetches only the account selector through Doppler, refuses a failed fresh fetch, and does not use cached fallback configuration.
+## Environment boundaries
 
-Run `mise x -- just e2e-production` against the public HTTPS origin after publication.
-This reuses the 14 Cloudflare workflows with Chromium and an emulated iPhone, then downloads and reconciles the complete national CSV once.
-It starts no local server and validates the prepared manifest and exact static asset bytes.
-Retain its videos, traces, screenshots, Worker version, container image, source revision, and snapshot identity with the deployment record.
+| Environment | Worker | Database | Bucket | Site |
+| --- | --- | --- | --- | --- |
+| development | dial-development | dial-development-directory | dial-development-datasets | 127.0.0.1:8787 |
+| staging | dial-staging | dial-staging-directory | dial-staging-datasets | staging.dial.page |
+| production | dial-production | dial-production-directory | dial-production-datasets | www.dial.page |
 
-The GitHub `Checks` workflow runs the project's fast gate without deployment credentials.
-Pull requests and merge groups run it automatically.
-Manual dispatch verifies the initial default-branch publication without a duplicate push trigger.
-The required `Checks` job depends on successful verification, including workflow lint, strict types, behavior tests, dependency and secret scans, and the monochrome browser gate.
-Formal proofs, parser corpus replay, complete browser suites, and national data checks remain part of candidate verification.
+`src/core/environment.ts` is the source of these identities.
+The apex has no application domain assignment.
+`cloudflare.config.ts` derives typed bindings through the pinned cf configuration API.
+The project uses cf rather than Wrangler for Cloudflare project operations.
+Vite's build API and preview command handle the full client and Worker build locally.
+The CLI and plugin are beta dependencies, so upgrades require the native integration checks.
 
-No workflow publishes GitHub releases.
-Future releases must remain drafts until every final asset and its verification evidence is attached.
-Publish each release once and never replace published assets or move its tag.
+Secrets belong in Doppler.
+The checked-in Doppler configuration identifies the existing project and account configuration; it grants no deployment authority.
+Public reads have no application secret.
+The commands use Doppler for account selection and the existing cf OAuth profile for provider authentication.
+Enable R2 in the Cloudflare account before the first remote preparation.
 
-## Data and recovery
+## Prepare and publish
 
-`snapshot.json` identifies the exact database, contact count, source count, and generation time.
-The public health response, search feed, source details, and response headers identify the same database hash.
-A missing or mismatched manifest prevents the prepared service from starting.
-Raw publication archives stay in the offline data workspace.
-The runtime image contains read-only data and no update credentials.
+```sh
+mise x -- just data-remote staging .local/phonebook
+mise x -- just publish staging .local/phonebook
+mise x -- just data-remote production .local/phonebook
+mise x -- just publish production .local/phonebook
+```
 
-Replace data by building and checking a new immutable image.
-Retain the previous image identity for rollback.
-Import failures and audit failures must leave the active snapshot intact.
-A deployment must include its image identity, snapshot manifest, source-bound proof receipt, dependency checks, and browser evidence.
+The data command validates the complete local bundle before remote writes.
+It uploads content-addressed archives and the manifest to the environment's private R2 bucket.
+It imports bound SQL batches through the pinned cf CLI, within D1's parameter and request budgets.
+An import identity and checkpoint commit in the same native D1 transaction as each batch.
+A lost acknowledgement can resume from the stored checkpoint without duplicate inserts.
+An unowned database or a different publication is refused rather than overwritten.
+A different snapshot requires separately prepared database identities.
+The final checks compare counts, foreign keys, the complete catalog, and fixed payload samples with the validated source.
 
-## Public boundary
+The publisher requires a clean committed checkout and a verified remote-data receipt.
+Production additionally requires a passing staging receipt for the identical Git tree and snapshot.
+Tree identity allows a merge commit to preserve an already checked candidate when its files are unchanged.
+Each environment is rebuilt with its own bindings and origin before the prebuilt cf deployment.
+The cf deployment applies the Worker's triggers, including custom domains.
+HTML responses use `no-store, no-transform` to prevent Cloudflare from adding scripts to the document.
+Browser checks reject scripts from other origins and verify that an inserted external script is detected.
+The publisher hashes build output before deployment and after provider provisioning.
+Public Playwright checks exercise desktop and narrow search, telephone formatting, detail and provenance navigation, the interactive Scalar client, accessibility, security-policy failures, and the 512-byte query boundary.
+They also download every archive through HTTPS and compare its byte length and SHA-256 with the checked manifest.
+Receipts and failure evidence stay under `.local/releases` and `test-results`.
 
-The service accepts GET and HEAD.
-It has no accounts, private contact uploads, write API, cookies, analytics scripts, or third-party font requests.
-The Worker forwards only Accept and If-None-Match.
-The app uses a restrictive content security policy, explicit cache rules, no-referrer policy, and generated correlation IDs.
-Searches and exports have separate bounded capacity.
-A busy service returns 503 and Retry-After instead of accumulating an unbounded work queue.
-
-Worker invocation logs are disabled and query strings are redacted in observability configuration.
-Rust logs contain route patterns rather than user-supplied paths or search text.
-Container egress and SSH are disabled in configuration.
-The offline importer uses an HTTPS-only transport.
-
-CSV text cells with declared formula-leading characters receive a leading apostrophe.
-Canonical telephone cells are validated separately and retain their international representation.
-JSON preserves original text.
-Spreadsheet software can reinterpret CSV when saving or reopening it, so the prefix is not a universal spreadsheet security guarantee.
-The precise CSV boundary is recorded in [verification](verification.md).
-
-## External verification boundary
-
-The production domain is public configuration, and the account selector remains in Doppler.
-Cloudflare controls certificates, runtime isolation, infrastructure, and billing.
-Local proof receipts cover only the documented Rust core and source identities.
-Local tests do not establish production capacity, platform isolation, or physical contact-import compatibility.
-The [architecture decision](adr/immutable-rust-snapshots-on-cloudflare.md) records those assumptions.
+The previous Worker and its data remain available while the new staging service is checked.
+Record the existing domain mapping and deployment identity before production cutover.
+Provider provisioning, network delivery, and the truth of upstream records remain external trust boundaries.
+Read the [promotion decision](adr/source-tree-bound-staging-promotion.md) and [verification contract](verification.md) for their checks and limits.

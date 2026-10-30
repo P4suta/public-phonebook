@@ -16,9 +16,7 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    env:
-      CARGO_BUILD_JOBS: "2"
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -28,21 +26,16 @@ jobs:
           version: "2026.10.19"
       - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: checks-${{ runner.os }}-rust-1.99.1-${{ hashFiles('Cargo.lock') }}
-      - run: mise x -- npm ci
+          path: ~/.npm
+          key: checks-${{ runner.os }}-${{ hashFiles('package-lock.json', 'mise.toml') }}
+      - run: mise x -- npm ci --ignore-scripts
       - run: mise x -- npm exec --no -- playwright install --with-deps chromium
       - run: mise x -- just check
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: failure()
         with:
-          name: browser-failure-evidence
-          path: |
-            test-results/fixtures
-            playwright-report/fixtures
+          name: verification-failure-evidence
+          path: test-results
           if-no-files-found: ignore
           retention-days: 7
   gate:

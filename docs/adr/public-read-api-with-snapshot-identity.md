@@ -7,6 +7,8 @@ date: 2026-10-29
 ## Status
 
 Proposed for publication.
+The local implementation is superseded by [native Cloudflare TypeScript services](native-cloudflare-typescript-services.md).
+The decision below records the preceding Rust implementation.
 Implemented locally.
 This extends [immutable Rust snapshots on Cloudflare](immutable-rust-snapshots-on-cloudflare.md).
 

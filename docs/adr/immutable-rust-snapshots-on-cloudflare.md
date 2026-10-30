@@ -6,7 +6,9 @@ date: 2026-10-29
 
 ## Status
 
-Proposed for production.
+Accepted for production.
+The local implementation is superseded by [native Cloudflare TypeScript services](native-cloudflare-typescript-services.md).
+The production deployment remains unchanged by that local work.
 The local service path is built and checked.
 This extends [the SQLite snapshot decision](sqlite-national-snapshots.md).
 
@@ -25,6 +27,12 @@ Keep the verified Rust core and SQLite implementation in a Cloudflare Container.
 Serve static assets through the Worker asset binding.
 Use one fixed Durable Object name and one initial container instance.
 This is an explicit capacity ceiling, not a throughput claim.
+Use the native Durable Object Container API with the supported Durable Object scheduling policy.
+Resolve the current Worker's class through its typed `ctx.exports` loopback namespace.
+Select a named digest-pinned image and the `standard-1` instance size at startup.
+Keep the resource profile in Container labels so an unchanged image still restarts when its requested resources change.
+Share startup readiness across concurrent requests, replace an obsolete image or profile, and restore the native ten-minute inactivity timeout after object reconstruction.
+The fixed name enforces the service's instance bound because this policy has no application-wide maximum.
 
 Prepare service bundles only after the national audit verifies the database and archived source hashes.
 Include the database, a snapshot manifest, and its lease file.
@@ -60,6 +68,8 @@ Container startup, image distribution, and a single-instance capacity ceiling ad
 Cloudflare billing, global placement, production traffic, and production capability behavior remain deployment boundaries.
 The local Cloudflare development runtime requests Docker capabilities for its own networking adapter.
 A non-root image alone does not establish isolation on Cloudflare's production platform.
+The Durable Object scheduling policy grants root capabilities to processes regardless of their user ID.
+The HTTP interface exposes no process execution operation, and the Rust adapter opens its prepared database read-only.
 
 Moving all queries to D1 would require another adapter and a large-data import and export design.
 Shipping all records to each browser would increase transfer and parsing work for every visitor.
@@ -74,5 +84,7 @@ See [deployment commands](../deployment.md) and [verification boundaries](../ver
 
 - [Cloudflare project commands](https://developers.cloudflare.com/cf/projects/)
 - [Typed Cloudflare configuration](https://developers.cloudflare.com/cf/projects/cloudflare-config/)
-- [Container class](https://developers.cloudflare.com/containers/api/container-class/)
+- [Durable Object Container API](https://developers.cloudflare.com/containers/api/durable-object-container/)
+- [Container scheduling policies](https://developers.cloudflare.com/containers/configuration/scheduling-policy/)
+- [Worker loopback bindings](https://developers.cloudflare.com/workers/runtime-apis/context/#exports)
 - [Local Container development](https://developers.cloudflare.com/containers/guides/local-dev/)

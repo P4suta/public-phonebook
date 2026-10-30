@@ -1,78 +1,46 @@
 default:
     @just --list
 
-dev: build-web
-    cargo run --locked -p public-phonebook -- serve
+dev:
+    npm run dev
 
-prepare-service output="data/service":
-    cargo run --locked -p public-phonebook -- prepare-service --output {{ quote(output) }}
+build environment="development":
+    npm run build -- {{ quote(environment) }}
 
-cloudflare-dev:
-    npm run dev:cloudflare
+data-prepare source output:
+    npm run data -- prepare {{ quote(source) }} {{ quote(output) }}
 
-cloudflare-build:
-    npm run build:cloudflare
+data-local bundle:
+    npm run data:local -- {{ quote(bundle) }}
 
-cloudflare-deploy *args:
-    doppler run --no-fallback --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID -- npm exec --no -- cf deploy --prebuilt {{ args }}
+data-check bundle:
+    npm run data:check -- {{ quote(bundle) }}
 
-e2e-production:
-    npm run e2e:production
+phone-quality bundle report:
+    npm run data:phones -- {{ quote(bundle) }} {{ quote(report) }}
 
-update-data *args:
-    cargo run --locked -p public-phonebook -- update {{ args }}
+check:
+    npm run check
 
-validate-data:
-    cargo run --locked -p public-phonebook -- verify-data
+test: check (data-check ".local/phonebook") (phone-quality ".local/phonebook" ".local/phone-quality.json")
+    npm run prove
+    npm run e2e
 
-e2e *args:
-    npm run e2e -- {{ args }}
-
-e2e-national *args:
-    npm run e2e:national -- {{ args }}
-
-check *args: format lint test audit secrets workflow-check design-check web-check
-    cargo run --locked -p xtask -- check {{ args }}
-
-service-check *args:
-    just check --data --proofs --fuzz --browsers --cloudflare {{ args }}
-
-fuzz-replay:
-    cargo run --locked -p xtask -- fuzz-replay
-
-prove *args:
-    cargo run --locked -p xtask -- prove {{ args }}
-
-build-web:
-    npm run build:web
-
-web-check:
-    cargo run --locked -p xtask -- check-web
-
-design-check:
-    npm run e2e -- tests/e2e/design.spec.ts --project=chromium
-
-format:
-    cargo fmt --all --check
-    cargo fmt --manifest-path fuzz/Cargo.toml --check
-    taplo fmt --check Cargo.toml crates/phonebook/Cargo.toml crates/phonebook-core/Cargo.toml xtask/Cargo.toml fuzz/Cargo.toml mise.toml sources/medical.toml sources/prefecture-confirmation.toml sources/public-data.toml sources/civic.toml sources/childcare.toml repository.toml
+typecheck:
+    npm run typecheck
 
 lint:
-    cargo clippy --locked --workspace --all-targets -- -D warnings
-    cargo clippy --manifest-path fuzz/Cargo.toml --locked --all-targets -- -D warnings
-    npm run typecheck
     npm run lint
 
-test:
-    cargo test --locked --workspace
-    npm run test:web
+[positional-arguments]
+e2e *args:
+    npm run e2e -- "$@"
 
-audit:
-    cargo run --locked -p xtask -- audit
-    npm run audit
+prove:
+    npm run prove
 
-secrets:
-    gitleaks dir --no-banner --redact .
+data-remote environment bundle:
+    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --no-fallback -- npm run data:remote -- {{ quote(environment) }} {{ quote(bundle) }}
 
-workflow-check:
-    actionlint .github/workflows/checks.yml
+publish environment bundle=".local/phonebook":
+    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --no-fallback -- npm run publish -- {{ quote(environment) }} {{ quote(bundle) }}

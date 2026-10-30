@@ -2,16 +2,21 @@
   "$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
   "files": {
     "includes": [
+      "src/**",
+      "tools/**",
+      "docs/*.json",
       "tests/**",
       "web/**",
       "cloudflare/**/*.ts",
       "cloudflare/*.json",
       "cloudflare.config.ts",
       "vite.config.ts",
-      "playwright*.ts",
+      "*.ts",
       "tsconfig.json",
       "package.json",
-      "biome.json"
+      "biome.json",
+      "*.json",
+      "!!src/routeTree.gen.ts"
     ]
   },
   "formatter": { "indentStyle": "space" },

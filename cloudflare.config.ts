@@ -1,59 +1,33 @@
-import {
-  bindings,
-  defineConfig,
-  defineContainer,
-  defineWorker,
-  exports,
-} from "cf/config";
-import * as entrypoint from "./cloudflare/worker.ts" with { type: "cf-worker" };
+import { bindings, defineConfig } from "cf/config";
+import { deploymentEnvironment, environments } from "./src/core/environment.ts";
 
-const directory = defineContainer({
-  name: "public-phonebook-directory",
-  image: { dockerfile: "./cloudflare/Dockerfile", buildContext: "." },
-  instanceType: "basic",
-  maxInstances: 1,
-  schedulingPolicy: "default",
-  ssh: { enabled: false },
-  observability: { logs: { enabled: true } },
-});
+const workerCpuLimitMs = 100;
 
-const worker = defineWorker({
-  name: "public-phonebook",
-  domains: ["dial.page"],
-  entrypoint,
-  compatibilityDate: "2026-10-23",
-  workersDev: false,
-  previewUrls: false,
-  exports: {
-    Phonebook: exports.durableObject({
-      storage: "sqlite",
-      container: directory,
-    }),
-  },
-  env: {
-    ASSETS: bindings.assets(),
-  },
-  assets: {
-    htmlHandling: "none",
-    notFoundHandling: "none",
-    runWorkerFirst: true,
-  },
-  limits: { cpuMs: 50 },
-  observability: {
-    enabled: true,
-    redactQueryString: true,
-    logs: { enabled: true, invocationLogs: false },
-    traces: { enabled: false },
-  },
-});
-
-export default defineConfig({
-  worker: {
-    ...worker,
-    env: {
-      ...worker.env,
-      PHONEBOOK: bindings.durableObject({ worker, exportName: "Phonebook" }),
+export default defineConfig(({ mode }) => {
+  const environment = deploymentEnvironment(mode);
+  const target = environments[environment];
+  return {
+    worker: {
+      name: target.worker,
+      entrypoint: "./src/server.ts",
+      compatibilityDate: "2026-10-29",
+      compatibilityFlags: ["nodejs_compat"],
+      domains: target.domains,
+      workersDev: false,
+      previewUrls: false,
+      env: {
+        DB: bindings.d1({ name: target.database, dev: { remote: false } }),
+        DATASETS: bindings.r2({ name: target.bucket, dev: { remote: false } }),
+        APP_ENV: bindings.text(environment),
+        PUBLIC_ORIGIN: bindings.text(target.origin),
+      },
+      limits: { cpuMs: workerCpuLimitMs },
+      observability: {
+        enabled: true,
+        redactQueryString: true,
+        logs: { enabled: true, invocationLogs: false },
+        traces: { enabled: false },
+      },
     },
-  },
-  containers: [directory],
+  };
 });
