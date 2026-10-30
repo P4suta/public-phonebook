@@ -145,48 +145,56 @@ export function SearchPage(): ReactElement {
 
   return (
     <main id="main" className={`${css.page} ${!active ? css.home : ""}`}>
-      <div className={css.stack}>
-        {!active && <h1 className={css.brand}>Public Phonebook</h1>}
-        <search>
+      <div className={css.searchLayout}>
+        <div className={css.searchIntro}>
+          {!active && (
+            <div className={css.homeHeading}>
+              <h1 className={css.brand}>Public Phonebook</h1>
+              <nav aria-label="サービスの情報" className={css.actions}>
+                <LinkButton href="/about" icon={Info}>
+                  {uiCopy.about}
+                </LinkButton>
+              </nav>
+            </div>
+          )}
+          <div className={css.searchGroup}>
+            <label className={css.fieldLabel} htmlFor="directory-search">
+              {uiCopy.search.label}
+            </label>
+            <p id="directory-search-hint" className={css.searchHint}>
+              {uiCopy.search.hint.join("\n")}
+            </p>
+          </div>
+        </div>
+        <search className={css.searchArea}>
           <form
             ref={form}
             method="get"
             action="/"
-            className={css.stack}
+            className={css.searchForm}
             onSubmit={submit}
           >
-            <div className={css.searchGroup}>
-              <label className={css.fieldLabel} htmlFor="directory-search">
-                {uiCopy.search.label}
-              </label>
-              <p id="directory-search-hint" className={css.searchHint}>
-                {uiCopy.search.hint.join("\n")}
-              </p>
-              <div className={css.searchField}>
-                <input
-                  id="directory-search"
-                  name="q"
-                  className={css.input}
-                  aria-describedby="directory-search-hint"
-                  enterKeyHint="search"
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  onCompositionStart={() => setComposing(true)}
-                  onCompositionEnd={(event) => {
-                    setComposing(false);
-                    setInput(event.currentTarget.value);
-                  }}
-                  autoComplete="off"
-                  type="search"
-                />
-                <button className={css.searchButton} type="submit">
-                  <SearchIcon
-                    size={foundation.control.icon}
-                    aria-hidden="true"
-                  />
-                  {uiCopy.search.action}
-                </button>
-              </div>
+            <div className={css.searchField}>
+              <input
+                id="directory-search"
+                name="q"
+                className={css.input}
+                aria-describedby="directory-search-hint"
+                enterKeyHint="search"
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onCompositionStart={() => setComposing(true)}
+                onCompositionEnd={(event) => {
+                  setComposing(false);
+                  setInput(event.currentTarget.value);
+                }}
+                autoComplete="off"
+                type="search"
+              />
+              <button className={css.searchButton} type="submit">
+                <SearchIcon size={foundation.control.icon} aria-hidden="true" />
+                {uiCopy.search.action}
+              </button>
             </div>
             <div
               className={css.filters}
@@ -254,13 +262,7 @@ export function SearchPage(): ReactElement {
             </div>
           </form>
         </search>
-        {!active ? (
-          <nav aria-label="サービスの情報" className={css.homeNavigation}>
-            <LinkButton href="/about" icon={Info}>
-              {uiCopy.about}
-            </LinkButton>
-          </nav>
-        ) : (
+        {active && (
           <>
             <div className={css.toolbar}>
               <h1 className={css.srOnly}>検索結果</h1>

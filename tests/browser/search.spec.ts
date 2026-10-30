@@ -1,24 +1,137 @@
+import type { Page } from "@playwright/test";
+import { foundation } from "../../src/ui/foundations.ts";
 import { expect, test } from "./fixtures.ts";
 
-test("initial screen is empty and its content is centered", async ({
-  page,
-}) => {
-  await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: "Public Phonebook", exact: true }),
-  ).toBeVisible();
-  await expect(page.locator("article")).toHaveCount(0);
-  await expect(page.locator("header, footer")).toHaveCount(0);
-  await expect(page.getByLabel("市区町村", { exact: true })).toHaveCount(0);
-  const box = await page.locator("main > div").boundingBox();
-  expect(box).not.toBeNull();
-  const viewport = page.viewportSize();
-  expect(viewport).not.toBeNull();
-  if (box && viewport)
-    expect(Math.abs(box.y + box.height / 2 - viewport.height / 2)).toBeLessThan(
-      2,
+const centerTolerance = 2;
+const edgeTolerance = 1;
+
+interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+async function initialLayout(page: Page): Promise<{
+  readonly heading: Box;
+  readonly link: Box;
+  readonly label: Box;
+  readonly hint: Box;
+  readonly field: Box;
+  readonly filters: Box;
+  readonly padding: number;
+  readonly scrollable: boolean;
+}> {
+  const box = async (locator: ReturnType<Page["locator"]>): Promise<Box> => {
+    const bounds = await locator.boundingBox();
+    if (!bounds) throw new Error("An initial-screen element is hidden");
+    return bounds;
+  };
+  const searchbox = page.getByRole("searchbox");
+  return {
+    heading: await box(
+      page.getByRole("heading", { name: "Public Phonebook", exact: true }),
+    ),
+    link: await box(
+      page
+        .getByRole("navigation", { name: "サービスの情報" })
+        .getByRole("link"),
+    ),
+    label: await box(page.locator('label[for="directory-search"]')),
+    hint: await box(page.locator("#directory-search-hint")),
+    field: await box(searchbox.locator("..")),
+    filters: await box(page.locator("[data-has-city]")),
+    padding: await page
+      .locator("main")
+      .evaluate((main) => Number.parseFloat(getComputedStyle(main).paddingTop)),
+    scrollable: await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+  };
+}
+
+for (const size of [
+  { width: 1440, height: 900 },
+  { width: 390, height: 844 },
+  { width: 320, height: 900 },
+])
+  test(`the initial screen centers the search field at ${size.width}x${size.height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(size);
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
+    await expect(page.locator("article")).toHaveCount(0);
+    await expect(page.locator("header, footer")).toHaveCount(0);
+    await expect(page.getByRole("search")).toHaveCount(1);
+    await expect(page.getByLabel("市区町村", { exact: true })).toHaveCount(0);
+    const layout = await initialLayout(page);
+    expect(layout.scrollable).toBe(false);
+    expect(
+      Math.abs(layout.field.y + layout.field.height / 2 - size.height / 2),
+    ).toBeLessThan(centerTolerance);
+    expect(layout.padding).toBe(foundation.space["24"]);
+    expect(Math.abs(layout.heading.y - layout.padding)).toBeLessThan(
+      edgeTolerance,
     );
-});
+    for (const item of [layout.link, layout.label, layout.field])
+      expect(Math.abs(item.x - layout.heading.x)).toBeLessThan(edgeTolerance);
+    expect(
+      Math.abs(
+        layout.link.y -
+          (layout.heading.y + layout.heading.height) -
+          foundation.space["16"],
+      ),
+    ).toBeLessThan(edgeTolerance);
+    expect(
+      Math.abs(
+        layout.field.y -
+          (layout.hint.y + layout.hint.height) -
+          foundation.space["8"],
+      ),
+    ).toBeLessThan(edgeTolerance);
+    expect(
+      Math.abs(
+        layout.filters.y -
+          (layout.field.y + layout.field.height) -
+          foundation.space["24"],
+      ),
+    ).toBeLessThan(edgeTolerance);
+    expect(layout.label.y).toBeGreaterThanOrEqual(
+      layout.link.y + layout.link.height + foundation.space["48"],
+    );
+  });
+
+for (const size of [
+  { width: 320, height: 480 },
+  { width: 1440, height: 400 },
+])
+  test(`a short viewport keeps the initial screen in reading order at ${size.width}x${size.height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(size);
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
+    const layout = await initialLayout(page);
+    expect(layout.scrollable).toBe(false);
+    expect(Math.abs(layout.heading.y - layout.padding)).toBeLessThan(
+      edgeTolerance,
+    );
+    const order = [
+      [layout.heading, layout.link, foundation.space["16"]],
+      [layout.link, layout.label, foundation.space["48"]],
+      [layout.label, layout.hint, foundation.space["8"]],
+      [layout.hint, layout.field, foundation.space["8"]],
+      [layout.field, layout.filters, foundation.space["24"]],
+    ] as const;
+    for (const [above, below, gap] of order)
+      expect(Math.abs(below.y - (above.y + above.height) - gap)).toBeLessThan(
+        edgeTolerance,
+      );
+    expect(
+      await page.evaluate(() => document.documentElement.scrollHeight),
+    ).toBeGreaterThanOrEqual(layout.filters.y + layout.filters.height);
+  });
 
 test("typing searches, exact names rank first, and contact actions work", async ({
   page,
@@ -78,11 +191,13 @@ test("municipalities belong to the chosen prefecture and reset on change", async
 });
 
 for (const reducedMotion of ["no-preference", "reduce"] as const) {
-  test(`clearing the query restores the centered initial screen and keeps focus with motion ${reducedMotion}`, async ({
+  test(`clearing the query restores the initial layout and keeps focus with motion ${reducedMotion}`, async ({
     page,
   }) => {
     await page.emulateMedia({ reducedMotion });
     await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
+    const initial = await initialLayout(page);
     const input = page.getByRole("searchbox");
     const original = await input.elementHandle();
     if (!original) throw new Error("The search input is missing");
@@ -107,12 +222,7 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
         (node) => node.isConnected && document.activeElement === node,
       ),
     ).toBe(true);
-    const bounds = await page.locator("main > div").boundingBox();
-    const viewport = page.viewportSize();
-    if (!bounds || !viewport) throw new Error("The search layout is missing");
-    expect(
-      Math.abs(bounds.y + bounds.height / 2 - viewport.height / 2),
-    ).toBeLessThan(2);
+    expect(await initialLayout(page)).toEqual(initial);
     expect(
       await page
         .locator("main")

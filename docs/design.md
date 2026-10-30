@@ -58,9 +58,10 @@ Use authored black and white only.
 Exclude gray steps, gradients, shadows, translucent styling, filters, blending, and slogans.
 Use size, weight, grouping, spacing, and solid borders to communicate structure.
 The initial heading is the service name.
-The service name sits two body lines above the search form.
-The initial content is centered vertically in the viewport rather than placed below a header.
-Data and API navigation lives below the initial filters.
+The service name and the project information link below it start at the page's top padding and the content's start edge, 16 pixels apart.
+The search field row sits at the vertical center of the viewport, with its label and hint directly above it and the filters below it.
+A viewport too short for that arrangement keeps the same order and derived spacing from the top and scrolls instead.
+Data and API information is reached through the project information link.
 No footer contains required information.
 Buttons have visible labels, explicit focus indicators, and generous targets.
 The search action touches the search-field border on wide screens and sits below the field on narrow screens.
@@ -113,7 +114,7 @@ The category field says what is being classified.
 Municipalities appear after a prefecture is selected and reset when it changes.
 Japanese composition completes before an automatic search begins.
 Early native-form input survives JavaScript enhancement.
-Clearing all search conditions restores the centered initial screen without a separate home action.
+Clearing all search conditions restores the initial screen without a separate home action.
 Clearing text preserves explicitly selected region and category filters.
 The search input stays mounted and focused across initial and result layouts.
 Layout changes do not use motion animation.
