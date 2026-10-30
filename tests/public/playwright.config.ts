@@ -12,6 +12,7 @@ if (
   );
 const environment =
   origin === environments.staging.origin ? "staging" : "production";
+const proxy = process.env.HTTPS_PROXY;
 export default defineConfig({
   testDir: ".",
   forbidOnly: true,
@@ -29,6 +30,7 @@ export default defineConfig({
   outputDir: resolve(`test-results/public-${environment}`),
   use: {
     baseURL: origin,
+    ...(proxy ? { proxy: { server: proxy } } : {}),
     trace: "retain-on-failure",
     video: "retain-on-failure",
     screenshot: "only-on-failure",
