@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   completeTelephone,
   inputScript,
+  insertionEvent,
   keystrokeIntervals,
   pauseDelay,
 } from "../../src/core/search-input.ts";
@@ -18,7 +19,7 @@ const scripts: readonly InputScript[] = [
   "telephone",
   "latin",
 ];
-const events: readonly SearchEvent[] = ["change", "space", "blur", "submit"];
+const events: readonly SearchEvent[] = ["change", "boundary", "blur", "submit"];
 
 function expectedTrigger(
   script: InputScript,
@@ -122,6 +123,24 @@ describe("search trigger", () => {
               ).toBe(
                 expectedTrigger(script, event, composing, complete, intervals),
               );
+  });
+
+  it("treats a typed space and whole insertions as word boundaries", () => {
+    for (const inputType of [
+      "insertFromPaste",
+      "insertFromDrop",
+      "insertReplacementText",
+    ])
+      expect(insertionEvent(inputType, null), inputType).toBe("boundary");
+    for (const data of [" ", "o ", "o　", "o\t"])
+      expect(insertionEvent("insertText", data), data).toBe("boundary");
+    for (const [inputType, data] of [
+      ["insertText", "o"],
+      ["insertText", null],
+      ["deleteContentBackward", null],
+      ["insertCompositionText", "と"],
+    ] as const)
+      expect(insertionEvent(inputType, data), inputType).toBe("change");
   });
 
   it("waits three median keystroke intervals once two intervals exist", () => {

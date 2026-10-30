@@ -83,6 +83,21 @@ for (const [name, finish] of boundaries)
     await expectSearches(page, queries, ["tok"]);
   });
 
+test("pasted Latin text searches at once", async ({ page }) => {
+  const { queries, input } = await searchPage(page);
+  await input.evaluate((element: HTMLInputElement) => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set?.call(element, "tokyo");
+    element.dispatchEvent(
+      new InputEvent("input", { bubbles: true, inputType: "insertFromPaste" }),
+    );
+  });
+  await page.clock.runFor(1);
+  await expectSearches(page, queries, ["tokyo"]);
+});
+
 test("a partial telephone number waits until it is complete", async ({
   page,
 }) => {

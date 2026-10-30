@@ -17,6 +17,7 @@ import {
 import {
   completeTelephone,
   inputScript,
+  insertionEvent,
   keystrokeIntervals,
   pauseDelay,
 } from "../core/search-input.ts";
@@ -214,13 +215,12 @@ export function SearchPage(): ReactElement {
                 }}
                 onChange={(event) => {
                   keystrokes.current.push(performance.now());
-                  const inserted =
-                    event.nativeEvent instanceof InputEvent
-                      ? event.nativeEvent.data
-                      : null;
+                  const native = event.nativeEvent;
                   edit(
                     event.target.value,
-                    inserted && /\s$/u.test(inserted) ? "space" : "change",
+                    native instanceof InputEvent
+                      ? insertionEvent(native.inputType, native.data)
+                      : "change",
                   );
                 }}
                 onBlur={() =>

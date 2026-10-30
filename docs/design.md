@@ -116,7 +116,8 @@ Municipalities appear after a prefecture is selected and reset when it changes.
 Japanese composition completes before an automatic search begins.
 Input that contains hiragana, katakana, or kanji searches 120 milliseconds after composition ends or the text changes.
 Input made only of telephone characters searches automatically once it forms a complete Japanese telephone number.
-Other input, such as Latin letters, searches at a typed space, when the field loses focus, or after a pause.
+Other input, such as Latin letters, searches at a typed space, pasted or dropped text, or a chosen keyboard suggestion.
+It also searches when the field loses focus or after a pause.
 The pause is three times the median interval between the reader's keystrokes since the field gained focus, and it needs at least two intervals.
 Enter and the search button always search, and clearing the field restores the initial screen after the same short delay.
 A pure policy decides the trigger, so typing doesn't send one request per keystroke.

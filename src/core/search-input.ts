@@ -1,10 +1,24 @@
 import { normalizePhone, telephoneSpelling } from "./phone.ts";
-import type { InputScript } from "./search-trigger-policy.ts";
+import type { InputScript, SearchEvent } from "./search-trigger-policy.ts";
 
 const japaneseText = /[\p{scx=Hiragana}\p{scx=Katakana}\p{scx=Han}]/u;
 const digit = /[0-9０-９]/u;
 const pauseIntervalMultiple = 3;
 const medianHalves = 2;
+const wholeInsertions: ReadonlySet<string> = new Set([
+  "insertFromPaste",
+  "insertFromDrop",
+  "insertReplacementText",
+]);
+
+export function insertionEvent(
+  inputType: string,
+  data: string | null,
+): SearchEvent {
+  return wholeInsertions.has(inputType) || /\s$/u.test(data ?? "")
+    ? "boundary"
+    : "change";
+}
 
 export function inputScript(text: string): InputScript {
   const trimmed = text.trim();

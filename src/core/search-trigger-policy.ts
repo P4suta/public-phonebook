@@ -1,7 +1,7 @@
 const minimumPauseIntervals = 2;
 
 export type InputScript = "empty" | "japanese" | "telephone" | "latin";
-export type SearchEvent = "change" | "space" | "blur" | "submit";
+export type SearchEvent = "change" | "boundary" | "blur" | "submit";
 export type SearchTrigger = "search" | "settle" | "pause" | "wait";
 
 export function searchTrigger(
