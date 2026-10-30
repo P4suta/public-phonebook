@@ -153,8 +153,8 @@ it("fits the native Figma text measurements and keeps text distinct from its opa
     "background",
   ]);
   expect(audit.pages.map((page) => [page.id, page.texts.length])).toEqual([
-    ["14:2", 569],
-    ["0:1", 305],
+    ["14:2", 582],
+    ["0:1", 311],
     ["14:3", 22],
     ["14:4", 103],
   ]);
@@ -190,6 +190,7 @@ it("keeps canonical screen viewports, scrolling, and symmetric gutters consisten
     "152:2",
     "202:1073",
     "311:2238",
+    "438:2882",
   ]);
   const mobile = new Set([
     "198:145",
@@ -203,6 +204,7 @@ it("keeps canonical screen viewports, scrolling, and symmetric gutters consisten
     "151:2",
     "203:594",
     "233:1676",
+    "438:2901",
   ]);
   const screens = audit.pages
     .flatMap((page) => page.placements)
@@ -211,14 +213,16 @@ it("keeps canonical screen viewports, scrolling, and symmetric gutters consisten
   for (const node of screens) {
     const compact = node.id === "233:1676";
     const wide = desktop.has(node.id);
+    const gutter =
+      node.id === "438:2882" ? 480 : wide && node.id !== "202:1073" ? 240 : 24;
     expect(
       [node.width, node.height, node.left, node.right, node.scroll],
       node.id,
     ).toEqual([
       wide ? 1440 : compact ? 320 : 390,
       wide || compact ? 900 : 844,
-      wide && node.id !== "202:1073" ? 240 : 24,
-      wide && node.id !== "202:1073" ? 240 : 24,
+      gutter,
+      gutter,
       "VERTICAL",
     ]);
   }

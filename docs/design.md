@@ -36,7 +36,8 @@ All 91 artifacts that were directly on the original page canvases remain present
 Current desktop viewports are 1440 by 900 pixels.
 Current mobile viewports are 390 by 844 pixels, with a 320 by 900 compact example.
 Long data and result content remains inside vertically scrolling viewports.
-The 21 current web screens use symmetric content gutters.
+The 23 current web screens use symmetric content gutters.
+The two external-link confirmation screens center the dialog component on an opaque white page.
 Archived notes and earlier state studies preserve historical decisions and do not govern the current interface.
 
 The retained [layout audit](figma-layout.json) captures native bounds, intrinsic text measurements, text colors, and instance-reference counts.
@@ -44,7 +45,7 @@ The audit checks all four pages, including archived and future content.
 It measures an untruncated copy of each text node at its original width, then removes that temporary copy.
 It checks clipping, auto-layout sibling overlap, monochrome paints, opacity, effects, and text against the nearest opaque ancestor fill.
 Intentional vertical viewport overflow and absolute focus indicators are excluded from unintended clipping and sibling-overlap findings.
-The retained capture contains 999 text measurements and 740 resolved instance references.
+The retained capture contains 1,018 text measurements and 754 resolved instance references.
 Unit checks independently recompute canvas overlap and section containment, validate text fit and contrasting colors, and enforce canonical viewport sizes and gutters.
 The same overlap check detects all ten overlapping pairs in the original desktop arrangement.
 These checks cover the retained capture and cannot detect later Figma edits until the audit is refreshed.
