@@ -35,11 +35,19 @@ test("the initial screen gives a complete instruction and one project-informatio
     name: "Public Phonebookについてくわしく知る",
     exact: true,
   });
-  const box = await link.boundingBox();
-  const viewport = page.viewportSize();
-  if (!box || !viewport)
+  const [box, heading, label] = await Promise.all(
+    [
+      link,
+      page.getByRole("heading", { level: 1 }),
+      page.getByText("施設や窓口の名前", { exact: true }),
+    ].map(async (item) => item.boundingBox()),
+  );
+  if (!box || !heading || !label)
     throw new Error("The project information action is missing");
-  expect(Math.abs(box.x + box.width / 2 - viewport.width / 2)).toBeLessThan(1);
+  expect(Math.abs(box.x - heading.x)).toBeLessThan(1);
+  expect(Math.abs(box.x - label.x)).toBeLessThan(1);
+  expect(box.y).toBeGreaterThan(heading.y + heading.height);
+  expect(box.y + box.height).toBeLessThan(label.y);
   await link.click();
   await expect(page).toHaveURL("/about");
   await expect(

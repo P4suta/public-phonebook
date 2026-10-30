@@ -54,7 +54,7 @@ export const page = style({
 export const home = style({
   display: "flex",
   flexDirection: "column",
-  paddingBlock: tokens.layout.gutter,
+  paddingBlockEnd: tokens.space["24"],
 });
 export const stack = style({
   display: "flex",
@@ -62,11 +62,54 @@ export const stack = style({
   gap: tokens.space["24"],
   minWidth: 0,
 });
-globalStyle(`${home} > ${stack}`, { marginBlock: "auto" });
+export const searchLayout = style({
+  display: "flex",
+  flexDirection: "column",
+  minWidth: 0,
+  selectors: {
+    [`${home} > &`]: {
+      flex: "1 1 0",
+      minHeight: 0,
+      display: "grid",
+      gridTemplateColumns: "minmax(0, 1fr)",
+      gridTemplateRows: "1fr auto 1fr",
+    },
+  },
+});
+export const searchIntro = style({
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "space-between",
+  gap: tokens.space["48"],
+  minWidth: 0,
+  paddingBlockEnd: tokens.space["8"],
+});
+export const homeHeading = style({
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-start",
+  gap: tokens.space["16"],
+});
+export const searchArea = style({
+  minWidth: 0,
+  selectors: {
+    [`${home} &`]: {
+      gridRow: "2 / 4",
+      display: "grid",
+      gridTemplateColumns: "minmax(0, 1fr)",
+      gridTemplateRows: "subgrid",
+    },
+  },
+});
+export const searchForm = style({
+  display: "flex",
+  flexDirection: "column",
+  minWidth: 0,
+  selectors: { [`${home} &`]: { display: "contents" } },
+});
+globalStyle(`${searchArea} ~ *`, { marginBlockStart: tokens.space["24"] });
 export const brand = style({
   ...typography("brand"),
-  textAlign: "center",
-  marginBlockEnd: `calc(${tokens.space["48"]} - ${tokens.space["24"]})`,
   "@media": { [viewport.compact]: { ...typography("brandCompact") } },
 });
 export const heading = style({
@@ -84,7 +127,6 @@ export const actions = style({
   alignItems: "center",
   gap: tokens.space["8"],
 });
-export const homeNavigation = style([actions, { justifyContent: "center" }]);
 export const button = style({
   display: "inline-flex",
   alignItems: "center",
@@ -167,10 +209,12 @@ export const filters = style({
   gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
   gap: tokens.space["12"],
   alignItems: "flex-start",
+  marginBlockStart: tokens.space["24"],
   selectors: {
     '&[data-has-city="true"]': {
       gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
     },
+    [`${home} &`]: { alignSelf: "start" },
   },
   "@media": {
     [viewport.compact]: {
