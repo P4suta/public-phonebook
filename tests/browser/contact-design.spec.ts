@@ -400,7 +400,9 @@ test("telephone values copy without initiating calls and keyboard feedback prese
   const before = page.url();
   await value.click();
   expect(page.url()).toBe(before);
-  await expect(card.getByRole("status")).toHaveText("コピーしました。");
+  await expect(card.getByRole("status")).toHaveText(
+    "電話番号をコピーしました。",
+  );
   expect(await page.evaluate(async () => navigator.clipboard.readText())).toBe(
     "047-321-4055",
   );
@@ -415,7 +417,9 @@ test("telephone values copy without initiating calls and keyboard feedback prese
     ),
   ).toBeGreaterThanOrEqual(3);
   await page.keyboard.press("Space");
-  await expect(card.getByRole("status")).toHaveText("コピーしました。");
+  await expect(card.getByRole("status")).toHaveText(
+    "電話番号をコピーしました。",
+  );
   await expect(copy).toBeFocused();
   expect(await designIssues(page)).toEqual([]);
   await page.keyboard.press("Enter");

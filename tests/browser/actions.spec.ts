@@ -45,12 +45,12 @@ test("the native selection path copies API URLs when the async clipboard is abse
   await page.goto("/developers");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
   const button = page.getByRole("button", {
-    name: "仕様書のURLをコピー",
+    name: "API仕様書のURLをコピー",
     exact: true,
   });
   await button.click();
   await expect(
-    page.getByText("コピーしました。", { exact: true }),
+    page.getByText("API仕様書のURLをコピーしました。", { exact: true }),
   ).toBeVisible();
   const copied = await page.locator("html").getAttribute("data-selection-copy");
   expect(new URL(copied ?? "").pathname).toBe("/api/openapi.json");
@@ -110,7 +110,9 @@ test("native activation loss uses WebKit compatibility and preserves recovery el
     "false",
   );
   if (browserName === "webkit") {
-    await expect(card.getByRole("status")).toHaveText("コピーしました。");
+    await expect(card.getByRole("status")).toHaveText(
+      "電話番号をコピーしました。",
+    );
     await expect(page.locator("html")).toHaveAttribute(
       "data-selection-copy",
       "088-844-0111",
@@ -123,7 +125,9 @@ test("native activation loss uses WebKit compatibility and preserves recovery el
       await page.locator("html").getAttribute("data-selection-copy"),
     ).toBeNull();
     await number.click();
-    await expect(card.getByRole("status")).toHaveText("コピーしました。");
+    await expect(card.getByRole("status")).toHaveText(
+      "電話番号をコピーしました。",
+    );
   }
   await expect(number).toBeFocused();
   await expect(page.locator("textarea")).toHaveCount(0);
@@ -171,15 +175,19 @@ test("native clipboard accepts clicks on both the number and the copy hint", asy
     card.getByRole("status"),
     (await page.locator("html").getAttribute("data-clipboard-failure")) ??
       "Native clipboard write",
-  ).toHaveText("コピーしました。");
+  ).toHaveText("電話番号をコピーしました。");
   await expect(number).toBeFocused();
   await expect(number.locator(":scope > span").first()).toHaveText(
     "088-844-0111",
   );
   await number.locator(":scope > span").last().click();
-  await expect(card.getByRole("status")).toHaveText("コピーしました。");
+  await expect(card.getByRole("status")).toHaveText(
+    "電話番号をコピーしました。",
+  );
   await number.locator(":scope > span").first().dblclick();
-  await expect(card.getByRole("status")).toHaveText("コピーしました。");
+  await expect(card.getByRole("status")).toHaveText(
+    "電話番号をコピーしました。",
+  );
 });
 
 test("the map opens in a new tab and preserves the current results", async ({
@@ -237,14 +245,18 @@ test("an older clipboard rejection cannot replace a newer successful copy", asyn
   const number = card.locator("[data-phone]").first();
   await number.locator(":scope > span").first().click();
   await number.locator(":scope > span").last().click();
-  await expect(card.getByRole("status")).toHaveText("コピーしました。");
+  await expect(card.getByRole("status")).toHaveText(
+    "電話番号をコピーしました。",
+  );
   await page.evaluate(async () => {
     document.dispatchEvent(new Event("test-reject-first-write"));
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
     );
   });
-  await expect(card.getByRole("status")).toHaveText("コピーしました。");
+  await expect(card.getByRole("status")).toHaveText(
+    "電話番号をコピーしました。",
+  );
 });
 
 test("telephone and API URL copies use the complete displayed values", async ({
@@ -279,7 +291,7 @@ test("telephone and API URL copies use the complete displayed values", async ({
   await page.goto("/developers");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
   await page
-    .getByRole("button", { name: "仕様書のURLをコピー", exact: true })
+    .getByRole("button", { name: "API仕様書のURLをコピー", exact: true })
     .click();
   const copied = await page.evaluate(async () =>
     navigator.clipboard.readText(),

@@ -42,7 +42,7 @@ test("search and cursor continuation work without JavaScript", async ({
     await page
       .getByLabel("施設や窓口の種類", { exact: true })
       .selectOption("library");
-    await page.getByRole("button", { name: "さがす" }).click();
+    await page.getByRole("button", { name: "電話番号をさがす" }).click();
     await expect(page.locator("article")).toHaveCount(30);
     const firstIds = await page
       .locator("article")
@@ -136,7 +136,9 @@ test("failed continuation preserves rows and can be retried", async ({
   await expect(page.getByRole("alert")).toBeVisible();
   await expect(page.locator("article")).toHaveCount(30);
   fail = false;
-  await page.getByRole("button", { name: "もう一度読みこむ" }).click();
+  await page
+    .getByRole("button", { name: "検索結果をもう一度読みこむ" })
+    .click();
   await expect(page.locator("article")).toHaveCount(60);
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
@@ -166,7 +168,9 @@ test("mixed-snapshot continuation offers a clean restart", async ({
   await page
     .getByRole("link", { name: "図書館をもっと見る" })
     .scrollIntoViewIfNeeded();
-  const restart = page.getByRole("link", { name: "はじめから読みこむ" });
+  const restart = page.getByRole("link", {
+    name: "検索結果をはじめから読みこむ",
+  });
   await expect(restart).toBeVisible();
   await restart.click();
   await expect(page.locator("article")).toHaveCount(30);

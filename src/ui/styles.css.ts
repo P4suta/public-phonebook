@@ -122,55 +122,49 @@ export const solid = style({
     "&:hover": { color: tokens.color.ink, background: tokens.color.paper },
   },
 });
+export const searchGroup = style({
+  display: "flex",
+  flexDirection: "column",
+  gap: tokens.space["8"],
+});
+export const searchLabel = style({ ...typography("rowHeading") });
+export const searchHint = style({
+  ...typography("body"),
+  whiteSpace: "pre-line",
+});
 export const searchField = style({
   display: "flex",
-  alignItems: "center",
-  gap: "12px",
-  height: tokens.control.searchHeight,
-  paddingLeft: "16px",
-  border: `1px solid ${tokens.color.ink}`,
-  background: tokens.color.paper,
   width: "100%",
+  "@media": {
+    "(max-width: 600px)": { flexDirection: "column", gap: tokens.space["8"] },
+  },
 });
-globalStyle(`${searchField} > svg`, {
-  flexShrink: 0,
-  "@media": { "(max-width: 360px)": { display: "none" } },
-});
-
 export const input = style({
-  border: 0,
-  outline: 0,
   minWidth: 0,
   width: "100%",
   flex: "1 1 0",
-  height: "100%",
-  padding: 0,
+  height: tokens.control.searchHeight,
+  paddingInline: tokens.space["16"],
+  border: `${tokens.control.border} solid ${tokens.color.ink}`,
+  borderRadius: 0,
+  background: tokens.color.paper,
   ...typography("label"),
+  "@media": { "(max-width: 600px)": { flex: "none" } },
   selectors: {
-    "&::placeholder": { color: tokens.color.ink, opacity: 1 },
-    "&:focus-visible": { outline: 0 },
+    "&:focus-visible": {
+      outline: `${tokens.control.focus} solid ${tokens.color.ink}`,
+      outlineOffset: tokens.control.focusOffset,
+    },
   },
-});
-globalStyle(`${searchField}:focus-within`, {
-  outline: `${tokens.control.focus} solid ${tokens.color.ink}`,
-  outlineOffset: tokens.control.focusOffset,
 });
 export const searchButton = style([
   button,
   solid,
   {
-    alignSelf: "stretch",
     flexShrink: 0,
-    border: 0,
-    padding: "12px",
-    minHeight: 0,
-    minWidth: rem(72),
-    "@media": {
-      "(max-width: 360px)": {
-        paddingInline: tokens.space["8"],
-        gap: tokens.space["4"],
-      },
-    },
+    height: tokens.control.searchHeight,
+    paddingInline: tokens.space["16"],
+    "@media": { "(max-width: 600px)": { width: "100%" } },
   },
 ]);
 export const filters = style({

@@ -326,7 +326,7 @@ test("an unavailable OpenAPI document has a readable retry action", async ({
     "APIの説明を読みこめませんでした",
   );
   await page
-    .getByRole("button", { name: "もう一度読みこむ", exact: true })
+    .getByRole("button", { name: "APIの説明をもう一度読みこむ", exact: true })
     .click();
   await expect(page.locator("[data-api-reference]")).toHaveAttribute(
     "data-ready",
@@ -343,7 +343,7 @@ test("an unavailable OpenAPI document has a readable retry action", async ({
     "APIの説明を読みこめませんでした",
   );
   await page
-    .getByRole("button", { name: "もう一度読みこむ", exact: true })
+    .getByRole("button", { name: "APIの説明をもう一度読みこむ", exact: true })
     .click();
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(

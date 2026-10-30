@@ -127,22 +127,31 @@ for (const width of [320, 390, 1440]) {
       expect(audit.elements).toBeGreaterThan(0);
       await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
       expect(audit.violations, name).toEqual([]);
-      if (name === "home")
+      if (name === "home") {
+        const searchbox = page.getByRole("searchbox");
+        await expect(searchbox).not.toHaveAttribute("placeholder");
+        const hint = page.locator("#directory-search-hint");
+        await expect(hint).toBeVisible();
         expect(
-          await page
-            .getByRole("searchbox")
-            .evaluate((input: HTMLInputElement) => {
-              const style = getComputedStyle(input);
-              const context = document.createElement("canvas").getContext("2d");
-              if (!context) throw new Error("Text measurement is unavailable");
-              context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-              return (
-                context.measureText(input.placeholder).width <=
-                input.clientWidth
-              );
-            }),
-          "The complete search hint must fit",
+          await hint.evaluate(
+            (element) => element.scrollWidth <= element.clientWidth,
+          ),
+          "The persistent search hint must not be clipped",
         ).toBe(true);
+        const [field, button] = await Promise.all(
+          [
+            searchbox,
+            page.getByRole("button", { name: "電話番号をさがす" }),
+          ].map(async (control) => control.boundingBox()),
+        );
+        if (!field || !button)
+          throw new Error("The search controls are hidden");
+        expect(
+          button.y >= field.y + field.height ||
+            button.x >= field.x + field.width,
+          "The search button must sit beside or below the field",
+        ).toBe(true);
+      }
       for (const size of await page
         .locator("article [data-phone]")
         .evaluateAll((items) =>
@@ -215,7 +224,7 @@ for (const width of [320, 390, 1440]) {
       expect(clippedActions, name).toEqual([]);
       if (name === "api") {
         const lines = await page
-          .getByRole("button", { name: "仕様書のURLをコピー", exact: true })
+          .getByRole("button", { name: "API仕様書のURLをコピー", exact: true })
           .evaluate((button) => {
             const tops = new Set<number>();
             const walker = document.createTreeWalker(

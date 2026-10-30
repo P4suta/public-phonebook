@@ -161,7 +161,7 @@ export function GroupResults({
           >
             <ChevronDown aria-hidden="true" />
             {query.isFetchingNextPage
-              ? "読みこんでいます。"
+              ? `${label}を読みこんでいます。`
               : `${label}をもっと見る`}
           </a>
         </div>

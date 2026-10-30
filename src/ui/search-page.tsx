@@ -155,30 +155,38 @@ export function SearchPage(): ReactElement {
             className={css.stack}
             onSubmit={submit}
           >
-            <div className={css.searchField}>
-              <SearchIcon size={24} aria-hidden="true" />
-              <label className={css.srOnly} htmlFor="directory-search">
+            <div className={css.searchGroup}>
+              <label className={css.searchLabel} htmlFor="directory-search">
                 {uiCopy.search.label}
               </label>
-              <input
-                id="directory-search"
-                name="q"
-                className={css.input}
-                placeholder={uiCopy.search.prompt}
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onCompositionStart={() => setComposing(true)}
-                onCompositionEnd={(event) => {
-                  setComposing(false);
-                  setInput(event.currentTarget.value);
-                }}
-                autoComplete="off"
-                type="search"
-              />
-              <button className={css.searchButton} type="submit">
-                <SearchIcon size={foundation.control.icon} aria-hidden="true" />
-                {uiCopy.search.action}
-              </button>
+              <p id="directory-search-hint" className={css.searchHint}>
+                {uiCopy.search.hint.join("\n")}
+              </p>
+              <div className={css.searchField}>
+                <input
+                  id="directory-search"
+                  name="q"
+                  className={css.input}
+                  aria-describedby="directory-search-hint"
+                  enterKeyHint="search"
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  onCompositionStart={() => setComposing(true)}
+                  onCompositionEnd={(event) => {
+                    setComposing(false);
+                    setInput(event.currentTarget.value);
+                  }}
+                  autoComplete="off"
+                  type="search"
+                />
+                <button className={css.searchButton} type="submit">
+                  <SearchIcon
+                    size={foundation.control.icon}
+                    aria-hidden="true"
+                  />
+                  {uiCopy.search.action}
+                </button>
+              </div>
             </div>
             <div
               className={css.filters}
@@ -258,9 +266,9 @@ export function SearchPage(): ReactElement {
               <h1 className={css.srOnly}>検索結果</h1>
               <output>
                 {query.isFetching && !query.data
-                  ? "さがしています。"
+                  ? uiCopy.search.searching
                   : total !== undefined
-                    ? `${total.toLocaleString("ja-JP")}件`
+                    ? uiCopy.search.found(total.toLocaleString("ja-JP"))
                     : ""}
               </output>
             </div>
@@ -283,7 +291,7 @@ export function SearchPage(): ReactElement {
             )}
             {!query.isPending && !query.isError && total === 0 && (
               <section className={css.stack}>
-                <h2 className={css.subheading}>見つかりませんでした</h2>
+                <h2 className={css.subheading}>{uiCopy.search.none}</h2>
                 <p className={css.body}>{uiCopy.search.empty}</p>
               </section>
             )}
