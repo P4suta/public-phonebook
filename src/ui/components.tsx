@@ -17,7 +17,7 @@ import type { Contact } from "../core/models.ts";
 import { formatPhone } from "../core/phone.ts";
 import { cleanAddress } from "../core/search.ts";
 import { copyText } from "./clipboard.ts";
-import { uiCopy } from "./copy.ts";
+import { type ExternalDestination, uiCopy } from "./copy.ts";
 import { foundation } from "./foundations.ts";
 import { CategoryIcon } from "./icons.tsx";
 import { opensNewTab } from "./links.ts";
@@ -34,6 +34,7 @@ export function LinkButton({
   primary = false,
   download = false,
   accessibleLabel,
+  destination,
 }: {
   readonly href: string;
   readonly children: ReactNode;
@@ -41,6 +42,7 @@ export function LinkButton({
   readonly primary?: boolean;
   readonly download?: boolean;
   readonly accessibleLabel?: string;
+  readonly destination?: ExternalDestination | undefined;
 }): ReactElement {
   const newTab = opensNewTab(href);
   return (
@@ -49,6 +51,7 @@ export function LinkButton({
       href={href}
       target={newTab ? "_blank" : undefined}
       rel={newTab ? "noopener noreferrer" : undefined}
+      data-external-destination={newTab ? destination : undefined}
       download={download || undefined}
       aria-label={
         accessibleLabel && newTab
@@ -257,11 +260,18 @@ export function ContactCard({
             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
             target="_blank"
             rel="noopener noreferrer"
+            data-external-destination={"address" satisfies ExternalDestination}
             aria-label={`${address}の地図を開く（新しいタブ）`}
           >
             <MapPin size={foundation.control.icon} aria-hidden="true" />
-            <span>{address}</span>
-            <ExternalLink size={foundation.control.icon} aria-hidden="true" />
+            <span>
+              {address}
+              <ExternalLink
+                className={css.trailingIcon}
+                size={foundation.control.icon}
+                aria-hidden="true"
+              />
+            </span>
           </a>
         </div>
       )}
@@ -277,13 +287,15 @@ export function ContactCard({
 
 export function OfficialLink({
   href,
+  destination,
   children,
 }: {
   readonly href: string;
+  readonly destination: ExternalDestination;
   readonly children: ReactNode;
 }): ReactElement {
   return (
-    <LinkButton href={href} icon={ExternalLink}>
+    <LinkButton href={href} icon={ExternalLink} destination={destination}>
       {children}
     </LinkButton>
   );

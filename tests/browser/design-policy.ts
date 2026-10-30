@@ -117,6 +117,12 @@ export async function auditDesign(page: Page): Promise<DesignAudit> {
         if (style.content !== "none" && style.content !== "normal")
           check(style, `${element.tagName}${pseudo}`, false);
       }
+      if (element.matches(":modal"))
+        check(
+          getComputedStyle(element, "::backdrop"),
+          `${element.tagName}::backdrop`,
+          false,
+        );
     }
     host.remove();
     return { rules, elements, runtimeRules, violations };

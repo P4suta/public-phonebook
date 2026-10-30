@@ -1,7 +1,8 @@
 type Instruction = `${string}ください${"" | "。"}`;
 type FilterDefault = `${string}をえらばない`;
 type Action =
-  `${string}${"する" | "さがす" | "見る" | "開く" | "もどる" | "知る" | "かける" | "試す" | "読みこむ"}`;
+  `${string}${"する" | "さがす" | "見る" | "開く" | "もどる" | "知る" | "かける" | "試す" | "読みこむ" | "やめる"}`;
+type Statement = `${string}ます。`;
 
 export const uiCopy = {
   search: {
@@ -34,4 +35,25 @@ export const uiCopy = {
   reloadFromStart: (subject: string): Action =>
     `${subject}をはじめから読みこむ`,
   reload: (subject: string): Action => `${subject}をもう一度読みこむ`,
+  external: {
+    heading: "ほかのサイトを開きます",
+    destinations: {
+      address: "この住所を、Googleマップで表示します。" satisfies Statement,
+      facility: "この施設のページを開きます。" satisfies Statement,
+      publication:
+        "このデータを公開しているページを開きます。" satisfies Statement,
+      license:
+        "データを使うときの決まりのページを開きます。" satisfies Statement,
+      source: "電話番号のもとになった資料を開きます。" satisfies Statement,
+      cloudflarePrivacy:
+        "Cloudflareのプライバシーのページを開きます。" satisfies Statement,
+      other: "ほかのサイトのページを開きます。" satisfies Statement,
+    },
+    host: (host: string): `行き先：${string}` => `行き先：${host}`,
+    newTab: "新しいタブで開きます。" satisfies Statement,
+    open: "開く" satisfies Action,
+    cancel: "やめる" satisfies Action,
+  },
 } as const;
+
+export type ExternalDestination = keyof typeof uiCopy.external.destinations;

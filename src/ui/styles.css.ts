@@ -404,6 +404,12 @@ export const contactLink = style({
   overflowWrap: "anywhere",
 });
 globalStyle(`${contactLink} > span`, { minWidth: 0, flex: 1 });
+export const trailingIcon = style({
+  width: tokens.control.icon,
+  height: tokens.control.icon,
+  marginInlineStart: tokens.space["4"],
+  verticalAlign: "middle",
+});
 globalStyle(`${contactLink} > svg`, {
   width: tokens.control.icon,
   height: tokens.control.icon,
@@ -473,6 +479,24 @@ globalStyle(`${numberCopyHint} > svg`, {
   flexShrink: 0,
 });
 export const section = style([stack, { paddingTop: tokens.space["24"] }]);
+export const dialog = style({
+  width: `min(calc(${tokens.layout.width} / 2), calc(100% - 2 * ${tokens.layout.gutter}))`,
+  maxWidth: "none",
+  maxHeight: `calc(100% - 2 * ${tokens.layout.gutter})`,
+  padding: tokens.space["24"],
+  border: rule,
+  color: tokens.color.ink,
+  background: tokens.color.paper,
+  overflowWrap: "anywhere",
+  selectors: {
+    "&[open]": {
+      display: "flex",
+      flexDirection: "column",
+      gap: tokens.space["16"],
+    },
+    "&::backdrop": { background: tokens.color.paper },
+  },
+});
 export const srOnly = style({
   position: "absolute",
   width: tokens.control.border,
