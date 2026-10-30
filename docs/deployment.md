@@ -154,3 +154,13 @@ The `/support` and `/privacy` pages publish `support@dial.page` as the only cont
 Cloudflare Email Routing on the `dial.page` zone forwards it to a verified private destination that stays out of this repository.
 Before publishing a change that shows the address, confirm that the zone's routing is enabled and that the `support@dial.page` rule forwards to a verified destination.
 Point the iPhone app's App Store support URL and in-app help at `https://www.dial.page/support`.
+The zone publishes `v=DMARC1; p=reject; adkim=s; aspf=s` at `_dmarc.dial.page`, because the domain sends no mail and messages that claim to come from it are spoofed.
+
+## Zone protection
+
+The zone's rate limiting rule blocks a client IP for 10 seconds after 60 requests in 10 seconds to `/`, `/api/contact*`, or `/api/v1/contact*`.
+The block answers 429 with `Retry-After` and sets no cookie, which keeps the privacy page accurate.
+Don't use a managed challenge or Bot Fight Mode on these hosts, because they set cookies.
+The rule matches paths only, so it also covers staging, where verification sends far fewer requests than the limit.
+A single redirect rule sends `https://dial.page/` with its path and query to `https://www.dial.page/` with status 301, through a proxied apex record.
+Browsers enforce HTTPS on every `.page` host through the preloaded top-level domain, so the Worker sets no HSTS header of its own.

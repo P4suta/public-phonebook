@@ -9,8 +9,8 @@ import { fileDigest } from "./snapshot.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 25;
-const declaredPostconditionCount = 33;
+const verifiedUnitCount = 27;
+const declaredPostconditionCount = 38;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -21,6 +21,8 @@ const expected = [
   "compatibleRegion",
   "boundedLimit",
   "previewLimit",
+  "totalSource",
+  "storesSearch",
   "copyCompletion",
   "copyMethod",
   "stripReferenceStyle",
@@ -131,6 +133,7 @@ const boundFiles = [
   "src/ui/group-results.tsx",
   "src/ui/search-page.tsx",
   "src/server/database.ts",
+  "src/server/search-cache.ts",
   "src/core/models.ts",
   "src/core/http-status.ts",
   "src/core/environment.ts",
@@ -341,6 +344,38 @@ async function main(): Promise<void> {
       throw new Error(
         `The negative control was inconclusive: ${negative.output}`,
       );
+    for (const control of [
+      {
+        name: "total-scope",
+        from: "if (queried || municipality) return",
+        to: "if (queried) return",
+      },
+      {
+        name: "cache-status",
+        from: "return status === cacheableStatus;",
+        to: "return status >= cacheableStatus;",
+      },
+    ]) {
+      const brokenSearch = source.replace(control.from, control.to);
+      if (brokenSearch === source)
+        throw new Error(
+          `The ${control.name} negative control did not mutate the implementation`,
+        );
+      const path = `proof/negative/${control.name}.ts`;
+      await writeFile(`${proofRoot}/${path}`, brokenSearch);
+      await generateModel(path);
+      const rejected = await verifyModel(image, [
+        `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
+      ]);
+      if (
+        rejected.code === 0 ||
+        !/[1-9][0-9]* error/u.test(rejected.output) ||
+        !/could not be proved|could not prove/u.test(rejected.output)
+      )
+        throw new Error(
+          `The ${control.name} negative control was inconclusive: ${rejected.output}`,
+        );
+    }
     const copySource = await readFile(
       `${proofRoot}/src/core/copy-policy.ts`,
       "utf8",
@@ -590,7 +625,7 @@ async function main(): Promise<void> {
           semantics:
             "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
           negativeControl:
-            "limit 101, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, and changed snapshot admission rejected",
+            "limit 101, a municipality-blind catalog total, a cached failure status, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, and changed snapshot admission rejected",
           result: "verified",
         },
         null,

@@ -15,8 +15,6 @@ import {
 } from "../core/models.ts";
 import { browserCredentials } from "../core/staging-access-policy.ts";
 
-const internalOrigin = "https://directory.internal";
-
 export class DirectoryError extends Error {
   readonly code: string;
   readonly requestId: string;
@@ -42,7 +40,7 @@ const request = createIsomorphicFn()
     const { env } = await import("cloudflare:workers");
     const { api } = await import("../server/api.ts");
     return api.fetch(
-      new Request(new URL(path, internalOrigin), {
+      new Request(new URL(path, env.PUBLIC_ORIGIN), {
         signal: signal ?? null,
       }),
       env,

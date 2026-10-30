@@ -43,6 +43,7 @@ export default defineConfig(({ mode }) => {
           dev: { remote: false },
         }),
         DATASETS: bindings.r2({ name: target.bucket, dev: { remote: false } }),
+        CF_VERSION_METADATA: bindings.versionMetadata(),
         APP_ENV: bindings.text(environment),
         PUBLIC_ORIGIN: bindings.text(target.origin),
         DATASET_MANIFEST_SHA256: bindings.text(

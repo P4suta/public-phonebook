@@ -49,7 +49,7 @@ The gate requires unmodified generated output and every function listed in `tool
 Dafny 4.11.0 checks its expected nonempty unit and postcondition inventory for the supported search, copy, styling, publication, school-evidence, unique-candidate, source-accounting, and versioned-API snapshot decisions.
 The copy policy partitions current success, current failure, and superseded completion over the full Boolean domain.
 The browser adapter uses fresh symbol identities and suppresses superseded state and announcements.
-Separate negative controls accept limit 101, reverse the completion guard, reverse the trusted-click guard, and retain reference opacity while retaining their contracts.
+Separate negative controls accept limit 101, ignore a municipality when choosing a catalog total, store a failure status, reverse the completion guard, reverse the trusted-click guard, and retain reference opacity while retaining their contracts.
 Each must fail verification.
 A conflicting import identity and a changed staging candidate also have source-mutating negative controls that must fail verification.
 Publication controls also drop manifest equality, recovery ownership, pending-resource protection, coverage retention, and initial-candidate ownership.
@@ -106,12 +106,25 @@ Untrusted synthetic clicks must leave both write paths untouched.
 These checks cover DOM events, focus, and browser behavior through native tests rather than translator proofs.
 Headless WebKit evidence does not certify every released Safari build or its native data detectors.
 
-Category previews use a parameterized SQLite window query over narrow sortable columns and retrieve payloads only for the selected previews.
+Category previews with a name, telephone, or region term use a parameterized SQLite window query over narrow sortable columns and retrieve payloads only for the selected previews.
+Unfiltered previews read up to three rows per populated catalog category from the category index and take each total from the catalog.
 Native D1 tests cover ranking, counts, limits, category partitions, and complete traversal through the unchanged cursor contract.
 The annotated preview-size function proves the one-through-three bound over all validated integer page sizes.
 The translator does not model SQLite query execution, normalized-name comparison, React caches, or browser layout.
 The checked alternatives are native database integration, schema rejection controls, and multi-browser grouped-result and no-JavaScript tests.
 Revisit this boundary when those semantics become supported or the query, cache identity, ranking, or continuation contract changes.
+
+Searches without a name term order by normalized name and stable ID and continue with a row-value comparison, as the [broad search decision](adr/index-ordered-broad-searches-with-dataset-bound-caching.md) records.
+The annotated total-source function proves that a catalog total is used only for the complete directory, one prefecture, or one category.
+That equality relies on the catalog partition that the national data gate checks; the translator does not model the catalog or SQLite counting.
+Native D1 tests require 121 broad search, preview, and vCard responses to match the bytes of the window-ranked implementation, and require pre-change cursors to reach the same next pages.
+A further test replaces catalog counts and requires exactly the catalog scopes to report them.
+A query-plan test runs `EXPLAIN QUERY PLAN` on the generated SQL in local D1 without statistics.
+It requires the name and category indexes without a sort and requires the constant-rank ordering to fall back to a sort as its negative control.
+The annotated cache-admission function proves that only status 200 is stored.
+Native cache tests use an injected cache and an empty database to show hits without database access, separation by dataset digest, and refusal to store 400, 409, and 503 problems.
+The Cloudflare Cache API, its per-location storage, and its unavailability under Access remain external boundaries checked only through that injected port.
+Local plans and timings do not establish D1 latency or production capacity.
 
 ## National data and browser campaign
 
