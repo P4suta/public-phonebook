@@ -19,13 +19,11 @@ export function GroupResults({
   group,
   search,
   snapshot,
-  primaryIds,
   returnTo,
 }: {
   readonly group: GroupedSearchResponse["groups"][number];
   readonly search: WebSearch;
   readonly snapshot: string;
-  readonly primaryIds: ReadonlySet<string>;
   readonly returnTo: string;
 }): ReactElement | null {
   const categorySearch = { ...search, category: group.category };
@@ -89,12 +87,8 @@ export function GroupResults({
   }, [expanded, hasNextPage, isFetching, isError, fetchNextPage]);
 
   const pages = query.data.pages;
-  const rows = pages
-    .flatMap((page) => page.data)
-    .filter((contact) => !primaryIds.has(contact.id));
-  const total =
-    group.results.meta.total -
-    group.results.data.filter((contact) => primaryIds.has(contact.id)).length;
+  const rows = pages.flatMap((page) => page.data);
+  const total = group.results.meta.total;
   if (total === 0) return null;
   const headingId = `category-${group.category}`;
   const next = pages.at(-1)?.meta.nextCursor ?? "";

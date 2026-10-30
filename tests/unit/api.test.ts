@@ -367,6 +367,25 @@ describe("native D1 public API", () => {
     );
   });
 
+  it("leads with the category of an exact name and lists that name first", async () => {
+    const response = await request(
+      `/api/contact-groups?${new URLSearchParams({ q: "全国の図書館1" })}`,
+    );
+    expect(response.status).toBe(200);
+    const body: unknown = await response.json();
+    const grouped = v.parse(GroupedSearchResponseSchema, body);
+    expect(grouped.groups.map((group) => group.category)).toEqual([
+      "medical",
+      "library",
+    ]);
+    expect(grouped.groups[0]?.results.data[0]?.name).toBe("全国の図書館1");
+    expect(
+      grouped.groups
+        .flatMap((group) => group.results.data)
+        .filter((contact) => contact.name === "全国の図書館1"),
+    ).toHaveLength(1);
+  });
+
   it("keeps group previews bounded and rejects unbound continuations", async () => {
     for (const query of [
       "cursor=abc",

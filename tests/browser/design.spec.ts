@@ -221,7 +221,7 @@ for (const width of [320, 390, 1440]) {
           .locator("article")
           .first()
           .evaluate((card) => {
-            const heading = card.querySelector("h1, h2");
+            const heading = card.querySelector("h1, h2, h3");
             const phone = card.querySelector("[data-phone]");
             if (!heading || !phone)
               throw new Error("Missing contact hierarchy");

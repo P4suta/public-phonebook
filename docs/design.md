@@ -122,8 +122,8 @@ The browser caches completed queries; the national search and API remain server-
 A visitor does not download the national database.
 
 Results prioritize exact names and show large telephone numbers with call and copy controls.
-Up to three exact-name contacts appear first, without being repeated in their category sections.
-Other contacts appear under fixed facility-category headings with one category icon and an exact remaining count.
+Every contact appears under its fixed facility-category heading with one category icon and the category's exact count.
+The category that holds an exact name comes first, and the exact name leads that category.
 Each category initially previews up to three contacts rather than filling the screen with one large category.
 The category order follows its best contact's exact-name, prefix, substring, normalized-name, and stable-ID order.
 There is no grouping selector.
