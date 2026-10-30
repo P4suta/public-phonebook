@@ -17,12 +17,8 @@ test("published search, telephone normalization, detail, and source navigation w
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
   await page.getByRole("searchbox").fill("高知大学");
-  const card = page
-    .locator("article")
-    .filter({
-      has: page.getByRole("link", { name: contact.name, exact: true }),
-    })
-    .first();
+  const contactLabel = `${contact.name}の情報を見る`;
+  const card = page.getByRole("article", { name: contactLabel, exact: true });
   await expect(card).toBeVisible();
   await expect(card.locator("[data-phone] > span").first()).toHaveText(
     "088-844-0111",
@@ -36,7 +32,7 @@ test("published search, telephone normalization, detail, and source navigation w
         .analyze()
     ).violations,
   ).toEqual([]);
-  await card.getByRole("link", { name: contact.name, exact: true }).click();
+  await card.getByRole("link", { name: contactLabel, exact: true }).click();
   await expect(
     page.getByRole("heading", { level: 1, name: contact.name, exact: true }),
   ).toBeVisible();
@@ -62,7 +58,9 @@ test("the published Scalar client sends requests under the live security policy"
       .click();
   const summary =
     "Search facilities by name, telephone number, category, and region";
-  await page.getByRole("link", { name: summary, exact: true }).click();
+  await page
+    .getByRole("link", { name: `${summary} HTTPメソッド: GET`, exact: true })
+    .click();
   await page
     .getByRole("region", { name: summary, exact: true })
     .getByRole("button", {

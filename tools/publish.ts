@@ -112,14 +112,6 @@ async function main(args: readonly string[]): Promise<void> {
     "--tag",
     sourceCommit,
   ]);
-  await requireCommand(cf, [
-    "workers",
-    "triggers",
-    "deploy",
-    "--prebuilt",
-    "--mode",
-    environment,
-  ]);
   process.env.DIAL_PUBLIC_ORIGIN = environments[environment].origin;
   process.env.DIAL_PUBLIC_BUNDLE = bundle;
   await requireCommand("npm", [
