@@ -9,8 +9,8 @@ import { fileDigest } from "./snapshot.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 27;
-const declaredPostconditionCount = 38;
+const verifiedUnitCount = 28;
+const declaredPostconditionCount = 44;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -23,6 +23,7 @@ const expected = [
   "previewLimit",
   "totalSource",
   "storesSearch",
+  "searchTrigger",
   "copyCompletion",
   "copyMethod",
   "stripReferenceStyle",
@@ -105,6 +106,11 @@ const boundFiles = [
   "tests/unit/snapshot.test.ts",
   "src/core/search-policy.ts",
   "src/core/search.ts",
+  "src/core/search-trigger-policy.ts",
+  "src/core/search-input.ts",
+  "src/core/phone.ts",
+  "tests/unit/search-trigger.test.ts",
+  "tests/browser/search-trigger.spec.ts",
   "src/core/copy-policy.ts",
   "src/core/reference-style-policy.ts",
   "src/core/publication-policy.ts",
@@ -160,6 +166,7 @@ const proofSources = [
   "src/core/staging-access-policy.ts",
   "src/core/collection-policy.ts",
   "src/core/search-policy.ts",
+  "src/core/search-trigger-policy.ts",
   "src/core/copy-policy.ts",
   "src/core/reference-style-policy.ts",
   "src/core/publication-policy.ts",
@@ -363,6 +370,47 @@ async function main(): Promise<void> {
         );
       const path = `proof/negative/${control.name}.ts`;
       await writeFile(`${proofRoot}/${path}`, brokenSearch);
+      await generateModel(path);
+      const rejected = await verifyModel(image, [
+        `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
+      ]);
+      if (
+        rejected.code === 0 ||
+        !/[1-9][0-9]* error/u.test(rejected.output) ||
+        !/could not be proved|could not prove/u.test(rejected.output)
+      )
+        throw new Error(
+          `The ${control.name} negative control was inconclusive: ${rejected.output}`,
+        );
+    }
+    const triggerSource = await readFile(
+      `${proofRoot}/src/core/search-trigger-policy.ts`,
+      "utf8",
+    );
+    for (const control of [
+      {
+        name: "trigger-composition",
+        from: '  if (composing) return "wait";\n',
+        to: "",
+      },
+      {
+        name: "trigger-telephone",
+        from: 'return completeTelephone ? "settle" : "wait";',
+        to: 'return "settle";',
+      },
+      {
+        name: "trigger-pause",
+        from: "const minimumPauseIntervals = 2;",
+        to: "const minimumPauseIntervals = 1;",
+      },
+    ]) {
+      const brokenTrigger = triggerSource.replace(control.from, control.to);
+      if (brokenTrigger === triggerSource)
+        throw new Error(
+          `The ${control.name} negative control did not mutate the implementation`,
+        );
+      const path = `proof/negative/${control.name}.ts`;
+      await writeFile(`${proofRoot}/${path}`, brokenTrigger);
       await generateModel(path);
       const rejected = await verifyModel(image, [
         `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
@@ -625,7 +673,7 @@ async function main(): Promise<void> {
           semantics:
             "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
           negativeControl:
-            "limit 101, a municipality-blind catalog total, a cached failure status, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, and changed snapshot admission rejected",
+            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, and changed snapshot admission rejected",
           result: "verified",
         },
         null,
