@@ -17,7 +17,6 @@ const protectedPaths = [
   "/api/contact-groups?q=図書館",
   "/api/openapi.json",
   "/api/datasets",
-  "/fonts/noto-sans-jp.woff2",
 ];
 export async function probeStaging(): Promise<void> {
   const paths = [...protectedPaths];
@@ -30,9 +29,7 @@ export async function probeStaging(): Promise<void> {
   if (authorized.status !== httpStatus.ok)
     throw new Error("Authorized staging access failed");
   const html = await authorized.text();
-  for (const match of html.matchAll(
-    /(?:src|href)="(\/[^" ]+\.(?:js|css|woff2))"/gu,
-  ))
+  for (const match of html.matchAll(/(?:src|href)="(\/[^" ]+\.(?:js|css))"/gu))
     if (match[1]) paths.push(match[1]);
   const manifestResponse = await checkedFetch("/api/datasets", {}, access);
   if (manifestResponse.status !== httpStatus.ok)

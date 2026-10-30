@@ -169,6 +169,15 @@ for (const width of [320, 390, 1440]) {
         ),
         name,
       ).toBe(true);
+      expect(
+        await page.evaluate(() =>
+          performance
+            .getEntriesByType("resource")
+            .map((entry) => entry.name)
+            .filter((url) => /\.(?:woff2?|ttf|otf)(?:[?#]|$)/u.test(url)),
+        ),
+        `${name} renders with the reader's fonts`,
+      ).toEqual([]);
       const audit = await auditDesign(page);
       expect(audit.rules).toBeGreaterThan(20);
       expect(audit.elements).toBeGreaterThan(0);

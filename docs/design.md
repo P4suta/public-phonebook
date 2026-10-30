@@ -70,9 +70,9 @@ Its desktop content uses 24-pixel gutters to accommodate the library's sidebar a
 Scalar supplies its detailed runtime controls; the application theme enforces black-and-white output and minimum target sizes.
 The search field has a visible label and a persistent hint above it, with no placeholder or decorative glyph.
 
-The website uses typed Vanilla Extract styles and self-hosted Noto Sans JP.
-The font license remains in `public/fonts/OFL.txt`.
-The retained WOFF2 SHA-256 is `6fd94964d1990baa2a392cea7a036683d2b80b9dfd590cb3918e8dab98d8e188`.
+The website uses typed Vanilla Extract styles and the generic sans-serif family, so text follows the reader's operating system and browser font settings without a font download.
+The [Digital Agency design system](https://design.digital.go.jp/dads/foundations/typography/) states that its Noto Sans JP choice doesn't restrict system fonts and that information must not depend on the font.
+Figma uses Noto Sans JP as the stand-in for the Android system font, because Figma can't render each reader's font.
 Lucide supplies distinct category and action icons, with the owned tooth asset retained separately.
 All 65 defined categories have different icon geometry.
 The website offers only categories present in the active publication.
@@ -81,7 +81,7 @@ The parameters are a 4-pixel grid, a 16-pixel body size, and a line-height ratio
 The [Digital Agency design system](https://design.digital.go.jp/dads/foundations/typography/) describes 150% as the line spacing of body text and headings on general websites and as the minimum for body text.
 Type sizes step from the body size by one grid unit: 16, 20, 24, 28, and 32 pixels, plus a 14-pixel small size.
 Each line height is the size times 1.5, rounded up to the grid.
-The ratio exceeds the 1.448-em ascent and descent of Noto Sans JP, so Firefox reports no text overflow at normal or doubled text sizes.
+The ratio exceeds the 1.448-em ascent and descent of Noto Sans JP and the 1-em ascent and descent of Hiragino Sans, so Firefox reports no text overflow at normal or doubled text sizes.
 Spacing steps are fractions and multiples of the 24-pixel body line: 4, 8, 12, 16, 24, 32, 48, and 64 pixels.
 A control's height is its text line plus twice its inline padding, which gives 48-pixel actions and a 56-pixel search field.
 The content width is 60 body characters, and results use two columns from a width of 50 body characters.

@@ -23,7 +23,7 @@ export const loading = style({
 const scope = "body:has([data-api-reference])";
 globalStyle(`${scope}, ${scope} :is(.scalar-app,.light-mode,.dark-mode)`, {
   vars: {
-    "--scalar-font": '"Noto Sans JP", sans-serif',
+    "--scalar-font": "sans-serif",
     "--scalar-font-code": "ui-monospace, SFMono-Regular, Menlo, monospace",
     "--scalar-font-size-1": rem(foundation.font.page.size),
     "--scalar-font-size-2": rem(foundation.font.section.size),
