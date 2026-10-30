@@ -48,7 +48,7 @@ export async function prepareCheckFixture(): Promise<void> {
       category: "library",
       prefectureCode,
       municipalityCode,
-      address: "東京都千代田区永田町1-10-1（案内図）",
+      address: "東京都千代田区永田町1-10-1",
       phones: [{ display, e164 }],
       website: fixtureWebsite,
       sourceId: "fixture",
@@ -72,13 +72,17 @@ export async function prepareCheckFixture(): Promise<void> {
     contacts: contacts.length,
     phones: contacts.length,
     sourceCount: 1,
-    categories: categoryDefinitions.map((category) => ({
-      ...categorySources.find((source) => source.id === category.id),
-      id: category.id,
-      label: category.label,
-      contacts: contacts.filter((contact) => contact.category === category.id)
-        .length,
-    })),
+    categories: categoryDefinitions
+      .filter((category) =>
+        contacts.some((contact) => contact.category === category.id),
+      )
+      .map((category) => ({
+        ...categorySources.find((source) => source.id === category.id),
+        id: category.id,
+        label: category.label,
+        contacts: contacts.filter((contact) => contact.category === category.id)
+          .length,
+      })),
     prefectures: prefectureNames.map((name, index) => ({
       code: String(index + 1).padStart(prefectureCodeWidth, "0"),
       name,

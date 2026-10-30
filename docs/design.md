@@ -71,7 +71,8 @@ The website uses typed Vanilla Extract styles and self-hosted Noto Sans JP.
 The font license remains in `public/fonts/OFL.txt`.
 The retained WOFF2 SHA-256 is `6fd94964d1990baa2a392cea7a036683d2b80b9dfd590cb3918e8dab98d8e188`.
 Lucide supplies distinct category and action icons, with the owned tooth asset retained separately.
-All 39 categories have different icon geometry.
+All 65 defined categories have different icon geometry.
+The website offers only categories present in the active publication.
 Category icons use 16-pixel slots; action icons use 18-pixel slots.
 Telephone numbers use 24/32 typography in results and 32/48 typography in details.
 Facility names use 20/32 in results and 24/32 as detail-page headings.

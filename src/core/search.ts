@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { normalizeAddress } from "./address.ts";
 import {
   CategorySchema,
   MunicipalityCodeSchema,
@@ -124,12 +125,7 @@ export function rankName(name: string, query: string): NameRank {
 }
 
 export function cleanAddress(address: string): string {
-  return address
-    .replace(
-      /\s*(?:（(?:案内図|地図|所在地図)）|\((?:案内図|地図|所在地図)\))\s*$/u,
-      "",
-    )
-    .trim();
+  return normalizeAddress(address);
 }
 
 export async function searchKey(search: Search): Promise<string> {

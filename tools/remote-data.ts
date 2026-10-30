@@ -1,7 +1,7 @@
 import { mkdir, open, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import * as v from "valibot";
-import { environments } from "../src/core/environment.ts";
+import { databaseResourceName, environments } from "../src/core/environment.ts";
 import { checkDataBundle } from "./check-data.ts";
 import { cloudflare, remoteSql } from "./cloudflare.ts";
 import { checkImportIdentity, seedDatabase } from "./seed-database.ts";
@@ -27,30 +27,32 @@ async function main(args: readonly string[]): Promise<void> {
   try {
     const manifest = await checkDataBundle(resolve(bundle));
     const target = environments[environment];
+    const databaseName = databaseResourceName(
+      environment,
+      manifest.databaseSha256,
+    );
     const list = v.parse(
       v.array(v.object({ name: v.string(), uuid: v.string() })),
       await cloudflare([
         "d1",
         "list",
         "--name",
-        target.database,
+        databaseName,
         "--per-page",
         "100",
       ]),
     );
-    const matches = list.filter(
-      (database) => database.name === target.database,
-    );
+    const matches = list.filter((database) => database.name === databaseName);
     if (matches.length > 1) throw new Error("Ambiguous database identity");
     const database =
       matches[0] ??
       v.parse(
-        v.object({ name: v.literal(target.database), uuid: v.string() }),
+        v.object({ name: v.literal(databaseName), uuid: v.string() }),
         await cloudflare([
           "d1",
           "create",
           "--name",
-          target.database,
+          databaseName,
           "--primary-location-hint",
           "apac",
           "--read-replication-mode",
@@ -125,7 +127,7 @@ async function main(args: readonly string[]): Promise<void> {
     await seedDatabase(sql, resolve(bundle, "directory.sqlite"), manifest);
     await writeFile(
       join(directory, `${environment}.json`),
-      `${JSON.stringify({ environment, snapshot: manifest.snapshot, databaseSha256: manifest.databaseSha256, database: database.uuid, bucket: target.bucket, contacts: manifest.contacts, result: "verified" }, null, jsonIndentation)}\n`,
+      `${JSON.stringify({ environment, snapshot: manifest.snapshot, databaseSha256: manifest.databaseSha256, database: database.uuid, databaseName, bucket: target.bucket, contacts: manifest.contacts, result: "verified" }, null, jsonIndentation)}\n`,
     );
   } finally {
     await lock.close();

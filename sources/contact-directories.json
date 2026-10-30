@@ -1,0 +1,54 @@
+{
+  "formatVersion": 1,
+  "registryAsOf": "2026-05-01",
+  "schoolRegistry": [
+    "https://www.mext.go.jp/content/20260825-mxt_chousa01-000011635_2-1.csv",
+    "https://www.mext.go.jp/content/20260825-mxt_chousa01-000011635_2-2.csv",
+    "https://www.mext.go.jp/content/20260825-mxt_chousa01-000011635_4.csv"
+  ],
+  "sources": [
+    {
+      "id": "kanagawa-public-schools",
+      "url": "https://www.pref.kanagawa.jp/documents/44238/140007_public_facility_school20260708.csv",
+      "indexUrl": "https://www.pref.kanagawa.jp/docs/b8k/schooldata.html",
+      "publisher": "Kanagawa Prefecture",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://www.pref.kanagawa.jp/docs/b8k/schooldata.html",
+      "dataAsOf": "2026-07-08",
+      "prefectureCode": "14",
+      "category": "school",
+      "format": "csv",
+      "columns": { "name": [5], "address": [8], "phone": [11], "postalCode": [7], "website": [13], "kind": [2] },
+      "kindValues": { "1": "elementary_school", "2": "junior_high_school", "3": "compulsory_education_school", "4": "secondary_school", "5": "high_school" },
+      "minimumContacts": 1200
+    },
+    {
+      "id": "aichi-elementary-schools",
+      "url": "https://www.pref.aichi.jp/uploaded/attachment/632543.xlsx",
+      "indexUrl": "https://www.pref.aichi.jp/opendata/gakkoichiran.html",
+      "publisher": "Aichi Prefecture",
+      "license": "CC BY 2.1 JP",
+      "licenseUrl": "https://www.pref.aichi.jp/img/open_kiyaku.pdf",
+      "dataAsOf": "2026-05-01",
+      "prefectureCode": "23",
+      "category": "elementary_school",
+      "format": "workbook",
+      "columns": { "name": [1], "address": [11], "phone": [13], "postalCode": [10] },
+      "minimumContacts": 800
+    },
+    {
+      "id": "aichi-secondary-schools",
+      "url": "https://www.pref.aichi.jp/soshiki/kyoiku-somu/gakkoichiran.html",
+      "indexUrl": "https://www.pref.aichi.jp/opendata/gakkoichiran.html",
+      "publisher": "Aichi Prefecture",
+      "license": "CC BY 2.1 JP",
+      "licenseUrl": "https://www.pref.aichi.jp/img/open_kiyaku.pdf",
+      "dataAsOf": "2026-05-01",
+      "prefectureCode": "23",
+      "category": "school",
+      "format": "html",
+      "discovery": { "pattern": "中学校・義務教育学校|高等学校|特別支援学校|その他", "depth": 1, "maxPages": 10, "formats": ["workbook"] },
+      "minimumContacts": 500
+    }
+  ]
+}

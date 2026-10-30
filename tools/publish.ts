@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import * as v from "valibot";
-import { environments } from "../src/core/environment.ts";
+import { databaseResourceName, environments } from "../src/core/environment.ts";
 import { DatasetManifestSchema } from "../src/core/models.ts";
 import { canPromote } from "../src/core/publication-policy.ts";
 import { command, requireCommand } from "./process.ts";
@@ -65,6 +65,9 @@ async function main(args: readonly string[]): Promise<void> {
       environment: v.literal(environment),
       snapshot: v.literal(manifest.snapshot),
       databaseSha256: v.literal(manifest.databaseSha256),
+      databaseName: v.literal(
+        databaseResourceName(environment, manifest.databaseSha256),
+      ),
       result: v.literal("verified"),
     }),
     JSON.parse(
@@ -97,6 +100,7 @@ async function main(args: readonly string[]): Promise<void> {
         "Production requires a checked staging candidate with the same source tree and publication",
       );
   }
+  process.env.DIAL_DATABASE_SHA256 = manifest.databaseSha256;
   await requireCommand("npm", ["run", "build", "--", environment]);
   const artifactSha256 = await buildDigest(resolve(".cloudflare/output"));
   await writeFile(

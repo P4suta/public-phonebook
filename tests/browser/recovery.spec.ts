@@ -14,13 +14,13 @@ test("missing facilities and malformed searches have usable error pages", async 
     page.getByRole("heading", { name: "ページが見つかりません" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "はじめの画面にもどる" }),
+    page.getByRole("link", { name: "さがす画面にもどる" }),
   ).toBeVisible();
   for (const query of ["prefecture=99", "__proto__=x", "constructor=x"]) {
     const invalid = await page.goto(`/?${query}`);
     expect(invalid?.status(), query).toBe(400);
     await expect(
-      page.getByRole("heading", { name: "検索の条件を確認してください" }),
+      page.getByRole("heading", { name: "名前や地域をたしかめてください" }),
     ).toBeVisible();
   }
 });

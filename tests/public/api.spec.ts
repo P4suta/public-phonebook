@@ -29,7 +29,16 @@ test("the public catalog and grouped API retain the checked national publication
   const catalog = v.parse(CatalogSchema, await response.json());
   expect(catalog.snapshot).toBe(local.snapshot);
   expect(catalog.contacts).toBe(local.contacts);
-  expect(catalog.categories).toHaveLength(39);
+  const catalogValue: unknown = JSON.parse(
+    await readFile(
+      resolve(
+        process.env.DIAL_PUBLIC_BUNDLE ?? ".local/phonebook",
+        "catalog.json",
+      ),
+      "utf8",
+    ),
+  );
+  expect(catalog).toEqual(v.parse(CatalogSchema, catalogValue));
   expect(catalog.prefectures).toHaveLength(47);
   const grouped = v.parse(
     GroupedSearchResponseSchema,

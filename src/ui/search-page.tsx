@@ -11,7 +11,6 @@ import {
 import * as v from "valibot";
 import {
   CategorySchema,
-  categoryDefinitions,
   MunicipalityCodeSchema,
   PrefectureCodeSchema,
 } from "../core/catalog.ts";
@@ -24,6 +23,7 @@ import {
 import { Route } from "../routes/index.tsx";
 import { DirectoryError, getContactGroups } from "./client.ts";
 import { ContactCard, LinkButton, LoadingError } from "./components.tsx";
+import { uiCopy } from "./copy.ts";
 import { ErrorPage } from "./error-page.tsx";
 import { GroupResults } from "./group-results.tsx";
 import * as css from "./styles.css.ts";
@@ -140,7 +140,7 @@ export function SearchPage(): ReactElement {
   const returnTo = `/${key ? `?${key}` : ""}`;
 
   if (invalid || search.error)
-    return <ErrorPage title="検索の条件を確認してください" />;
+    return <ErrorPage title={uiCopy.search.invalid} />;
 
   return (
     <main id="main" className={`${css.page} ${!active ? css.home : ""}`}>
@@ -157,13 +157,13 @@ export function SearchPage(): ReactElement {
             <div className={css.searchField}>
               <SearchIcon size={24} aria-hidden="true" />
               <label className={css.srOnly} htmlFor="directory-search">
-                施設の名前か電話番号
+                {uiCopy.search.label}
               </label>
               <input
                 id="directory-search"
                 name="q"
                 className={css.input}
-                placeholder="施設の名前か電話番号"
+                placeholder={uiCopy.search.prompt}
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 onCompositionStart={() => setComposing(true)}
@@ -175,7 +175,7 @@ export function SearchPage(): ReactElement {
                 type="search"
               />
               <button className={css.searchButton} type="submit">
-                さがす
+                {uiCopy.search.action}
               </button>
             </div>
             <div
@@ -188,7 +188,7 @@ export function SearchPage(): ReactElement {
                 value={search.prefecture}
                 onChange={changeRegion}
               >
-                <option value="">すべて</option>
+                <option value="">{uiCopy.search.prefecture}</option>
                 {catalog.prefectures.map((prefecture) => (
                   <option key={prefecture.code} value={prefecture.code}>
                     {prefecture.name}
@@ -211,7 +211,7 @@ export function SearchPage(): ReactElement {
                     });
                   }}
                 >
-                  <option value="">すべて</option>
+                  <option value="">{uiCopy.search.municipality}</option>
                   {cities.map((city) => (
                     <option key={city.code} value={city.code}>
                       {city.name}
@@ -232,20 +232,21 @@ export function SearchPage(): ReactElement {
                   });
                 }}
               >
-                <option value="">すべて</option>
-                {categoryDefinitions.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.label}
-                  </option>
-                ))}
+                <option value="">{uiCopy.search.category}</option>
+                {catalog.categories
+                  .filter((category) => category.contacts > 0)
+                  .map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.label}
+                    </option>
+                  ))}
               </Filter>
             </div>
           </form>
         </search>
         {!active ? (
           <nav aria-label="サービスの情報" className={css.homeNavigation}>
-            <LinkButton href="/data">データについて</LinkButton>
-            <LinkButton href="/developers">API</LinkButton>
+            <LinkButton href="/about">{uiCopy.about}</LinkButton>
           </nav>
         ) : (
           <>
@@ -279,9 +280,7 @@ export function SearchPage(): ReactElement {
             {!query.isPending && !query.isError && total === 0 && (
               <section className={css.stack}>
                 <h2 className={css.subheading}>見つかりませんでした</h2>
-                <p className={css.body}>
-                  施設の名前を短くするか、電話番号を確かめてください。
-                </p>
+                <p className={css.body}>{uiCopy.search.empty}</p>
               </section>
             )}
             <div className={css.resultGroups}>

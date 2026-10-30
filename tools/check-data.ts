@@ -3,6 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import * as v from "valibot";
+import { normalizeAddress } from "../src/core/address.ts";
 import { normalizeName } from "../src/core/identity.ts";
 import {
   CatalogSchema,
@@ -57,6 +58,8 @@ export async function checkDataBundle(
       .iterate()) {
       const value: unknown = JSON.parse(v.parse(v.string(), row.payload));
       const contact = v.parse(ContactSchema, value);
+      if (normalizeAddress(contact.address) !== contact.address)
+        throw new Error(`Noncanonical address: ${contact.id}`);
       if (
         row.id !== contact.id ||
         row.name !== contact.name ||
@@ -116,6 +119,18 @@ export async function checkDataBundle(
     for (const prefecture of catalog.prefectures)
       if ((prefectures.get(prefecture.code) ?? 0) !== prefecture.contacts)
         throw new Error("Prefecture accounting mismatch");
+    if (
+      catalog.categories.length !== categories.size ||
+      new Set(catalog.categories.map((item) => item.id)).size !==
+        categories.size ||
+      catalog.categories.reduce((sum, item) => sum + item.contacts, 0) !==
+        contacts ||
+      new Set(catalog.prefectures.map((item) => item.code)).size !==
+        catalog.prefectures.length ||
+      catalog.prefectures.reduce((sum, item) => sum + item.contacts, 0) !==
+        contacts
+    )
+      throw new Error("Incomplete catalog partition");
     const integrity = v.parse(
       v.object({ integrity_check: v.literal("ok") }),
       db.prepare("PRAGMA integrity_check").get(),

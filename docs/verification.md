@@ -37,14 +37,16 @@ A timeout supplies no behavioral evidence.
 ## Source-bound proofs
 
 Run `mise x -- just prove`.
-LemmaScript 0.6.5 translates the actual annotated search, copy, reference-style, and publication policy implementations to Dafny.
-The gate requires unmodified generated output and all ten expected functions.
-Dafny 4.11.0 checks thirteen units containing twenty declared postconditions for continuation eligibility, snapshot/query cursor decisions, compatible regions, page and preview bounds, copy completion, trusted copy-method selection, reference-style property classification, import identity, and staging promotion.
+LemmaScript 0.6.5 translates the actual annotated search, copy, reference-style, publication, and collection policy implementations to Dafny.
+The gate requires unmodified generated output and all thirteen expected functions.
+Dafny 4.11.0 checks eighteen units containing twenty-three declared postconditions for the supported search, copy, styling, publication, school-evidence, unique-candidate, and source-accounting decisions.
 The copy policy partitions current success, current failure, and superseded completion over the full Boolean domain.
 The browser adapter uses fresh symbol identities and suppresses superseded state and announcements.
 Separate negative controls accept limit 101, reverse the completion guard, reverse the trusted-click guard, and retain reference opacity while retaining their contracts.
 Each must fail verification.
 A conflicting import identity and a changed staging candidate also have source-mutating negative controls that must fail verification.
+Collection controls remove name evidence, admit an empty candidate set, and omit duplicate rows from accounting.
+Each must fail with an unproved contract rather than a tool error.
 A tool error, timeout, missing condition, or empty inventory cannot count as that rejection.
 
 The verifier uses a pinned base-image digest and a checked upstream archive digest.
@@ -64,6 +66,15 @@ JavaScript normalization, UTF-8 codecs, Web Crypto, URL parsing, SQLite, React, 
 Their assessed alternatives are strict boundary validation, fixed seeded properties, native D1 integration, full data reconciliation, and browser fault injection.
 Revisit the proof boundary when the translator supports those native operations or the implementation changes those assumptions.
 These checks do not prove the complete service or the truth of a publisher's data.
+
+Collection parsers, Unicode normalization, regular expressions, PDF rendering, HTTP transport, and SQLite iterators cross the translator's supported semantics.
+The supported evidence-selection and row-accounting decisions are proved under Boolean and validated finite-integer assumptions.
+The checked alternatives use planted UTF-8 and Shift-JIS CSV, merged spreadsheets, spanned HTML tables, ambiguous school records, conflicting regions, fax-only fields, cache corruption, rate limits, and incomplete publication inputs.
+Address checks include named-place counterexamples and 500 fixed-seed idempotence cases.
+The complete data gate rejects a stored address that is not canonical and rejects incomplete or duplicate catalog partitions.
+Canonical native preparation also checks the JSONL, CSV, and vCard representations against the same contact contract.
+These checks establish the tested representation and boundary behavior, not the truth, recency, or completeness of public directories.
+Revisit the alternatives when parser support, numeral rules, collection identity, or translator semantics change.
 
 Telephone formatting depends on the pinned `libphonenumber-js` metadata, Unicode normalization, and JavaScript regular expressions.
 Those operations are outside the translator's supported decision semantics.
@@ -97,12 +108,12 @@ Revisit this boundary when those semantics become supported or the query, cache 
 Prepare and seed the national bundle as described in [local operation](deployment.md).
 Run `npm run data:check -- .local/phonebook` to verify every retained contact, source reference, sortable field, index column, category and prefecture count, phone relation count, search index count, archive byte length, SHA-256, and SQLite integrity.
 The original publication is opened read-only.
-The active retained snapshot has 650,933 contacts, 546,133 distinct telephone numbers, 724 sources, 39 categories, and 47 prefectures.
+The active retained snapshot has 667,696 contacts, 561,495 distinct telephone numbers, 1,179 sources, 62 populated categories, and 47 prefectures.
 The data audit identifies the exact snapshot in its output.
 Run `npm run data:phones -- .local/phonebook .local/phone-quality.json` for the source-bound telephone profile and complete metadata review queue.
-The retained publication has 651,500 contact/phone relations, including 12,693 unseparated spellings and 11,326 spellings containing non-ASCII characters.
-The common display formatter changes 36,527 source spellings without changing their canonical digits.
-There are 160 relations outside the pinned full metadata's recognized patterns.
+The earlier archived publication had 651,500 contact/phone relations, including 12,693 unseparated spellings and 11,326 spellings containing non-ASCII characters.
+Its common display formatter changed 36,527 source spellings without changing their canonical digits.
+Its audit found 160 relations outside the pinned full metadata's recognized patterns.
 They require source investigation and are preserved without speculative digit repairs.
 The audit requires zero unparseable spellings, source/canonical disagreements, formatting round-trip disagreements, and duplicate numbers within a contact.
 

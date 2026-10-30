@@ -9,8 +9,8 @@ import { fileDigest } from "./snapshot.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 13;
-const declaredPostconditionCount = 20;
+const verifiedUnitCount = 18;
+const declaredPostconditionCount = 23;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -26,8 +26,29 @@ const expected = [
   "stripReferenceStyle",
   "importDecision",
   "canPromote",
+  "schoolEvidence",
+  "singleCandidate",
+  "sourceRowsAccounted",
 ];
 const boundFiles = [
+  "src/core/collection-policy.ts",
+  "src/core/address.ts",
+  "tools/collection/artifacts.ts",
+  "tools/collection/catalog.ts",
+  "tools/collection/extract.ts",
+  "tools/collection/models.ts",
+  "tools/collection/overlay.ts",
+  "tools/collection/public-facility.ts",
+  "tools/collection/read-tables.ts",
+  "tools/collection/read-pdf.ts",
+  "tools/collection/run.ts",
+  "tools/collection/school-registry.ts",
+  "tests/unit/address.test.ts",
+  "tests/unit/collection-artifacts.test.ts",
+  "tests/unit/collection-policy.test.ts",
+  "tests/unit/collection-overlay.test.ts",
+  "tests/unit/collection.test.ts",
+  "tests/unit/snapshot.test.ts",
   "src/core/search-policy.ts",
   "src/core/search.ts",
   "src/core/copy-policy.ts",
@@ -81,6 +102,7 @@ interface ProofSourceBinding {
   readonly sha256: string;
 }
 const proofSources = [
+  "src/core/collection-policy.ts",
   "src/core/search-policy.ts",
   "src/core/copy-policy.ts",
   "src/core/reference-style-policy.ts",
@@ -231,7 +253,13 @@ async function main(): Promise<void> {
       throw new Error(`Verifier image build failed: ${build.output}`);
     const positive = await verifyModel(image, modelPaths);
     console.info(positive.output);
-    if (positive.code !== 0 || !/13 verified, 0 errors/u.test(positive.output))
+    if (
+      positive.code !== 0 ||
+      !new RegExp(
+        `finished with ${verifiedUnitCount} verified, 0 errors`,
+        "u",
+      ).test(positive.output)
+    )
       throw new Error("The complete proof inventory did not pass");
     const source = await readFile(
       `${proofRoot}/src/core/search-policy.ts`,
@@ -362,6 +390,47 @@ async function main(): Promise<void> {
           `The ${control.name} negative control was inconclusive: ${rejected.output}`,
         );
     }
+    const collectionSource = await readFile(
+      `${proofRoot}/src/core/collection-policy.ts`,
+      "utf8",
+    );
+    for (const control of [
+      {
+        name: "collection-ambiguity",
+        from: "return count === 1;",
+        to: "return count === 0;",
+      },
+      {
+        name: "collection-accounting",
+        from: "return rows === accepted + missing + invalid + duplicate + excluded;",
+        to: "return rows === accepted + missing + invalid + excluded;",
+      },
+      {
+        name: "collection-name-evidence",
+        from: "  return (\n    namePresent &&",
+        to: "  return (\n    true &&",
+      },
+    ]) {
+      const broken = collectionSource.replace(control.from, control.to);
+      if (broken === collectionSource)
+        throw new Error(
+          `The ${control.name} negative control did not mutate the implementation`,
+        );
+      const path = `proof/negative/${control.name}.ts`;
+      await writeFile(`${proofRoot}/${path}`, broken);
+      await generateModel(path);
+      const rejected = await verifyModel(image, [
+        `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
+      ]);
+      if (
+        rejected.code === 0 ||
+        !/[1-9][0-9]* error/u.test(rejected.output) ||
+        !/could not be proved|could not prove/u.test(rejected.output)
+      )
+        throw new Error(
+          `The ${control.name} negative control was inconclusive: ${rejected.output}`,
+        );
+    }
     for (const binding of bindings) {
       if (
         (await fileDigest(binding.file)) !== binding.sha256 ||
@@ -389,7 +458,7 @@ async function main(): Promise<void> {
           semantics:
             "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
           negativeControl:
-            "limit 101, reversed copy completion and trust guards, retained reference opacity, import identity, and promotion identity rejected",
+            "limit 101, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, and missing name evidence rejected",
           result: "verified",
         },
         null,

@@ -1,5 +1,9 @@
 import { bindings, defineConfig } from "cf/config";
-import { deploymentEnvironment, environments } from "./src/core/environment.ts";
+import {
+  databaseResourceName,
+  deploymentEnvironment,
+  environments,
+} from "./src/core/environment.ts";
 
 const workerCpuLimitMs = 100;
 
@@ -16,7 +20,13 @@ export default defineConfig(({ mode }) => {
       workersDev: false,
       previewUrls: false,
       env: {
-        DB: bindings.d1({ name: target.database, dev: { remote: false } }),
+        DB: bindings.d1({
+          name: databaseResourceName(
+            environment,
+            process.env.DIAL_DATABASE_SHA256,
+          ),
+          dev: { remote: false },
+        }),
         DATASETS: bindings.r2({ name: target.bucket, dev: { remote: false } }),
         APP_ENV: bindings.text(environment),
         PUBLIC_ORIGIN: bindings.text(target.origin),

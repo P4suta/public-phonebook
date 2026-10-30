@@ -1,4 +1,6 @@
-export const categorySources = [
+import { categoryDefinitions } from "../src/core/catalog.ts";
+
+const retainedCategorySources = [
   {
     id: "medical",
     publisher: "厚生労働省 地方厚生局",
@@ -243,3 +245,15 @@ export const categorySources = [
     licenseUrl: "https://www.mhlw.go.jp/chosakuken/index.html",
   },
 ] as const;
+
+const recordSourceUrl = "https://www.dial.page/api/sources";
+
+export const categorySources = categoryDefinitions.map(
+  (category) =>
+    retainedCategorySources.find((source) => source.id === category.id) ?? {
+      id: category.id,
+      publisher: "公的機関の公開資料",
+      license: "Source-specific reuse terms",
+      licenseUrl: recordSourceUrl,
+    },
+);

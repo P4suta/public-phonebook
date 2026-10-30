@@ -1,87 +1,6 @@
-import {
-  Accessibility,
-  Archive,
-  Baby,
-  Blocks,
-  BookOpenCheck,
-  BriefcaseBusiness,
-  Building,
-  BuildingComplex,
-  CalendarCheck,
-  CalendarDays,
-  ClipboardList,
-  DraftingCompass,
-  Flame,
-  GalleryThumbnails,
-  GraduationCap,
-  HandHeart,
-  HandHelping,
-  HardHat,
-  Hospital,
-  House,
-  HouseHeart,
-  Landmark,
-  Languages,
-  LibraryBig,
-  LifeBuoy,
-  type LucideIcon,
-  Luggage,
-  MapPinned,
-  MessagesSquare,
-  PersonStanding,
-  Pill,
-  ReceiptJapaneseYen,
-  Scale,
-  School,
-  ShieldUser,
-  ShoppingBag,
-  Sprout,
-  University,
-  UsersRound,
-} from "lucide-react";
 import type { ReactElement } from "react";
 import type { Category } from "../core/catalog.ts";
-
-const icons = {
-  medical: Hospital,
-  pharmacy: Pill,
-  municipal_office: Landmark,
-  prefectural_office: BuildingComplex,
-  nursing_care: HandHeart,
-  disability_support: Accessibility,
-  library: LibraryBig,
-  museum: GalleryThumbnails,
-  archive: Archive,
-  nursery: Baby,
-  kindergarten: Blocks,
-  certified_child_center: School,
-  small_scale_childcare: HouseHeart,
-  workplace_childcare: Building,
-  unlicensed_childcare: House,
-  university: University,
-  junior_college: BookOpenCheck,
-  technical_college: DraftingCompass,
-  consumer_affairs: ShoppingBag,
-  labour_bureau: ClipboardList,
-  labour_inspection: HardHat,
-  labour_consultation: MessagesSquare,
-  child_consultation: HandHelping,
-  social_withdrawal_support: LifeBuoy,
-  pension_office: CalendarDays,
-  pension_consultation: CalendarCheck,
-  tax_office: ReceiptJapaneseYen,
-  legal_affairs: Scale,
-  fire_brigade_office: Flame,
-  police_consultation: ShieldUser,
-  employment_office: BriefcaseBusiness,
-  parent_employment_support: UsersRound,
-  graduate_employment_support: GraduationCap,
-  youth_employment_support: PersonStanding,
-  foreign_employment_support: Languages,
-  local_employment_support: MapPinned,
-  agriculture_employment_support: Sprout,
-  relocation_employment_support: Luggage,
-} satisfies Record<Exclude<Category, "dental">, LucideIcon>;
+import { categoryIcons } from "./category-icons.ts";
 
 export function CategoryIcon({
   category,
@@ -90,6 +9,6 @@ export function CategoryIcon({
 }): ReactElement {
   if (category === "dental")
     return <img src="/icons/tooth.svg" alt="" width={16} height={16} />;
-  const Icon = icons[category];
+  const Icon = categoryIcons[category];
   return <Icon size={16} aria-hidden="true" />;
 }
