@@ -1,11 +1,58 @@
 import { readFile } from "node:fs/promises";
 import AxeBuilder from "@axe-core/playwright";
+import type { Page } from "@playwright/test";
 import * as v from "valibot";
 import { SearchResponseSchema } from "../../src/core/models.ts";
+import { foundation } from "../../src/ui/foundations.ts";
+import { serviceInformation } from "../../src/ui/service-information.ts";
 import { auditDesign } from "./design-policy.ts";
 import { expect, test } from "./fixtures.ts";
 
 test.use({ video: "on" });
+
+const textSpacingOverride =
+  "* { line-height: 1.5 !important; letter-spacing: 0.12em !important; word-spacing: 0.16em !important; } p { margin-bottom: 2em !important; }";
+
+async function addStyleSheet(page: Page, css: string): Promise<void> {
+  await page.evaluate((text) => {
+    const nonce = document.querySelector<HTMLMetaElement>(
+      'meta[property="csp-nonce"]',
+    )?.content;
+    if (!nonce) throw new Error("The document nonce is missing");
+    const sheet = document.createElement("style");
+    sheet.nonce = nonce;
+    sheet.textContent = text;
+    document.head.appendChild(sheet);
+  }, css);
+}
+
+async function clippedText(page: Page): Promise<readonly string[]> {
+  return page.evaluate(() => {
+    const issues: string[] = [];
+    if (document.documentElement.scrollWidth > innerWidth)
+      issues.push(
+        `horizontal-scroll: ${document.documentElement.scrollWidth}/${innerWidth}`,
+      );
+    for (const element of document.body.querySelectorAll("*")) {
+      if (element.getClientRects().length === 0) continue;
+      const style = getComputedStyle(element);
+      if (style.clipPath !== "none") continue;
+      const clips = [style.overflowX, style.overflowY].some(
+        (overflow) => overflow === "hidden" || overflow === "clip",
+      );
+      if (!clips && !element.matches("a, button, input, select, textarea"))
+        continue;
+      if (
+        element.scrollWidth > element.clientWidth + 1 ||
+        element.scrollHeight > element.clientHeight + 1
+      )
+        issues.push(
+          `${element.tagName} "${element.textContent?.trim() ?? ""}": client ${element.clientWidth}x${element.clientHeight}, scroll ${element.scrollWidth}x${element.scrollHeight}`,
+        );
+    }
+    return issues;
+  });
+}
 
 test("every retained Figma token has a defined CSS variable", async ({
   page,
@@ -177,7 +224,7 @@ for (const width of [320, 390, 1440]) {
           });
         expect(hierarchy.heading).toBe(name === "detail" ? 24 : 20);
         expect(hierarchy.phone / hierarchy.heading).toBeLessThanOrEqual(1.6);
-        if (name === "results" && width >= 800)
+        if (name === "results" && width >= foundation.layout.columnsAt)
           expect(hierarchy.height).toBeLessThanOrEqual(240);
       }
       const accessibility = await new AxeBuilder({ page })
@@ -247,7 +294,7 @@ for (const width of [320, 390, 1440]) {
           path: info.outputPath(`${name}-${width}.png`),
           fullPage: name !== "data",
         });
-      if (name === "results" && width < 600) {
+      if (name === "results" && width <= foundation.layout.compactUntil) {
         const prefecture = await page
           .getByLabel("都道府県", { exact: true })
           .boundingBox();
@@ -270,16 +317,7 @@ for (const width of [320, 1440]) {
   }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/?q=国立国会図書館&prefecture=13&category=library");
-    await page.evaluate(() => {
-      const nonce = document.querySelector<HTMLMetaElement>(
-        'meta[property="csp-nonce"]',
-      )?.content;
-      if (!nonce) throw new Error("The document nonce is missing");
-      const sheet = document.createElement("style");
-      sheet.nonce = nonce;
-      sheet.textContent = ":root { font-size: 200%; }";
-      document.head.appendChild(sheet);
-    });
+    await addStyleSheet(page, ":root { font-size: 200%; }");
     await expect(page.locator("article").first()).toBeVisible();
     expect(
       await page
@@ -315,5 +353,61 @@ for (const width of [320, 1440]) {
           })),
       );
     expect(clipped).toEqual([]);
+  });
+}
+
+test("the text-spacing gate detects clipped text", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
+  expect(await clippedText(page)).toEqual([]);
+  await page.evaluate(() => {
+    const planted = document.createElement("p");
+    planted.textContent = "施設や窓口の名前";
+    planted.style.height = "1em";
+    planted.style.overflow = "hidden";
+    planted.style.lineHeight = "3";
+    document.querySelector("main")?.appendChild(planted);
+  });
+  expect(await clippedText(page)).toEqual([
+    expect.stringMatching(/^P "施設や窓口の名前"/u),
+  ]);
+});
+
+for (const width of [320, 1440]) {
+  test(`WCAG 1.4.12 text spacing keeps every text visible at ${width}px`, async ({
+    page,
+    request,
+  }) => {
+    const raw: unknown = await (
+      await request.get("/api/contacts?q=国立国会図書館")
+    ).json();
+    const contact = v.parse(SearchResponseSchema, raw).data[0];
+    if (!contact) throw new Error("Known visual fixture missing");
+    await page.setViewportSize({ width, height: 900 });
+    for (const [name, path] of [
+      ["home", "/"],
+      ["results", "/?q=国立国会図書館&prefecture=13&category=library"],
+      ["contact", `/contacts/${encodeURIComponent(contact.id)}`],
+      ["about", "/about"],
+      ...serviceInformation.map(({ key }) => [key, `/${key}`]),
+    ]) {
+      if (!name || !path) throw new Error("Missing text-spacing case");
+      await page.goto(path);
+      await expect(page.locator("html")).toHaveAttribute(
+        "data-enhanced",
+        "true",
+      );
+      if (name === "results" || name === "contact")
+        await expect(page.locator("article").first()).toBeVisible();
+      await addStyleSheet(page, textSpacingOverride);
+      await page.evaluate(async () => document.fonts.ready);
+      expect(
+        await page.evaluate(
+          () => getComputedStyle(document.body).letterSpacing,
+        ),
+        name,
+      ).not.toBe("normal");
+      expect(await clippedText(page), name).toEqual([]);
+    }
   });
 }

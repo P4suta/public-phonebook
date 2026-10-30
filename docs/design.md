@@ -58,16 +58,17 @@ Use authored black and white only.
 Exclude gray steps, gradients, shadows, translucent styling, filters, blending, and slogans.
 Use size, weight, grouping, spacing, and solid borders to communicate structure.
 The initial heading is the service name.
-The search input is centered against the viewport rather than a header.
+The service name sits two body lines above the search form.
+The initial content is centered vertically in the viewport rather than placed below a header.
 Data and API navigation lives below the initial filters.
 No footer contains required information.
 Buttons have visible labels, explicit focus indicators, and generous targets.
-The search action touches the search-field border.
+The search action touches the search-field border on wide screens and sits below the field on narrow screens.
 Search actions have a minimum width and grow to fit their labels.
 The API reference uses the existing desktop and mobile frames with an editable operation-navigation and parameter layout.
 Its desktop content uses 24-pixel gutters to accommodate the library's sidebar and documentation columns.
 Scalar supplies its detailed runtime controls; the application theme enforces black-and-white output and minimum target sizes.
-At widths up to 360 pixels, the decorative search glyph is hidden so the complete input hint remains visible.
+The search field has a visible label and a persistent hint above it, with no placeholder or decorative glyph.
 
 The website uses typed Vanilla Extract styles and self-hosted Noto Sans JP.
 The font license remains in `public/fonts/OFL.txt`.
@@ -75,21 +76,33 @@ The retained WOFF2 SHA-256 is `6fd94964d1990baa2a392cea7a036683d2b80b9dfd590cb39
 Lucide supplies distinct category and action icons, with the owned tooth asset retained separately.
 All 65 defined categories have different icon geometry.
 The website offers only categories present in the active publication.
-Category icons use 16-pixel slots; action icons use 18-pixel slots.
-Telephone numbers use 24/32 typography in results and 32/48 typography in details.
-Facility names use 20/32 in results and 24/32 as detail-page headings.
-Shared line heights contain the native Firefox rendering at normal and doubled text sizes without enlarging the characters.
-Page, section, and row headings use 24/32, 20/28, and 16/24 respectively.
-Body text uses 16/24; metadata and labelled actions use 14/20.
+Every size derives from the parameters in `src/ui/foundations.ts`.
+The parameters are a 4-pixel grid, a 16-pixel body size, and a line-height ratio of 1.5.
+The [Digital Agency design system](https://design.digital.go.jp/dads/foundations/typography/) describes 150% as the line spacing of body text and headings on general websites and as the minimum for body text.
+Type sizes step from the body size by one grid unit: 16, 20, 24, 28, and 32 pixels, plus a 14-pixel small size.
+Each line height is the size times 1.5, rounded up to the grid.
+The ratio exceeds the 1.448-em ascent and descent of Noto Sans JP, so Firefox reports no text overflow at normal or doubled text sizes.
+Spacing steps are fractions and multiples of the 24-pixel body line: 4, 8, 12, 16, 24, 32, 48, and 64 pixels.
+A control's height is its text line plus twice its inline padding, which gives 48-pixel actions and a 56-pixel search field.
+The content width is 60 body characters, and results use two columns from a width of 50 body characters.
+Category icons use the body size; action icons use the action size plus one grid unit.
+The service name uses 28/44 on wide screens and 24/36 on narrow screens.
+Telephone numbers use 24/36 typography in results and 32/48 typography in details.
+Facility names use 20/32 in results and 24/36 as detail-page headings.
+Page, section, and row headings use 24/36, 20/32, and 16/24 respectively.
+Search and filter labels share the 16/24 row-heading style.
+Body text, metadata, and labelled actions use 16/24, 14/24, and 14/24.
 Text uses rem units so browser text preferences can increase its size.
-Controls retain a minimum target height of 44 pixels at the default text size.
+Controls keep at least a 44-pixel target height at the default text size.
 
 The existing desktop page contains the [foundation and state specimen](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=244-1790).
 The existing collection contains semantic variables, primitive aliases, explicit scopes, and matching CSS names.
 The retained [Figma export](design-system.json) identifies the exact role styles and variable IDs.
 The TypeScript source in `src/ui/foundations.ts` supplies the same role values to the Vanilla Extract theme.
 Unit checks reject divergence from the retained export.
+Unit checks also recompute every size from the parameters and reject hand-typed pixel or rem lengths in the style sheets.
 Browser checks require every exported CSS variable, bound heading sizes, compact result hierarchy, and text-resize behavior.
+They also apply the WCAG 1.4.12 text-spacing override at 320 and 1440 pixels and require unclipped text without horizontal page scrolling.
 These checks compare the retained export, not a live Figma file or subjective visual quality.
 
 ## Interaction and copy

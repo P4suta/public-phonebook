@@ -17,6 +17,20 @@ const page: AuditPage = {
   ],
 };
 
+it("replaces a whole page from a page-scope capture", () => {
+  const merged = mergeCapture(page, {
+    page: "14:2",
+    observedNodes: 3,
+    references: { instances: 0, resolved: 0 },
+    texts: {},
+    singles: [["8:1", 10, 24, 24, 0, 1]],
+    placements: [["1:1", "14:2", "SECTION", 0, 0, 90, 90, "NONE", null, null]],
+    scope: "page",
+  });
+  expect(merged.texts).toEqual([["8:1", 10, 24, 24, 0, 1]]);
+  expect(merged.placements.map((entry) => entry[0])).toEqual(["1:1"]);
+});
+
 it("replaces every text under a recaptured instance and keeps other instances", () => {
   const merged = mergeCapture(page, {
     page: "14:2",

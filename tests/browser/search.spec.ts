@@ -1,6 +1,6 @@
 import { expect, test } from "./fixtures.ts";
 
-test("initial screen is empty and the search input is centered", async ({
+test("initial screen is empty and its content is centered", async ({
   page,
 }) => {
   await page.goto("/");
@@ -10,7 +10,7 @@ test("initial screen is empty and the search input is centered", async ({
   await expect(page.locator("article")).toHaveCount(0);
   await expect(page.locator("header, footer")).toHaveCount(0);
   await expect(page.getByLabel("市区町村", { exact: true })).toHaveCount(0);
-  const box = await page.locator("input[name=q]").locator("..").boundingBox();
+  const box = await page.locator("main > div").boundingBox();
   expect(box).not.toBeNull();
   const viewport = page.viewportSize();
   expect(viewport).not.toBeNull();
@@ -107,7 +107,7 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
         (node) => node.isConnected && document.activeElement === node,
       ),
     ).toBe(true);
-    const bounds = await input.locator("..").boundingBox();
+    const bounds = await page.locator("main > div").boundingBox();
     const viewport = page.viewportSize();
     if (!bounds || !viewport) throw new Error("The search layout is missing");
     expect(

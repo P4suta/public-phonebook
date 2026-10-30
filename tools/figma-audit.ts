@@ -1,4 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { text } from "node:stream/consumers";
 import * as v from "valibot";
 
 const auditPath = "docs/figma-layout.json";
@@ -44,10 +45,11 @@ export const CaptureSchema = v.strictObject({
   texts: v.record(v.string(), v.array(TextSchema)),
   singles: v.array(TextSchema),
   placements: v.array(PlacementSchema),
+  scope: v.optional(v.picklist(["subtrees", "page"]), "subtrees"),
 });
 
 export type AuditPage = v.InferOutput<typeof PageSchema>;
-export type Capture = v.InferOutput<typeof CaptureSchema>;
+export type Capture = v.InferInput<typeof CaptureSchema>;
 
 function replaceById<T extends readonly [string, ...unknown[]]>(
   entries: readonly T[],
@@ -62,6 +64,14 @@ function replaceById<T extends readonly [string, ...unknown[]]>(
 }
 
 export function mergeCapture(page: AuditPage, capture: Capture): AuditPage {
+  if (capture.scope === "page")
+    return {
+      ...page,
+      observedNodes: capture.observedNodes,
+      references: capture.references,
+      placements: capture.placements,
+      texts: capture.singles,
+    };
   let texts = page.texts;
   for (const [root, captured] of Object.entries(capture.texts)) {
     const capturedIds = new Set(captured.map((entry) => entry[0]));
@@ -82,10 +92,16 @@ export function mergeCapture(page: AuditPage, capture: Capture): AuditPage {
   };
 }
 
+function readCapture(capturePath: string): Promise<string> {
+  return capturePath === "-"
+    ? text(process.stdin)
+    : readFile(capturePath, "utf8");
+}
+
 async function merge(capturePath: string): Promise<void> {
   const capture = v.parse(
     CaptureSchema,
-    JSON.parse(await readFile(capturePath, "utf8")),
+    JSON.parse(await readCapture(capturePath)),
   );
   const source: unknown = JSON.parse(await readFile(auditPath, "utf8"));
   const audit = v.parse(AuditSchema, source);
@@ -121,6 +137,6 @@ async function merge(capturePath: string): Promise<void> {
 if (import.meta.main) {
   const [command, capturePath] = process.argv.slice(commandArgumentOffset);
   if (command !== "merge" || !capturePath)
-    throw new Error("Usage: figma-audit merge CAPTURE_JSON");
+    throw new Error("Usage: figma-audit merge CAPTURE_JSON|-");
   await merge(capturePath);
 }

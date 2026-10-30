@@ -2,11 +2,22 @@ import {
   createGlobalTheme,
   createGlobalThemeContract,
 } from "@vanilla-extract/css";
-import { foundation, rem, type TextRole } from "./foundations.ts";
+import { foundation, px, rem, type TextRole } from "./foundations.ts";
+
+const { control, layout, space } = foundation;
 
 const primitiveSizes = [
-  1, 3, 4, 8, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 56, 64, 960,
-] as const;
+  ...new Set([
+    ...Object.values(foundation.font).flatMap((role) => [
+      role.size,
+      role.lineHeight,
+    ]),
+    ...Object.values(space),
+    ...Object.values(control),
+    layout.width,
+    layout.gutter,
+  ]),
+].sort((left, right) => left - right);
 
 function font(role: TextRole): { size: string; lineHeight: string } {
   return {
@@ -22,7 +33,7 @@ const values = {
     size: Object.fromEntries(
       primitiveSizes.map((value): [string, string] => [
         String(value),
-        `${value}px`,
+        px(value),
       ]),
     ),
   },
@@ -31,14 +42,14 @@ const values = {
     paper: "var(--dial-primitive-white)",
   },
   space: {
-    "4": "4px",
-    "8": "8px",
-    "12": "12px",
-    "16": "16px",
-    "24": "24px",
-    "32": "32px",
-    "48": "48px",
-    "64": "64px",
+    "4": px(space["4"]),
+    "8": px(space["8"]),
+    "12": px(space["12"]),
+    "16": px(space["16"]),
+    "24": px(space["24"]),
+    "32": px(space["32"]),
+    "48": px(space["48"]),
+    "64": px(space["64"]),
   },
   font: {
     brand: font("brand"),
@@ -55,15 +66,16 @@ const values = {
     brandCompact: font("brandCompact"),
   },
   control: {
-    height: rem(foundation.control.height),
-    searchHeight: rem(foundation.control.searchHeight),
-    icon: rem(foundation.control.icon),
-    categoryIcon: rem(foundation.control.categoryIcon),
-    border: "1px",
-    focus: "3px",
-    focusOffset: "3px",
+    height: rem(control.height),
+    searchHeight: rem(control.searchHeight),
+    icon: rem(control.icon),
+    selectIcon: rem(control.selectIcon),
+    categoryIcon: rem(control.categoryIcon),
+    border: px(control.border),
+    focus: px(control.focus),
+    focusOffset: px(control.focusOffset),
   },
-  layout: { width: "960px", gutter: "24px" },
+  layout: { width: px(layout.width), gutter: px(layout.gutter) },
 };
 
 export const tokens = createGlobalThemeContract(

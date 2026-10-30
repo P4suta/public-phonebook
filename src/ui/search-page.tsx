@@ -156,7 +156,7 @@ export function SearchPage(): ReactElement {
             onSubmit={submit}
           >
             <div className={css.searchGroup}>
-              <label className={css.searchLabel} htmlFor="directory-search">
+              <label className={css.fieldLabel} htmlFor="directory-search">
                 {uiCopy.search.label}
               </label>
               <p id="directory-search-hint" className={css.searchHint}>
@@ -338,7 +338,9 @@ function Filter({
 }): ReactElement {
   return (
     <div className={css.filter}>
-      <label htmlFor={`filter-${name}`}>{label}</label>
+      <label className={css.fieldLabel} htmlFor={`filter-${name}`}>
+        {label}
+      </label>
       <span className={css.selection}>
         <select
           id={`filter-${name}`}
