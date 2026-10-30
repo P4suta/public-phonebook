@@ -239,7 +239,11 @@ export async function searchContactGroups(
   catalog: Catalog,
   requestUrl: URL,
 ): Promise<Result<GroupedSearchResponse, QueryError>> {
-  const contactsUrl = new URL("/api/contacts", requestUrl);
+  const contactsUrl = new URL(requestUrl);
+  contactsUrl.pathname = contactsUrl.pathname.replace(
+    /contact-groups$/u,
+    "contacts",
+  );
   for (const [key, value] of Object.entries(search))
     if (value !== "") contactsUrl.searchParams.set(key, String(value));
   if (search.category) {

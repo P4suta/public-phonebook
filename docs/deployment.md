@@ -147,3 +147,10 @@ The command never deletes resources.
 Preserve `.local/releases` and its verification bundles for recovery.
 Provider provisioning, network delivery, and the truth of upstream records remain external trust boundaries.
 Read the [recovery decision](adr/recover-complete-worker-and-dataset-publications.md), [promotion decision](adr/source-tree-bound-staging-promotion.md), and [verification contract](verification.md) for their checks and limits.
+
+## Support mail
+
+The `/support` and `/privacy` pages publish `support@dial.page` as the only contact address.
+Cloudflare Email Routing on the `dial.page` zone forwards it to a verified private destination that stays out of this repository.
+Before publishing a change that shows the address, confirm that the zone's routing is enabled and that the `support@dial.page` rule forwards to a verified destination.
+Point the iPhone app's App Store support URL and in-app help at `https://www.dial.page/support`.

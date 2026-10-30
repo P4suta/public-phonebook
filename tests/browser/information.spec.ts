@@ -1,3 +1,6 @@
+import AxeBuilder from "@axe-core/playwright";
+import { serviceInformation } from "../../src/ui/service-information.ts";
+import { auditDesign } from "./design-policy.ts";
 import { expect, test } from "./fixtures.ts";
 
 test("the initial screen gives a complete instruction and one project-information action", async ({
@@ -50,3 +53,51 @@ test("the initial screen gives a complete instruction and one project-informatio
     .click();
   await expect(page.getByRole("searchbox")).toHaveValue("");
 });
+
+for (const width of [320, 1440])
+  test(`privacy and support are readable, accessible and navigable at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    for (const information of serviceInformation) {
+      await page.goto(`/${information.key}`);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+        `Public Phonebookの${information.title}`,
+      );
+      for (const section of information.sections)
+        await expect(
+          page.getByRole("heading", {
+            level: 2,
+            name: section.title,
+            exact: true,
+          }),
+        ).toBeVisible();
+      for (const link of information.links)
+        await expect(page.locator(`a[href="${link.href}"]`)).toBeVisible();
+      expect((await auditDesign(page)).violations).toEqual([]);
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+    }
+    await page.goto("/about");
+    await page
+      .getByRole("link", { name: "プライバシーについて読む", exact: true })
+      .click();
+    await expect(page).toHaveURL("/privacy");
+    await page
+      .getByRole("link", {
+        name: "使い方と、声を伝える方法を見る",
+        exact: true,
+      })
+      .click();
+    await expect(page).toHaveURL("/support");
+  });
