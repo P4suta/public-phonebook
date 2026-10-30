@@ -64,7 +64,7 @@ export default {
       "Permissions-Policy",
       "camera=(), microphone=(), geolocation=()",
     );
-    result.headers.set("Cache-Control", "no-store");
+    result.headers.set("Cache-Control", "no-store, no-transform");
     return result;
   },
 } satisfies ExportedHandler<DirectoryBindings>;

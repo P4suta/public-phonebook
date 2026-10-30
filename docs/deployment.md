@@ -88,6 +88,8 @@ Production additionally requires a passing staging receipt for the identical Git
 Tree identity allows a merge commit to preserve an already checked candidate when its files are unchanged.
 Each environment is rebuilt with its own bindings and origin before the prebuilt cf deployment.
 The cf deployment applies the Worker's triggers, including custom domains.
+HTML responses use `no-store, no-transform` to prevent Cloudflare from adding scripts to the document.
+Browser checks reject scripts from other origins and verify that an inserted external script is detected.
 The publisher hashes build output before deployment and after provider provisioning.
 Public Playwright checks exercise desktop and narrow search, telephone formatting, detail and provenance navigation, the interactive Scalar client, accessibility, security-policy failures, and the 512-byte query boundary.
 They also download every archive through HTTPS and compare its byte length and SHA-256 with the checked manifest.

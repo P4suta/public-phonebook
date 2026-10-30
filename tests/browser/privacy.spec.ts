@@ -32,6 +32,6 @@ test("the page uses local assets and a fresh, server-controlled CSP nonce", asyn
   expect(csp).not.toContain("unsafe-eval");
   expect(csp).not.toContain("client-supplied");
   expect(csp).not.toBe(second.headers()["content-security-policy"]);
-  expect(first.headers()["cache-control"]).toBe("no-store");
+  expect(first.headers()["cache-control"]).toBe("no-store, no-transform");
   expect(first.headers()["set-cookie"]).toBeUndefined();
 });

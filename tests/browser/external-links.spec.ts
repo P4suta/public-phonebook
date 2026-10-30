@@ -1,6 +1,11 @@
 import * as v from "valibot";
 import { SearchResponseSchema } from "../../src/core/models.ts";
-import { expect, externalLinkIssues, test } from "./fixtures.ts";
+import {
+  expect,
+  externalLinkIssues,
+  externalScriptIssues,
+  test,
+} from "./fixtures.ts";
 
 test.use({ video: "on", screenshot: "off" });
 
@@ -33,6 +38,7 @@ test("every screen preserves external navigation and the gate rejects missing pr
       );
     expect(await page.locator("a[href]").count(), route).toBeGreaterThan(0);
     expect(await externalLinkIssues(page), route).toEqual([]);
+    expect(await externalScriptIssues(page), route).toEqual([]);
     external += await page
       .locator("a[href]")
       .evaluateAll(
@@ -60,5 +66,18 @@ test("every screen preserves external navigation and the gate rejects missing pr
   await link.evaluate((node) => {
     node.setAttribute("target", "_blank");
     node.setAttribute("rel", "noopener noreferrer");
+  });
+  await page.evaluate(() => {
+    const script = document.createElement("script");
+    script.type = "application/json";
+    script.src = "https://example.invalid/probe.js";
+    script.dataset.externalProbe = "";
+    document.body.appendChild(script);
+  });
+  expect(await externalScriptIssues(page)).toEqual([
+    "external-script: https://example.invalid/probe.js",
+  ]);
+  await page.locator("script[data-external-probe]").evaluate((node) => {
+    node.remove();
   });
 });
