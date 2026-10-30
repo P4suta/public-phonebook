@@ -29,6 +29,12 @@ function AboutPage(): ReactElement {
         <p className={css.body}>
           ほかのアプリで使うためのAPIもあります。 登録せずに使えます。
         </p>
+        <nav aria-label="使い方とプライバシーの説明" className={css.actions}>
+          <LinkButton href="/support">
+            使い方と、声を伝える方法を見る
+          </LinkButton>
+          <LinkButton href="/privacy">プライバシーについて読む</LinkButton>
+        </nav>
       </div>
     </main>
   );

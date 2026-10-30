@@ -82,6 +82,7 @@ export const body = style({
   ...typography("body"),
   overflowWrap: "anywhere",
 });
+export const informationCopy = style({ whiteSpace: "pre-line" });
 export const actions = style({
   display: "flex",
   flexWrap: "wrap",

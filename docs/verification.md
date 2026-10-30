@@ -44,9 +44,9 @@ The trusted public-key endpoint is derived from the configured issuer, never the
 Revisit this boundary if Access token semantics, the JWT library, or asset routing changes.
 
 Run `mise x -- just prove`.
-LemmaScript 0.6.5 translates the actual annotated search, copy, reference-style, publication, and collection policy implementations to Dafny.
+LemmaScript 0.6.5 translates the actual annotated search, copy, reference-style, publication, collection, and snapshot policy implementations to Dafny.
 The gate requires unmodified generated output and every function listed in `tools/prove.ts`.
-Dafny 4.11.0 checks its expected nonempty unit and postcondition inventory for the supported search, copy, styling, publication, school-evidence, unique-candidate, and source-accounting decisions.
+Dafny 4.11.0 checks its expected nonempty unit and postcondition inventory for the supported search, copy, styling, publication, school-evidence, unique-candidate, source-accounting, and versioned-API snapshot decisions.
 The copy policy partitions current success, current failure, and superseded completion over the full Boolean domain.
 The browser adapter uses fresh symbol identities and suppresses superseded state and announcements.
 Separate negative controls accept limit 101, reverse the completion guard, reverse the trusted-click guard, and retain reference opacity while retaining their contracts.
@@ -55,6 +55,7 @@ A conflicting import identity and a changed staging candidate also have source-m
 Publication controls also drop manifest equality, recovery ownership, pending-resource protection, coverage retention, and initial-candidate ownership.
 The production coverage decision admits only validated integer counts within ten million records, keeping its arithmetic within exact JavaScript integer representation.
 Collection controls remove name evidence, admit an empty candidate set, and omit duplicate rows from accounting.
+The snapshot control admits a supplied snapshot that differs from the active dataset.
 Each must fail with an unproved contract rather than a tool error.
 A tool error, timeout, missing condition, or empty inventory cannot count as that rejection.
 

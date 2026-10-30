@@ -8,8 +8,13 @@ import { IdentifierSchema, SortableNameSchema } from "./identity.ts";
 import { normalizePhone } from "./phone.ts";
 
 const completeArchiveCount = 3;
+const sha256HexLength = 64;
 
-export const DigestSchema = v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/));
+export const DigestSchema = v.pipe(
+  v.string(),
+  v.length(sha256HexLength),
+  v.regex(/^[a-f0-9]{64}$/u),
+);
 const CountSchema = v.pipe(v.number(), v.safeInteger(), v.minValue(0));
 const TextSchema = v.pipe(v.string(), v.minLength(1));
 export const PublicUrlSchema = v.pipe(
@@ -123,7 +128,7 @@ export const DatasetFileSchema = v.strictObject({
   bytes: CountSchema,
   url: v.string(),
 });
-export const DatasetManifestSchema = v.pipe(
+const CompleteDatasetManifestSchema = v.pipe(
   v.strictObject({
     snapshot: DigestSchema,
     generatedAt: TextSchema,
@@ -139,6 +144,9 @@ export const DatasetManifestSchema = v.pipe(
       new Set(manifest.files.map((file) => file.file)).size ===
       completeArchiveCount,
   ),
+);
+export const DatasetManifestSchema = v.pipe(
+  CompleteDatasetManifestSchema,
   v.check((manifest) =>
     manifest.files.every(
       (file) =>
@@ -148,6 +156,17 @@ export const DatasetManifestSchema = v.pipe(
   ),
 );
 export type DatasetManifest = v.InferOutput<typeof DatasetManifestSchema>;
+
+export const VersionedDatasetManifestSchema = v.pipe(
+  CompleteDatasetManifestSchema,
+  v.check((manifest) =>
+    manifest.files.every(
+      (file) =>
+        file.url ===
+        `/api/v1/datasets/${manifest.snapshot}/${file.sha256}/${file.file}`,
+    ),
+  ),
+);
 
 export const SearchResponseSchema = v.strictObject({
   data: v.array(ContactSchema),

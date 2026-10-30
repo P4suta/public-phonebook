@@ -9,8 +9,8 @@ import { fileDigest } from "./snapshot.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 23;
-const declaredPostconditionCount = 30;
+const verifiedUnitCount = 25;
+const declaredPostconditionCount = 33;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -34,8 +34,23 @@ const expected = [
   "canRetireResource",
   "retainsCoverage",
   "bootstrapAdmission",
+  "snapshotAdmission",
 ];
 const boundFiles = [
+  "src/core/api-contract.ts",
+  "src/core/snapshot-policy.ts",
+  "src/core/catalog.ts",
+  "src/routes/privacy.tsx",
+  "src/routes/support.tsx",
+  "src/routes/about.tsx",
+  "src/ui/information-page.tsx",
+  "src/ui/service-information.ts",
+  "src/ui/styles.css.ts",
+  "tools/directory-fixture.ts",
+  "tools/native-fixture.ts",
+  "tests/unit/native-contract.test.ts",
+  "tests/browser/information.spec.ts",
+  "ios/Tests/PhonebookKitTests/DirectoryContract.json",
   "tools/check-data.ts",
   "tools/check-fixture.ts",
   "tools/check.ts",
@@ -145,6 +160,7 @@ const proofSources = [
   "src/core/copy-policy.ts",
   "src/core/reference-style-policy.ts",
   "src/core/publication-policy.ts",
+  "src/core/snapshot-policy.ts",
 ];
 const modelPaths = proofSources.map(
   (path) => `${proofRoot}/proof/generated/${path.replace(/\.ts$/u, ".dfy")}`,
@@ -519,6 +535,34 @@ async function main(): Promise<void> {
           `The ${control.name} negative control was inconclusive: ${rejected.output}`,
         );
     }
+    const snapshotSource = await readFile(
+      `${proofRoot}/src/core/snapshot-policy.ts`,
+      "utf8",
+    );
+    const brokenSnapshot = snapshotSource.replace(
+      'if (supplied && !matches) return "snapshot_changed";',
+      'if (!supplied && !matches) return "snapshot_changed";',
+    );
+    if (brokenSnapshot === snapshotSource)
+      throw new Error(
+        "The snapshot negative control did not mutate the implementation",
+      );
+    await writeFile(
+      `${proofRoot}/proof/negative/snapshot-policy.ts`,
+      brokenSnapshot,
+    );
+    await generateModel("proof/negative/snapshot-policy.ts");
+    const rejectedSnapshot = await verifyModel(image, [
+      `${proofRoot}/proof/generated/proof/negative/snapshot-policy.dfy`,
+    ]);
+    if (
+      rejectedSnapshot.code === 0 ||
+      !/[1-9][0-9]* error/u.test(rejectedSnapshot.output) ||
+      !/could not be proved|could not prove/u.test(rejectedSnapshot.output)
+    )
+      throw new Error(
+        `The snapshot negative control was inconclusive: ${rejectedSnapshot.output}`,
+      );
     for (const binding of bindings) {
       if (
         (await fileDigest(binding.file)) !== binding.sha256 ||
@@ -546,7 +590,7 @@ async function main(): Promise<void> {
           semantics:
             "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
           negativeControl:
-            "limit 101, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, and missing name evidence rejected",
+            "limit 101, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, and changed snapshot admission rejected",
           result: "verified",
         },
         null,
