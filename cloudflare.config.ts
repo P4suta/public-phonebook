@@ -1,15 +1,24 @@
 import { bindings, defineConfig } from "cf/config";
+import * as v from "valibot";
 import {
   databaseResourceName,
   deploymentEnvironment,
   environments,
 } from "./src/core/environment.ts";
+import { AccessConfigurationSchema } from "./src/server/staging-access.ts";
 
 const workerCpuLimitMs = 100;
 
 export default defineConfig(({ mode }) => {
   const environment = deploymentEnvironment(mode);
   const target = environments[environment];
+  const access =
+    environment === "staging"
+      ? v.parse(AccessConfigurationSchema, {
+          ...process.env,
+          PUBLIC_ORIGIN: target.origin,
+        })
+      : undefined;
   return {
     worker: {
       name: target.worker,
@@ -19,7 +28,9 @@ export default defineConfig(({ mode }) => {
       domains: target.domains,
       workersDev: false,
       previewUrls: false,
+      assets: { runWorkerFirst: true },
       env: {
+        ASSETS: bindings.assets(),
         DB: bindings.d1({
           name: databaseResourceName(
             environment,
@@ -30,6 +41,14 @@ export default defineConfig(({ mode }) => {
         DATASETS: bindings.r2({ name: target.bucket, dev: { remote: false } }),
         APP_ENV: bindings.text(environment),
         PUBLIC_ORIGIN: bindings.text(target.origin),
+        ACCESS_ISSUER: bindings.text(access?.ACCESS_ISSUER ?? ""),
+        ACCESS_AUDIENCE: bindings.text(access?.ACCESS_AUDIENCE ?? ""),
+        ACCESS_REVIEWERS: bindings.text(
+          JSON.stringify(access?.ACCESS_REVIEWERS ?? []),
+        ),
+        ACCESS_SERVICE_CLIENT_ID: bindings.text(
+          access?.ACCESS_SERVICE_CLIENT_ID ?? "",
+        ),
       },
       limits: { cpuMs: workerCpuLimitMs },
       observability: {

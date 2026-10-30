@@ -21,7 +21,6 @@
     "tools/**/*.ts",
     "tests/unit/**/*.ts",
     "tests/browser/**/*.ts",
-    "tests/public/**/*.ts",
     "*.ts"
   ]
 }

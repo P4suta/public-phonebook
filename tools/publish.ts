@@ -7,6 +7,9 @@ import { DatasetManifestSchema } from "../src/core/models.ts";
 import { canPromote } from "../src/core/publication-policy.ts";
 import { command, requireCommand } from "./process.ts";
 import { fileDigest } from "./snapshot.ts";
+import { validateStagingApplication } from "./staging-access.ts";
+import { probeStaging } from "./staging-probes.ts";
+import { auditVerificationArtifacts } from "./verification-artifacts.ts";
 
 const commandArgumentOffset = 2;
 const maximumPublishArguments = 2;
@@ -37,6 +40,7 @@ async function main(args: readonly string[]): Promise<void> {
   const bundle = resolve(args[1] ?? ".local/phonebook");
   if (args.length > maximumPublishArguments)
     throw new Error("Usage: publish ENVIRONMENT BUNDLE");
+  if (environment === "staging") await validateStagingApplication();
   v.parse(
     v.pipe(v.string(), v.regex(/^[a-f0-9]{32}$/u)),
     process.env.CLOUDFLARE_ACCOUNT_ID,
@@ -118,15 +122,31 @@ async function main(args: readonly string[]): Promise<void> {
   ]);
   process.env.DIAL_PUBLIC_ORIGIN = environments[environment].origin;
   process.env.DIAL_PUBLIC_BUNDLE = bundle;
-  await requireCommand("npm", [
-    "exec",
-    "--no",
-    "--",
-    "playwright",
-    "test",
-    "--config",
-    "tests/public/playwright.config.ts",
-  ]);
+  try {
+    await requireCommand("npm", [
+      "exec",
+      "--no",
+      "--",
+      "playwright",
+      "test",
+      "--config",
+      "tests/public/playwright.config.ts",
+    ]);
+  } finally {
+    await auditVerificationArtifacts(
+      [
+        resolve(`test-results/public-${environment}.json`),
+        resolve(`test-results/public-${environment}`),
+      ],
+      environment === "staging"
+        ? [
+            process.env.ACCESS_SERVICE_CLIENT_ID ?? "",
+            process.env.ACCESS_SERVICE_CLIENT_SECRET ?? "",
+          ]
+        : [],
+    );
+  }
+  if (environment === "staging") await probeStaging();
   await writeFile(
     join(directory, `${environment}.json`),
     `${JSON.stringify({ environment, origin: environments[environment].origin, candidate, sourceCommit, snapshot: manifest.snapshot, artifactSha256, deployedArtifactSha256: await buildDigest(resolve(".cloudflare/output")), result: "verified" }, null, jsonIndentation)}\n`,

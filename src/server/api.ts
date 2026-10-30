@@ -39,7 +39,10 @@ const corsPreflightMaxAgeSeconds = 86400;
 const maximumUrlBytes = 8192;
 const problemTypeBase = "https://www.dial.page/api/problems/";
 
-export type DirectoryApiBindings = Omit<DirectoryBindings, "DATASETS"> & {
+export type DirectoryApiBindings = Pick<
+  DirectoryBindings,
+  "DB" | "APP_ENV" | "PUBLIC_ORIGIN"
+> & {
   readonly DATASETS: DatasetReader;
 };
 

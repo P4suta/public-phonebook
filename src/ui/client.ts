@@ -13,6 +13,7 @@ import {
   type Source,
   SourceSchema,
 } from "../core/models.ts";
+import { browserCredentials } from "../core/staging-access-policy.ts";
 
 const internalOrigin = "https://directory.internal";
 
@@ -33,7 +34,7 @@ const request = createIsomorphicFn()
     async (path: string, signal?: AbortSignal): Promise<Response> =>
       fetch(path, {
         signal: signal ?? null,
-        credentials: "omit",
+        credentials: browserCredentials(window.location.origin),
         headers: { Accept: "application/json" },
       }),
   )

@@ -67,6 +67,24 @@ Enable R2 in the Cloudflare account before the first remote preparation.
 
 ## Prepare and publish
 
+### Staging access
+
+Staging requires Cloudflare Access across every path.
+The initial reviewer is the Cloudflare account owner, using the existing one-time PIN identity provider.
+Additional reviewers require the Access email policy and `ACCESS_REVIEWERS` in Doppler `stg` to agree.
+Production remains anonymous.
+
+Run `tools/staging-access.ts configure` through Doppler `stg`, inheriting the account selector from `prd` during first setup.
+This creates only the staging application and its 90-day verification identity and stores credentials directly in Doppler.
+Run `tools/staging-access.ts check` with Doppler `stg` to reject broader policies, mismatched identities, expired tokens, and public R2 endpoints.
+No automation secret belongs in a browser context, URL, artifact, or Worker binding.
+
+For rotation, create a replacement staging service token in Cloudflare Access, store its ID, client ID, and secret in Doppler `stg`, and update the application's service policy to its exact token ID.
+Rebuild staging with the matching public client ID, verify both authenticated and anonymous behavior, then revoke the preceding token.
+During an Access outage, stop publication and repair the configured identity or policy through the provider console.
+Do not enable anonymous bypass or restore an expired token for recovery.
+The [staging authorization decision](adr/authenticate-the-entire-staging-origin.md) explains the shared boundary.
+
 ```sh
 mise x -- just data-remote staging .local/phonebook
 mise x -- just publish staging .local/phonebook

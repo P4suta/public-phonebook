@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createClientOnlyFn, createIsomorphicFn } from "@tanstack/react-start";
 import { type ReactElement, useCallback, useEffect, useState } from "react";
 import { config as configureZod } from "zod/v4/core";
+import { browserCredentials } from "../core/staging-access-policy.ts";
 import * as referenceCss from "../ui/api-reference.css.ts";
 import {
   BackButton,
@@ -42,7 +43,7 @@ function DevelopersPage(): ReactElement {
     queryFn: async ({ signal }): Promise<string> => {
       const response = await fetch("/api/openapi.json", {
         signal,
-        credentials: "omit",
+        credentials: browserCredentials(window.location.origin),
       });
       if (!response.ok) throw new Error("The API description is unavailable");
       return response.text();

@@ -1,16 +1,16 @@
 import AxeBuilder from "@axe-core/playwright";
 import * as v from "valibot";
 import { SearchResponseSchema } from "../../src/core/models.ts";
+import { checkedFetch } from "../../tools/public-request.ts";
 import { auditDesign } from "../browser/design-policy.ts";
-import { expect, test } from "../browser/fixtures.ts";
+import { expect, test } from "./fixtures.ts";
 
 test("published search, telephone normalization, detail, and source navigation work", async ({
   page,
-  request,
 }) => {
   const found = v.parse(
     SearchResponseSchema,
-    await (await request.get("/api/contacts?q=高知大学&limit=1")).json(),
+    await (await checkedFetch("/api/contacts?q=高知大学&limit=1")).json(),
   );
   const contact = found.data[0];
   if (!contact) throw new Error("The national verification contact is missing");

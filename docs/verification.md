@@ -36,6 +36,13 @@ A timeout supplies no behavioral evidence.
 
 ## Source-bound proofs
 
+The staging admission predicate is bound to the outer Worker guard.
+Its proof requires all configured origin, token-verification, and identity predicates for staging admission.
+Signature validation, key retrieval, Cloudflare Access policy evaluation, and native asset routing cross verifier semantics.
+Their checked alternatives are real RSA-signed JWT fixtures, invalid-claim and forged-key controls, method/path boundary tests, native browser checks, provider policy reconciliation, and live anonymous probes.
+The trusted public-key endpoint is derived from the configured issuer, never the token header.
+Revisit this boundary if Access token semantics, the JWT library, or asset routing changes.
+
 Run `mise x -- just prove`.
 LemmaScript 0.6.5 translates the actual annotated search, copy, reference-style, publication, and collection policy implementations to Dafny.
 The gate requires unmodified generated output and all thirteen expected functions.
