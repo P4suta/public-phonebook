@@ -5,6 +5,7 @@ import {
   Mail,
   ShieldCheck,
 } from "lucide-react";
+import type { ExternalDestination } from "./copy.ts";
 
 export interface ServiceInformation {
   readonly key: "privacy" | "support";
@@ -18,6 +19,7 @@ export interface ServiceInformation {
     readonly href: string;
     readonly label: string;
     readonly icon: LucideIcon;
+    readonly destination?: ExternalDestination;
   }[];
 }
 
@@ -82,6 +84,7 @@ export const serviceInformation = [
         href: "https://www.cloudflare.com/privacypolicy/",
         label: "Cloudflareのプライバシーを見る",
         icon: ExternalLink,
+        destination: "cloudflarePrivacy",
       },
     ],
   },

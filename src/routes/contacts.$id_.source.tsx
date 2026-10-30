@@ -50,7 +50,7 @@ function SourcePage(): ReactElement {
         )}
         <div className={css.actions}>
           {publicationUrls.map((url, index) => (
-            <OfficialLink href={url} key={url}>
+            <OfficialLink href={url} key={url} destination="publication">
               {publicationUrls.length === 1
                 ? "データを公開したページを見る"
                 : `データを公開したページを見る（${index + 1}）`}
@@ -68,10 +68,12 @@ function SourcePage(): ReactElement {
             : contact.license}
         </p>
         <div className={css.actions}>
-          <OfficialLink href={contact.licenseUrl}>
+          <OfficialLink href={contact.licenseUrl} destination="license">
             データを使うときの決まりを見る
           </OfficialLink>
-          <OfficialLink href={source.url}>もとの資料を開く</OfficialLink>
+          <OfficialLink href={source.url} destination="source">
+            もとの資料を開く
+          </OfficialLink>
           <LinkButton
             href={`/api/sources/${encodeURIComponent(source.id)}`}
             icon={FileBraces}

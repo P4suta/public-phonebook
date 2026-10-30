@@ -38,7 +38,10 @@ function DataPage(): ReactElement {
                 <>
                   <p>{category.publisher}</p>
                   <div className={css.actions}>
-                    <OfficialLink href={category.licenseUrl}>
+                    <OfficialLink
+                      href={category.licenseUrl}
+                      destination="license"
+                    >
                       データを使うときの決まりを見る（{category.license}）
                     </OfficialLink>
                   </div>

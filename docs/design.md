@@ -137,7 +137,7 @@ Programmatic clicks cannot initiate either write path.
 Only the latest copy request within a contact can publish completion feedback.
 It never carries a telephone URI or initiates calling.
 Calling uses a separate primary action labelled with its purpose.
-Facility headings link to details, and address values link directly to maps.
+Facility headings link to details, and address values link to maps.
 Those navigation links have visible underlines, icons, and minimum 44-pixel targets.
 This follows the distinction between [native links](https://www.w3.org/WAI/ARIA/apg/patterns/link/) and [action buttons](https://www.w3.org/WAI/ARIA/apg/patterns/button/).
 No separate telephone-copy or address-copy control is rendered.
@@ -146,9 +146,16 @@ Successful and denied copying preserve the desktop map and call target alignment
 Desktop results place identity and location beside telephone information.
 Narrow screens preserve the reading order of identity, telephone information, and location.
 Detailed contacts expose contact saving once even when several telephone numbers are listed.
-Addresses lead directly to a map.
-Map links open a separate tab, show an external-navigation icon, announce that behavior, and use `noopener noreferrer`.
-Publisher sites, source files, and reuse terms follow the same external-web-link convention before and after enhancement.
+Addresses lead to a map.
+Map links open a separate tab, show an external-navigation icon right after the address text, announce that behavior, and use `noopener noreferrer`.
+Publisher sites, source files, and reuse terms follow the same external-web-link convention before and after enhancement, with the external-navigation icon at the start of each action.
+A plain activation of a link to another site first opens a modal dialog that follows the [modal dialog pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/).
+The dialog names what the link opens, the destination host, and the new tab, and focus starts on its open action.
+Opening, cancelling, and Escape return focus to the link, and the dialog stores no choice.
+The open action opens the destination in a new tab without an opener or referrer.
+Activations with a modifier key or the middle button go straight to the browser, and links without JavaScript open their new tab directly.
+Links inside the API reference use a general description.
+The dialog's backdrop is opaque white, so it adds no tint or translucent surface.
 Relative service navigation and telephone actions retain their native destinations.
 Known terminal map annotations are removed without stripping building descriptions.
 Source details provide readable context before opening the publisher's original file.
@@ -162,15 +169,17 @@ A real continuation link works without JavaScript.
 
 The required fast gate uses the built Worker and an isolated fixture database.
 It checks narrow and desktop layouts, semantic headings, horizontal overflow, touch targets, palette rules, and axe rules.
-The palette scanner inspects CSS declarations, computed styles, and active pseudo-elements.
-Prohibited fixtures verify that the scanner rejects color, gray, gradients, opacity, shadows, filters, and blending.
+The palette scanner inspects CSS declarations, computed styles, active pseudo-elements, and the backdrop of an open modal dialog.
+Prohibited fixtures verify that the scanner rejects color, gray, gradients, opacity, shadows, filters, blending, and the browser's default translucent backdrop.
 The national browser suite checks Chromium, Firefox, WebKit, and a mobile WebKit profile.
 Live contact checks cover the reported dental result, long Japanese names and addresses, missing addresses, and multiple telephone numbers.
 They run at 320, 390, 800, 960, and 1440 pixels and include doubled text, keyboard focus, exact copied values, and clipboard denial.
 Native clipboard tests separately click the number text and copy hint after automatic search.
 They also consume native transient activation before the first trusted click reaches React and verify the synchronous selection copy event, focus restoration, and temporary-field cleanup.
 Fault injection rejects an older pending copy after a later successful copy.
-Map tests verify an actual new tab, its query, its absent opener, and preserved search results.
+Map tests confirm the dialog and then verify an actual new tab, its query, its absent opener, and preserved search results.
+External-link checks open the dialog from every link type and check its description, host, initial and returned focus, Escape, cancellation, opener isolation, and design rules.
+They also require modifier-key and middle-button activations to bypass the dialog and links without JavaScript to open directly.
 The detector checks alignment, repeated framed actions, duplicate destinations, link affordances, native control roles, labels, target overlap, clipping, and accidental call links on telephone values.
 Planted displaced actions and redundant framed navigation must produce their specific violations.
 These constraints enforce this product's layout and interaction decisions rather than score arbitrary visual quality.

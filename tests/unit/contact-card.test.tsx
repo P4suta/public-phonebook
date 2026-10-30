@@ -30,24 +30,27 @@ vi.mock("../../src/ui/styles.css.ts", () => ({
   srOnly: "srOnly",
   status: "status",
   telephone: "telephone",
+  trailingIcon: "trailingIcon",
 }));
 
 it("renders external web resources with isolated tabs and an accessible announcement before hydration", () => {
   const external = renderToStaticMarkup(
-    <OfficialLink href="https://example.org/terms">
+    <OfficialLink href="https://example.org/terms" destination="license">
       利用条件を見る
     </OfficialLink>,
   );
   expect(external).toContain('target="_blank"');
   expect(external).toContain('rel="noopener noreferrer"');
-  expect(external).toContain("lucide-external-link");
+  expect(external).toContain('data-external-destination="license"');
+  expect(external).toMatch(/^<a[^>]*><svg[^>]*lucide-external-link/u);
   expect(external).toContain("（新しいタブ）");
   const local = renderToStaticMarkup(
-    <LinkButton href="/data" icon={Database}>
+    <LinkButton href="/data" icon={Database} destination="license">
       データについて
     </LinkButton>,
   );
   expect(local).not.toContain("target=");
+  expect(local).not.toContain("data-external-destination");
   expect(local).toContain("lucide-database");
 });
 
@@ -86,5 +89,8 @@ it("shows every telephone action and one contact-save action for a multi-number 
     for (const phone of contact.phones)
       expect(markup).toContain(`href="tel:${phone.e164}"`);
     expect(markup.match(/contact\.vcf/g) ?? []).toHaveLength(detail ? 1 : 0);
+    expect(markup).toMatch(
+      /<a[^>]*data-external-destination="address"[^>]*><svg[^>]*lucide-map-pin[^>]*>.*?<\/svg><span>Tokyo<svg[^>]*lucide-external-link/u,
+    );
   }
 });

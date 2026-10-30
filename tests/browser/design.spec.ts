@@ -121,6 +121,25 @@ test("the palette gate accepts black and white and rejects prohibited styles", a
   expect(isolated).toContain(".unused: color=rgb(255, 0, 0)");
   expect(isolated).toContain(".unused: opacity=0.5");
   expect(isolated).toContain(".unused: mix-blend-mode=multiply");
+  for (const [backdrop, violations] of [
+    ["", ["DIALOG::backdrop: background-color"]],
+    ["dialog::backdrop { background:white }", []],
+  ] as const) {
+    await page.setContent(
+      `<style>body { color:black; background:white } dialog { color:black; background:white; border:1px solid black; outline-color:black } ${backdrop}</style><dialog>fixture</dialog>`,
+    );
+    await page.locator("dialog").evaluate((dialog) => {
+      if (!(dialog instanceof HTMLDialogElement))
+        throw new Error("The backdrop fixture is missing");
+      dialog.showModal();
+    });
+    expect(
+      (await auditDesign(page)).violations.map((violation) =>
+        violation.replace(/=.*$/u, ""),
+      ),
+      backdrop,
+    ).toEqual(violations);
+  }
 });
 
 for (const width of [320, 390, 1440]) {

@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-router";
 import { type ReactElement, type ReactNode, useEffect } from "react";
 import { ErrorPage } from "../ui/error-page.tsx";
+import { ExternalLinkConfirmation } from "../ui/external-link-dialog.tsx";
 import "../ui/styles.css.ts";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
@@ -45,6 +46,7 @@ function Root({ children }: { readonly children: ReactNode }): ReactElement {
           本文へ進む
         </a>
         {children}
+        <ExternalLinkConfirmation />
         <Scripts />
       </body>
     </html>

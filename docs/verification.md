@@ -28,6 +28,7 @@ Contact checks bind related target edges and enforce one primary framed call act
 They require number copying to remain separate from calling and preserve alignment after successful and denied copying.
 The browser detector must reject deliberately displaced actions and redundant framed navigation with the expected rule names.
 It covers Unicode tokenization, name normalization, cursor encoding, vCard byte folding, malformed input, literal SQL metacharacters, region compatibility, and spreadsheet formula guards.
+The external-link confirmation decision is checked over all 32 combinations of its five Boolean inputs and isn't part of the proof inventory.
 Native Miniflare tests execute the actual API and Drizzle adapter against D1.
 Their 173-record fixture checks complete keyset traversal, combined filters, bounded category previews, and independent category continuation without omissions or duplicates.
 Planted duplicate categories, foreign-category rows, repeated identities, false totals, and mixed snapshots must fail response validation.
@@ -146,7 +147,7 @@ Production rejects a receipt for another dataset, source tree, format, or incomp
 Dirty development checkouts can run the same checks but produce no publication receipt.
 The publisher separately checks the proof receipt and the active staging publication.
 The browser campaign uses built client and Worker output.
-It covers automatic search, Japanese composition, early input, dependent regions, exact-name ranking, call/map/detail/source actions, denied clipboard access, native no-JavaScript continuation, retries, changed snapshots, untrusted result text, local assets, nonce handling, HTTP contracts, and complete-download hashes.
+It covers automatic search, Japanese composition, early input, dependent regions, exact-name ranking, call/map/detail/source actions, external-link confirmation, denied clipboard access, native no-JavaScript continuation, retries, changed snapshots, untrusted result text, local assets, nonce handling, HTTP contracts, and complete-download hashes.
 It also queries every prefecture and category against native D1.
 Browser failures retain screenshots, videos, traces, and structured diagnostics under `test-results`.
 Design cases retain native video even on success.

@@ -40,7 +40,7 @@ function ContactPage(): ReactElement {
         <ContactCard contact={contact} detail />
         {contact.website && (
           <div className={css.actions}>
-            <OfficialLink href={contact.website}>
+            <OfficialLink href={contact.website} destination="facility">
               施設のページを開く
             </OfficialLink>
           </div>

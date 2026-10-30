@@ -190,7 +190,7 @@ test("native clipboard accepts clicks on both the number and the copy hint", asy
   );
 });
 
-test("the map opens in a new tab and preserves the current results", async ({
+test("the map opens in a new tab after confirmation and preserves the current results", async ({
   page,
   context,
 }) => {
@@ -205,8 +205,12 @@ test("the map opens in a new tab and preserves the current results", async ({
   const before = page.url();
   const card = page.locator("article").first();
   const map = card.getByRole("link", { name: /の地図を開く（新しいタブ）$/u });
-  const popupEvent = page.waitForEvent("popup");
   await map.click();
+  const popupEvent = page.waitForEvent("popup");
+  await page
+    .getByRole("dialog", { name: "ほかのサイトを開きます" })
+    .getByRole("button", { name: "開く", exact: true })
+    .click();
   const popup = await popupEvent;
   await popup.waitForLoadState("domcontentloaded");
   expect(new URL(popup.url()).searchParams.get("query")).toBe(
