@@ -1,6 +1,7 @@
+import { SQLiteAsyncDialect } from "drizzle-orm/sqlite-core";
 import { Miniflare } from "miniflare";
 import * as v from "valibot";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   categoryDefinitions,
   prefectureNames,
@@ -24,7 +25,14 @@ import {
   searchKey,
 } from "../../src/core/search.ts";
 import { api, type DirectoryApiBindings } from "../../src/server/api.ts";
+import {
+  categoryPreviews,
+  contactPage,
+  directoryDatabase,
+  searchSelection,
+} from "../../src/server/database.ts";
 import type { DatasetObject } from "../../src/server/datasets.ts";
+import type { SearchCache } from "../../src/server/search-cache.ts";
 import { databaseSchema } from "../../tools/database-schema.ts";
 
 const runtime = new Miniflare({
@@ -49,6 +57,7 @@ const runtime = new Miniflare({
         },
         env: {
           DB: { type: "d1", id: "fixture" },
+          EMPTY: { type: "d1", id: "empty" },
           DATASETS: { type: "r2", name: "fixture" },
         },
       },
@@ -57,6 +66,21 @@ const runtime = new Miniflare({
 });
 let bindings: DirectoryApiBindings;
 const snapshot = "1".repeat(64);
+const preChangePages = 121;
+const preChangeDigest =
+  "cc5edfaccda7d63591da9837f9d36b01640eed6aa8f8ac4df0085a6a9fecd428";
+const preChangeCursors = [
+  [
+    "/api/contacts?limit=7",
+    "eyJzbmFwc2hvdCI6IjExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEiLCJxdWVyeSI6IjVmZjZjYzgwYzM0NDIxMjU3NDQyYjk2MGY2ZmRiZDVkOWNkZjM0YWQ3NGRjOTE5YjE3NTczZjU5OGRkMjkyNjAiLCJyYW5rIjowLCJuYW1lIjoi5YWo5Zu944Gu5Zuz5pu46aSoMTA2IiwiaWQiOiJmaXh0dXJlOjEwNiJ9",
+    "9c31ab912030f39d5dc4cd8388ee48d22c8fa5bc5b463fb9a7ed2edec906773b",
+  ],
+  [
+    "/api/contacts?q=03-3581-2331&limit=7",
+    "eyJzbmFwc2hvdCI6IjExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEiLCJxdWVyeSI6IjE4YjU2Y2VkNTk3NjYzNjY2YzU1ZjBlZmVmNmFmMzlhNDAwNGViMDVjZmNlYzY4YzIwMDBhMjQ0NDBlNjlmMGYiLCJyYW5rIjowLCJuYW1lIjoi5YWo5Zu944Gu5Zuz5pu46aSoMTA2IiwiaWQiOiJmaXh0dXJlOjEwNiJ9",
+    "f8873e2032c849f4fcde4115831a410bf6719de994b189507dea941e2fbc9229",
+  ],
+] as const;
 const contacts: Contact[] = Array.from({ length: 173 }, (_, index) =>
   v.parse(ContactSchema, {
     id: `fixture:${String(index).padStart(3, "0")}`,
@@ -176,7 +200,10 @@ beforeAll(async () => {
     prefectures: prefectureNames.map((name, index) => ({
       code: String(index + 1).padStart(2, "0"),
       name,
-      contacts: 0,
+      contacts: contacts.filter(
+        (contact) =>
+          contact.prefectureCode === String(index + 1).padStart(2, "0"),
+      ).length,
     })),
     municipalities: [],
   });
@@ -556,6 +583,200 @@ describe("native D1 public API", () => {
       (await request(`/api/contacts?q=図書館&cursor=${mismatched}`)).status,
     ).toBe(400);
   });
+  it("keeps every broad search response identical to the window-ranked implementation", async () => {
+    const digests: Record<string, string> = {};
+    for (const start of [
+      "/api/contacts?limit=7",
+      "/api/contacts?q=03-3581-2331&limit=7",
+      "/api/contacts?prefecture=13&limit=7",
+      "/api/contacts?category=library&limit=7",
+      "/api/contacts?municipality=13101&limit=7",
+      "/api/contacts?prefecture=14&category=medical&limit=7",
+      "/api/v1/contacts?limit=7",
+    ]) {
+      let path: string | null = start;
+      for (let index = 0; path; index += 1) {
+        const response = await request(path);
+        const text = await response.text();
+        digests[`${start}#${index}`] =
+          `${response.status}:${await sha256(text)}`;
+        const body: unknown = JSON.parse(text);
+        const next = v.parse(SearchResponseSchema, body).links.next;
+        path = next ? new URL(next).pathname + new URL(next).search : null;
+      }
+    }
+    for (const path of [
+      "/api/contact-groups",
+      "/api/contact-groups?limit=1",
+      "/api/contact-groups?limit=2",
+      "/api/contact-groups?prefecture=13",
+      "/api/v1/contact-groups",
+      "/api/contacts.vcf?limit=5",
+    ]) {
+      const response = await request(path);
+      digests[path] =
+        `${response.status}:${await sha256(await response.text())}`;
+    }
+    expect(Object.keys(digests)).toHaveLength(preChangePages);
+    expect(await sha256(JSON.stringify(digests))).toBe(preChangeDigest);
+  });
+  it("continues cursors issued before indexed ordering", async () => {
+    for (const [path, cursor, digest] of preChangeCursors) {
+      const response = await request(`${path}&cursor=${cursor}`);
+      expect(response.status, path).toBe(200);
+      expect(await sha256(await response.text()), path).toBe(digest);
+    }
+    const search = parseSearch(new URLSearchParams("limit=7"));
+    if (!search.ok) throw new Error("Fixture query rejected");
+    for (const rank of [1, 2] as const) {
+      const cursor = encodeCursor({
+        snapshot,
+        query: await searchKey(search.value),
+        rank,
+        name: "全国の図書館106",
+        id: "fixture:106",
+      });
+      const body: unknown = await (
+        await request(`/api/contacts?limit=7&cursor=${cursor}`)
+      ).json();
+      const page = v.parse(SearchResponseSchema, body);
+      expect(page.data).toEqual([]);
+      expect(page.meta.nextCursor).toBeNull();
+    }
+  });
+  it("takes totals without a name term from exact catalog counts", async () => {
+    const DB = await runtime.getD1Database("DB");
+    const stored = v.parse(
+      v.object({ payload: v.string() }),
+      await DB.prepare(
+        "SELECT payload FROM metadata WHERE key = 'catalog'",
+      ).first(),
+    ).payload;
+    const catalog = v.parse(CatalogSchema, JSON.parse(stored));
+    const marked = {
+      ...catalog,
+      contacts: catalog.contacts + 1000,
+      prefectures: catalog.prefectures.map((item) =>
+        item.code === "13" ? { ...item, contacts: item.contacts + 1000 } : item,
+      ),
+      categories: catalog.categories.map((item) =>
+        item.id === "library"
+          ? { ...item, contacts: item.contacts + 1000 }
+          : item,
+      ),
+    };
+    const total = async (path: string): Promise<number> => {
+      const body: unknown = await (await request(path)).json();
+      return v.parse(SearchResponseSchema, body).meta.total;
+    };
+    const update = DB.prepare(
+      "UPDATE metadata SET payload = ? WHERE key = 'catalog'",
+    );
+    await update.bind(JSON.stringify(marked)).run();
+    try {
+      expect(await total("/api/contacts")).toBe(1173);
+      expect(await total("/api/contacts?prefecture=13")).toBe(1058);
+      expect(await total("/api/contacts?category=library")).toBe(1087);
+      expect(await total("/api/contacts?municipality=13101")).toBe(58);
+      expect(await total("/api/contacts?prefecture=13&category=library")).toBe(
+        29,
+      );
+      expect(await total("/api/contacts?q=図書館")).toBe(173);
+      expect(await total("/api/contacts?q=03-3581-2331")).toBe(173);
+      expect(await total("/api/contacts?category=pharmacy")).toBe(0);
+    } finally {
+      await update.bind(stored).run();
+    }
+    expect(await total("/api/contacts")).toBe(173);
+  });
+  it("previews unfiltered categories from indexed rows with catalog totals", async () => {
+    const order = (first: Contact, second: Contact): number =>
+      normalizeName(first.name) < normalizeName(second.name)
+        ? -1
+        : normalizeName(first.name) > normalizeName(second.name)
+          ? 1
+          : first.id < second.id
+            ? -1
+            : 1;
+    for (const limit of [1, 2, 3, 30]) {
+      const body: unknown = await (
+        await request(`/api/contact-groups?limit=${limit}`)
+      ).json();
+      const grouped = v.parse(GroupedSearchResponseSchema, body);
+      const expected = ["library", "medical"]
+        .map((category) =>
+          contacts
+            .filter((contact) => contact.category === category)
+            .toSorted(order),
+        )
+        .toSorted((first, second) =>
+          first[0] && second[0] ? order(first[0], second[0]) : 0,
+        );
+      expect(grouped.meta.total).toBe(contacts.length);
+      expect(grouped.groups.map((group) => group.category)).toEqual(
+        expected.map((members) => members[0]?.category),
+      );
+      for (const [index, group] of grouped.groups.entries()) {
+        const members = expected[index] ?? [];
+        expect(group.results.meta.total).toBe(members.length);
+        expect(group.results.data.map((contact) => contact.id)).toEqual(
+          members.slice(0, Math.min(3, limit)).map((contact) => contact.id),
+        );
+      }
+    }
+  });
+  it("plans searches without a name term through the contact_name index", async () => {
+    const DB = await runtime.getD1Database("DB");
+    const db = directoryDatabase(DB);
+    const plan = async (query: {
+      readonly sql: string;
+      readonly params: readonly unknown[];
+    }): Promise<string[]> => {
+      const result = await DB.prepare(`EXPLAIN QUERY PLAN ${query.sql}`)
+        .bind(...query.params)
+        .all();
+      return v
+        .parse(v.array(v.object({ detail: v.string() })), result.results)
+        .map((row) => row.detail);
+    };
+    const parsed = parseSearch(new URLSearchParams("limit=30"));
+    if (!parsed.ok) throw new Error("Fixture query rejected");
+    const selection = await searchSelection(db, parsed.value);
+    const after = {
+      snapshot,
+      query: await searchKey(parsed.value),
+      rank: 0,
+      name: "全国の図書館106",
+      id: "fixture:106",
+    } as const;
+    for (const query of [
+      contactPage(db, selection, null, 30).toSQL(),
+      contactPage(db, selection, after, 30).toSQL(),
+    ]) {
+      const details = await plan(query);
+      expect(details.join("\n")).toMatch(
+        /USING (?:COVERING )?INDEX contact_name/,
+      );
+      expect(details.join("\n")).not.toMatch(/TEMP B-TREE/);
+    }
+    const continued = await plan(contactPage(db, selection, after, 30).toSQL());
+    expect(continued.join("\n")).toContain("(normalized_name,id)>(?,?)");
+    const page = contactPage(db, selection, null, 30).toSQL();
+    const ranked = page.sql.replace(
+      'order by "contacts"."normalized_name"',
+      'order by CAST(0 AS INTEGER) asc, "contacts"."normalized_name"',
+    );
+    expect(ranked).not.toBe(page.sql);
+    expect((await plan({ ...page, sql: ranked })).join("\n")).toMatch(
+      /TEMP B-TREE FOR ORDER BY/,
+    );
+    const preview = new SQLiteAsyncDialect().sqlToQuery(
+      categoryPreviews(["library", "medical"], 3),
+    );
+    const previewPlan = (await plan(preview)).join("\n");
+    expect(previewPlan).toMatch(/USING (?:COVERING )?INDEX contact_category/);
+    expect(previewPlan).not.toMatch(/SCAN (?:contacts|preview)\b/);
+  });
   it("supports public CORS, HEAD, OPTIONS, and cache revalidation", async () => {
     const response = await request("/api/catalog");
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
@@ -582,5 +803,181 @@ describe("native D1 public API", () => {
     expect((await request("/api/contacts", { method: "POST" })).status).toBe(
       405,
     );
+  });
+});
+
+class MemoryCache implements SearchCache {
+  readonly entries = new Map<string, Response>();
+  readonly reads: string[] = [];
+  failing = false;
+
+  async match(request: Request): Promise<Response | undefined> {
+    this.reads.push(request.url);
+    if (this.failing) throw new Error("Cache unavailable");
+    return this.entries.get(request.url)?.clone();
+  }
+
+  async put(request: Request, response: Response): Promise<void> {
+    if (this.failing) throw new Error("Cache unavailable");
+    this.entries.set(request.url, response);
+  }
+}
+
+describe("dataset-bound search cache", () => {
+  const first = "a".repeat(64);
+  const second = "b".repeat(64);
+  const firstVersion = "11111111-1111-4111-8111-111111111111";
+  const secondVersion = "22222222-2222-4222-8222-222222222222";
+  async function cachedRequest(
+    path: string,
+    cache: MemoryCache,
+    options: {
+      readonly digest?: string;
+      readonly version?: string | null;
+      readonly empty?: boolean;
+      readonly method?: string;
+    } = {},
+  ): Promise<Response> {
+    const version =
+      options.version === null ? {} : { id: options.version ?? firstVersion };
+    return api.fetch(
+      new Request(`https://www.dial.page${path}`, {
+        method: options.method ?? "GET",
+      }),
+      {
+        ...bindings,
+        ...(options.empty ? { DB: await runtime.getD1Database("EMPTY") } : {}),
+        APP_ENV: "production",
+        DATASET_MANIFEST_SHA256: options.digest ?? first,
+        ...("id" in version ? { CF_VERSION_METADATA: version } : {}),
+        SEARCH_CACHE: cache,
+      },
+    );
+  }
+
+  it("serves a repeated search for the same dataset without a database query", async () => {
+    for (const path of [
+      "/api/contacts?q=図書館&limit=5",
+      "/api/contact-groups?q=図書館",
+      `/api/v1/contacts?limit=5&snapshot=${snapshot}`,
+      "/api/v1/contact-groups",
+    ]) {
+      const cache = new MemoryCache();
+      const miss = await cachedRequest(path, cache);
+      const body = await miss.text();
+      expect(miss.status, path).toBe(200);
+      expect(miss.headers.get("Cache-Control")).toBe(
+        "public, no-cache, must-revalidate",
+      );
+      const url = new URL(`https://www.dial.page${path}`);
+      const key = `https://www.dial.page/${firstVersion}/${first}${url.pathname}${url.search}`;
+      expect([...cache.entries.keys()]).toEqual([key]);
+      const stored = cache.entries.get(key);
+      expect(stored?.headers.get("Cache-Control")).toBe("public, max-age=300");
+      expect(stored?.headers.has("X-Request-Id")).toBe(false);
+      const hit = await cachedRequest(path, cache, { empty: true });
+      expect(hit.status, path).toBe(200);
+      expect(await hit.text()).toBe(body);
+      expect(hit.headers.get("Cache-Control")).toBe(
+        "public, no-cache, must-revalidate",
+      );
+      expect(hit.headers.get("X-Request-Id")).toMatch(/^[0-9a-f-]{36}$/u);
+      expect(hit.headers.get("X-Request-Id")).not.toBe(
+        miss.headers.get("X-Request-Id"),
+      );
+      for (const header of [
+        "Content-Type",
+        "X-Dataset-Snapshot",
+        "X-Directory-API-Version",
+        "Access-Control-Allow-Origin",
+        "X-Content-Type-Options",
+        "Content-Security-Policy",
+      ])
+        expect(hit.headers.get(header), header).toBe(miss.headers.get(header));
+      const head = await cachedRequest(path, cache, {
+        empty: true,
+        method: "HEAD",
+      });
+      expect(head.status).toBe(200);
+      expect(await head.text()).toBe("");
+      expect(cache.entries.size).toBe(1);
+    }
+  });
+
+  it("separates datasets and Worker versions and never stores problem responses", async () => {
+    const cache = new MemoryCache();
+    expect((await cachedRequest("/api/contacts?q=図書館", cache)).status).toBe(
+      200,
+    );
+    for (const changedBinding of [
+      { digest: second },
+      { version: secondVersion },
+    ]) {
+      const changed = await cachedRequest("/api/contacts?q=図書館", cache, {
+        ...changedBinding,
+        empty: true,
+      });
+      expect(changed.status).toBe(503);
+      expect(changed.headers.get("Content-Type")).toContain(
+        "application/problem+json",
+      );
+    }
+    const search = parseSearch(new URLSearchParams("q=図書館"));
+    if (!search.ok) throw new Error("Fixture query rejected");
+    const stale = encodeCursor({
+      snapshot: "2".repeat(64),
+      query: await searchKey(search.value),
+      rank: 0,
+      name: "図書館",
+      id: "fixture:000",
+    });
+    for (const [path, status] of [
+      ["/api/contacts?q=x&q=y", 400],
+      ["/api/contact-groups?cursor=abc", 400],
+      [`/api/contacts?q=図書館&cursor=${stale}`, 409],
+      [`/api/v1/contacts?snapshot=${"2".repeat(64)}`, 409],
+    ] as const)
+      expect((await cachedRequest(path, cache)).status, path).toBe(status);
+    expect([...cache.entries.keys()]).toEqual([
+      `https://www.dial.page/${firstVersion}/${first}/api/contacts?q=%E5%9B%B3%E6%9B%B8%E9%A4%A8`,
+    ]);
+    expect(
+      (await cachedRequest("/api/contacts?q=図書館", cache, { digest: second }))
+        .status,
+    ).toBe(200);
+    expect(cache.entries.size).toBe(2);
+  });
+
+  it("bypasses the cache without a dataset digest or Worker version, outside search, or when it fails", async () => {
+    const cache = new MemoryCache();
+    for (const digest of ["", "A".repeat(64), "a".repeat(63)])
+      expect(
+        (await cachedRequest("/api/contacts", cache, { digest })).status,
+      ).toBe(200);
+    for (const version of [null, ""])
+      expect(
+        (await cachedRequest("/api/contacts", cache, { version })).status,
+      ).toBe(200);
+    for (const path of [
+      "/api/catalog",
+      "/api/contacts/fixture:000",
+      "/api/contacts.vcf?limit=1",
+      "/api/v1",
+    ])
+      expect((await cachedRequest(path, cache)).status, path).toBe(200);
+    expect(cache.reads).toEqual([]);
+    expect(cache.entries.size).toBe(0);
+    cache.failing = true;
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const response = await cachedRequest("/api/contacts?limit=1", cache);
+      expect(response.status).toBe(200);
+      expect(cache.reads).toHaveLength(1);
+      expect(warning.mock.calls).toEqual([
+        ['{"operation":"search.cache.store","outcome":"failed"}'],
+      ]);
+    } finally {
+      warning.mockRestore();
+    }
   });
 });

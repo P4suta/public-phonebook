@@ -20,6 +20,7 @@ import {
   VersionedDatasetManifestSchema,
 } from "../core/models.ts";
 import { parseSearch } from "../core/search.ts";
+import { storesSearch } from "../core/search-policy.ts";
 import { snapshotAdmission } from "../core/snapshot-policy.ts";
 import { contactVCard } from "../core/vcard.ts";
 import type { DirectoryBindings } from "./bindings.ts";
@@ -33,6 +34,13 @@ import {
   searchContacts,
 } from "./database.ts";
 import type { DatasetReader } from "./datasets.ts";
+import {
+  cachedSearch,
+  edgeSearchCache,
+  type SearchCache,
+  searchCacheKey,
+  storeSearch,
+} from "./search-cache.ts";
 
 const maximumQueryLength = 512;
 const maximumCursorLength = 4096;
@@ -51,6 +59,8 @@ export type DirectoryApiBindings = Pick<
 > & {
   readonly DATASETS: DatasetReader;
   readonly DATASET_MANIFEST_SHA256?: string;
+  readonly CF_VERSION_METADATA?: { readonly id: string };
+  readonly SEARCH_CACHE?: SearchCache;
 };
 
 type ApiEnvironment = {
@@ -169,6 +179,15 @@ function problem(
   );
 }
 
+function settle(c: ApiContext, task: Promise<void>): Promise<void> {
+  try {
+    c.executionCtx.waitUntil(task);
+  } catch {
+    return task;
+  }
+  return Promise.resolve();
+}
+
 function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
   const api = new Hono<ApiEnvironment>();
   const describeResource = (
@@ -257,6 +276,32 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
       return problem(c, "invalid_query", httpStatus.badRequest);
     }
     await next();
+  });
+
+  api.use("*", async (c, next) => {
+    const key = [`${base}/contacts`, `${base}/contact-groups`].includes(
+      new URL(c.req.url).pathname,
+    )
+      ? searchCacheKey(
+          c.req.raw,
+          c.env.DATASET_MANIFEST_SHA256,
+          c.env.CF_VERSION_METADATA?.id,
+        )
+      : null;
+    const cache = key ? (c.env.SEARCH_CACHE ?? edgeSearchCache()) : null;
+    if (!key || !cache) {
+      await next();
+      return;
+    }
+    const cached = await cachedSearch(cache, key);
+    if (cached) {
+      const response = new Response(cached.body, cached);
+      response.headers.set("Cache-Control", mutableCache);
+      return response;
+    }
+    await next();
+    if (storesSearch(c.res.status))
+      await settle(c, storeSearch(cache, key, c.res));
   });
 
   api.use("*", async (c, next) => {

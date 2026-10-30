@@ -8,6 +8,7 @@ status: Proposed for local review
 ## Status
 
 Proposed for local review.
+Previews without a name or telephone term are partly superseded by [index-ordered broad searches with dataset-bound caching](index-ordered-broad-searches-with-dataset-bound-caching.md).
 
 ## Context
 
