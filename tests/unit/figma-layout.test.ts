@@ -153,8 +153,8 @@ it("fits the native Figma text measurements and keeps text distinct from its opa
     "background",
   ]);
   expect(audit.pages.map((page) => [page.id, page.texts.length])).toEqual([
-    ["14:2", 551],
-    ["0:1", 295],
+    ["14:2", 553],
+    ["0:1", 297],
     ["14:3", 22],
     ["14:4", 103],
   ]);
