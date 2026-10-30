@@ -29,7 +29,9 @@ export async function probeStaging(): Promise<void> {
   if (authorized.status !== httpStatus.ok)
     throw new Error("Authorized staging access failed");
   const html = await authorized.text();
-  for (const match of html.matchAll(/(?:src|href)="(\/[^" ]+\.(?:js|css))"/gu))
+  for (const match of html.matchAll(
+    /(?:src|href)="(\/[^" ]+\.(?:js|css|svg))"/gu,
+  ))
     if (match[1]) paths.push(match[1]);
   const manifestResponse = await checkedFetch("/api/datasets", {}, access);
   if (manifestResponse.status !== httpStatus.ok)

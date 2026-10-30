@@ -20,6 +20,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         { title: "Public Phonebook" },
         { name: "description", content: "施設や窓口の電話番号をさがせます。" },
       ],
+      links: [{ rel: "icon", href: "/favicon.svg", type: "image/svg+xml" }],
     }),
     shellComponent: Root,
     component: Outlet,

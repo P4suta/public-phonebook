@@ -14,7 +14,17 @@ export const page = style({
   gap: tokens.space["24"],
   minWidth: 0,
 });
-export const reference = style({ minWidth: 0, width: "100%" });
+export const reference = style({
+  minWidth: 0,
+  width: "100%",
+  selectors: {
+    '&[data-ready="false"]': {
+      position: "absolute",
+      insetInline: 0,
+      visibility: "hidden",
+    },
+  },
+});
 export const loading = style({
   display: "none",
   selectors: { 'html[data-enhanced="true"] &': { display: "block" } },

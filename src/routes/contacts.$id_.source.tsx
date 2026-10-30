@@ -6,15 +6,10 @@ import { BackButton, LinkButton, OfficialLink } from "../ui/components.tsx";
 import { uiCopy } from "../ui/copy.ts";
 import { getRouteContact } from "../ui/route-data.ts";
 import * as css from "../ui/styles.css.ts";
-import { formatDate } from "./contacts.$id.tsx";
+import { formatDate, validateReturnSearch } from "./contacts.$id.tsx";
 
 export const Route = createFileRoute("/contacts/$id_/source")({
-  validateSearch: (raw: Record<string, unknown>) => ({
-    from:
-      typeof raw.from === "string" && /^\/(?:\?[^#]*)?$/u.test(raw.from)
-        ? raw.from
-        : "/",
-  }),
+  validateSearch: validateReturnSearch,
   loader: async ({ params }) => {
     const [contact, catalog] = await Promise.all([
       getRouteContact(params.id),
@@ -27,7 +22,7 @@ export const Route = createFileRoute("/contacts/$id_/source")({
 
 function SourcePage(): ReactElement {
   const { contact, catalog, source } = Route.useLoaderData();
-  const { from } = Route.useSearch();
+  const { from = "/" } = Route.useSearch();
   const publisher =
     source.publisher ??
     catalog.categories.find((category) => category.id === contact.category)
