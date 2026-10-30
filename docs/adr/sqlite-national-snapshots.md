@@ -7,6 +7,7 @@ date: 2026-10-29
 ## Status
 
 Accepted.
+The local runtime and API mechanisms are superseded by [native Cloudflare TypeScript services](native-cloudflare-typescript-services.md).
 [The published-contact decision](published-contact-points-and-coverage.md) extends the identity and coverage rules.
 
 ## Context

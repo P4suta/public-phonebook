@@ -1,0 +1,6 @@
+{
+  "proof-dir": "proof/generated",
+  "string-semantics": "javascript-utf16",
+  "dafny-library": "local",
+  "run-log": false
+}

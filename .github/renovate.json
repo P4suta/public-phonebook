@@ -3,7 +3,7 @@
   "extends": ["github>P4suta/renovate-config"],
   "packageRules": [
     {
-      "matchFileNames": ["verification/**"],
+      "matchFileNames": ["proof/**"],
       "matchDatasources": ["deb"],
       "registryUrls": [
         "https://deb.debian.org/debian?suite=bookworm&components=main&binaryArch=amd64",

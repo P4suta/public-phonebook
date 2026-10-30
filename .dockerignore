@@ -1,12 +1,1 @@
 **
-!Cargo.toml
-!Cargo.lock
-!crates/**
-!xtask/**
-!static/**
-!sources/**
-!data/service/**
-!cloudflare/Dockerfile
-!fuzz/**
-fuzz/target/**
-fuzz/artifacts/**

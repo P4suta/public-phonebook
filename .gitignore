@@ -11,3 +11,7 @@
 /dist/
 /fuzz/target/
 /fuzz/artifacts/
+.local/
+/proof/generated/
+/proof/input/
+/proof/negative/

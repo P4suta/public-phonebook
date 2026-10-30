@@ -1,42 +1,54 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const configuration = defineConfig({
-  testDir: "tests/e2e",
-  testIgnore: "**/national*.spec.ts",
+const browserWorkers = 2;
+const testOrigin = "http://127.0.0.1:8787";
+const serverTimeoutMs = 120000;
+
+export default defineConfig({
+  testDir: "./tests/browser",
   fullyParallel: true,
-  forbidOnly: true,
+  forbidOnly: Boolean(process.env.CI),
   retries: 0,
-  workers: 2,
-  timeout: 30_000,
-  globalTimeout: 600_000,
-  outputDir: "test-results/fixtures",
+  workers: browserWorkers,
   reporter: [
     ["list"],
-    ["html", { outputFolder: "playwright-report/fixtures", open: "never" }],
+    ["html", { outputFolder: "playwright-report/native", open: "never" }],
+    ["json", { outputFile: "test-results/browser.json" }],
   ],
+  outputDir: "test-results/browser",
   use: {
-    baseURL: "http://127.0.0.1:3100",
-    headless: true,
-    locale: "ja-JP",
-    timezoneId: "Asia/Tokyo",
-    video: "on",
-    trace: "on",
-    screenshot: "on",
+    baseURL: testOrigin,
+    trace: "retain-on-failure",
+    video: "retain-on-failure",
+    screenshot: "only-on-failure",
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
-    { name: "webkit", use: { ...devices["Desktop Safari"] } },
-    { name: "android", use: { ...devices["Pixel 7"] } },
-    { name: "iphone", use: { ...devices["iPhone 13"] } },
+    {
+      name: "chromium",
+      testIgnore: /api\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "firefox",
+      testIgnore: /api\.spec\.ts/,
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit",
+      testIgnore: /api\.spec\.ts/,
+      use: { ...devices["Desktop Safari"] },
+    },
+    {
+      name: "mobile",
+      testIgnore: /api\.spec\.ts/,
+      use: { ...devices["iPhone 13"] },
+    },
+    { name: "api", testMatch: /api\.spec\.ts/ },
   ],
   webServer: {
-    command: "cargo run --locked -p public-phonebook --example e2e-fixture",
-    url: "http://127.0.0.1:3100",
-    reuseExistingServer: false,
-    gracefulShutdown: { signal: "SIGINT", timeout: 5_000 },
-    timeout: 120_000,
+    command: "npm run preview",
+    url: `${testOrigin}/api`,
+    reuseExistingServer: !process.env.CI,
+    timeout: serverTimeoutMs,
   },
 });
-
-export default configuration;

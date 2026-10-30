@@ -7,6 +7,8 @@ date: 2026-10-29
 ## Status
 
 Accepted for production.
+The local implementation is superseded by [native Cloudflare TypeScript services](native-cloudflare-typescript-services.md).
+The production deployment remains unchanged by that local work.
 The local service path is built and checked.
 This extends [the SQLite snapshot decision](sqlite-national-snapshots.md).
 

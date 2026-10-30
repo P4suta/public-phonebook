@@ -6,15 +6,19 @@ A searchable public contact directory covering all 47 prefectures of Japan.
 
 ```sh
 mise install
-mise x -- npm ci
-mise x -- cargo build --locked
+mise x -- npm ci --ignore-scripts
+mise x -- npm run browsers
 ```
 
 ## Usage
 
 ```sh
-curl --fail-with-body --get --data-urlencode 'q=横浜市役所' https://www.dial.page/api/contacts
+mise x -- just check
 ```
+
+## Documentation
+
+[Read the documentation](docs/README.md).
 
 ## License
 
