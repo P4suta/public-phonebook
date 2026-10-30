@@ -18,8 +18,28 @@ const nonempty = v.pipe(v.string(), v.minLength(1));
 const tokenSchema = v.object({
   id: nonempty,
   client_id: nonempty,
-  expires_at: nonempty,
+  expires_at: v.pipe(
+    v.string(),
+    v.isoTimestamp(),
+    v.check((value) => Number.isFinite(Date.parse(value))),
+  ),
 });
+const createdTokenSchema = v.object({
+  ...tokenSchema.entries,
+  client_secret: nonempty,
+});
+
+export function parseServiceTokenCreation(
+  text: string,
+): v.InferOutput<typeof createdTokenSchema> {
+  try {
+    return v.parse(createdTokenSchema, JSON.parse(text));
+  } catch {
+    throw new Error(
+      "Cloudflare did not return a valid staging service identity",
+    );
+  }
+}
 
 async function storeSecrets(
   values: Readonly<Record<string, string>>,
@@ -119,9 +139,12 @@ export async function validateStagingApplication(): Promise<void> {
       v.array(v.object({ email: v.object({ email: emailSchema }) })),
       human?.include,
     )
-    .map((rule) => rule.email.email)
+    .map((rule) => rule.email.email.toLowerCase())
     .sort();
-  if (JSON.stringify(emails) !== JSON.stringify([...reviewers].sort()))
+  if (
+    JSON.stringify(emails) !==
+    JSON.stringify(reviewers.map((email) => email.toLowerCase()).sort())
+  )
     throw new Error("Staging reviewers differ from the configured allowlist");
   v.parse(
     v.tuple([
@@ -196,10 +219,7 @@ async function configure(): Promise<void> {
     );
     if (result.code !== 0)
       throw new Error("The staging service identity could not be created");
-    const token = v.parse(
-      v.object({ ...tokenSchema.entries, client_secret: nonempty }),
-      JSON.parse(result.stdout),
-    );
+    const token = parseServiceTokenCreation(result.stdout);
     tokenId = token.id;
     clientId = token.client_id;
     await storeSecrets({

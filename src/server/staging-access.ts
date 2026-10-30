@@ -30,7 +30,7 @@ export const AccessConfigurationSchema = v.object({
   ACCESS_REVIEWERS: v.pipe(
     v.string(),
     v.transform((text): unknown => JSON.parse(text)),
-    v.array(v.pipe(v.string(), v.email())),
+    v.array(v.pipe(v.string(), v.email(), v.toLowerCase())),
     v.minLength(1),
   ),
   ACCESS_SERVICE_CLIENT_ID: v.pipe(v.string(), v.minLength(1)),
@@ -38,6 +38,14 @@ export const AccessConfigurationSchema = v.object({
 export type AccessConfiguration = v.InferOutput<
   typeof AccessConfigurationSchema
 >;
+
+export function parseAccessConfiguration(input: unknown): AccessConfiguration {
+  try {
+    return v.parse(AccessConfigurationSchema, input);
+  } catch {
+    throw new Error("Staging access configuration is invalid");
+  }
+}
 export type AccessVerifier = (
   assertion: string,
   configuration: AccessConfiguration,
@@ -106,7 +114,7 @@ export function withStagingAccess<Bindings>(
       return handler(request, bindings, context);
     let configuration: AccessConfiguration;
     try {
-      configuration = v.parse(AccessConfigurationSchema, raw);
+      configuration = parseAccessConfiguration(raw);
     } catch {
       return denied(request, httpStatus.unavailable);
     }

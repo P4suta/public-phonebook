@@ -7,6 +7,22 @@ const access = {
   clientSecret: "fixture-secret",
 };
 describe("verification credential boundary", () => {
+  it("does not disclose malformed credential values through native header errors", async () => {
+    try {
+      await checkedFetch(
+        "/api",
+        {},
+        { ...access, clientSecret: "fixture-sensitive-value\ninvalid" },
+        async (): Promise<Response> => new Response(),
+      );
+      throw new Error("Malformed credentials were accepted");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      if (!(error instanceof Error)) throw error;
+      expect(error.message).toBe("Public verification request failed");
+      expect(error.message).not.toContain("fixture-sensitive-value");
+    }
+  });
   it("sends staging credentials only to the exact configured origin and never follows redirects", async () => {
     const response = await checkedFetch(
       "/api",

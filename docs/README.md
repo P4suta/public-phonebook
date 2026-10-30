@@ -8,3 +8,4 @@
 - [Read the native Cloudflare architecture decision](adr/native-cloudflare-typescript-services.md).
 - [Review the generated interactive API reference decision](adr/openapi-driven-interactive-reference.md).
 - [Review source and data binding for staging promotion](adr/source-tree-bound-staging-promotion.md).
+- [Recover complete Worker and dataset publications](adr/recover-complete-worker-and-dataset-publications.md).

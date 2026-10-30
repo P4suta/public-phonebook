@@ -9,8 +9,8 @@ import { fileDigest } from "./snapshot.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 19;
-const declaredPostconditionCount = 24;
+const verifiedUnitCount = 23;
+const declaredPostconditionCount = 30;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -30,8 +30,32 @@ const expected = [
   "singleCandidate",
   "sourceRowsAccounted",
   "stagingAdmission",
+  "recoveryDecision",
+  "canRetireResource",
+  "retainsCoverage",
+  "bootstrapAdmission",
 ];
 const boundFiles = [
+  "tools/check-data.ts",
+  "tools/check-fixture.ts",
+  "tools/check.ts",
+  "tools/test.ts",
+  "tools/verification-receipt.ts",
+  "tools/publication-coverage.ts",
+  "tests/unit/verification-receipt.test.ts",
+  "tests/unit/publication-coverage.test.ts",
+  "tests/unit/access-configuration.test.ts",
+  "src/core/dataset-storage.ts",
+  "tools/release-lifecycle.ts",
+  "tools/release-provider.ts",
+  "tools/release-store.ts",
+  "tools/release-retention.ts",
+  "tools/release.ts",
+  "tools/release-rehearsal.ts",
+  "tests/unit/release-lifecycle.test.ts",
+  "tests/unit/release-retention.test.ts",
+  "tests/unit/release-store.test.ts",
+  "tests/unit/api.test.ts",
   "src/core/staging-access-policy.ts",
   "src/server/staging-access.ts",
   "tools/staging-access.ts",
@@ -379,6 +403,31 @@ async function main(): Promise<void> {
         name: "promotion-identity",
         from: "    candidate === checkedCandidate &&",
         to: "    candidate !== checkedCandidate &&",
+      },
+      {
+        name: "promotion-manifest",
+        from: "    manifest === checkedManifest\n",
+        to: "    true\n",
+      },
+      {
+        name: "recovery-ownership",
+        from: 'if (!previousPresent) return "refuse";',
+        to: 'if (previousPresent) return "refuse";',
+      },
+      {
+        name: "retention-pending",
+        from: "return owned && !active && !rollback && !pending;",
+        to: "return owned && !active && !rollback;",
+      },
+      {
+        name: "coverage-retention",
+        from: "return candidate * coverageScale >= previous * coverageRetained;",
+        to: "return candidate * coverageScale >= previous * (coverageRetained - 1);",
+      },
+      {
+        name: "bootstrap-ownership",
+        from: "return !previousPresent && !terminal && owned && versionMatches;",
+        to: "return !previousPresent && !terminal && versionMatches;",
       },
     ]) {
       const brokenPublication = publicationSource.replace(

@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { createGunzip } from "node:zlib";
 import * as v from "valibot";
 import { normalizeAddress } from "../src/core/address.ts";
 import { normalizeName } from "../src/core/identity.ts";
@@ -18,6 +20,7 @@ const commandArgumentOffset = 2;
 
 export async function checkDataBundle(
   directory: string,
+  addressPolicy: "canonical" | "retained" = "canonical",
 ): Promise<DatasetManifest> {
   const decoded: unknown = JSON.parse(
     await readFile(join(directory, "manifest.ready.json"), "utf8"),
@@ -41,6 +44,12 @@ export async function checkDataBundle(
       ).payload,
     );
     const catalog = v.parse(CatalogSchema, catalogValue);
+    const catalogFile = v.parse(
+      CatalogSchema,
+      JSON.parse(await readFile(join(directory, "catalog.json"), "utf8")),
+    );
+    if (JSON.stringify(catalogFile) !== JSON.stringify(catalog))
+      throw new Error("Catalog artifact mismatch");
     const sources = new Set<string>();
     for (const row of db.prepare("SELECT id, payload FROM sources").iterate()) {
       const value: unknown = JSON.parse(v.parse(v.string(), row.payload));
@@ -53,12 +62,16 @@ export async function checkDataBundle(
     const prefectures = new Map<string, number>();
     let contacts = 0;
     let phones = 0;
+    let snapshotBytes = 0;
     for (const row of db
       .prepare("SELECT * FROM contacts ORDER BY id")
       .iterate()) {
       const value: unknown = JSON.parse(v.parse(v.string(), row.payload));
       const contact = v.parse(ContactSchema, value);
-      if (normalizeAddress(contact.address) !== contact.address)
+      if (
+        addressPolicy === "canonical" &&
+        normalizeAddress(contact.address) !== contact.address
+      )
         throw new Error(`Noncanonical address: ${contact.id}`);
       if (
         row.id !== contact.id ||
@@ -76,7 +89,9 @@ export async function checkDataBundle(
         !contact.municipalityCode.startsWith(contact.prefectureCode)
       )
         throw new Error(`Contact region mismatch: ${contact.id}`);
-      hash.update(`${JSON.stringify(contact)}\n`);
+      const line = `${JSON.stringify(contact)}\n`;
+      hash.update(line);
+      snapshotBytes += new TextEncoder().encode(line).byteLength;
       contacts += 1;
       phones += contact.phones.length;
       categories.set(
@@ -131,6 +146,24 @@ export async function checkDataBundle(
         contacts
     )
       throw new Error("Incomplete catalog partition");
+    const archiveHash = createHash("sha256");
+    let archiveBytes = 0;
+    for await (const chunk of createReadStream(
+      join(directory, "contacts.jsonl.gz"),
+    ).compose(createGunzip())) {
+      const value: unknown = chunk;
+      if (!(value instanceof Uint8Array))
+        throw new Error("JSONL archive did not yield bytes");
+      archiveBytes += value.byteLength;
+      if (archiveBytes > snapshotBytes)
+        throw new Error("JSONL archive exceeds its directory");
+      archiveHash.update(value);
+    }
+    if (
+      archiveBytes !== snapshotBytes ||
+      archiveHash.digest("hex") !== manifest.snapshot
+    )
+      throw new Error("JSONL archive differs from its directory");
     const integrity = v.parse(
       v.object({ integrity_check: v.literal("ok") }),
       db.prepare("PRAGMA integrity_check").get(),
@@ -143,6 +176,7 @@ export async function checkDataBundle(
         sources: sources.size,
         snapshot: manifest.snapshot,
         integrity: integrity.integrity_check,
+        addressPolicy,
       }),
     );
     return manifest;

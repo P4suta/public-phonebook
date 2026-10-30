@@ -5,7 +5,8 @@ import {
   deploymentEnvironment,
   environments,
 } from "./src/core/environment.ts";
-import { AccessConfigurationSchema } from "./src/server/staging-access.ts";
+import { DigestSchema } from "./src/core/models.ts";
+import { parseAccessConfiguration } from "./src/server/staging-access.ts";
 
 const workerCpuLimitMs = 100;
 
@@ -14,9 +15,12 @@ export default defineConfig(({ mode }) => {
   const target = environments[environment];
   const access =
     environment === "staging"
-      ? v.parse(AccessConfigurationSchema, {
-          ...process.env,
+      ? parseAccessConfiguration({
           PUBLIC_ORIGIN: target.origin,
+          ACCESS_ISSUER: process.env.ACCESS_ISSUER,
+          ACCESS_AUDIENCE: process.env.ACCESS_AUDIENCE,
+          ACCESS_REVIEWERS: process.env.ACCESS_REVIEWERS,
+          ACCESS_SERVICE_CLIENT_ID: process.env.ACCESS_SERVICE_CLIENT_ID,
         })
       : undefined;
   return {
@@ -41,6 +45,11 @@ export default defineConfig(({ mode }) => {
         DATASETS: bindings.r2({ name: target.bucket, dev: { remote: false } }),
         APP_ENV: bindings.text(environment),
         PUBLIC_ORIGIN: bindings.text(target.origin),
+        DATASET_MANIFEST_SHA256: bindings.text(
+          environment === "development"
+            ? ""
+            : v.parse(DigestSchema, process.env.DIAL_MANIFEST_SHA256),
+        ),
         ACCESS_ISSUER: bindings.text(access?.ACCESS_ISSUER ?? ""),
         ACCESS_AUDIENCE: bindings.text(access?.ACCESS_AUDIENCE ?? ""),
         ACCESS_REVIEWERS: bindings.text(

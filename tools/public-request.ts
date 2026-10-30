@@ -32,25 +32,28 @@ export async function checkedFetch(
     throw new Error(
       "Verification cannot forward requests outside its configured origin",
     );
-  const headers = new Headers(init.headers);
-  for (const name of [
-    "cookie",
-    "authorization",
-    "cf-access-client-id",
-    "cf-access-client-secret",
-    "cf-access-jwt-assertion",
-  ])
-    headers.delete(name);
-  if (access.origin === environments.staging.origin) {
-    if (!access.clientId || !access.clientSecret)
-      throw new Error(
-        "Staging verification requires its scoped service identity",
-      );
-    headers.set("CF-Access-Client-Id", access.clientId);
-    headers.set("CF-Access-Client-Secret", access.clientSecret);
-  }
-  headers.set("Accept-Encoding", "identity");
+  if (
+    access.origin === environments.staging.origin &&
+    (!access.clientId || !access.clientSecret)
+  )
+    throw new Error(
+      "Staging verification requires its scoped service identity",
+    );
   try {
+    const headers = new Headers(init.headers);
+    for (const name of [
+      "cookie",
+      "authorization",
+      "cf-access-client-id",
+      "cf-access-client-secret",
+      "cf-access-jwt-assertion",
+    ])
+      headers.delete(name);
+    if (access.origin === environments.staging.origin) {
+      headers.set("CF-Access-Client-Id", access.clientId ?? "");
+      headers.set("CF-Access-Client-Secret", access.clientSecret ?? "");
+    }
+    headers.set("Accept-Encoding", "identity");
     return await transport(url, {
       ...init,
       headers,

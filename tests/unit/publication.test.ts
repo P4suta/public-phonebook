@@ -36,18 +36,84 @@ it("starts only an empty import and resumes only the same publication", () => {
 });
 
 it("requires a checked staging candidate with the same commit and dataset", () => {
-  expect(canPromote("commit", "commit", "snapshot", "snapshot", true)).toBe(
-    true,
-  );
-  expect(canPromote("changed", "commit", "snapshot", "snapshot", true)).toBe(
-    false,
-  );
-  expect(canPromote("commit", "commit", "changed", "snapshot", true)).toBe(
-    false,
-  );
-  expect(canPromote("commit", "commit", "snapshot", "snapshot", false)).toBe(
-    false,
-  );
+  expect(
+    canPromote(
+      "commit",
+      "commit",
+      "snapshot",
+      "snapshot",
+      true,
+      "database",
+      "database",
+      "manifest",
+      "manifest",
+    ),
+  ).toBe(true);
+  expect(
+    canPromote(
+      "changed",
+      "commit",
+      "snapshot",
+      "snapshot",
+      true,
+      "database",
+      "database",
+      "manifest",
+      "manifest",
+    ),
+  ).toBe(false);
+  expect(
+    canPromote(
+      "commit",
+      "commit",
+      "changed",
+      "snapshot",
+      true,
+      "database",
+      "database",
+      "manifest",
+      "manifest",
+    ),
+  ).toBe(false);
+  expect(
+    canPromote(
+      "commit",
+      "commit",
+      "snapshot",
+      "snapshot",
+      false,
+      "database",
+      "database",
+      "manifest",
+      "manifest",
+    ),
+  ).toBe(false);
+  expect(
+    canPromote(
+      "commit",
+      "commit",
+      "snapshot",
+      "snapshot",
+      true,
+      "changed",
+      "database",
+      "manifest",
+      "manifest",
+    ),
+  ).toBe(false);
+  expect(
+    canPromote(
+      "commit",
+      "commit",
+      "snapshot",
+      "snapshot",
+      true,
+      "database",
+      "database",
+      "changed",
+      "manifest",
+    ),
+  ).toBe(false);
 });
 
 it("binds values without changing quotes, newlines, Unicode, empty text, or null", () => {

@@ -176,6 +176,7 @@ export async function prepareCheckFixture(): Promise<void> {
     databaseSha256,
     files,
   });
+  await writeFile(join(directory, "catalog.json"), JSON.stringify(catalog));
   await writeFile(
     join(directory, "manifest.ready.json"),
     JSON.stringify(manifest),
