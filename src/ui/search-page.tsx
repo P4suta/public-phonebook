@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronDown, Search as SearchIcon } from "lucide-react";
+import { ChevronDown, Info, Search as SearchIcon } from "lucide-react";
 import {
   type FormEvent,
   type ReactElement,
@@ -25,6 +25,7 @@ import { DirectoryError, getContactGroups } from "./client.ts";
 import { ContactCard, LinkButton, LoadingError } from "./components.tsx";
 import { uiCopy } from "./copy.ts";
 import { ErrorPage } from "./error-page.tsx";
+import { foundation } from "./foundations.ts";
 import { GroupResults } from "./group-results.tsx";
 import * as css from "./styles.css.ts";
 
@@ -175,6 +176,7 @@ export function SearchPage(): ReactElement {
                 type="search"
               />
               <button className={css.searchButton} type="submit">
+                <SearchIcon size={foundation.control.icon} aria-hidden="true" />
                 {uiCopy.search.action}
               </button>
             </div>
@@ -246,7 +248,9 @@ export function SearchPage(): ReactElement {
         </search>
         {!active ? (
           <nav aria-label="サービスの情報" className={css.homeNavigation}>
-            <LinkButton href="/about">{uiCopy.about}</LinkButton>
+            <LinkButton href="/about" icon={Info}>
+              {uiCopy.about}
+            </LinkButton>
           </nav>
         ) : (
           <>

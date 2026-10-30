@@ -30,7 +30,7 @@ export function InformationPage({
         ))}
         <nav className={css.actions} aria-label="使い方とプライバシーの説明">
           {information.links.map((link) => (
-            <LinkButton key={link.href} href={link.href}>
+            <LinkButton key={link.href} href={link.href} icon={link.icon}>
               {link.label}
             </LinkButton>
           ))}

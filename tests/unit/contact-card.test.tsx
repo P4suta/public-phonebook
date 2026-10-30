@@ -1,9 +1,14 @@
+import { Database } from "lucide-react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import * as v from "valibot";
 import { expect, it, vi } from "vitest";
 import { ContactSchema } from "../../src/core/models.ts";
-import { ContactCard, LinkButton } from "../../src/ui/components.tsx";
+import {
+  ContactCard,
+  LinkButton,
+  OfficialLink,
+} from "../../src/ui/components.tsx";
 
 vi.mock("../../src/ui/styles.css.ts", () => ({
   actions: "actions",
@@ -29,16 +34,21 @@ vi.mock("../../src/ui/styles.css.ts", () => ({
 
 it("renders external web resources with isolated tabs and an accessible announcement before hydration", () => {
   const external = renderToStaticMarkup(
-    <LinkButton href="https://example.org/terms">利用条件を見る</LinkButton>,
+    <OfficialLink href="https://example.org/terms">
+      利用条件を見る
+    </OfficialLink>,
   );
   expect(external).toContain('target="_blank"');
   expect(external).toContain('rel="noopener noreferrer"');
   expect(external).toContain("lucide-external-link");
   expect(external).toContain("（新しいタブ）");
   const local = renderToStaticMarkup(
-    <LinkButton href="/data">データについて</LinkButton>,
+    <LinkButton href="/data" icon={Database}>
+      データについて
+    </LinkButton>,
   );
   expect(local).not.toContain("target=");
+  expect(local).toContain("lucide-database");
 });
 
 it("shows every telephone action and one contact-save action for a multi-number facility", () => {

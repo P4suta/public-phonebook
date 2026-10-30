@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Code, Database, LifeBuoy, ShieldCheck } from "lucide-react";
 import type { ReactElement } from "react";
 import { BackButton, LinkButton } from "../ui/components.tsx";
 import * as css from "../ui/styles.css.ts";
@@ -23,17 +24,23 @@ function AboutPage(): ReactElement {
           電話番号のもとの情報や、データを使うときの決まりをたしかめられます。
         </p>
         <nav aria-label="データとAPIの説明" className={css.actions}>
-          <LinkButton href="/data">データについてくわしく知る</LinkButton>
-          <LinkButton href="/developers">APIの使い方を見る</LinkButton>
+          <LinkButton href="/data" icon={Database}>
+            データについてくわしく知る
+          </LinkButton>
+          <LinkButton href="/developers" icon={Code}>
+            APIの使い方を見る
+          </LinkButton>
         </nav>
         <p className={css.body}>
           ほかのアプリで使うためのAPIもあります。 登録せずに使えます。
         </p>
         <nav aria-label="使い方とプライバシーの説明" className={css.actions}>
-          <LinkButton href="/support">
+          <LinkButton href="/support" icon={LifeBuoy}>
             使い方と、声を伝える方法を見る
           </LinkButton>
-          <LinkButton href="/privacy">プライバシーについて読む</LinkButton>
+          <LinkButton href="/privacy" icon={ShieldCheck}>
+            プライバシーについて読む
+          </LinkButton>
         </nav>
       </div>
     </main>

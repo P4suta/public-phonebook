@@ -1,6 +1,7 @@
 import * as v from "valibot";
 import { SearchResponseSchema } from "../../src/core/models.ts";
 import {
+  actionIconIssues,
   expect,
   externalLinkIssues,
   externalScriptIssues,
@@ -29,6 +30,8 @@ test("every screen preserves external navigation and the gate rejects missing pr
     `${path}/source`,
     "/data",
     "/developers",
+    "/privacy",
+    "/support",
     "/missing-page",
   ]) {
     await page.goto(route);
@@ -40,6 +43,7 @@ test("every screen preserves external navigation and the gate rejects missing pr
     expect(await page.locator("a[href]").count(), route).toBeGreaterThan(0);
     expect(await externalLinkIssues(page), route).toEqual([]);
     expect(await externalScriptIssues(page), route).toEqual([]);
+    expect(await actionIconIssues(page), route).toEqual([]);
     external += await page
       .locator("a[href]")
       .evaluateAll(
@@ -53,6 +57,17 @@ test("every screen preserves external navigation and the gate rejects missing pr
       );
   }
   expect(external).toBeGreaterThan(3);
+  await page.goto("/about");
+  await page.locator("main").evaluate((main) => {
+    const probe = main.querySelector('a[href="/privacy"]')?.cloneNode(true);
+    if (!(probe instanceof HTMLElement))
+      throw new Error("The action icon probe is missing");
+    probe.querySelector("svg")?.remove();
+    main.appendChild(probe);
+  });
+  expect(await actionIconIssues(page)).toEqual([
+    "action-icon: プライバシーについて読む",
+  ]);
   await page.goto("/data");
   const link = page
     .getByRole("link", { name: /データを使うときの決まりを見る/u })

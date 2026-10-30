@@ -1,11 +1,14 @@
 import {
+  ArrowLeft,
   BookUser,
   Check,
   ChevronRight,
   Copy,
   ExternalLink,
+  type LucideIcon,
   MapPin,
   Phone,
+  RotateCw,
 } from "lucide-react";
 import { type ReactElement, type ReactNode, useRef, useState } from "react";
 import { categoryDefinitions } from "../core/catalog.ts";
@@ -28,14 +31,14 @@ const copyFeedback = {
 export function LinkButton({
   href,
   children,
-  icon,
+  icon: Icon,
   primary = false,
   download = false,
   accessibleLabel,
 }: {
   readonly href: string;
   readonly children: ReactNode;
-  readonly icon?: ReactNode;
+  readonly icon: LucideIcon;
   readonly primary?: boolean;
   readonly download?: boolean;
   readonly accessibleLabel?: string;
@@ -54,10 +57,7 @@ export function LinkButton({
           : accessibleLabel
       }
     >
-      {icon ??
-        (newTab ? (
-          <ExternalLink size={foundation.control.icon} aria-hidden="true" />
-        ) : null)}
+      <Icon size={foundation.control.icon} aria-hidden="true" />
       {children}
       {newTab && !accessibleLabel && (
         <span className={css.srOnly}>（新しいタブ）</span>
@@ -75,7 +75,9 @@ export function BackButton({
 }): ReactElement {
   return (
     <div className={css.actions}>
-      <LinkButton href={href}>{children}</LinkButton>
+      <LinkButton href={href} icon={ArrowLeft}>
+        {children}
+      </LinkButton>
     </div>
   );
 }
@@ -228,9 +230,7 @@ export function ContactCard({
                   href={`tel:${phone.e164}`}
                   primary
                   accessibleLabel={`${display}に電話をかける`}
-                  icon={
-                    <Phone size={foundation.control.icon} aria-hidden="true" />
-                  }
+                  icon={Phone}
                 >
                   電話をかける
                 </LinkButton>
@@ -238,12 +238,7 @@ export function ContactCard({
                   <LinkButton
                     href={`/api/contacts/${encodeURIComponent(contact.id)}/contact.vcf`}
                     download
-                    icon={
-                      <BookUser
-                        size={foundation.control.icon}
-                        aria-hidden="true"
-                      />
-                    }
+                    icon={BookUser}
                   >
                     電話帳に入れる
                   </LinkButton>
@@ -286,10 +281,7 @@ export function OfficialLink({
   readonly children: ReactNode;
 }): ReactElement {
   return (
-    <LinkButton
-      href={href}
-      icon={<ExternalLink size={foundation.control.icon} aria-hidden="true" />}
-    >
+    <LinkButton href={href} icon={ExternalLink}>
       {children}
     </LinkButton>
   );
@@ -309,9 +301,12 @@ export function LoadingError({
       <h2 className={css.subheading}>{title}</h2>
       <div className={css.actions}>
         {restartHref ? (
-          <LinkButton href={restartHref}>はじめから読みこむ</LinkButton>
+          <LinkButton href={restartHref} icon={RotateCw}>
+            はじめから読みこむ
+          </LinkButton>
         ) : (
           <button type="button" className={css.button} onClick={retry}>
+            <RotateCw size={foundation.control.icon} aria-hidden="true" />
             もう一度読みこむ
           </button>
         )}

@@ -1,3 +1,11 @@
+import {
+  ExternalLink,
+  LifeBuoy,
+  type LucideIcon,
+  Mail,
+  ShieldCheck,
+} from "lucide-react";
+
 export interface ServiceInformation {
   readonly key: "privacy" | "support";
   readonly title: string;
@@ -6,7 +14,11 @@ export interface ServiceInformation {
     readonly title: string;
     readonly paragraphs: readonly string[];
   }[];
-  readonly links: readonly { readonly href: string; readonly label: string }[];
+  readonly links: readonly {
+    readonly href: string;
+    readonly label: string;
+    readonly icon: LucideIcon;
+  }[];
 }
 
 export const serviceInformation = [
@@ -61,10 +73,12 @@ export const serviceInformation = [
       {
         href: "/support",
         label: "使い方と、声を伝える方法を見る",
+        icon: LifeBuoy,
       },
       {
         href: "https://www.cloudflare.com/privacypolicy/",
         label: "Cloudflareのプライバシーを見る",
+        icon: ExternalLink,
       },
     ],
   },
@@ -127,10 +141,12 @@ export const serviceInformation = [
       {
         href: "mailto:support@dial.page",
         label: "開発者にメールを送る",
+        icon: Mail,
       },
       {
         href: "/privacy",
         label: "プライバシーについて読む",
+        icon: ShieldCheck,
       },
     ],
   },
