@@ -1,7 +1,28 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>P4suta/renovate-config"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^package\\.json$/"],
+      "matchStrings": [
+        "\"xlsx\": \"https://cdn\\.sheetjs\\.com/xlsx-(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)/xlsx-[0-9]+\\.[0-9]+\\.[0-9]+\\.tgz\""
+      ],
+      "depNameTemplate": "xlsx",
+      "packageNameTemplate": "https://git.sheetjs.com/SheetJS/sheetjs.git",
+      "datasourceTemplate": "git-tags",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^v(?<version>.*)$",
+      "autoReplaceStringTemplate": "\"xlsx\": \"https://cdn.sheetjs.com/xlsx-{{{newValue}}}/xlsx-{{{newValue}}}.tgz\""
+    }
+  ],
   "packageRules": [
+    {
+      "description": "Track the official SheetJS tarball through its upstream tags instead of the discontinued npm publication.",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["xlsx"],
+      "enabled": false
+    },
     {
       "matchFileNames": ["proof/**"],
       "matchDatasources": ["deb"],
