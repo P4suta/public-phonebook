@@ -11,20 +11,27 @@ import { uiCopy } from "../ui/copy.ts";
 import { getRouteContact } from "../ui/route-data.ts";
 import * as css from "../ui/styles.css.ts";
 
+export interface ReturnSearch {
+  readonly from?: string;
+}
+
+export function validateReturnSearch(
+  raw: Record<string, unknown>,
+): ReturnSearch {
+  return typeof raw.from === "string" && /^\/(?:\?[^#]*)?$/u.test(raw.from)
+    ? { from: raw.from }
+    : {};
+}
+
 export const Route = createFileRoute("/contacts/$id")({
-  validateSearch: (raw: Record<string, unknown>) => ({
-    from:
-      typeof raw.from === "string" && /^\/(?:\?[^#]*)?$/u.test(raw.from)
-        ? raw.from
-        : "/",
-  }),
+  validateSearch: validateReturnSearch,
   loader: ({ params }) => getRouteContact(params.id),
   component: ContactPage,
 });
 
 function ContactPage(): ReactElement {
   const contact = Route.useLoaderData();
-  const { from } = Route.useSearch();
+  const { from = "/" } = Route.useSearch();
   const sourcePath = `/contacts/${encodeURIComponent(contact.id)}/source?from=${encodeURIComponent(from)}`;
   return (
     <main id="main" className={css.page}>
