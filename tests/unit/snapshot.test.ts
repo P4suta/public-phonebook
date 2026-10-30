@@ -1,17 +1,19 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { gunzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 import * as v from "valibot";
 import { expect, it } from "vitest";
 import {
   CatalogSchema,
   ContactSchema,
+  DatasetManifestSchema,
   SourceSchema,
 } from "../../src/core/models.ts";
+import { checkDataBundle } from "../../tools/check-data.ts";
 import { databaseSchema } from "../../tools/database-schema.ts";
-import { prepareSnapshot } from "../../tools/snapshot.ts";
+import { fileDigest, prepareSnapshot } from "../../tools/snapshot.ts";
 
 it("prepares canonical native data with normalized addresses and complete archive accounting", async () => {
   const root = await mkdtemp(join(tmpdir(), "phonebook-snapshot-"));
@@ -117,6 +119,33 @@ it("prepares canonical native data with normalized addresses and complete archiv
         "utf8",
       ),
     ).toContain("東京都千代田区1-2-3");
+    await checkDataBundle(output);
+    const manifest = v.parse(
+      DatasetManifestSchema,
+      JSON.parse(await readFile(join(output, "manifest.ready.json"), "utf8")),
+    );
+    const archive = join(output, "contacts.jsonl.gz");
+    const changed = gzipSync("unrelated directory\n");
+    await writeFile(archive, changed);
+    const digest = await fileDigest(archive);
+    const altered = {
+      ...manifest,
+      files: manifest.files.map((file) =>
+        file.file === "contacts.jsonl.gz"
+          ? {
+              ...file,
+              sha256: digest,
+              bytes: changed.byteLength,
+              url: `/api/datasets/${manifest.snapshot}/${digest}/${file.file}`,
+            }
+          : file,
+      ),
+    };
+    await writeFile(
+      join(output, "manifest.ready.json"),
+      JSON.stringify(altered),
+    );
+    await expect(checkDataBundle(output)).rejects.toThrow("JSONL archive");
     expect(
       gunzipSync(await readFile(join(output, "contacts.vcf.gz"))).toString(
         "utf8",

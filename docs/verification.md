@@ -36,15 +36,24 @@ A timeout supplies no behavioral evidence.
 
 ## Source-bound proofs
 
+The staging admission predicate is bound to the outer Worker guard.
+Its proof requires all configured origin, token-verification, and identity predicates for staging admission.
+Signature validation, key retrieval, Cloudflare Access policy evaluation, and native asset routing cross verifier semantics.
+Their checked alternatives are real RSA-signed JWT fixtures, invalid-claim and forged-key controls, method/path boundary tests, native browser checks, provider policy reconciliation, and live anonymous probes.
+The trusted public-key endpoint is derived from the configured issuer, never the token header.
+Revisit this boundary if Access token semantics, the JWT library, or asset routing changes.
+
 Run `mise x -- just prove`.
 LemmaScript 0.6.5 translates the actual annotated search, copy, reference-style, publication, and collection policy implementations to Dafny.
-The gate requires unmodified generated output and all thirteen expected functions.
-Dafny 4.11.0 checks eighteen units containing twenty-three declared postconditions for the supported search, copy, styling, publication, school-evidence, unique-candidate, and source-accounting decisions.
+The gate requires unmodified generated output and every function listed in `tools/prove.ts`.
+Dafny 4.11.0 checks its expected nonempty unit and postcondition inventory for the supported search, copy, styling, publication, school-evidence, unique-candidate, and source-accounting decisions.
 The copy policy partitions current success, current failure, and superseded completion over the full Boolean domain.
 The browser adapter uses fresh symbol identities and suppresses superseded state and announcements.
 Separate negative controls accept limit 101, reverse the completion guard, reverse the trusted-click guard, and retain reference opacity while retaining their contracts.
 Each must fail verification.
 A conflicting import identity and a changed staging candidate also have source-mutating negative controls that must fail verification.
+Publication controls also drop manifest equality, recovery ownership, pending-resource protection, coverage retention, and initial-candidate ownership.
+The production coverage decision admits only validated integer counts within ten million records, keeping its arithmetic within exact JavaScript integer representation.
 Collection controls remove name evidence, admit an empty candidate set, and omit duplicate rows from accounting.
 Each must fail with an unproved contract rather than a tool error.
 A tool error, timeout, missing condition, or empty inventory cannot count as that rejection.
@@ -118,6 +127,10 @@ They require source investigation and are preserved without speculative digit re
 The audit requires zero unparseable spellings, source/canonical disagreements, formatting round-trip disagreements, and duplicate numbers within a contact.
 
 Run `mise x -- just test` for the fast gate, national data reconciliation and phone profile, complete proof inventory, and national browser campaign.
+The command invalidates its preceding test receipt before execution and records a replacement only for an unchanged clean Git tree and dataset manifest.
+Production rejects a receipt for another dataset, source tree, format, or incomplete result.
+Dirty development checkouts can run the same checks but produce no publication receipt.
+The publisher separately checks the proof receipt and the active staging publication.
 The browser campaign uses built client and Worker output.
 It covers automatic search, Japanese composition, early input, dependent regions, exact-name ranking, call/map/detail/source actions, denied clipboard access, native no-JavaScript continuation, retries, changed snapshots, untrusted result text, local assets, nonce handling, HTTP contracts, and complete-download hashes.
 It also queries every prefecture and category against native D1.

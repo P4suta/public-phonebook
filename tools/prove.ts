@@ -9,8 +9,8 @@ import { fileDigest } from "./snapshot.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 18;
-const declaredPostconditionCount = 23;
+const verifiedUnitCount = 23;
+const declaredPostconditionCount = 30;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -29,8 +29,45 @@ const expected = [
   "schoolEvidence",
   "singleCandidate",
   "sourceRowsAccounted",
+  "stagingAdmission",
+  "recoveryDecision",
+  "canRetireResource",
+  "retainsCoverage",
+  "bootstrapAdmission",
 ];
 const boundFiles = [
+  "tools/check-data.ts",
+  "tools/check-fixture.ts",
+  "tools/check.ts",
+  "tools/test.ts",
+  "tools/verification-receipt.ts",
+  "tools/publication-coverage.ts",
+  "tests/unit/verification-receipt.test.ts",
+  "tests/unit/publication-coverage.test.ts",
+  "tests/unit/access-configuration.test.ts",
+  "src/core/dataset-storage.ts",
+  "tools/release-lifecycle.ts",
+  "tools/release-provider.ts",
+  "tools/release-store.ts",
+  "tools/release-retention.ts",
+  "tools/release.ts",
+  "tools/release-rehearsal.ts",
+  "tests/unit/release-lifecycle.test.ts",
+  "tests/unit/release-retention.test.ts",
+  "tests/unit/release-store.test.ts",
+  "tests/unit/api.test.ts",
+  "src/core/staging-access-policy.ts",
+  "src/server/staging-access.ts",
+  "tools/staging-access.ts",
+  "tools/staging-probes.ts",
+  "tools/public-request.ts",
+  "tests/unit/staging-access.test.ts",
+  "tests/unit/access-jwt.test.ts",
+  "tests/unit/public-request.test.ts",
+  "tests/public/fixtures.ts",
+  "tests/public/tsconfig.json",
+  "tools/verification-artifacts.ts",
+  "tests/unit/verification-artifacts.test.ts",
   "src/core/collection-policy.ts",
   "src/core/address.ts",
   "tools/collection/artifacts.ts",
@@ -102,6 +139,7 @@ interface ProofSourceBinding {
   readonly sha256: string;
 }
 const proofSources = [
+  "src/core/staging-access-policy.ts",
   "src/core/collection-policy.ts",
   "src/core/search-policy.ts",
   "src/core/copy-policy.ts",
@@ -366,6 +404,31 @@ async function main(): Promise<void> {
         from: "    candidate === checkedCandidate &&",
         to: "    candidate !== checkedCandidate &&",
       },
+      {
+        name: "promotion-manifest",
+        from: "    manifest === checkedManifest\n",
+        to: "    true\n",
+      },
+      {
+        name: "recovery-ownership",
+        from: 'if (!previousPresent) return "refuse";',
+        to: 'if (previousPresent) return "refuse";',
+      },
+      {
+        name: "retention-pending",
+        from: "return owned && !active && !rollback && !pending;",
+        to: "return owned && !active && !rollback;",
+      },
+      {
+        name: "coverage-retention",
+        from: "return candidate * coverageScale >= previous * coverageRetained;",
+        to: "return candidate * coverageScale >= previous * (coverageRetained - 1);",
+      },
+      {
+        name: "bootstrap-ownership",
+        from: "return !previousPresent && !terminal && owned && versionMatches;",
+        to: "return !previousPresent && !terminal && versionMatches;",
+      },
     ]) {
       const brokenPublication = publicationSource.replace(
         control.from,
@@ -390,6 +453,31 @@ async function main(): Promise<void> {
           `The ${control.name} negative control was inconclusive: ${rejected.output}`,
         );
     }
+    const accessSource = await readFile(
+      `${proofRoot}/src/core/staging-access-policy.ts`,
+      "utf8",
+    );
+    const brokenAccess = accessSource.replace(
+      "!staging || (configured && canonicalOrigin && verified && identityAllowed)\n",
+      "!staging || (configured && canonicalOrigin && verified)\n",
+    );
+    if (accessSource === brokenAccess)
+      throw new Error(
+        "The access control negative control did not mutate the implementation",
+      );
+    await writeFile(
+      `${proofRoot}/proof/negative/staging-access-policy.ts`,
+      brokenAccess,
+    );
+    await generateModel("proof/negative/staging-access-policy.ts");
+    const rejectedAccess = await verifyModel(image, [
+      `${proofRoot}/proof/generated/proof/negative/staging-access-policy.dfy`,
+    ]);
+    if (
+      rejectedAccess.code === 0 ||
+      !/could not be proved|could not prove/u.test(rejectedAccess.output)
+    )
+      throw new Error("The access control negative control was inconclusive");
     const collectionSource = await readFile(
       `${proofRoot}/src/core/collection-policy.ts`,
       "utf8",

@@ -8,10 +8,9 @@ import {
   DatasetManifestSchema,
   GroupedSearchResponseSchema,
 } from "../../src/core/models.ts";
+import { checkedFetch } from "../../tools/public-request.ts";
 
-test("the public catalog and grouped API retain the checked national publication", async ({
-  request,
-}) => {
+test("the public catalog and grouped API retain the checked national publication", async () => {
   const local = v.parse(
     DatasetManifestSchema,
     JSON.parse(
@@ -24,8 +23,8 @@ test("the public catalog and grouped API retain the checked national publication
       ),
     ),
   );
-  const response = await request.get("/api/catalog");
-  expect(response.status()).toBe(200);
+  const response = await checkedFetch("/api/catalog");
+  expect(response.status).toBe(200);
   const catalog = v.parse(CatalogSchema, await response.json());
   expect(catalog.snapshot).toBe(local.snapshot);
   expect(catalog.contacts).toBe(local.contacts);
@@ -42,7 +41,7 @@ test("the public catalog and grouped API retain the checked national publication
   expect(catalog.prefectures).toHaveLength(47);
   const grouped = v.parse(
     GroupedSearchResponseSchema,
-    await (await request.get("/api/contact-groups?q=図書館")).json(),
+    await (await checkedFetch("/api/contact-groups?q=図書館")).json(),
   );
   expect(grouped.meta.snapshot).toBe(local.snapshot);
   expect(
@@ -50,17 +49,16 @@ test("the public catalog and grouped API retain the checked national publication
       (group) => group.category === "library" && group.results.data.length > 0,
     ),
   ).toBe(true);
-  const invalid = await request.get("/api/contacts?limit=101");
-  expect(invalid.status()).toBe(400);
-  expect(invalid.headers()["content-type"]).toContain(
+  const invalid = await checkedFetch("/api/contacts?limit=101");
+  expect(invalid.status).toBe(400);
+  expect(invalid.headers.get("content-type")).toContain(
     "application/problem+json",
   );
-  const longQuery = await request.get(`/api/contacts?q=${"a".repeat(512)}`);
-  expect(longQuery.status()).toBe(200);
+  const longQuery = await checkedFetch(`/api/contacts?q=${"a".repeat(512)}`);
+  expect(longQuery.status).toBe(200);
 });
 
 test("every published archive matches its exact checked bytes", async ({
-  request,
   baseURL,
 }) => {
   test.setTimeout(180000);
@@ -77,14 +75,12 @@ test("every published archive matches its exact checked bytes", async ({
       ),
     ),
   );
-  const response = await request.get("/api/datasets");
-  expect(response.status()).toBe(200);
+  const response = await checkedFetch("/api/datasets");
+  expect(response.status).toBe(200);
   const remote = v.parse(DatasetManifestSchema, await response.json());
   expect(remote).toEqual(local);
   for (const file of remote.files) {
-    const archive = await fetch(new URL(file.url, baseURL), {
-      redirect: "error",
-    });
+    const archive = await checkedFetch(new URL(file.url, baseURL));
     expect(archive.status).toBe(200);
     if (!archive.body) throw new Error("Missing archive body");
     const hash = createHash("sha256");

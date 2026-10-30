@@ -6,6 +6,7 @@ import { httpStatus } from "./core/http-status.ts";
 import { parseSearchString, parseWebSearch } from "./core/web-search.ts";
 import { api } from "./server/api.ts";
 import type { DirectoryBindings } from "./server/bindings.ts";
+import { withStagingAccess } from "./server/staging-access.ts";
 
 const cspNonceBytes = 24;
 const successfulStatusCeiling = 300;
@@ -13,10 +14,10 @@ const successfulStatusCeiling = 300;
 const start = createStartHandler(defaultStreamHandler);
 
 export default {
-  async fetch(
+  fetch: withStagingAccess(async function fetch(
     request: Request,
     bindings: DirectoryBindings,
-    context: ExecutionContext,
+    context?: ExecutionContext,
   ): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/api" || url.pathname.startsWith("/api/"))
@@ -26,6 +27,9 @@ export default {
         status: httpStatus.methodNotAllowed,
         headers: { Allow: "GET, HEAD" },
       });
+    const asset = await bindings.ASSETS.fetch(request);
+    if (asset.status !== httpStatus.notFound) return asset;
+    await asset.body?.cancel();
     const nonce = btoa(
       String.fromCharCode(
         ...crypto.getRandomValues(new Uint8Array(cspNonceBytes)),
@@ -66,5 +70,5 @@ export default {
     );
     result.headers.set("Cache-Control", "no-store, no-transform");
     return result;
-  },
+  }),
 } satisfies ExportedHandler<DirectoryBindings>;

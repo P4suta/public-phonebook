@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { describeRoute, openAPIRouteHandler, resolver } from "hono-openapi";
 import * as v from "valibot";
 import { categoryDefinitions, prefectureNames } from "../core/catalog.ts";
+import { manifestObjectKey } from "../core/dataset-storage.ts";
 import { type FailureStatus, httpStatus } from "../core/http-status.ts";
 import { sha256 } from "../core/identity.ts";
 import {
@@ -38,9 +39,14 @@ const prefectureCodeWidth = 2;
 const corsPreflightMaxAgeSeconds = 86400;
 const maximumUrlBytes = 8192;
 const problemTypeBase = "https://www.dial.page/api/problems/";
+const mutableCache = "public, no-cache, must-revalidate";
 
-export type DirectoryApiBindings = Omit<DirectoryBindings, "DATASETS"> & {
+export type DirectoryApiBindings = Pick<
+  DirectoryBindings,
+  "DB" | "APP_ENV" | "PUBLIC_ORIGIN"
+> & {
   readonly DATASETS: DatasetReader;
+  readonly DATASET_MANIFEST_SHA256?: string;
 };
 
 type ApiEnvironment = {
@@ -240,7 +246,7 @@ api.get(
     const etag = `"${await sha256(JSON.stringify(catalog))}"`;
     c.header("X-Dataset-Snapshot", catalog.snapshot);
     c.header("ETag", etag);
-    c.header("Cache-Control", "public, max-age=60, s-maxage=300");
+    c.header("Cache-Control", mutableCache);
     if (c.req.header("If-None-Match") === etag)
       return c.body(null, httpStatus.notModified);
     return c.json(catalog);
@@ -283,7 +289,7 @@ api.get(
           : httpStatus.badRequest,
       );
     c.header("X-Dataset-Snapshot", catalog.snapshot);
-    c.header("Cache-Control", "public, max-age=30, s-maxage=300");
+    c.header("Cache-Control", mutableCache);
     if (result.value.links.next)
       c.header("Link", `<${result.value.links.next}>; rel="next"`);
     return c.json(result.value);
@@ -325,7 +331,7 @@ api.get(
           : httpStatus.badRequest,
       );
     c.header("X-Dataset-Snapshot", catalog.snapshot);
-    c.header("Cache-Control", "public, max-age=30, s-maxage=300");
+    c.header("Cache-Control", mutableCache);
     return c.json(result.value);
   },
 );
@@ -448,11 +454,17 @@ api.get(
   }),
   async (c) => {
     const catalog = await readCatalog(directoryDatabase(c.env.DB));
+    const manifestSha256 = c.env.DATASET_MANIFEST_SHA256 || undefined;
+    if (c.env.APP_ENV !== "development" && !manifestSha256)
+      return problem(c, "unavailable", httpStatus.unavailable);
     const manifest = await c.env.DATASETS.get(
-      `${catalog.snapshot}/manifest.json`,
+      manifestObjectKey(catalog.snapshot, manifestSha256),
     );
     if (!manifest) return problem(c, "unavailable", httpStatus.unavailable);
-    const value: unknown = await new Response(manifest.body).json();
+    const text = await new Response(manifest.body).text();
+    if (manifestSha256 && (await sha256(text)) !== manifestSha256)
+      return problem(c, "unavailable", httpStatus.unavailable);
+    const value: unknown = JSON.parse(text);
     const parsed = v.parse(DatasetManifestSchema, value);
     if (
       parsed.snapshot !== catalog.snapshot ||
@@ -460,7 +472,7 @@ api.get(
     )
       return problem(c, "unavailable", httpStatus.unavailable);
     c.header("X-Dataset-Snapshot", catalog.snapshot);
-    c.header("Cache-Control", "public, max-age=60");
+    c.header("Cache-Control", mutableCache);
     return c.json(parsed);
   },
 );

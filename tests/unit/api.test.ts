@@ -5,10 +5,13 @@ import {
   categoryDefinitions,
   prefectureNames,
 } from "../../src/core/catalog.ts";
+import { manifestObjectKey } from "../../src/core/dataset-storage.ts";
+import { sha256 } from "../../src/core/identity.ts";
 import {
   CatalogSchema,
   type Contact,
   ContactSchema,
+  DatasetManifestSchema,
   GroupedSearchResponseSchema,
   SearchResponseSchema,
 } from "../../src/core/models.ts";
@@ -90,7 +93,33 @@ beforeAll(async () => {
       async get(key: string): Promise<DatasetObject | null> {
         const object = await bucket.get(key, {});
         if (!object || !("body" in object)) return null;
-        const bytes = new Uint8Array(await object.arrayBuffer());
+        const reader = object.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let length = 0;
+        try {
+          for (;;) {
+            const result: unknown = await reader.read();
+            const part = v.parse(
+              v.object({
+                done: v.boolean(),
+                value: v.optional(v.instance(Uint8Array)),
+              }),
+              result,
+            );
+            if (part.done) break;
+            if (!part.value) throw new Error("Missing fixture object bytes");
+            chunks.push(part.value);
+            length += part.value.length;
+          }
+        } finally {
+          reader.releaseLock();
+        }
+        const bytes = new Uint8Array(length);
+        let position = 0;
+        for (const chunk of chunks) {
+          bytes.set(chunk, position);
+          position += chunk.length;
+        }
         return {
           size: object.size,
           httpEtag: object.httpEtag,
@@ -163,6 +192,67 @@ async function request(path: string, init?: RequestInit): Promise<Response> {
 }
 
 describe("native D1 public API", () => {
+  it("binds each Worker version to immutable manifest bytes even when contact snapshots match", async () => {
+    const bucket = await runtime.getR2Bucket("DATASETS");
+    const manifest = {
+      snapshot,
+      generatedAt: "2026-10-30T00:00:00Z",
+      contacts: contacts.length,
+      phones: 1,
+      sourceCount: 1,
+      sourceDatabaseSha256: "1".repeat(64),
+      databaseSha256: "2".repeat(64),
+      files: ["contacts.jsonl.gz", "contacts.csv.gz", "contacts.vcf.gz"].map(
+        (file) => ({
+          file,
+          sha256: "3".repeat(64),
+          bytes: 1,
+          url: `/api/datasets/${snapshot}/${"3".repeat(64)}/${file}`,
+        }),
+      ),
+    };
+    const first = JSON.stringify(manifest);
+    expect(v.safeParse(DatasetManifestSchema, manifest).success).toBe(true);
+    const digest = await sha256(first);
+    const changed = JSON.stringify({
+      ...manifest,
+      databaseSha256: "4".repeat(64),
+    });
+    const key = manifestObjectKey(snapshot, digest);
+    await bucket.put(key, first);
+    expect(await bindings.DATASETS.get(key)).not.toBeNull();
+    await bucket.put(manifestObjectKey(snapshot), changed);
+    const production = {
+      ...bindings,
+      APP_ENV: "production",
+      DATASET_MANIFEST_SHA256: digest,
+    };
+    const response = await api.fetch(
+      new Request("https://www.dial.page/api/datasets"),
+      production,
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(manifest);
+    expect(response.headers.get("cache-control")).toContain("no-cache");
+    await bucket.put(key, changed);
+    expect(
+      (
+        await api.fetch(
+          new Request("https://www.dial.page/api/datasets"),
+          production,
+        )
+      ).status,
+    ).toBe(503);
+    expect(
+      (
+        await api.fetch(new Request("https://www.dial.page/api/datasets"), {
+          ...production,
+          DATASET_MANIFEST_SHA256: "",
+        })
+      ).status,
+    ).toBe(503);
+    expect(() => manifestObjectKey(snapshot, "../manifest")).toThrow();
+  });
   it("rejects duplicate categories, foreign rows, mixed snapshots, and false group totals", async () => {
     const body: unknown = await (
       await request("/api/contact-groups?q=図書館")

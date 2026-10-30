@@ -31,9 +31,8 @@ phone-quality bundle report:
 check:
     npm run check
 
-test: check (data-check ".local/phonebook") (phone-quality ".local/phonebook" ".local/phone-quality.json")
-    npm run prove
-    npm run e2e
+test:
+    node tools/test.ts
 
 typecheck:
     npm run typecheck
@@ -52,4 +51,26 @@ data-remote environment bundle:
     doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --no-fallback -- npm run data:remote -- {{ quote(environment) }} {{ quote(bundle) }}
 
 publish environment bundle=".local/phonebook":
-    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --no-fallback -- npm run publish -- {{ quote(environment) }} {{ quote(bundle) }}
+    doppler run --project public-phonebook --config {{ if environment == "staging" { "stg" } else { "prd" } }} --no-fallback -- npm run publish -- {{ quote(environment) }} {{ quote(bundle) }}
+
+release bundle=".local/phonebook":
+    node tools/release.ts {{ quote(bundle) }}
+
+recover environment:
+    doppler run --project public-phonebook --config {{ if environment == "staging" { "stg" } else { "prd" } }} --no-fallback -- npm run publish -- {{ quote(environment) }} .local/phonebook --recover
+
+release-status environment:
+    doppler run --project public-phonebook --config {{ if environment == "staging" { "stg" } else { "prd" } }} --no-fallback -- npm run publish -- {{ quote(environment) }} .local/phonebook --status
+
+release-retention environment:
+    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --no-fallback -- node tools/release-retention.ts {{ quote(environment) }}
+
+release-rehearse bundle=".local/phonebook":
+    node tools/release-rehearsal.ts run {{ quote(bundle) }}
+
+staging-access:
+    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --no-fallback -- doppler run --project public-phonebook --config stg --no-fallback -- node tools/staging-access.ts configure
+
+staging-check:
+    doppler run --project public-phonebook --config stg --no-fallback -- node tools/staging-access.ts check
+    doppler run --project public-phonebook --config stg --no-fallback -- node tools/staging-probes.ts
