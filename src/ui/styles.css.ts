@@ -1,4 +1,4 @@
-import { globalFontFace, globalStyle, style } from "@vanilla-extract/css";
+import { globalStyle, style } from "@vanilla-extract/css";
 
 import { foundation, px, scale, viewport } from "./foundations.ts";
 import { tokens, typography } from "./theme.css.ts";
@@ -6,17 +6,11 @@ import { tokens, typography } from "./theme.css.ts";
 const skipLinkLayer = 10;
 const rule = `${tokens.control.border} solid ${tokens.color.ink}`;
 
-globalFontFace("Noto Sans JP", {
-  src: 'url("/fonts/noto-sans-jp.woff2") format("woff2")',
-  fontWeight: "100 900",
-  fontStyle: "normal",
-  fontDisplay: "swap",
-});
 globalStyle("*", { boxSizing: "border-box" });
 globalStyle("html", {
   color: tokens.color.ink,
   background: tokens.color.paper,
-  fontFamily: '"Noto Sans JP", sans-serif',
+  fontFamily: "sans-serif",
   fontSize: "100%",
   lineHeight: scale.lineRatio,
   colorScheme: "light",
