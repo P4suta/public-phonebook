@@ -44,10 +44,12 @@ The audit checks all four pages, including archived and future content.
 It measures an untruncated copy of each text node at its original width, then removes that temporary copy.
 It checks clipping, auto-layout sibling overlap, monochrome paints, opacity, effects, and text against the nearest opaque ancestor fill.
 Intentional vertical viewport overflow and absolute focus indicators are excluded from unintended clipping and sibling-overlap findings.
-The retained capture contains 821 text measurements and 576 resolved instance references.
+The retained capture contains 999 text measurements and 740 resolved instance references.
 Unit checks independently recompute canvas overlap and section containment, validate text fit and contrasting colors, and enforce canonical viewport sizes and gutters.
 The same overlap check detects all ten overlapping pairs in the original desktop arrangement.
 These checks cover the retained capture and cannot detect later Figma edits until the audit is refreshed.
+After a Figma edit, capture the changed subtrees' text measurements and placements in the audit's tuple form and run `node tools/figma-audit.ts merge CAPTURE_JSON`.
+The merge replaces every text inside a recaptured instance, so removed or swapped layers leave no stale measurements.
 Layer occlusion and visual clarity still require direct visual review.
 
 ## Visual rules

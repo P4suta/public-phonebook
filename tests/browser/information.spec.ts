@@ -7,13 +7,19 @@ test("the initial screen gives a complete instruction and one project-informatio
   page,
 }) => {
   await page.goto("/");
-  await expect(page.getByRole("searchbox")).toHaveAttribute(
-    "placeholder",
-    "名前を入れてください",
+  const searchbox = page.getByRole("searchbox");
+  await expect(searchbox).not.toHaveAttribute("placeholder");
+  await expect(searchbox).toHaveAccessibleName("施設や窓口の名前");
+  await expect(searchbox).toHaveAccessibleDescription(
+    "病院や役所、学校などの名前を入れてください。 名前の一部でも、さがせます。",
   );
-  await expect(page.getByRole("searchbox")).toHaveAccessibleName(
-    "施設や窓口の名前",
-  );
+  await expect(
+    page.getByText("施設や窓口の名前", { exact: true }),
+  ).toBeVisible();
+  await expect(searchbox).toHaveAttribute("enterkeyhint", "search");
+  await expect(
+    page.getByRole("button", { name: "電話番号をさがす", exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByLabel("都道府県", { exact: true }).locator("option").first(),
   ).toHaveText("都道府県をえらばない");

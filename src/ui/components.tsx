@@ -23,10 +23,9 @@ import { CategoryIcon } from "./icons.tsx";
 import { opensNewTab } from "./links.ts";
 import * as css from "./styles.css.ts";
 
-const copyFeedback = {
-  copied: "コピーしました。",
-  failed: uiCopy.copyFailed,
-} as const;
+function copyFeedback(outcome: "copied" | "failed", subject: string): string {
+  return outcome === "copied" ? uiCopy.copied(subject) : uiCopy.copyFailed;
+}
 
 export function LinkButton({
   href,
@@ -85,12 +84,14 @@ export function BackButton({
 export function CopyButton({
   value,
   label,
+  subject,
   accessibleLabel,
   feedback,
   presentation = "button",
 }: {
   readonly value: string;
   readonly label: string;
+  readonly subject: string;
   readonly accessibleLabel?: string;
   readonly presentation?: "button" | "telephone";
   readonly feedback?: {
@@ -115,7 +116,7 @@ export function CopyButton({
     const outcome = copyCompletion(request === requests.current, succeeded);
     if (outcome === "superseded") return;
     setState(outcome);
-    feedback?.announce(copyFeedback[outcome]);
+    feedback?.announce(copyFeedback(outcome, subject));
   }
   return (
     <div className={css.group}>
@@ -147,7 +148,7 @@ export function CopyButton({
       </button>
       {!feedback && (
         <output className={state === "ready" ? css.srOnly : css.status}>
-          {state === "ready" ? "" : copyFeedback[state]}
+          {state === "ready" ? "" : copyFeedback(state, subject)}
         </output>
       )}
     </div>
@@ -221,6 +222,7 @@ export function ContactCard({
               <CopyButton
                 value={display}
                 label={display}
+                subject="電話番号"
                 accessibleLabel={`${display} コピーする（${contact.name}の電話番号）`}
                 feedback={feedbackControl}
                 presentation="telephone"
@@ -290,24 +292,24 @@ export function OfficialLink({
 export function LoadingError({
   retry,
   restartHref,
-  title = "検索結果を読みこめませんでした",
+  subject = "検索結果",
 }: {
   readonly retry: () => void;
   readonly restartHref?: string | undefined;
-  readonly title?: string;
+  readonly subject?: string;
 }): ReactElement {
   return (
     <section className={css.stack} role="alert">
-      <h2 className={css.subheading}>{title}</h2>
+      <h2 className={css.subheading}>{uiCopy.loadFailed(subject)}</h2>
       <div className={css.actions}>
         {restartHref ? (
           <LinkButton href={restartHref} icon={RotateCw}>
-            はじめから読みこむ
+            {uiCopy.reloadFromStart(subject)}
           </LinkButton>
         ) : (
           <button type="button" className={css.button} onClick={retry}>
             <RotateCw size={foundation.control.icon} aria-hidden="true" />
-            もう一度読みこむ
+            {uiCopy.reload(subject)}
           </button>
         )}
       </div>

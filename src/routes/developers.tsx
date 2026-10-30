@@ -72,7 +72,8 @@ function DevelopersPage(): ReactElement {
         </LinkButton>
         <CopyButton
           value={new URL("/api/openapi.json", origin).href}
-          label="仕様書のURLをコピー"
+          label="API仕様書のURLをコピー"
+          subject="API仕様書のURL"
         />
       </nav>
       {(!ready || failed || document.isError) && (
@@ -80,7 +81,7 @@ function DevelopersPage(): ReactElement {
           <h1 className={css.heading}>Public Phonebook API</h1>
           {failed || document.isError ? (
             <LoadingError
-              title="APIの説明を読みこめませんでした"
+              subject="APIの説明"
               retry={() => {
                 if (failed) window.location.reload();
                 else void document.refetch();
