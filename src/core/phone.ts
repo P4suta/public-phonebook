@@ -4,12 +4,12 @@ import type { Result } from "./result.ts";
 const maximumSourcePhoneLength = 80;
 const countryDialingPrefix = "+81";
 
+export const telephoneSpelling =
+  /^[0-9０-９+＋()（）.． \t\u00a0\u3000\-－‐‑‒–—―−⁻₋﹣ーｰ]+$/u;
+
 export function normalizePhone(input: string): Result<string, "invalid_phone"> {
   const text = input.trim();
-  if (
-    text.length > maximumSourcePhoneLength ||
-    !/^[0-9０-９+＋()（）.． \t\u00a0\u3000\-－‐‑‒–—―−⁻₋﹣ーｰ]+$/u.test(text)
-  )
+  if (text.length > maximumSourcePhoneLength || !telephoneSpelling.test(text))
     return { ok: false, error: "invalid_phone" };
   const normalized = text.normalize("NFKC");
   const compact = normalized.replace(/[ \t().\-‐‑‒–—―−ー]/gu, "");

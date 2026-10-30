@@ -207,6 +207,7 @@ test("untrusted result text is rendered as text", async ({ page, request }) => {
   });
   await page.goto("/");
   await page.getByRole("searchbox").fill("fixture");
+  await page.getByRole("searchbox").press("Enter");
   await expect(page.locator("article").getByRole("heading")).toHaveText(name);
   await expect(page.locator("article img, article script")).toHaveCount(0);
 });

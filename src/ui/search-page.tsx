@@ -15,6 +15,16 @@ import {
   PrefectureCodeSchema,
 } from "../core/catalog.ts";
 import {
+  completeTelephone,
+  inputScript,
+  keystrokeIntervals,
+  pauseDelay,
+} from "../core/search-input.ts";
+import {
+  type SearchEvent,
+  searchTrigger,
+} from "../core/search-trigger-policy.ts";
+import {
   hasSearch,
   parseWebSearch,
   webSearchParameters,
@@ -28,14 +38,22 @@ import { foundation } from "./foundations.ts";
 import { GroupResults } from "./group-results.tsx";
 import * as css from "./styles.css.ts";
 
+const settleMilliseconds = 120;
+
 export function SearchPage(): ReactElement {
   const { catalog, first, initialSearch, invalid } = Route.useLoaderData();
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/" });
-  const [draft, setDraft] = useState({
+  const [draft, setDraft] = useState<{
+    readonly input: string;
+    readonly observed: string;
+    readonly submitted: string;
+    readonly event: SearchEvent;
+  }>({
     input: search.q,
     observed: search.q,
     submitted: search.q,
+    event: "change",
   });
   if (draft.observed !== search.q) {
     setDraft({
@@ -45,10 +63,11 @@ export function SearchPage(): ReactElement {
     });
   }
   const input = draft.input;
-  function setInput(value: string): void {
-    setDraft((previous) => ({ ...previous, input: value }));
+  function edit(value: string, event: SearchEvent): void {
+    setDraft((previous) => ({ ...previous, input: value, event }));
   }
   const [composing, setComposing] = useState(false);
+  const keystrokes = useRef<number[]>([]);
   const form = useRef<HTMLFormElement>(null);
   const restoredInput = useRef(false);
   const active = hasSearch(search);
@@ -89,18 +108,36 @@ export function SearchPage(): ReactElement {
   });
 
   useEffect(() => {
-    if (composing || input === search.q) return;
-    const timeout = window.setTimeout(() => {
-      setDraft((previous) => ({ ...previous, submitted: input.trim() }));
-      void navigate({
-        to: "/",
-        search: { ...search, q: input.trim(), cursor: "" },
-        replace: true,
-        resetScroll: false,
-      });
-    }, 120);
+    const q = input.trim();
+    if (q === search.q) return;
+    const script = inputScript(input);
+    const intervals = keystrokeIntervals(keystrokes.current);
+    const trigger = searchTrigger(
+      script,
+      draft.event,
+      composing,
+      script === "telephone" && completeTelephone(input),
+      intervals.length,
+    );
+    if (trigger === "wait") return;
+    const timeout = window.setTimeout(
+      () => {
+        setDraft((previous) => ({ ...previous, submitted: q }));
+        void navigate({
+          to: "/",
+          search: { ...search, q, cursor: "" },
+          replace: true,
+          resetScroll: false,
+        });
+      },
+      trigger === "search"
+        ? 0
+        : trigger === "settle"
+          ? settleMilliseconds
+          : pauseDelay(intervals),
+    );
     return (): void => window.clearTimeout(timeout);
-  }, [input, composing, search, navigate]);
+  }, [input, draft.event, composing, search, navigate]);
 
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -172,11 +209,27 @@ export function SearchPage(): ReactElement {
                 aria-describedby="directory-search-hint"
                 enterKeyHint="search"
                 value={input}
-                onChange={(event) => setInput(event.target.value)}
+                onFocus={() => {
+                  keystrokes.current = [];
+                }}
+                onChange={(event) => {
+                  keystrokes.current.push(performance.now());
+                  const inserted =
+                    event.nativeEvent instanceof InputEvent
+                      ? event.nativeEvent.data
+                      : null;
+                  edit(
+                    event.target.value,
+                    inserted && /\s$/u.test(inserted) ? "space" : "change",
+                  );
+                }}
+                onBlur={() =>
+                  setDraft((previous) => ({ ...previous, event: "blur" }))
+                }
                 onCompositionStart={() => setComposing(true)}
                 onCompositionEnd={(event) => {
                   setComposing(false);
-                  setInput(event.currentTarget.value);
+                  edit(event.currentTarget.value, "change");
                 }}
                 autoComplete="off"
                 type="search"
