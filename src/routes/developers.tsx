@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { createClientOnlyFn, createIsomorphicFn } from "@tanstack/react-start";
+import { FileBraces } from "lucide-react";
 import { type ReactElement, useCallback, useEffect, useState } from "react";
 import { config as configureZod } from "zod/v4/core";
 import { browserCredentials } from "../core/staging-access-policy.ts";
@@ -66,7 +67,9 @@ function DevelopersPage(): ReactElement {
     <div id="main" className={referenceCss.page}>
       <nav aria-label="APIドキュメントの操作" className={css.actions}>
         <BackButton />
-        <LinkButton href="/api/openapi.json">OpenAPI（JSON）を見る</LinkButton>
+        <LinkButton href="/api/openapi.json" icon={FileBraces}>
+          OpenAPI（JSON）を見る
+        </LinkButton>
         <CopyButton
           value={new URL("/api/openapi.json", origin).href}
           label="仕様書のURLをコピー"

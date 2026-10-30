@@ -165,6 +165,12 @@ export const searchButton = style([
     padding: "12px",
     minHeight: 0,
     minWidth: rem(72),
+    "@media": {
+      "(max-width: 360px)": {
+        paddingInline: tokens.space["8"],
+        gap: tokens.space["4"],
+      },
+    },
   },
 ]);
 export const filters = style({

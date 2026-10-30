@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { FileSearch } from "lucide-react";
 import type { ReactElement } from "react";
 import {
   BackButton,
@@ -42,7 +43,9 @@ function ContactPage(): ReactElement {
           <p>データの日付：{formatDate(contact.dataAsOf)}</p>
         )}
         <div className={css.actions}>
-          <LinkButton href={sourcePath}>{uiCopy.sourceAction}</LinkButton>
+          <LinkButton href={sourcePath} icon={FileSearch}>
+            {uiCopy.sourceAction}
+          </LinkButton>
         </div>
       </div>
     </main>

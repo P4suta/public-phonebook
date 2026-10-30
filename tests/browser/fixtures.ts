@@ -29,6 +29,27 @@ export async function externalLinkIssues(
   );
 }
 
+export async function actionIconIssues(page: Page): Promise<readonly string[]> {
+  return page
+    .locator('a[href]:not([href^="#"]), button')
+    .evaluateAll((actions) =>
+      actions.flatMap((action) => {
+        if (
+          !(action instanceof HTMLElement) ||
+          action.closest("[data-api-reference]") ||
+          action.getClientRects().length === 0
+        )
+          return [];
+        const style = getComputedStyle(action);
+        if (style.borderTopStyle === "none" || style.borderTopWidth === "0px")
+          return [];
+        return action.querySelector("svg, img")
+          ? []
+          : [`action-icon: ${action.textContent?.trim() ?? ""}`];
+      }),
+    );
+}
+
 export async function externalScriptIssues(
   page: Page,
 ): Promise<readonly string[]> {
