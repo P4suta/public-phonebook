@@ -75,20 +75,25 @@ export async function recoverRelease(
   return result;
 }
 
+export function ownsUnverifiedBootstrap(
+  journal: ReleaseJournal,
+  active: ActiveVersion,
+): boolean {
+  return bootstrapAdmission(
+    journal.previous !== null,
+    journal.phase === "verified" || journal.phase === "recovered",
+    active.releaseId === journal.candidate.releaseId,
+    journal.candidate.versionId === "" ||
+      active.versionId === journal.candidate.versionId,
+  );
+}
+
 export async function resumeBootstrap(
   journal: ReleaseJournal,
   ports: ReleasePorts,
 ): Promise<ReleaseJournal> {
   const active = await ports.active();
-  if (
-    !bootstrapAdmission(
-      journal.previous !== null,
-      journal.phase === "verified" || journal.phase === "recovered",
-      active.releaseId === journal.candidate.releaseId,
-      journal.candidate.versionId === "" ||
-        active.versionId === journal.candidate.versionId,
-    )
-  )
+  if (!ownsUnverifiedBootstrap(journal, active))
     throw new Error(
       "Only the owned active initial staging candidate can resume verification",
     );

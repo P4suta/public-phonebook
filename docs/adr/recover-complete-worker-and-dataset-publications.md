@@ -40,6 +40,7 @@ Recovery needs no clean checkout, build, or proof campaign.
 The initial staging bootstrap has no verified predecessor and therefore cannot promise rollback.
 Require an explicit bootstrap action after Access protection is configured.
 An owned active initial candidate can resume verification after interruption.
+A new bootstrap from corrected source can supersede an owned initial candidate that failed verification, because no verified rollback target exists to protect.
 Adopt the existing public production baseline only after checking its retained bundle and actual provider bindings.
 Record unknown historical source and build identities as null instead of inventing verification evidence.
 

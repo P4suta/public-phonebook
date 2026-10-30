@@ -2,6 +2,9 @@ import { Buffer } from "node:buffer";
 import { checkedFetch, publicAccess } from "../../tools/public-request.ts";
 import { test as base, expect } from "../browser/fixtures.ts";
 
+const redirectStatuses = new Set([301, 302, 303, 307, 308]);
+const maximumRedirectHops = 5;
+
 export const test = base.extend({
   context: async ({ context, baseURL }, use): Promise<void> => {
     const access = publicAccess();
@@ -12,11 +15,19 @@ export const test = base.extend({
         const request = route.request();
         if (new URL(request.url()).origin !== access.origin)
           return route.continue();
-        const response = await checkedFetch(
-          request.url(),
-          { method: request.method(), headers: request.headers() },
-          access,
-        );
+        const init = { method: request.method(), headers: request.headers() };
+        let url = new URL(request.url());
+        let response = await checkedFetch(url, init, access);
+        // Playwright routes only the first request of a redirect chain, so same-origin hops keep the credential here.
+        for (let hops = 0; redirectStatuses.has(response.status); hops += 1) {
+          const location = response.headers.get("location");
+          const next = location ? new URL(location, url) : null;
+          if (!next || next.origin !== access.origin) break;
+          if (hops === maximumRedirectHops)
+            throw new Error("Staging verification exceeded its redirect limit");
+          url = next;
+          response = await checkedFetch(url, init, access);
+        }
         const headers = new Headers(response.headers);
         for (const name of [
           "set-cookie",

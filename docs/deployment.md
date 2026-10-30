@@ -137,6 +137,8 @@ Repair access or provider availability before retrying failed verification.
 The first staging publication requires `--bootstrap` and has no verified rollback target.
 If its activation succeeded but verification was interrupted, run `doppler run --project public-phonebook --config stg --no-fallback -- node tools/publish.ts staging BUNDLE --resume-bootstrap`.
 It accepts only the owned active initial candidate and its original committed source.
+If that candidate failed verification, run `--bootstrap` again from corrected committed source.
+It supersedes the failed candidate only while no staging publication is verified and the failed candidate still owns the active version.
 Do not discard journals or edit them to make a foreign deployment pass.
 
 `mise x -- just release-retention production` prints a read-only database retirement plan.

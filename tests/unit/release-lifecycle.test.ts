@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ownsUnverifiedBootstrap,
   type ReleaseJournal,
   type ReleasePorts,
   type ReleaseTarget,
@@ -157,6 +158,28 @@ describe("recoverable publication", () => {
     expect(verified.phase).toBe("verified");
     expect(verified.candidate.versionId).toBe("version-b");
     await expect(resumeBootstrap(verified, f.ports)).rejects.toThrow();
+  });
+  it("lets corrected source supersede only an owned initial candidate that failed verification", async () => {
+    const f = fixture("verification");
+    await expect(runRelease(candidate, null, f.ports, true)).rejects.toThrow(
+      "recovery remains pending",
+    );
+    const failed = f.journal();
+    if (!failed) throw new Error("Missing failed bootstrap journal");
+    const active = await f.ports.active();
+    expect(ownsUnverifiedBootstrap(failed, active)).toBe(true);
+    expect(
+      ownsUnverifiedBootstrap({ ...failed, phase: "verified" }, active),
+    ).toBe(false);
+    expect(ownsUnverifiedBootstrap({ ...failed, previous }, active)).toBe(
+      false,
+    );
+    expect(
+      ownsUnverifiedBootstrap(failed, { ...active, releaseId: "foreign" }),
+    ).toBe(false);
+    expect(
+      ownsUnverifiedBootstrap(failed, { ...active, versionId: "foreign" }),
+    ).toBe(false);
   });
   it("never adopts a foreign version or an ordinary publication as an initial candidate", async () => {
     const f = fixture("none");

@@ -10,6 +10,7 @@ import { checkDataBundle } from "./check-data.ts";
 import { command, requireCommand } from "./process.ts";
 import { validatePublicationCoverage } from "./publication-coverage.ts";
 import {
+  ownsUnverifiedBootstrap,
   type ReleaseJournal,
   type ReleasePorts,
   type ReleaseTarget,
@@ -364,7 +365,17 @@ async function main(args: readonly string[]): Promise<void> {
       await adoptProduction(bundle);
       return;
     }
-    if (
+    const bootstrap = action === "--bootstrap";
+    if (bootstrap) {
+      if (
+        environment !== "staging" ||
+        (journal && !ownsUnverifiedBootstrap(journal, await ports.active()))
+      )
+        throw new Error(
+          "Bootstrap is restricted to an unverified protected staging publication",
+        );
+      journal = null;
+    } else if (
       journal &&
       journal.phase !== "verified" &&
       journal.phase !== "recovered"
@@ -413,15 +424,10 @@ async function main(args: readonly string[]): Promise<void> {
     validatePublicationCoverage(catalog, precedingCatalog);
     if (environment === "production")
       await requireVerificationReceipt(sourceTree, manifestSha256);
-    const bootstrap = action === "--bootstrap";
     const exercise = action === "--rehearse-recovery";
     if (exercise && (environment !== "staging" || !previous))
       throw new Error(
         "Recovery exercises require an existing verified staging publication",
-      );
-    if (bootstrap && (environment !== "staging" || journal !== null))
-      throw new Error(
-        "Bootstrap is restricted to the first protected staging publication",
       );
     if (!previous && !bootstrap)
       throw new Error("Publication requires a verified predecessor");
