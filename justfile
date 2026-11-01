@@ -50,8 +50,15 @@ prove:
 ios-generate:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- generate
 
-ios-archive:
-    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- archive
+[positional-arguments]
+ios-archive *args:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- archive "$@"
+
+ios-build-number run attempt output:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- build-number --run-number {{ quote(run) }} --run-attempt {{ quote(attempt) }} --output {{ quote(output) }}
+
+ios-testflight:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- testflight
 
 ios-screenshots origin:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- screenshots --origin {{ quote(origin) }}

@@ -13,10 +13,17 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+mod build_number;
 mod distribution;
 mod mutation;
 mod proof;
+mod receipts;
 mod screenshots;
+mod signing;
+mod testflight;
+
+use build_number::BuildNumber;
+use signing::Signing;
 
 struct GateLease {
     _file: fs::File,
@@ -96,7 +103,7 @@ const REQUIRED_TESTS: [&str; 31] = [
     "everyConsumerAvailabilityFailureReceiptAndForceCombinationPreservesIndependentProgress",
     "automaticRefreshMatchesIndependentGregorianMonthEndsAcrossFourCenturies",
 ];
-const SCOPE: [&str; 17] = [
+const SCOPE: [&str; 19] = [
     "ios",
     "verification/ios",
     "src/core",
@@ -105,6 +112,8 @@ const SCOPE: [&str; 17] = [
     "mise.toml",
     "justfile",
     ".github/workflows/checks.yml",
+    ".github/workflows/ios.yml",
+    ".github/actions/toolchain",
     ".github/actionlint.yaml",
     ".gitignore",
     "package.json",
@@ -197,7 +206,23 @@ pub enum Action {
         check: bool,
     },
     Generate,
-    Archive,
+    Archive {
+        #[arg(long)]
+        require_receipts: bool,
+        #[arg(long)]
+        build_number: Option<u32>,
+        #[arg(long, value_enum, default_value_t = Signing::Local)]
+        signing: Signing,
+    },
+    BuildNumber {
+        #[arg(long)]
+        run_number: u32,
+        #[arg(long)]
+        run_attempt: u32,
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+    Testflight,
     Screenshots {
         #[arg(long)]
         origin: String,
@@ -221,9 +246,28 @@ pub enum Action {
     },
 }
 
+const SECRET_ENVIRONMENT: [&str; 7] = [
+    signing::CERTIFICATE,
+    signing::CERTIFICATE_PASSWORD,
+    signing::APP_PROFILE,
+    signing::EXTENSION_PROFILE,
+    testflight::KEY_ID,
+    testflight::ISSUER_ID,
+    testflight::PRIVATE_KEY,
+];
+
+fn without_secrets(command: &mut Command) -> &mut Command {
+    for secret in SECRET_ENVIRONMENT {
+        command.env_remove(secret);
+    }
+    command
+}
+
 fn logged(root: &Path, name: &str, command: &mut Command) -> Result<Output> {
     println!("iOS check: {name}");
-    let output = command.output().with_context(|| format!("Start {name}"))?;
+    let output = without_secrets(command)
+        .output()
+        .with_context(|| format!("Start {name}"))?;
     let directory = root.join("target/ios");
     fs::create_dir_all(&directory)?;
     let log = directory.join(format!("{name}.log"));
@@ -302,6 +346,18 @@ fn affected(root: &Path, base: &str, output: Option<&Path>) -> Result<()> {
         )?;
     }
     println!("iOS changes: {changed}");
+    Ok(())
+}
+
+fn build_number(run_number: u32, run_attempt: u32, output: Option<&Path>) -> Result<()> {
+    let number = BuildNumber::from_run(run_number, run_attempt)?;
+    if let Some(path) = output {
+        writeln!(
+            OpenOptions::new().append(true).open(path)?,
+            "number={number}"
+        )?;
+    }
+    println!("Build number: {number}");
     Ok(())
 }
 
@@ -812,6 +868,26 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
     if let Action::Affected { base, output } = action {
         return affected(root, &base, output.as_deref());
     }
+    if let Action::BuildNumber {
+        run_number,
+        run_attempt,
+        output,
+    } = action
+    {
+        return build_number(run_number, run_attempt, output.as_deref());
+    }
+    if let Action::Archive {
+        require_receipts,
+        build_number,
+        signing,
+    } = &action
+    {
+        signing::admit_request(
+            *signing,
+            *require_receipts,
+            build_number.map(BuildNumber::new).transpose()?,
+        )?;
+    }
     let lock = match &action {
         Action::Prove => root.join("target/ios/proof.lock"),
         Action::Sanitize => root.join("target/ios/sanitizer.lock"),
@@ -836,12 +912,26 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         fs::remove_file(&receipt)?;
     }
     xcode(root)?;
+    if matches!(action, Action::Testflight) {
+        return testflight::run(root);
+    }
     let unit_only = matches!(action, Action::UnitTest);
     if !unit_only {
         generate(root)?;
     }
     match action {
-        Action::Archive => distribution::archive(root),
+        Action::Archive {
+            require_receipts,
+            build_number,
+            signing,
+        } => distribution::archive(
+            root,
+            &distribution::ArchiveRequest {
+                signing,
+                require_receipts,
+                build: build_number.map(BuildNumber::new).transpose()?,
+            },
+        ),
         Action::Screenshots { origin } => screenshots::capture(root, &origin),
         Action::Generate => Ok(()),
         Action::UiTest { tests, live } => {
@@ -1018,6 +1108,8 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
             Ok(())
         }
         Action::Affected { .. } => bail!("The iOS change scope was not handled"),
+        Action::BuildNumber { .. } => bail!("The build number was not handled"),
+        Action::Testflight => bail!("The TestFlight delivery was not handled"),
         Action::Prove => bail!("The iOS proof gate was not handled"),
         Action::Sanitize => bail!("The iOS sanitizer gate was not handled"),
         Action::Mutate => bail!("The iOS mutation gate was not handled"),
@@ -1167,6 +1259,25 @@ mod tests {
         assert!(
             require_unit_inventory("PhonebookCoreTests.first()\nPhonebookKitTests.first()", log)
                 .is_err()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn logged_commands_never_receive_the_signing_secrets() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let mut command = Command::new("env");
+        for secret in SECRET_ENVIRONMENT {
+            command.env(secret, "probe-secret-value");
+        }
+        command.env("PHONEBOOK_PROBE_VISIBLE", "probe-visible-value");
+        let output = logged(directory.path(), "environment-probe", &mut command)?;
+        let environment = String::from_utf8(output.stdout)?;
+        assert!(environment.contains("probe-visible-value"));
+        assert!(!environment.contains("probe-secret-value"));
+        assert!(
+            !fs::read_to_string(directory.path().join("target/ios/environment-probe.log"))?
+                .contains("probe-secret-value")
         );
         Ok(())
     }

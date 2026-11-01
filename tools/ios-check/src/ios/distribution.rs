@@ -1,4 +1,9 @@
-use super::{logged, require_current_sources, source_hashes};
+use super::{
+    build_number::BuildNumber,
+    logged, receipts, require_current_sources,
+    signing::{self, EXTENSION_SUFFIX, ManualSigning, Signing},
+    source_hashes,
+};
 use crate::locations::{FIXTURE_ORIGIN, PRODUCTION_ORIGIN};
 use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
@@ -14,7 +19,6 @@ const STORE_TEXT_LIMITS: [(&str, usize); 6] = [
     ("keywords", 100),
     ("reviewNotes", 4000),
 ];
-const EXPORT_OPTIONS: &str = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"><plist version=\"1.0\"><dict><key>method</key><string>app-store-connect</string><key>destination</key><string>export</string><key>signingStyle</key><string>automatic</string><key>manageAppVersionAndBuildNumber</key><false/><key>uploadSymbols</key><true/></dict></plist>";
 
 #[derive(Clone, Copy)]
 enum Environment {
@@ -213,9 +217,9 @@ fn plist(root: &Path, path: &Path) -> Result<Value> {
     serde_json::from_slice(&output.stdout).context("Decode distribution property list")
 }
 
-fn verify_bundle(root: &Path, app: &Path, team: &str) -> Result<()> {
+fn verify_bundle(root: &Path, app: &Path, team: &str, build: BuildNumber) -> Result<()> {
     let (bundle, name, icon, origin) = Environment::Production.identity();
-    for (relative, suffix) in [("", ""), ("PlugIns/CallDirectory.appex", ".CallDirectory")] {
+    for (relative, suffix) in [("", ""), ("PlugIns/CallDirectory.appex", EXTENSION_SUFFIX)] {
         let directory = app.join(relative);
         let info = plist(root, &directory.join("Info.plist"))?;
         ensure!(
@@ -237,6 +241,10 @@ fn verify_bundle(root: &Path, app: &Path, team: &str) -> Result<()> {
         ensure!(
             info["CFBundleShortVersionString"] == "1.0" && info["MinimumOSVersion"] == "18.0",
             "Incorrect app version or deployment target"
+        );
+        ensure!(
+            info["CFBundleVersion"] == build.to_string(),
+            "The export doesn't carry build number {build}"
         );
         ensure!(
             info["ITSAppUsesNonExemptEncryption"] == false,
@@ -315,8 +323,89 @@ fn verify_bundle(root: &Path, app: &Path, team: &str) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn archive(root: &Path) -> Result<()> {
+pub(super) struct ArchiveRequest {
+    pub signing: Signing,
+    pub require_receipts: bool,
+    pub build: Option<BuildNumber>,
+}
+
+fn archive_command(
+    root: &Path,
+    directory: &Path,
+    manual: Option<&ManualSigning>,
+    build: BuildNumber,
+) -> Command {
+    let mut command = Command::new("xcodebuild");
+    command.current_dir(root).args([
+        "-quiet",
+        "-toolchain",
+        "com.apple.dt.toolchain.XcodeDefault",
+        "-project",
+        "ios/PublicPhonebook.xcodeproj",
+        "-scheme",
+        "PublicPhonebook",
+        "-configuration",
+        "Release",
+        "-destination",
+        "generic/platform=iOS",
+        "-jobs",
+        "2",
+    ]);
+    if manual.is_none() {
+        command.arg("-allowProvisioningUpdates");
+    }
+    command
+        .arg("-archivePath")
+        .arg(directory.join("PublicPhonebook.xcarchive"))
+        .arg("-derivedDataPath")
+        .arg(directory.join("DerivedData"))
+        .args(signing::archive_settings(manual, build))
+        .arg("archive");
+    command
+}
+
+fn export_command(directory: &Path, root: &Path, manual: Option<&ManualSigning>) -> Command {
+    let mut command = Command::new("xcodebuild");
+    command.current_dir(root).args(["-quiet", "-exportArchive"]);
+    if manual.is_none() {
+        command.arg("-allowProvisioningUpdates");
+    }
+    command
+        .arg("-archivePath")
+        .arg(directory.join("PublicPhonebook.xcarchive"))
+        .arg("-exportOptionsPlist")
+        .arg(directory.join("ExportOptions.plist"))
+        .arg("-exportPath")
+        .arg(directory.join("export"));
+    command
+}
+
+pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
+    let build = signing::admit_request(request.signing, request.require_receipts, request.build)?;
+    let ci = request.signing == Signing::Ci;
     let sources = source_hashes(root)?;
+    let status = super::super::checked(
+        Command::new("git")
+            .current_dir(root)
+            .args(["status", "--porcelain"]),
+    )?;
+    let dirty = !status.stdout.is_empty();
+    ensure!(
+        !(ci && dirty),
+        "CI signing requires a clean checkout of the verified revision"
+    );
+    let receipts = if request.require_receipts {
+        receipts::require(root, &sources)?
+    } else {
+        Vec::new()
+    };
+    let bundle = Environment::Production.identity().0;
+    let ci_signing = if ci {
+        Some(signing::prepare(bundle)?)
+    } else {
+        None
+    };
+    let manual: Option<&ManualSigning> = ci_signing.as_ref().map(|prepared| &prepared.manual);
     let directory = tempfile::Builder::new()
         .prefix("app-store-")
         .tempdir_in(root.join("target/ios"))?
@@ -325,51 +414,24 @@ pub(super) fn archive(root: &Path) -> Result<()> {
     logged(
         root,
         "app-store-archive",
-        Command::new("xcodebuild")
-            .current_dir(root)
-            .args([
-                "-quiet",
-                "-toolchain",
-                "com.apple.dt.toolchain.XcodeDefault",
-                "-project",
-                "ios/PublicPhonebook.xcodeproj",
-                "-scheme",
-                "PublicPhonebook",
-                "-configuration",
-                "Release",
-                "-destination",
-                "generic/platform=iOS",
-                "-jobs",
-                "2",
-                "-allowProvisioningUpdates",
-                "-archivePath",
-            ])
-            .arg(&archive)
-            .arg("-derivedDataPath")
-            .arg(directory.join("DerivedData"))
-            .arg("archive"),
+        &mut archive_command(root, &directory, manual, build),
     )?;
     let team = super::plist_string(&archive.join("Info.plist"), "ApplicationProperties.Team")?;
-    let options = directory.join("ExportOptions.plist");
-    fs::write(&options, EXPORT_OPTIONS)?;
+    ensure!(
+        manual.is_none_or(|manual| manual.team == team),
+        "The archive was signed for another team"
+    );
+    fs::write(
+        directory.join("ExportOptions.plist"),
+        signing::export_options(manual, bundle),
+    )?;
     let exported = directory.join("export");
     logged(
         root,
         "app-store-export",
-        Command::new("xcodebuild")
-            .current_dir(root)
-            .args([
-                "-quiet",
-                "-exportArchive",
-                "-allowProvisioningUpdates",
-                "-archivePath",
-            ])
-            .arg(&archive)
-            .arg("-exportOptionsPlist")
-            .arg(&options)
-            .arg("-exportPath")
-            .arg(&exported),
+        &mut export_command(&directory, root, manual),
     )?;
+    drop(ci_signing);
     let packages = fs::read_dir(&exported)?
         .map(|entry| entry.map(|entry| entry.path()))
         .collect::<std::io::Result<Vec<_>>>()?
@@ -387,17 +449,17 @@ pub(super) fn archive(root: &Path) -> Result<()> {
             .arg(ipa)
             .arg(&unpacked),
     )?;
-    verify_bundle(root, &unpacked.join("Payload/PublicPhonebook.app"), &team)?;
+    verify_bundle(
+        root,
+        &unpacked.join("Payload/PublicPhonebook.app"),
+        &team,
+        build,
+    )?;
     require_current_sources(root, &sources)?;
     let revision = super::super::checked(
         Command::new("git")
             .current_dir(root)
             .args(["rev-parse", "HEAD"]),
-    )?;
-    let status = super::super::checked(
-        Command::new("git")
-            .current_dir(root)
-            .args(["status", "--porcelain"]),
     )?;
     let sha256 = format!("{:x}", Sha256::digest(fs::read(ipa)?));
     let sbom = json!({"bomFormat":"CycloneDX","specVersion":"1.6","version":1,"metadata":{"component":{"type":"application","name":Environment::Production.identity().1,"version":"1.0","hashes":[{"alg":"SHA-256","content":sha256}]}},"components":[{"type":"library","name":"PhonebookCore","version":"1.0","licenses":[{"expression":"MIT OR Apache-2.0"}],"scope":"required"},{"type":"library","name":"PhonebookKit","version":"1.0","licenses":[{"expression":"MIT OR Apache-2.0"}],"scope":"required"},{"type":"data","name":"Lucide icons","licenses":[{"license":{"id":"ISC"}}],"scope":"required"},{"type":"data","name":"Feather-derived icons","licenses":[{"license":{"id":"MIT"}}],"scope":"required"}],"properties":[{"name":"phonebook:platform-dependencies","value":"Apple iOS frameworks, Swift runtime, and SQLite are supplied by iOS; no third-party Swift packages are linked."}]});
@@ -405,7 +467,29 @@ pub(super) fn archive(root: &Path) -> Result<()> {
         directory.join("sbom.cdx.json"),
         serde_json::to_vec_pretty(&sbom)?,
     )?;
-    let manifest = json!({"format":1,"purpose":"private App Store preparation; no upload or submission","source_revision":String::from_utf8(revision.stdout)?.trim(),"working_tree_dirty":!status.stdout.is_empty(),"source_sha256":sources,"version":"1.0","build":"1","bundle":"page.dial.publicphonebook","archive":archive,"artifact":ipa,"sha256":sha256,"signature":"verified with production identities, app group, and get-task-allow=false for the app and its extension","release_eligible":false,"pending":["clean owner-approved source revision","current full candidate assurance","public production API and privacy URL verification","store screenshots and final declarations","owner authorization for upload, submission, and publication"]});
+    let (purpose, signing_record, pending) = if ci {
+        (
+            "TestFlight candidate signed in the protected workflow; App Store submission stays with the owner",
+            "ci",
+            json!([
+                "TestFlight upload and processing",
+                "owner App Store submission and release"
+            ]),
+        )
+    } else {
+        (
+            "private App Store preparation; no upload or submission",
+            "local",
+            json!([
+                "clean owner-approved source revision",
+                "current full candidate assurance",
+                "public production API and privacy URL verification",
+                "store screenshots and final declarations",
+                "owner authorization for upload, submission, and publication"
+            ]),
+        )
+    };
+    let manifest = json!({"format":1,"purpose":purpose,"signing":signing_record,"source_revision":String::from_utf8(revision.stdout)?.trim(),"working_tree_dirty":dirty,"source_sha256":sources,"receipts":receipts,"version":"1.0","build":build.value(),"bundle":bundle,"archive":archive,"artifact":ipa,"sha256":sha256,"signature":"verified with production identities, app group, build number, and get-task-allow=false for the app and its extension","release_eligible":ci && !dirty && !receipts.is_empty(),"pending":pending});
     fs::write(
         directory.join("candidate.json"),
         serde_json::to_vec_pretty(&manifest)?,
@@ -415,8 +499,123 @@ pub(super) fn archive(root: &Path) -> Result<()> {
         serde_json::to_vec_pretty(&manifest)?,
     )?;
     println!(
-        "PASS: private App Store archive and IPA; production identity, signature, extensions, notices, privacy manifests, SBOM, and SHA-256 checked at {}",
+        "PASS: {signing_record}-signed App Store archive and IPA for build {build}; production identity, signature, extensions, notices, privacy manifests, SBOM, and SHA-256 checked at {}",
         directory.display()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn rendered(command: &Command) -> Vec<String> {
+        command
+            .get_args()
+            .map(|argument| argument.to_string_lossy().into_owned())
+            .collect()
+    }
+
+    #[test]
+    fn both_bundles_take_their_build_number_from_the_build_setting() -> Result<()> {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        for file in [
+            "ios/Config/App-Info.plist",
+            "ios/Config/CallDirectory-Info.plist",
+        ] {
+            let xml = fs::read_to_string(root.join(file))?;
+            let document = roxmltree::Document::parse_with_options(
+                &xml,
+                roxmltree::ParsingOptions {
+                    allow_dtd: true,
+                    ..roxmltree::ParsingOptions::default()
+                },
+            )?;
+            let properties = signing::entries(
+                document
+                    .root_element()
+                    .first_element_child()
+                    .context("The property list is empty")?,
+            )?;
+            let version = properties
+                .get("CFBundleVersion")
+                .copied()
+                .with_context(|| format!("{file} has no CFBundleVersion"))?;
+            assert_eq!(
+                signing::text(version)?,
+                "$(CURRENT_PROJECT_VERSION)",
+                "{file}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn ci_archives_sign_manually_without_account_access() -> Result<()> {
+        let build = BuildNumber::from_run(42, 3)?;
+        let directory = Path::new("/build/app-store-run");
+        let manual = ManualSigning {
+            team: "ABCDE12345".to_owned(),
+            identity: "Apple Distribution: Example Owner (ABCDE12345)".to_owned(),
+            keychain: PathBuf::from("/runner/temp/testflight-signing.keychain-db"),
+            app_profile: "0f8fad5b-d9cb-469f-a165-70867728950e".to_owned(),
+            extension_profile: "7c9e6679-7425-40de-944b-e07fc1f90ae7".to_owned(),
+        };
+        let ci = rendered(&archive_command(
+            Path::new("/repo"),
+            directory,
+            Some(&manual),
+            build,
+        ));
+        assert!(
+            !ci.iter()
+                .any(|argument| argument == "-allowProvisioningUpdates")
+        );
+        assert_eq!(ci.last().map(String::as_str), Some("archive"));
+        for setting in signing::archive_settings(Some(&manual), build) {
+            assert!(ci.contains(&setting), "{setting}");
+        }
+        assert!(ci.contains(&"/build/app-store-run/PublicPhonebook.xcarchive".to_owned()));
+        let local = rendered(&archive_command(
+            Path::new("/repo"),
+            directory,
+            None,
+            BuildNumber::LOCAL,
+        ));
+        assert!(
+            local
+                .iter()
+                .any(|argument| argument == "-allowProvisioningUpdates")
+        );
+        assert!(local.contains(&"CURRENT_PROJECT_VERSION=1".to_owned()));
+        assert!(
+            !local
+                .iter()
+                .any(|argument| argument.starts_with("CODE_SIGN_STYLE"))
+        );
+        let export = rendered(&export_command(
+            directory,
+            Path::new("/repo"),
+            Some(&manual),
+        ));
+        assert_eq!(
+            export,
+            [
+                "-quiet",
+                "-exportArchive",
+                "-archivePath",
+                "/build/app-store-run/PublicPhonebook.xcarchive",
+                "-exportOptionsPlist",
+                "/build/app-store-run/ExportOptions.plist",
+                "-exportPath",
+                "/build/app-store-run/export"
+            ]
+        );
+        assert!(
+            rendered(&export_command(directory, Path::new("/repo"), None))
+                .contains(&"-allowProvisioningUpdates".to_owned())
+        );
+        Ok(())
+    }
 }
