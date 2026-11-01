@@ -229,14 +229,17 @@ describe("native D1 public API", () => {
       sourceCount: 1,
       sourceDatabaseSha256: "1".repeat(64),
       databaseSha256: "2".repeat(64),
-      files: ["contacts.jsonl.gz", "contacts.csv.gz", "contacts.vcf.gz"].map(
-        (file) => ({
-          file,
-          sha256: "3".repeat(64),
-          bytes: 1,
-          url: `/api/datasets/${snapshot}/${"3".repeat(64)}/${file}`,
-        }),
-      ),
+      files: [
+        "contacts.jsonl.gz",
+        "contacts.csv.gz",
+        "contacts.vcf.gz",
+        "directory.tsv.br",
+      ].map((file) => ({
+        file,
+        sha256: "3".repeat(64),
+        bytes: 1,
+        url: `/api/datasets/${snapshot}/${"3".repeat(64)}/${file}`,
+      })),
     };
     const first = JSON.stringify(manifest);
     expect(v.safeParse(DatasetManifestSchema, manifest).success).toBe(true);

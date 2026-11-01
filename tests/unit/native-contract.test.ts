@@ -1,7 +1,10 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { brotliDecompressSync } from "node:zlib";
 import * as v from "valibot";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DirectoryDiscoverySchema } from "../../src/core/api-contract.ts";
+import { decodeDirectoryArchive } from "../../src/core/directory-archive.ts";
 import {
   DigestSchema,
   GroupedSearchResponseSchema,
@@ -71,8 +74,24 @@ describe("shared native API contract", () => {
       expect(response.headers.get("X-Dataset-Snapshot")).toBe(
         manifest.snapshot,
       );
+      expect(response.headers.get("Content-Type")).toBe(
+        file.file === "directory.tsv.br"
+          ? "application/octet-stream"
+          : "application/gzip",
+      );
+      expect(response.headers.get("Content-Disposition")).toBe(
+        `attachment; filename="${file.file}"`,
+      );
+      expect(response.headers.get("Content-Encoding")).toBeNull();
       expect((await response.arrayBuffer()).byteLength).toBe(file.bytes);
     }
+    expect(
+      (
+        await request(
+          `/api/v1/datasets/${manifest.snapshot}/${"0".repeat(64)}/directory.tsv`,
+        )
+      ).status,
+    ).toBe(404);
   });
   it("exports only the requested bounded region and category as vCards with pinned continuation", async () => {
     const response = await request(
@@ -144,7 +163,41 @@ describe("shared native API contract", () => {
       ),
     );
     const actual = await contractResponses();
-    expect(actual.length).toBeGreaterThanOrEqual(10);
+    const discovery = v.parse(
+      DirectoryDiscoverySchema,
+      JSON.parse(actual[0]?.body ?? ""),
+    );
+    const manifest = v.parse(
+      VersionedDatasetManifestSchema,
+      JSON.parse(actual[2]?.body ?? ""),
+    );
+    const file = manifest.files.find(
+      (item) => item.file === "directory.tsv.br",
+    );
+    expect(actual.map((response) => response.path)).toEqual([
+      "/api/v1",
+      discovery.catalog,
+      discovery.datasets,
+      file?.url,
+    ]);
+    const archive = actual[3];
+    expect(archive?.encoding).toBe("base64");
+    expect(archive?.headers["Content-Type"]).toBe("application/octet-stream");
+    const bytes = Uint8Array.from(atob(archive?.body ?? ""), (character) =>
+      character.charCodeAt(0),
+    );
+    expect(bytes.byteLength).toBe(file?.bytes);
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(file?.sha256);
+    const decoded = decodeDirectoryArchive(
+      new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(
+        brotliDecompressSync(bytes),
+      ),
+    );
+    expect(decoded.header.snapshot).toBe(discovery.snapshot);
+    expect(decoded.rows).toHaveLength(manifest.contacts);
+    expect(actual.slice(0, 3).every((response) => !response.encoding)).toBe(
+      true,
+    );
     expect(actual).toEqual(expected);
   });
 

@@ -5,11 +5,21 @@ import { mkdir, rename, stat, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { pipeline } from "node:stream/promises";
-import { createGzip } from "node:zlib";
+import {
+  type BrotliOptions,
+  brotliCompressSync,
+  constants,
+  createBrotliCompress,
+  createGzip,
+} from "node:zlib";
 import { stringify } from "csv-stringify/sync";
 import * as v from "valibot";
 import { normalizeAddress } from "../src/core/address.ts";
 import { categoryDefinitions, prefectureNames } from "../src/core/catalog.ts";
+import {
+  directoryArchiveEncoder,
+  directoryArchiveFile,
+} from "../src/core/directory-archive.ts";
 import {
   type Catalog,
   CatalogSchema,
@@ -28,7 +38,28 @@ import { importContact, importSource } from "./import-contact.ts";
 const preparationProgressInterval = 100000;
 const prefectureCodeWidth = 2;
 const archiveCompressionLevel = 6;
+const directoryArchiveQuality = 11;
+const directoryArchiveWindowBits = 24;
 const jsonIndentation = 2;
+
+export function directoryArchiveCompression(bytes: number): BrotliOptions {
+  return {
+    params: {
+      [constants.BROTLI_PARAM_MODE]: constants.BROTLI_MODE_TEXT,
+      [constants.BROTLI_PARAM_QUALITY]: directoryArchiveQuality,
+      [constants.BROTLI_PARAM_LGWIN]: directoryArchiveWindowBits,
+      [constants.BROTLI_PARAM_SIZE_HINT]: bytes,
+    },
+  };
+}
+
+export function compressDirectoryArchive(text: string): Uint8Array {
+  const bytes = new TextEncoder().encode(text);
+  return brotliCompressSync(
+    bytes,
+    directoryArchiveCompression(bytes.byteLength),
+  );
+}
 
 interface SnapshotInput {
   readonly generatedAt: string;
@@ -135,6 +166,7 @@ export async function prepareSnapshot(
     flags: "wx",
   });
   const hash = createHash("sha256");
+  const archive = directoryArchiveEncoder();
   const categoryCounts = new Map<string, number>();
   const prefectureCounts = new Map<string, number>();
   const municipalities = new Map<
@@ -229,6 +261,7 @@ export async function prepareSnapshot(
       );
       for (const phone of contact.phones) phoneInsert.run(phone.e164, contacts);
       searchInsert.run(contacts, nameTokens(normalized).join(" "));
+      archive.add(contact);
       categoryCounts.set(
         contact.category,
         (categoryCounts.get(contact.category) ?? 0) + 1,
@@ -331,6 +364,26 @@ export async function prepareSnapshot(
         url: `/api/datasets/${snapshot}/${sha256}/${file}.gz`,
       });
     }
+    const directoryBytes = new TextEncoder().encode(
+      archive.finish({ snapshot, catalog, sources }),
+    );
+    const directoryPath = join(destination, "directory.tsv");
+    await writeFile(directoryPath, directoryBytes, { flag: "wx" });
+    const archivePath = join(destination, directoryArchiveFile);
+    await pipeline(
+      createReadStream(directoryPath),
+      createBrotliCompress(
+        directoryArchiveCompression(directoryBytes.byteLength),
+      ),
+      createWriteStream(archivePath, { flags: "wx" }),
+    );
+    const archiveSha256 = await fileDigest(archivePath);
+    files.push({
+      file: directoryArchiveFile,
+      sha256: archiveSha256,
+      bytes: (await stat(archivePath)).size,
+      url: `/api/datasets/${snapshot}/${archiveSha256}/${directoryArchiveFile}`,
+    });
     await writeFile(
       join(destination, "catalog.json"),
       `${JSON.stringify(catalog)}\n`,

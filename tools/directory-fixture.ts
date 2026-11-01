@@ -1,10 +1,20 @@
 import { createHash } from "node:crypto";
-import { gzipSync } from "node:zlib";
+import { createReadStream } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { createInterface } from "node:readline";
+import { createGunzip, gzipSync } from "node:zlib";
 import { Miniflare } from "miniflare";
 import * as v from "valibot";
 import { DirectoryDiscoverySchema } from "../src/core/api-contract.ts";
 import { categoryDefinitions, prefectureNames } from "../src/core/catalog.ts";
 import {
+  type DirectoryArchiveSource,
+  directoryArchiveEncoder,
+  directoryArchiveFile,
+  encodeDirectoryArchive,
+} from "../src/core/directory-archive.ts";
+import {
+  type Catalog,
   CatalogSchema,
   ContactSchema,
   DatasetManifestSchema,
@@ -14,6 +24,7 @@ import { nameTokens, normalizeName } from "../src/core/search.ts";
 import { contactVCard } from "../src/core/vcard.ts";
 import { api, type DirectoryApiBindings } from "../src/server/api.ts";
 import { databaseSchema } from "./database-schema.ts";
+import { compressDirectoryArchive } from "./snapshot.ts";
 
 export const contractOrigin = "https://contract.example";
 export const fixturePort = 3100;
@@ -36,6 +47,51 @@ const sourceIndexUrl = "https://example.com/provider-list";
 
 function prefectureCode(index: number): string {
   return String(index + 1).padStart(prefectureCodeDigits, "0");
+}
+
+interface RealDirectory {
+  readonly catalog: Catalog;
+  readonly archive: Uint8Array;
+}
+
+async function readRealDirectory(
+  snapshot: string,
+): Promise<RealDirectory | null> {
+  const contactsPath = process.env.PHONEBOOK_FIXTURE_CONTACTS;
+  const catalogPath = process.env.PHONEBOOK_FIXTURE_CATALOG;
+  if (!contactsPath && !catalogPath) return null;
+  if (!contactsPath || !catalogPath)
+    throw new Error(
+      "Set both PHONEBOOK_FIXTURE_CONTACTS and PHONEBOOK_FIXTURE_CATALOG",
+    );
+  const decoded: unknown = JSON.parse(await readFile(catalogPath, "utf8"));
+  const catalog = { ...v.parse(CatalogSchema, decoded), snapshot };
+  const file = createReadStream(contactsPath);
+  const lines = createInterface({
+    input: contactsPath.endsWith(".gz") ? file.compose(createGunzip()) : file,
+    crlfDelay: Number.POSITIVE_INFINITY,
+  });
+  const encoder = directoryArchiveEncoder();
+  const sources = new Map<string, DirectoryArchiveSource>();
+  let contacts = 0;
+  for await (const line of lines) {
+    if (!line) continue;
+    const value: unknown = JSON.parse(line);
+    const contact = v.parse(ContactSchema, value);
+    const [url] = contact.sourceUrls;
+    if (url && !sources.has(contact.sourceId))
+      sources.set(contact.sourceId, { id: contact.sourceId, url });
+    encoder.add(contact);
+    contacts += 1;
+  }
+  if (contacts !== catalog.contacts)
+    throw new Error("The real fixture contacts differ from their catalog");
+  return {
+    catalog,
+    archive: compressDirectoryArchive(
+      encoder.finish({ snapshot, catalog, sources: [...sources.values()] }),
+    ),
+  };
 }
 
 export async function directoryFixture(
@@ -94,7 +150,7 @@ export async function directoryFixture(
                 ? "試験歯科 <script> & Test, clinic"
                 : `Test facility <script> ${category}`,
           address: special
-            ? "Test, address;\nSuite 2\\東"
+            ? "Test, address; Suite 2\\東"
             : "Test address; floor 1",
           phones: [
             { display: "03-0000-0000", e164: "+81300000000" },
@@ -218,9 +274,11 @@ export async function directoryFixture(
       duplicate: 0,
       issues: {},
     });
+    const real = await readRealDirectory(snapshot);
+    const published = real?.catalog ?? catalog;
     await DB.batch([
       DB.prepare("INSERT INTO metadata VALUES ('catalog', ?)").bind(
-        JSON.stringify(catalog),
+        JSON.stringify(published),
       ),
       DB.prepare("INSERT INTO sources VALUES (?, ?)").bind(
         source.id,
@@ -228,12 +286,22 @@ export async function directoryFixture(
       ),
     ]);
     const files = [];
-    for (const [file, content] of [
-      ["contacts.jsonl.gz", jsonl],
-      ["contacts.csv.gz", "fixture\n"],
-      ["contacts.vcf.gz", contacts.map(contactVCard).join("")],
+    for (const [file, bytes] of [
+      ["contacts.jsonl.gz", gzipSync(jsonl)],
+      ["contacts.csv.gz", gzipSync("fixture\n")],
+      ["contacts.vcf.gz", gzipSync(contacts.map(contactVCard).join(""))],
+      [
+        directoryArchiveFile,
+        real?.archive ??
+          compressDirectoryArchive(
+            encodeDirectoryArchive(contacts, {
+              snapshot,
+              catalog,
+              sources: [source],
+            }),
+          ),
+      ],
     ] as const) {
-      const bytes = gzipSync(content);
       const sha256 = createHash("sha256").update(bytes).digest("hex");
       await bucket.put(`${snapshot}/${sha256}/${file}`, bytes);
       files.push({
@@ -245,10 +313,10 @@ export async function directoryFixture(
     }
     const manifest = v.parse(DatasetManifestSchema, {
       snapshot,
-      generatedAt: catalog.generatedAt,
-      contacts: contacts.length,
-      phones: fixturePhoneCount,
-      sourceCount: 1,
+      generatedAt: published.generatedAt,
+      contacts: published.contacts,
+      phones: published.phones,
+      sourceCount: published.sourceCount,
       sourceDatabaseSha256: "c".repeat(sha256HexLength),
       databaseSha256: "d".repeat(sha256HexLength),
       files,
