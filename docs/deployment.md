@@ -123,10 +123,46 @@ Browser checks reject scripts from other origins and verify that an inserted ext
 The publisher hashes build output before deployment and after provider provisioning.
 Public Playwright checks exercise desktop and narrow search, telephone formatting, detail and provenance navigation, the interactive Scalar client, accessibility, security-policy failures, and the 512-byte query boundary.
 They also download every archive through HTTPS and compare its byte length and SHA-256 with the checked manifest.
-Receipts and failure evidence stay under `.local/releases` and `test-results`.
+Failure evidence stays under `test-results`.
+
+### Control store
+
+Publication records live in the private R2 bucket `dial-control`, which the tools reach through the S3 API.
+The tools read `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` from the environment and never print them.
+Conditional writes keep one writer per object: a create sends `If-None-Match: *`, a replacement sends `If-Match` with the stored entity tag, and R2 answers 412 to the loser.
+
+| Key | Contents | Writes |
+| --- | --- | --- |
+| `blobs/sha256/DIGEST` | Databases and archives | Once |
+| `datasets/MANIFEST/` | Ready manifest and catalog for verification | Once |
+| `collections/REPORT/`, `collection-cache/` | Collection reports and cached sources | Once |
+| `candidates/TREE/MANIFEST/STAGE.json` | Candidate evidence per stage | Once |
+| `journals/ENV/head.json` | Current publication journal | Conditional replacement |
+| `journals/ENV/history/SEQUENCE.json` | Every journal record | Append-only, bucket lock |
+| `leases/ENV.json` | Publication lease | Conditional replacement |
+| `evidence/` | Imported receipts and release evidence | Append-only, bucket lock |
+
+Journal format 2 records the environment, sequence, phase, candidate, predecessor, and run provenance.
+The provenance names the Actions repository, workflow, run ID, attempt, commit, and actor, or `local` for owner recovery.
+Verification reads the manifest and catalog from `datasets/MANIFEST/`, so the journal holds no local path.
+Each publication command holds the environment's lease, which lasts 10 minutes, renews every 60 seconds, and expires by R2's response time.
+A second publisher is refused while the lease is live and can take it over after it expires.
+The [control bucket decision](adr/keep-release-records-in-a-conditionally-written-control-bucket.md) explains the format and the lease.
+
+Import the owner's format 1 records once, after checking the plan.
+
+```sh
+mise x -- just control-import ../public-phonebook-typescript/.local --plan
+mise x -- just control-import ../public-phonebook-typescript/.local
+```
+
+The plan prints each history record, dataset, verified blob, and receipt with its key, size, and digest, and it writes nothing.
+The import converts a journal only when its bundle name and manifest bytes match the recorded manifest digest.
+It refuses to replace a different journal head, and repeating it changes nothing.
+Run the second command with the control-store credentials in the environment.
 
 The previous Worker and its data remain available while the new staging service is checked.
-The publication journal records the predecessor's exact version and bindings before activation.
+The publication journal in the control store records the predecessor's exact version and bindings before activation.
 Failure restores the complete predecessor and verifies it before recording recovery.
 `mise x -- just release-status staging` reads the journal and active provider version.
 `mise x -- just recover staging` retries interrupted recovery without building or deploying a new candidate.
@@ -144,7 +180,7 @@ Do not discard journals or edit them to make a foreign deployment pass.
 `mise x -- just release-retention production` prints a read-only database retirement plan.
 Active, rollback, and pending resources remain protected, and all published R2 download URLs remain retained.
 The command never deletes resources.
-Preserve `.local/releases` and its verification bundles for recovery.
+The control store keeps the journals and verification bundles for recovery.
 Provider provisioning, network delivery, and the truth of upstream records remain external trust boundaries.
 Read the [recovery decision](adr/recover-complete-worker-and-dataset-publications.md), [promotion decision](adr/source-tree-bound-staging-promotion.md), and [verification contract](verification.md) for their checks and limits.
 

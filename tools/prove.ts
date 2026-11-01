@@ -14,6 +14,11 @@ const declaredPostconditionCount = 69;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
+const releaseControlVerifiedUnits = 3;
+const releaseControlPostconditions = 11;
+const provenUnitCount = verifiedUnitCount + releaseControlVerifiedUnits;
+const provenPostconditionCount =
+  declaredPostconditionCount + releaseControlPostconditions;
 
 const expected = [
   "canFetchNext",
@@ -34,6 +39,8 @@ const expected = [
   "sourceRowsAccounted",
   "stagingAdmission",
   "recoveryDecision",
+  "leaseAdmission",
+  "evidenceAdmission",
   "canRetireResource",
   "retainsCoverage",
   "bootstrapAdmission",
@@ -73,6 +80,12 @@ const boundFiles = [
   "tools/release-lifecycle.ts",
   "tools/release-provider.ts",
   "tools/release-store.ts",
+  "tools/control-store.ts",
+  "tools/control-lease.ts",
+  "tools/control-import.ts",
+  "tests/unit/control-store.test.ts",
+  "tests/unit/control-lease.test.ts",
+  "tests/unit/control-import.test.ts",
   "tools/release-retention.ts",
   "tools/release.ts",
   "tools/release-rehearsal.ts",
@@ -301,7 +314,7 @@ async function main(): Promise<void> {
         (sum, source) =>
           sum + [...source.matchAll(/^\s*\/\/@ ensures /gm)].length,
         0,
-      ) !== declaredPostconditionCount
+      ) !== provenPostconditionCount
     )
       throw new Error("The declared postcondition inventory changed");
     for (const path of proofSources) await generateModel(path);
@@ -348,7 +361,7 @@ async function main(): Promise<void> {
     if (
       positive.code !== 0 ||
       !new RegExp(
-        `finished with ${verifiedUnitCount} verified, 0 errors`,
+        `finished with ${provenUnitCount} verified, 0 errors`,
         "u",
       ).test(positive.output)
     )
@@ -555,6 +568,16 @@ async function main(): Promise<void> {
         name: "bootstrap-ownership",
         from: "return !previousPresent && !terminal && owned && versionMatches;",
         to: "return !previousPresent && !terminal && versionMatches;",
+      },
+      {
+        name: "lease-expiry",
+        from: "if (serverTimeMs >= expiresAtMs) return",
+        to: "if (serverTimeMs > expiresAtMs) return",
+      },
+      {
+        name: "evidence-signer",
+        from: '  if (signer !== expectedSigner) return "different-signer";\n',
+        to: "",
       },
     ]) {
       const brokenPublication = publicationSource.replace(
@@ -783,8 +806,8 @@ async function main(): Promise<void> {
           image,
           models: modelBindings,
           contracts: expected,
-          verifiedUnits: verifiedUnitCount,
-          postconditions: declaredPostconditionCount,
+          verifiedUnits: provenUnitCount,
+          postconditions: provenPostconditionCount,
           semantics:
             "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
           negativeControl:
@@ -837,8 +860,8 @@ async function main(): Promise<void> {
     console.info(
       JSON.stringify({
         operation: "proof",
-        verifiedUnits: verifiedUnitCount,
-        postconditions: declaredPostconditionCount,
+        verifiedUnits: provenUnitCount,
+        postconditions: provenPostconditionCount,
         negativeControl: "rejected",
         receiptControls: "rejected",
         result: "verified",
@@ -861,8 +884,8 @@ if (process.argv[commandArgumentOffset] === "--check-receipt") {
       ),
       models: v.array(v.object({ path: v.string(), sha256: v.string() })),
       contracts: v.array(v.string()),
-      verifiedUnits: v.literal(verifiedUnitCount),
-      postconditions: v.literal(declaredPostconditionCount),
+      verifiedUnits: v.literal(provenUnitCount),
+      postconditions: v.literal(provenPostconditionCount),
       result: v.literal("verified"),
     }),
     receipt,

@@ -43,6 +43,16 @@ export const environments = {
   }
 >;
 
+export const releaseControl = {
+  repository: "P4suta/public-phonebook",
+  candidateWorkflow: ".github/workflows/candidate.yml",
+  releaseWorkflow: "release.yml",
+  releaseBranch: "main",
+  bucket: "dial-control",
+  storageHost: "r2.cloudflarestorage.com",
+  storageRegion: "auto",
+} as const;
+
 export function deploymentEnvironment(mode: string | undefined): Environment {
   return v.parse(EnvironmentSchema, mode ?? "development");
 }

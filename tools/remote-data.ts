@@ -5,7 +5,9 @@ import { manifestObjectKey } from "../src/core/dataset-storage.ts";
 import { databaseResourceName, environments } from "../src/core/environment.ts";
 import { checkDataBundle } from "./check-data.ts";
 import { cloudflare, remoteSql } from "./cloudflare.ts";
-import { releaseLock } from "./release-store.ts";
+import { acquireLease } from "./control-lease.ts";
+import { controlStoreFromEnvironment } from "./control-store.ts";
+import { runProvenance } from "./release-store.ts";
 import { checkImportIdentity, seedDatabase } from "./seed-database.ts";
 import { fileDigest } from "./snapshot.ts";
 
@@ -25,7 +27,11 @@ async function main(args: readonly string[]): Promise<void> {
   );
   const directory = resolve(".local/remote-data");
   await mkdir(directory, { recursive: true });
-  const unlock = await releaseLock(environment);
+  const lease = await acquireLease(
+    controlStoreFromEnvironment(),
+    environment,
+    runProvenance(),
+  );
   try {
     const manifest = await checkDataBundle(resolve(bundle));
     const manifestSha256 = await fileDigest(
@@ -137,7 +143,7 @@ async function main(args: readonly string[]): Promise<void> {
       `${JSON.stringify({ environment, snapshot: manifest.snapshot, manifestSha256, databaseSha256: manifest.databaseSha256, database: database.uuid, databaseName, bucket: target.bucket, contacts: manifest.contacts, result: "verified" }, null, jsonIndentation)}\n`,
     );
   } finally {
-    await unlock();
+    await lease.release();
   }
 }
 
