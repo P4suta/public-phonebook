@@ -1,0 +1,98 @@
+import { describe, expect, it } from "vitest";
+import {
+  localPageSize,
+  localPreviewSize,
+} from "../../src/core/local-search.ts";
+import {
+  groupPrecedes,
+  type IndexReadiness,
+  indexAdmission,
+  nameRankAt,
+  nextVisible,
+  searchSource,
+} from "../../src/core/local-search-policy.ts";
+import { nameRank, parseSearch, rankName } from "../../src/core/search.ts";
+import { previewLimit } from "../../src/core/search-policy.ts";
+
+const readiness: readonly IndexReadiness[] = [
+  "loading",
+  "ready",
+  "unavailable",
+];
+const booleans = [false, true] as const;
+
+describe("local search decisions", () => {
+  it("ranks a match position exactly like the server's name rank", () => {
+    const names = ["図書館", "図書館分館", "市立図書館", "館", "a", "ab", "ba"];
+    const queries = ["図書館", "館", "a", "b", "ab", "書館分"];
+    for (const name of names)
+      for (const query of queries) {
+        const rank = nameRankAt(name.indexOf(query), name.length, query.length);
+        expect(rank).toBe(name.includes(query) ? rankName(name, query) : -1);
+      }
+    expect([
+      nameRankAt(0, 3, 3),
+      nameRankAt(0, 4, 3),
+      nameRankAt(1, 4, 3),
+    ]).toEqual([nameRank.exact, nameRank.prefix, nameRank.substring]);
+  });
+
+  it("orders entries by rank and then by row", () => {
+    const entries = [
+      [0, 5],
+      [0, 9],
+      [1, 0],
+      [2, 1],
+      [2, 3],
+    ] as const;
+    for (const [leftIndex, [rank, row]] of entries.entries())
+      for (const [rightIndex, [otherRank, otherRow]] of entries.entries())
+        expect(groupPrecedes(rank, row, otherRank, otherRow)).toBe(
+          leftIndex < rightIndex,
+        );
+  });
+
+  it("searches on the device only once the index is ready and never mid-composition", () => {
+    for (const queried of booleans)
+      for (const composing of booleans)
+        for (const index of readiness) {
+          const source = searchSource(queried, composing, index);
+          if (composing || !queried) expect(source).toBe("wait");
+          else expect(source).toBe(index === "ready" ? "local" : "server");
+        }
+  });
+
+  it("continues a category by one server page without passing its total", () => {
+    expect(nextVisible(0, 0)).toBe(0);
+    expect(nextVisible(0, 7)).toBe(7);
+    expect(nextVisible(3, 100)).toBe(33);
+    expect(nextVisible(33, 100)).toBe(63);
+    expect(nextVisible(93, 100)).toBe(100);
+    expect(nextVisible(100, 100)).toBe(100);
+  });
+
+  it("admits an index only when every check passes and names the first failure", () => {
+    expect(indexAdmission(10, 10, true, true, true, true)).toBe("admitted");
+    expect(indexAdmission(9, 10, true, true, true, true)).toBe(
+      "length_mismatch",
+    );
+    expect(indexAdmission(10, 10, false, false, false, false)).toBe(
+      "digest_mismatch",
+    );
+    expect(indexAdmission(10, 10, true, false, false, false)).toBe(
+      "signature_mismatch",
+    );
+    expect(indexAdmission(10, 10, true, true, false, false)).toBe("malformed");
+    expect(indexAdmission(10, 10, true, true, true, false)).toBe(
+      "snapshot_mismatch",
+    );
+  });
+
+  it("uses the server's default page and preview sizes", () => {
+    const parsed = parseSearch(new URLSearchParams());
+    if (!parsed.ok) throw new Error("The empty search must parse");
+    expect(localPageSize).toBe(parsed.value.limit);
+    expect(localPreviewSize).toBe(previewLimit(parsed.value.limit));
+    expect(nextVisible(0, localPageSize + 1)).toBe(parsed.value.limit);
+  });
+});
