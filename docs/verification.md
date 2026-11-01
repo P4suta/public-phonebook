@@ -16,7 +16,7 @@ The workflow checks run actionlint over every workflow and zizmor offline with t
 Offline mode leaves out zizmor's online audits, so the result doesn't depend on network access or a token.
 The typed policy in `tools/workflow-policy.ts` also checks every workflow and local composite action.
 It requires explicit permissions on every workflow and job, and every top-level block must be empty.
-It allows only `actions/checkout`, `actions/cache`, `actions/upload-artifact`, and `jdx/mise-action`, each pinned to a full commit SHA.
+It allows only `actions/checkout`, `actions/cache`, `actions/upload-artifact`, `actions/download-artifact`, `dopplerhq/secrets-fetch-action`, and `jdx/mise-action`, each pinned to a full commit SHA.
 It rejects `inputs` or `github.event` expressions inside a `run:` script, which must receive those values through `env:`.
 Its unit tests keep a violating workflow for every rule as a negative control.
 
@@ -28,6 +28,7 @@ The formal job runs `just prove` and `just ios-prove`, and the native job runs `
 The manual `assurance` input starts both jobs for any change and adds the sanitizer and mutation campaigns.
 The national multi-browser campaign remains outside the per-change CI gate.
 The manual runner probe workflow reports the processor, memory, disk, Xcode versions, and simulators of the hosted runners.
+The manual TestFlight workflow reruns the native, Lean, sanitizer, and mutation checks for one `main` commit before its signed delivery.
 
 No owned source may use unchecked assertions, explicit any, floating promises, or unsafe dynamic values.
 External inputs are unknown until Valibot validates them.
