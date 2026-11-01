@@ -97,6 +97,11 @@ describe("file control store", () => {
 
   it("refuses to replace write-once and append-only keys", async () => {
     const store = fileControlStore(directory);
+    await expect(
+      store.write(`${digest}/${digest}/contacts.csv.gz`, bytes("x"), {
+        kind: "create",
+      }),
+    ).rejects.toThrow("Unsupported control key");
     for (const key of [
       controlKeys.blob(digest),
       controlKeys.journalHistory("staging", 1),
