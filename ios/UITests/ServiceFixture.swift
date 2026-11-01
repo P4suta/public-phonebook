@@ -45,8 +45,8 @@ final class ServiceFixture: Sendable {
     parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
     let listener = try NWListener(using: parameters)
     self.listener = listener
+    // The default request deadline outlasts the app's own, so the app decides when a request fails.
     let configuration = URLSessionConfiguration.ephemeral
-    configuration.timeoutIntervalForRequest = 15
     configuration.httpShouldSetCookies = false
     let session = URLSession(configuration: configuration)
     self.session = session
