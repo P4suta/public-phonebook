@@ -6,11 +6,28 @@ The previous Rust checks describe the previous implementation and do not verify 
 ## Required fast gate
 
 Run `mise x -- just check`.
-It runs strict TypeScript checking, Biome, type-aware Oxlint, deterministic unit and property tests, a complete client and Worker build, dependency auditing, a publishable-file secret scan, workflow validation, and built-browser design checks.
-The browser check creates a separate local D1 and R2 fixture and uses port 8790.
+It runs strict TypeScript checking, Biome, type-aware Oxlint, deterministic unit and property tests, and a complete client and Worker build.
+It also runs dependency auditing, a publishable-file secret scan, workflow checks, and built-browser checks.
+The browser check creates a separate local D1 and R2 fixture with three contacts and uses port 8790.
+It covers the design, contact, API reference, external-link, information, CSP, privacy, search, search-trigger, and startup cases that need no national archive.
 It requires no owner-specific service, credentials, or national archive.
-CI runs the same command on Linux with pinned tools and immutable action revisions.
-Proofs and the national multi-browser campaign remain outside the per-change CI gate.
+
+The workflow checks run actionlint over every workflow and zizmor offline with the pedantic persona over `.github`.
+Offline mode leaves out zizmor's online audits, so the result doesn't depend on network access or a token.
+The typed policy in `tools/workflow-policy.ts` also checks every workflow and local composite action.
+It requires explicit permissions on every workflow and job, and every top-level block must be empty.
+It allows only `actions/checkout`, `actions/cache`, `actions/upload-artifact`, and `jdx/mise-action`, each pinned to a full commit SHA.
+It rejects `inputs` or `github.event` expressions inside a `run:` script, which must receive those values through `env:`.
+Its unit tests keep a violating workflow for every rule as a negative control.
+
+CI runs the same command on Linux with pinned tools, immutable action revisions, and no secrets.
+The `Checks` summary job is the required status check.
+A change-scope job lists the changed paths with Git and starts the formal and native assurance jobs only when their inputs change.
+`tools/change-scope.ts` declares those inputs, including the workflow, the shared toolchain action, `mise.toml`, and `justfile`.
+The formal job runs `just prove` and `just ios-prove`, and the native job runs `just ios-check` on the `xcode-27` runner.
+The manual `assurance` input starts both jobs for any change and adds the sanitizer and mutation campaigns.
+The national multi-browser campaign remains outside the per-change CI gate.
+The manual runner probe workflow reports the processor, memory, disk, Xcode versions, and simulators of the hosted runners.
 
 No owned source may use unchecked assertions, explicit any, floating promises, or unsafe dynamic values.
 External inputs are unknown until Valibot validates them.

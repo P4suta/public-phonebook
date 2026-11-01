@@ -43,8 +43,10 @@ Set `PHONEBOOK_FIXTURE_CONTACTS` and `PHONEBOOK_FIXTURE_CATALOG` to a production
 Run `mise x -- just ios-unit-test` for all compiled Swift package tests, strict lints, and coverage.
 Run `mise x -- just ios-check` for those checks, unsigned simulator and device builds, and the complete isolated simulator UI inventory.
 Run `mise x -- just ios-prove`, `mise x -- just ios-sanitize`, and `mise x -- just ios-mutate` for the heavier assurance checks.
-The manual Checks workflow accepts an assurance input for the same native and formal candidate checks.
-No commit, push, or ordinary pull request starts the macOS assurance campaign.
+A pull request that changes native inputs runs `just ios-check` on the hosted `xcode-27` runner.
+One that changes proof inputs runs `just prove` and `just ios-prove`.
+The manual Checks workflow accepts an assurance input that runs both jobs and adds the sanitizer and mutation campaigns.
+No commit, push, or pull request starts the sanitizer or mutation campaign.
 
 The full UI harness creates and erases its own simulator and reinstalls the app for every scenario.
 It turns off slide-to-type and its introduction, because that introduction can cover the screen under test.
