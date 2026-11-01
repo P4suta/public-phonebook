@@ -1,6 +1,7 @@
 import * as v from "valibot";
 import { SearchResponseSchema } from "../../src/core/models.ts";
 import { expect, test } from "./fixtures.ts";
+import { saveData } from "./search-sources.ts";
 
 test("missing facilities and malformed searches have usable error pages", async ({
   page,
@@ -16,11 +17,15 @@ test("missing facilities and malformed searches have usable error pages", async 
   await expect(
     page.getByRole("link", { name: "さがす画面にもどる" }),
   ).toBeVisible();
-  for (const query of ["prefecture=99", "__proto__=x", "constructor=x"]) {
+  for (const query of [
+    "q=x&category=unknown",
+    "__proto__=x",
+    "constructor=x",
+  ]) {
     const invalid = await page.goto(`/?${query}`);
     expect(invalid?.status(), query).toBe(400);
     await expect(
-      page.getByRole("heading", { name: "名前や地域をたしかめてください" }),
+      page.getByRole("heading", { name: "さがす名前をたしかめてください" }),
     ).toBeVisible();
   }
 });
@@ -38,11 +43,13 @@ test("search and cursor continuation work without JavaScript", async ({
     const page = await context.newPage();
     await page.goto("/");
     await page.getByRole("searchbox").fill("図書館");
-    await page.getByLabel("都道府県", { exact: true }).selectOption("13");
-    await page
-      .getByLabel("施設や窓口の種類", { exact: true })
-      .selectOption("library");
     await page.getByRole("button", { name: "電話番号をさがす" }).click();
+    await expect(page.locator("[data-result-category]").first()).toBeVisible();
+    await page
+      .locator('[data-result-category="library"]')
+      .getByRole("link", { name: "図書館をもっと見る" })
+      .click();
+    await expect(page).toHaveURL(/category=library/);
     await expect(page.locator("article")).toHaveCount(30);
     const firstIds = await page
       .locator("article")
@@ -84,13 +91,11 @@ test("input entered before enhancement is preserved", async ({ page }) => {
   });
   await page.goto("/", { waitUntil: "commit" });
   await page.getByRole("searchbox").fill("国立国会図書館");
-  await page.getByLabel("都道府県", { exact: true }).selectOption("13");
   release?.();
   await expect(page.locator("article").first().getByRole("heading")).toHaveText(
     "国立国会図書館",
   );
   await expect(page.getByRole("searchbox")).toHaveValue("国立国会図書館");
-  await expect(page.getByLabel("都道府県", { exact: true })).toHaveValue("13");
 });
 
 test("IME composition is committed as one search", async ({ page }) => {
@@ -127,7 +132,8 @@ test("failed continuation preserves rows and can be retried", async ({
       });
     } else await route.continue();
   });
-  await page.goto("/?q=図書館&prefecture=13&category=library");
+  await saveData(page);
+  await page.goto("/?q=図書館&category=library");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
   await expect(page.locator("article")).toHaveCount(30);
   await page
@@ -163,7 +169,8 @@ test("mixed-snapshot continuation offers a clean restart", async ({
       });
     } else await route.continue();
   });
-  await page.goto("/?q=図書館&prefecture=13&category=library");
+  await saveData(page);
+  await page.goto("/?q=図書館&category=library");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
   await page
     .getByRole("link", { name: "図書館をもっと見る" })
@@ -175,7 +182,6 @@ test("mixed-snapshot continuation offers a clean restart", async ({
   await restart.click();
   await expect(page.locator("article")).toHaveCount(30);
   await expect(page.getByRole("searchbox")).toHaveValue("図書館");
-  await expect(page.getByLabel("都道府県", { exact: true })).toHaveValue("13");
   await expect(page).not.toHaveURL(/cursor=/);
 });
 
@@ -187,6 +193,7 @@ test("untrusted result text is rendered as text", async ({ page, request }) => {
   const first = result.data[0];
   if (!first) throw new Error("Missing security fixture");
   const name = '<img src=x onerror="alert(1)">';
+  await saveData(page);
   await page.route("**/api/contact-groups?**", async (route) => {
     await route.fulfill({
       json: {

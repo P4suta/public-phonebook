@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test";
 import * as v from "valibot";
 import { GroupedSearchResponseSchema } from "../../src/core/models.ts";
 import { expect, test } from "./fixtures.ts";
+import { saveData, waitForLocalSearch } from "./search-sources.ts";
 
 test.use({ video: "on", screenshot: "off" });
 
@@ -56,8 +57,12 @@ test("an exact facility name leads its own category under the category heading",
   await expect(
     page.locator('[data-result-category="library"] article'),
   ).toHaveCount(3);
-  await expect(groups.locator("article h2, article p")).toHaveCount(0);
+  await expect(groups.locator("article h2")).toHaveCount(0);
   await expect(groups.locator("article h3")).toHaveCount(7);
+  await expect(groups.locator("article h3 + p")).toHaveCount(7);
+  await expect(
+    groups.locator("article").getByText("大学", { exact: true }),
+  ).toHaveCount(0);
   const ids = await page
     .locator("[id]")
     .evaluateAll((nodes) => nodes.map((node) => node.id));
@@ -83,6 +88,7 @@ test("a broad search previews each kind and expands only the requested category"
   page.on("request", (request) => {
     if (new URL(request.url()).pathname === "/api/contacts") continuations += 1;
   });
+  await saveData(page);
   await page.goto("/?q=図書館");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
   const previewIds = expected.groups
@@ -126,9 +132,31 @@ test("a broad search previews each kind and expands only the requested category"
       ),
   ).toEqual(otherIds);
   expect(new URL(page.url()).searchParams.has("category")).toBe(false);
+});
+
+test("on the device, a continuation adds 30 cards without a request and focuses the first new card", async ({
+  page,
+}) => {
+  await page.goto("/?q=図書館");
+  await waitForLocalSearch(page);
+  const library = page.locator('[data-result-category="library"]');
+  await expect(library.locator("article a").first()).toHaveAttribute(
+    "href",
+    /^\/contacts\/row\//u,
+  );
+  const requests: string[] = [];
+  page.on("request", (request) => requests.push(request.url()));
+  const before = await library.locator("article").count();
+  await library
+    .getByRole("link", { name: "図書館をもっと見る", exact: true })
+    .click();
+  await expect(library.locator("article")).toHaveCount(before + 30);
+  const first = library.locator("article").nth(before);
   await expect(
-    page.getByLabel("施設や窓口の種類", { exact: true }),
-  ).toHaveValue("");
+    first.getByRole("link", { name: /の情報を見る$/u }),
+  ).toBeFocused();
+  expect(requests).toEqual([]);
+  expect(new URL(page.url()).searchParams.has("category")).toBe(false);
 });
 
 test("each category continuation has a usable native link without JavaScript", async ({

@@ -9,7 +9,7 @@ Run `mise x -- just check`.
 It runs strict TypeScript checking, Biome, type-aware Oxlint, deterministic unit and property tests, and a complete client and Worker build.
 It also runs dependency auditing, a publishable-file secret scan, workflow checks, and built-browser checks.
 The browser check creates a separate local D1 and R2 fixture with three contacts and uses port 8790.
-It covers the design, contact, API reference, external-link, information, CSP, privacy, row page, search, search-trigger, and startup cases that need no national archive.
+It covers the design, contact, API reference, external-link, information, CSP, privacy, row page, local search, search, search-trigger, and startup cases that need no national archive.
 It requires no owner-specific service, credentials, or national archive.
 
 The workflow checks run actionlint over every workflow and zizmor offline with the pedantic persona over `.github`.
@@ -51,8 +51,13 @@ Their 173-record fixture checks complete keyset traversal, combined filters, bou
 Those tests run the API in Node, which ignores a response's body encoding mode.
 A separate test bundles the API module into workerd and reads the raw HTTP response without decoding it.
 It requires the stored Brotli bytes of the search index with `Content-Encoding: br`, and fails when the runtime encodes the body again.
-The built-browser check covers the row page's redirect and update page, but it doesn't read the index body.
-The local preview server decodes a Worker's encoded body while it keeps the encoded length, so it can't deliver pre-encoded bytes intact.
+The built-browser checks serve the built Worker with `npm run preview`, which runs it in workerd behind workerd's own HTTPS socket.
+The Vite preview relayed each response through Node's fetch, which decoded the Brotli index but kept its encoded length, so the browser received a corrupted index.
+WebKit advertises Brotli only over HTTPS, so the server uses Miniflare's loopback certificate, and the browser contexts ignore its certificate errors.
+The browser checks load the index in every engine, compare results before and after the switch, and fall back when the published digest doesn't match.
+After the index loads, they require no `/api/contact*` request and no request that carries the search term, and they search offline.
+They also check save-data skipping, the changed-snapshot reload, old URL redirects, and the absence of IndexedDB, Service Worker, and Cache Storage data.
+Worker unit tests check the loading progress, the replacement of a stale index, and the fallback after a failed replacement.
 Planted duplicate categories, foreign-category rows, repeated identities, false totals, and mixed snapshots must fail response validation.
 Runtime initialization has a safety deadline rather than a performance assertion.
 A timeout supplies no behavioral evidence.
@@ -180,7 +185,7 @@ Production rejects a receipt for another dataset, source tree, format, or incomp
 Dirty development checkouts can run the same checks but produce no publication receipt.
 The publisher separately checks the proof receipt and the active staging publication.
 The browser campaign uses built client and Worker output.
-It covers automatic search, Japanese composition, early input, dependent regions, exact-name ranking, call/map/detail/source actions, external-link confirmation, denied clipboard access, native no-JavaScript continuation, retries, changed snapshots, untrusted result text, local assets, nonce handling, HTTP contracts, and complete-download hashes.
+It covers automatic search, Japanese composition, early input, on-device search and its switch from server results, offline search, old URL redirects, exact-name ranking, call/map/detail/source actions, external-link confirmation, denied clipboard access, native no-JavaScript continuation, retries, changed snapshots, untrusted result text, local assets, nonce handling, HTTP contracts, and complete-download hashes.
 It also queries every prefecture and category against native D1.
 Browser failures retain screenshots, videos, traces, and structured diagnostics under `test-results`.
 Design cases retain native video even on success.

@@ -4,34 +4,78 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
-import { type ReactElement, useEffect, useRef, useState } from "react";
-import { categoryDefinitions } from "../core/catalog.ts";
-import type { GroupedSearchResponse, SearchResponse } from "../core/models.ts";
+import {
+  type ReactElement,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { type Category, categoryDefinitions } from "../core/catalog.ts";
+import type { Contact, SearchResponse } from "../core/models.ts";
 import { checkPageChain } from "../core/page-chain.ts";
 import { canFetchNext } from "../core/search-policy.ts";
 import { type WebSearch, webSearchParameters } from "../core/web-search.ts";
 import { DirectoryError, getSearch } from "./client.ts";
-import { ContactCard, LoadingError } from "./components.tsx";
+import { LoadingError, ResultCard } from "./components.tsx";
 import { CategoryIcon } from "./icons.tsx";
+import type { ResultCardView } from "./result-cards.ts";
 import * as css from "./styles.css.ts";
 
+export type ResultSource = "server" | "local";
+
+export interface GroupView {
+  readonly category: Category;
+  readonly total: number;
+  readonly rows: readonly ResultCardView[];
+  readonly server: SearchResponse | null;
+}
+
+export type Continuation = (
+  category: Category,
+  visible: number,
+) => Promise<readonly ResultCardView[] | null>;
+
+type LocalProgress = "idle" | "loading" | "failed";
+
+const restartCodes: readonly string[] = [
+  "snapshot_changed",
+  "invalid_page",
+  "invalid_cursor",
+];
+
+/**
+ * Shows one category and continues it from the server or the device.
+ * Rows are keyed by position, so the same ranking from either source keeps its elements and focus.
+ */
 export function GroupResults({
   group,
+  source,
   search,
   snapshot,
-  returnTo,
+  toCard,
+  more,
+  onOpenRow,
 }: {
-  readonly group: GroupedSearchResponse["groups"][number];
+  readonly group: GroupView;
+  readonly source: ResultSource;
   readonly search: WebSearch;
   readonly snapshot: string;
-  readonly returnTo: string;
+  readonly toCard: (contact: Contact) => ResultCardView;
+  readonly more: Continuation;
+  readonly onOpenRow: (card: ResultCardView) => void;
 }): ReactElement | null {
   const categorySearch = { ...search, category: group.category };
   const key = webSearchParameters(categorySearch).toString();
   const queryKey = ["contact-category", snapshot, key];
   const client = useQueryClient();
   const sentinel = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLOListElement>(null);
+  const focusFrom = useRef<number | null>(null);
   const [expanded, setExpanded] = useState(Boolean(search.category));
+  const [localExtra, setLocalExtra] = useState<readonly ResultCardView[]>([]);
+  const [localProgress, setLocalProgress] = useState<LocalProgress>("idle");
   const label =
     categoryDefinitions.find((category) => category.id === group.category)
       ?.label ?? group.category;
@@ -56,42 +100,107 @@ export function GroupResults({
     },
     initialPageParam: search.cursor,
     getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
-    initialData: { pages: [group.results], pageParams: [search.cursor] },
+    ...(group.server
+      ? { initialData: { pages: [group.server], pageParams: [search.cursor] } }
+      : {}),
+    enabled: false,
     staleTime: Infinity,
     retry: (count, error) =>
-      !(
-        error instanceof DirectoryError &&
-        ["snapshot_changed", "invalid_page", "invalid_cursor"].includes(
-          error.code,
-        )
-      ) && count < 1,
+      !(error instanceof DirectoryError && restartCodes.includes(error.code)) &&
+      count < 1,
   });
-  const { hasNextPage, isFetching, isError, fetchNextPage } = query;
+  const serverRows = useMemo(
+    () => query.data?.pages.flatMap((page) => page.data.map(toCard)) ?? [],
+    [query.data, toCard],
+  );
+  const localRows = useMemo(
+    () => [...group.rows, ...localExtra],
+    [group.rows, localExtra],
+  );
+  const catchingUp = source === "local" && localRows.length < serverRows.length;
+  const rows = source === "server" || catchingUp ? serverRows : localRows;
+  const hasMore =
+    source === "server"
+      ? Boolean(query.hasNextPage)
+      : !catchingUp && rows.length < group.total;
+  const pending =
+    source === "server" ? query.isFetching : localProgress === "loading";
+  const failed =
+    source === "server" ? query.isError : localProgress === "failed";
+
+  /** Continues the device rows in pages until they reach the target count. */
+  async function appendLocal(target: number): Promise<void> {
+    let extra = localExtra;
+    do {
+      const page = await more(group.category, group.rows.length + extra.length);
+      if (!page || page.length === 0) {
+        setLocalProgress("failed");
+        return;
+      }
+      extra = [...extra, ...page];
+    } while (group.rows.length + extra.length < target);
+    setLocalExtra(extra);
+    setLocalProgress("idle");
+  }
+
+  const catchingUpNow = useRef(false);
+  const catchUp = useEffectEvent(async (): Promise<void> => {
+    if (catchingUpNow.current || localProgress !== "idle") return;
+    catchingUpNow.current = true;
+    await appendLocal(serverRows.length);
+    catchingUpNow.current = false;
+  });
+  useEffect(() => {
+    if (catchingUp) void catchUp();
+  }, [catchingUp]);
+
+  async function loadMore(explicit: boolean): Promise<void> {
+    if (!canFetchNext(hasMore, pending, failed)) return;
+    focusFrom.current = explicit ? rows.length : null;
+    if (source === "server") {
+      await query.fetchNextPage({ cancelRefetch: false });
+      return;
+    }
+    setLocalProgress("loading");
+    await appendLocal(rows.length + 1);
+  }
+
+  function retry(): void {
+    if (source === "server") void query.fetchNextPage({ cancelRefetch: false });
+    else setLocalProgress("idle");
+  }
+
+  useEffect(() => {
+    const from = focusFrom.current;
+    if (from === null || rows.length <= from) return;
+    focusFrom.current = null;
+    list.current?.children.item(from)?.querySelector("a")?.focus();
+  }, [rows.length]);
+
+  const continueOnView = useEffectEvent((): void => {
+    void loadMore(false);
+  });
+  const observing = expanded && canFetchNext(hasMore, pending, failed);
   useEffect(() => {
     const node = sentinel.current;
-    if (
-      !expanded ||
-      !node ||
-      !canFetchNext(Boolean(hasNextPage), isFetching, isError)
-    )
-      return;
+    if (!observing || !node) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting))
-          void fetchNextPage({ cancelRefetch: false });
+        if (entries.some((entry) => entry.isIntersecting)) continueOnView();
       },
       { rootMargin: "200px" },
     );
     observer.observe(node);
     return (): void => observer.disconnect();
-  }, [expanded, hasNextPage, isFetching, isError, fetchNextPage]);
+  }, [observing]);
 
-  const pages = query.data.pages;
-  const rows = pages.flatMap((page) => page.data);
-  const total = group.results.meta.total;
-  if (total === 0) return null;
+  if (group.total === 0) return null;
   const headingId = `category-${group.category}`;
-  const next = pages.at(-1)?.meta.nextCursor ?? "";
+  const next =
+    source === "server"
+      ? (query.data?.pages.at(-1)?.meta.nextCursor ?? "")
+      : "";
+  const loadingNext = hasMore && pending;
   return (
     <section
       className={css.resultGroup}
@@ -101,36 +210,33 @@ export function GroupResults({
       <h2 className={css.resultGroupHeading} id={headingId}>
         <CategoryIcon category={group.category} />
         <span>{label}</span>
-        <span>{total.toLocaleString("ja-JP")}件</span>
+        <span>{group.total.toLocaleString("ja-JP")}件</span>
       </h2>
-      <ol className={css.results}>
-        {rows.map((contact) => (
-          <li key={contact.id}>
-            <ContactCard contact={contact} grouped returnTo={returnTo} />
+      <ol className={css.results} ref={list}>
+        {rows.map((card, position) => (
+          <li key={position}>
+            <ResultCard card={card} onOpenRow={onOpenRow} />
           </li>
         ))}
       </ol>
-      {query.isError && (
+      {failed && (
         <LoadingError
           restartHref={
+            source === "server" &&
             query.error instanceof DirectoryError &&
-            ["snapshot_changed", "invalid_page", "invalid_cursor"].includes(
-              query.error.code,
-            )
+            restartCodes.includes(query.error.code)
               ? `/?${webSearchParameters({ ...search, cursor: "" })}`
               : undefined
           }
-          retry={() => {
-            void query.fetchNextPage({ cancelRefetch: false });
-          }}
+          retry={retry}
         />
       )}
-      {query.hasNextPage && (
+      {hasMore && (
         <div className={css.actions} ref={sentinel}>
           <a
             className={css.button}
             href={`/?${webSearchParameters({ ...categorySearch, cursor: next })}`}
-            aria-disabled={query.isFetchingNextPage}
+            aria-disabled={loadingNext}
             onClick={(event) => {
               if (
                 event.button !== 0 ||
@@ -141,20 +247,12 @@ export function GroupResults({
               )
                 return;
               event.preventDefault();
-              if (
-                !canFetchNext(
-                  Boolean(query.hasNextPage),
-                  query.isFetching,
-                  query.isError,
-                )
-              )
-                return;
               setExpanded(true);
-              void query.fetchNextPage({ cancelRefetch: false });
+              void loadMore(true);
             }}
           >
             <ChevronDown aria-hidden="true" />
-            {query.isFetchingNextPage
+            {loadingNext
               ? `${label}を読みこんでいます。`
               : `${label}をもっと見る`}
           </a>
