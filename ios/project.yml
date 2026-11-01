@@ -81,6 +81,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_BUNDLE_ID)
+        PROVISIONING_PROFILE_SPECIFIER: $(PHONEBOOK_APP_PROFILE)
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_ENTITLEMENTS: Config/Shared.entitlements
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
@@ -89,6 +90,7 @@ targets:
       path: Config/App-Info.plist
       properties:
         CFBundleDisplayName: $(PHONEBOOK_DISPLAY_NAME)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDevelopmentRegion: ja
         CFBundleLocalizations: [ja]
         PhonebookAppGroup: $(PHONEBOOK_APP_GROUP)
@@ -109,10 +111,12 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_CALL_DIRECTORY)
+        PROVISIONING_PROFILE_SPECIFIER: $(PHONEBOOK_CALL_DIRECTORY_PROFILE)
     info:
       path: Config/CallDirectory-Info.plist
       properties:
         CFBundleDisplayName: $(PHONEBOOK_DISPLAY_NAME)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.callkit.call-directory
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).CallDirectoryHandler

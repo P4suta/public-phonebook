@@ -40,7 +40,8 @@ Their receipts don't bind to this tree, so these campaigns rerun at the committe
   The dirty tree makes that package ineligible for release.
 
 Earlier device evidence and its limits are in the [device verification record](ios-device-verification.md).
-The App Store Connect record, environments, and archive procedure are in the [store preparation guide](ios-store-distribution.md).
+The App Store Connect record, environments, archive procedure, and TestFlight workflow are in the [store preparation guide](ios-store-distribution.md).
+The workflow and its delivery path haven't run yet, because they need the owner's key, certificate, profiles, and OIDC identity.
 
 ## Open work
 
@@ -48,13 +49,15 @@ The App Store Connect record, environments, and archive procedure are in the [st
 | --- | --- | --- |
 | Publish snapshot deltas and apply them in the app | Developer | #55 |
 | Measure the national import time, memory, and storage, and the Call Directory load on a device | Developer and owner | A device run |
-| Rerun `ios-prove`, `ios-sanitize`, and `ios-mutate` at the committed revision | Developer | Owner approval of the commit |
+| Create the App Manager key, the distribution certificate, both App Store profiles, the Doppler values, and the OIDC identity | Owner | The [owner setup](ios-store-distribution.md#owner-setup) |
+| Run the `TestFlight` workflow on `main`, which reruns `ios-check`, `ios-prove`, `ios-sanitize`, and `ios-mutate` for that commit | Owner | The owner setup |
 | Verify `/api/v1`, `/privacy`, and `/support` over production HTTPS without authentication again before submission | Developer | Submission |
 | Capture store screenshots with `just ios-screenshots ORIGIN` from the committed revision | Developer | Owner approval of the commit |
 | Confirm whether App Store Connect also needs a large-display screenshot set | Owner | App Store Connect |
-| Export the signed package with `just ios-archive` from a clean revision | Developer | Owner approval of the revision |
+| Approve the workflow's delivery job, which signs, uploads, and waits for TestFlight processing | Owner | A passing workflow run |
+| Add the processed build to TestFlight testing groups | Owner | A `VALID` build |
 | Complete the privacy label, age rating, availability, accessibility, export compliance, review contact, and trader declaration | Owner | Verified service behavior |
-| Upload the package, submit it for review, and release it | Owner | Explicit authorization |
+| Submit a processed build for review and release it | Owner | Explicit authorization |
 
 The [national import decision](adr/import-the-national-dataset-for-ios-extensions.md) explains why the app downloads one national file instead of paging contacts.
 The search screen treats a 429 response like a 503 response and waits for `Retry-After` before it searches again.

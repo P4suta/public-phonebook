@@ -7,6 +7,8 @@ export const allowedActions: readonly string[] = [
   "actions/checkout",
   "actions/cache",
   "actions/upload-artifact",
+  "actions/download-artifact",
+  "dopplerhq/secrets-fetch-action",
   "jdx/mise-action",
 ];
 
