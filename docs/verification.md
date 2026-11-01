@@ -54,6 +54,7 @@ It requires the stored Brotli bytes of the search index with `Content-Encoding: 
 The built-browser checks serve the built Worker with `npm run preview`, which runs it in workerd behind workerd's own HTTPS socket.
 The Vite preview relayed each response through Node's fetch, which decoded the Brotli index but kept its encoded length, so the browser received a corrupted index.
 WebKit advertises Brotli only over HTTPS, so the server uses Miniflare's loopback certificate, and the browser contexts ignore its certificate errors.
+The server log then reports a failed TLS handshake for each rejected certificate check, which doesn't affect the run.
 The browser checks load the index in every engine, compare results before and after the switch, and fall back when the published digest doesn't match.
 After the index loads, they require no `/api/contact*` request and no request that carries the search term, and they search offline.
 They also check save-data skipping, the changed-snapshot reload, old URL redirects, and the absence of IndexedDB, Service Worker, and Cache Storage data.
