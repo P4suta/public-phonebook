@@ -10,36 +10,50 @@ on:
         type: boolean
         default: false
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: checks-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Change scope
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      proofs: ${{ steps.scope.outputs.proofs }}
+      ios: ${{ steps.scope.outputs.ios }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: $/.github/actions/toolchain
+        with:
+          tools: node
+          dependencies: "false"
+      - id: scope
+        env:
+          CHANGE_EVENT: ${{ github.event_name }}
+          CHANGE_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          ASSURANCE: ${{ github.event_name == 'workflow_dispatch' && inputs.assurance }}
+        run: node tools/change-scope.ts
   verify:
     name: Verify
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
     env:
       CARGO_BUILD_JOBS: "2"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c
-        with:
-          version: "2026.10.19"
-      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
-        with:
-          path: |
-            ~/.npm
-            ~/.cargo/registry
-            ~/.cargo/git
-            tools/ios-check/target
-          key: checks-${{ runner.os }}-${{ hashFiles('package-lock.json', 'tools/ios-check/Cargo.lock', 'mise.toml') }}
-      - run: mise x -- npm ci --ignore-scripts
+      - uses: $/.github/actions/toolchain
       - run: mise x -- npm exec --no -- playwright install --with-deps chromium
       - run: mise x -- just check
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -51,20 +65,19 @@ jobs:
           retention-days: 7
   proofs:
     name: Formal assurance
-    needs: verify
-    if: github.event_name == 'workflow_dispatch' && inputs.assurance
+    needs: [changes, verify]
+    if: needs.changes.outputs.proofs == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    permissions:
+      contents: read
     env:
       CARGO_BUILD_JOBS: "2"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c
-        with:
-          version: "2026.10.19"
-      - run: mise x -- npm ci --ignore-scripts
+      - uses: $/.github/actions/toolchain
       - run: mise x -- just prove
       - run: mise x -- just ios-prove
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -76,10 +89,12 @@ jobs:
           retention-days: 7
   ios:
     name: Native assurance
-    needs: verify
-    if: github.event_name == 'workflow_dispatch' && inputs.assurance
+    needs: [changes, verify]
+    if: needs.changes.outputs.ios == 'true'
     runs-on: xcode-27
     timeout-minutes: 40
+    permissions:
+      contents: read
     env:
       DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
       CARGO_BUILD_JOBS: "2"
@@ -87,13 +102,12 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c
-        with:
-          version: "2026.10.19"
-      - run: mise x -- npm ci --ignore-scripts
+      - uses: $/.github/actions/toolchain
       - run: mise x -- just ios-check
-      - run: mise x -- just ios-sanitize
-      - run: mise x -- just ios-mutate
+      - if: github.event_name == 'workflow_dispatch' && inputs.assurance
+        run: mise x -- just ios-sanitize
+      - if: github.event_name == 'workflow_dispatch' && inputs.assurance
+        run: mise x -- just ios-mutate
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: failure()
         with:
@@ -104,17 +118,21 @@ jobs:
   gate:
     name: Checks
     if: always()
-    needs: [verify, proofs, ios]
+    needs: [changes, verify, proofs, ios]
     runs-on: ubuntu-24.04
     timeout-minutes: 1
+    permissions: {}
     steps:
       - name: Require successful verification
         env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
           VERIFY_RESULT: ${{ needs.verify.result }}
+          PROOFS_REQUIRED: ${{ needs.changes.outputs.proofs }}
           PROOFS_RESULT: ${{ needs.proofs.result }}
+          IOS_REQUIRED: ${{ needs.changes.outputs.ios }}
           IOS_RESULT: ${{ needs.ios.result }}
-          ASSURANCE_REQUIRED: ${{ github.event_name == 'workflow_dispatch' && inputs.assurance }}
         run: |
+          test "$CHANGES_RESULT" = success
           test "$VERIFY_RESULT" = success
-          test "$ASSURANCE_REQUIRED:$PROOFS_RESULT" = true:success || test "$ASSURANCE_REQUIRED:$PROOFS_RESULT" = false:skipped
-          test "$ASSURANCE_REQUIRED:$IOS_RESULT" = true:success || test "$ASSURANCE_REQUIRED:$IOS_RESULT" = false:skipped
+          test "$PROOFS_REQUIRED:$PROOFS_RESULT" = true:success || test "$PROOFS_REQUIRED:$PROOFS_RESULT" = false:skipped
+          test "$IOS_REQUIRED:$IOS_RESULT" = true:success || test "$IOS_REQUIRED:$IOS_RESULT" = false:skipped

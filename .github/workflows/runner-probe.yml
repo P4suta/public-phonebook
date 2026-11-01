@@ -1,0 +1,48 @@
+name: Runner probe
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: runner-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    name: Probe ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, xcode-27]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    permissions: {}
+    steps:
+      - name: Report the Linux processor, memory, disk, and container engine
+        if: runner.os == 'Linux'
+        run: |
+          uname -a
+          nproc
+          lscpu
+          free -h
+          df -h
+          docker version
+      - name: Report the macOS processor, memory, and disk
+        if: runner.os == 'macOS'
+        run: |
+          uname -a
+          sw_vers
+          sysctl -n machdep.cpu.brand_string hw.ncpu hw.memsize
+          vm_stat
+          df -h
+      - name: Report the installed Xcode versions and available simulators
+        if: runner.os == 'macOS'
+        run: |
+          find /Applications -maxdepth 1 -name 'Xcode*.app' -print | sort
+          xcode-select --print-path
+          xcodebuild -version
+          xcodebuild -showsdks
+          xcrun simctl list runtimes available
+          xcrun simctl list devices available

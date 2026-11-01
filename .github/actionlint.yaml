@@ -2,3 +2,8 @@
 self-hosted-runner:
   labels:
     - xcode-27
+# actionlint 1.7.12 predates the `$/` self-repository syntax: https://github.blog/changelog/2026-07-30-reference-same-repository-actions-with-self-repository-syntax/
+paths:
+  .github/workflows/**/*.{yml,yaml}:
+    ignore:
+      - 'specifying action "\$/\.github/actions/[a-z-]+" in invalid format because ref is missing'

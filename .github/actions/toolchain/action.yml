@@ -1,0 +1,32 @@
+name: Project toolchain
+description: Install the mise-pinned tools and, unless disabled, the locked npm packages without lifecycle scripts.
+
+inputs:
+  tools:
+    description: Space-separated mise tools to install, or empty for every pinned tool
+    required: false
+    default: ""
+  dependencies:
+    description: Restore the dependency caches and install the locked npm packages
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c
+      with:
+        version: "2026.10.19"
+        install_args: ${{ inputs.tools }}
+    - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+      if: inputs.dependencies == 'true'
+      with:
+        path: |
+          ~/.npm
+          ~/.cargo/registry
+          ~/.cargo/git
+          tools/ios-check/target
+        key: dependencies-${{ runner.os }}-${{ hashFiles('package-lock.json', 'tools/ios-check/Cargo.lock', 'mise.toml') }}
+    - if: inputs.dependencies == 'true'
+      shell: bash
+      run: mise x -- npm ci --ignore-scripts
