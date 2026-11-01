@@ -1,10 +1,12 @@
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { gunzipSync, gzipSync } from "node:zlib";
+import { brotliDecompressSync, gunzipSync, gzipSync } from "node:zlib";
 import * as v from "valibot";
 import { expect, it } from "vitest";
+import { decodeDirectoryArchive } from "../../src/core/directory-archive.ts";
 import {
   CatalogSchema,
   ContactSchema,
@@ -13,7 +15,11 @@ import {
 } from "../../src/core/models.ts";
 import { checkDataBundle } from "../../tools/check-data.ts";
 import { databaseSchema } from "../../tools/database-schema.ts";
-import { fileDigest, prepareSnapshot } from "../../tools/snapshot.ts";
+import {
+  compressDirectoryArchive,
+  fileDigest,
+  prepareSnapshot,
+} from "../../tools/snapshot.ts";
 
 it("prepares canonical native data with normalized addresses and complete archive accounting", async () => {
   const root = await mkdtemp(join(tmpdir(), "phonebook-snapshot-"));
@@ -124,6 +130,60 @@ it("prepares canonical native data with normalized addresses and complete archiv
       DatasetManifestSchema,
       JSON.parse(await readFile(join(output, "manifest.ready.json"), "utf8")),
     );
+    expect(manifest.files.map((file) => file.file)).toEqual([
+      "contacts.jsonl.gz",
+      "contacts.csv.gz",
+      "contacts.vcf.gz",
+      "directory.tsv.br",
+    ]);
+    const directoryPath = join(output, "directory.tsv.br");
+    const directoryBytes = await readFile(directoryPath);
+    const directory = decodeDirectoryArchive(
+      brotliDecompressSync(directoryBytes).toString("utf8"),
+    );
+    expect(directory.header.snapshot).toBe(manifest.snapshot);
+    expect(directory.header.sources).toEqual([
+      { id: source.id, url: source.url },
+    ]);
+    expect(directory.rows).toHaveLength(1);
+    expect(directory.rows[0]).toMatchObject({
+      name: contact.name,
+      municipalityCode: contact.municipalityCode,
+      address: "東京都千代田区1-2-3",
+      phones: contact.phones,
+      sourceUrls: contact.sourceUrls,
+    });
+    const decodedText = brotliDecompressSync(directoryBytes).toString("utf8");
+    for (const [text, message] of [
+      [decodedText.replace(contact.name, "別小学校"), "differs"],
+      [`${decodedText}\n`, "exceeds"],
+    ] as const) {
+      const changedArchive = compressDirectoryArchive(text);
+      const changedDigest = createHash("sha256")
+        .update(changedArchive)
+        .digest("hex");
+      await writeFile(directoryPath, changedArchive);
+      await writeFile(
+        join(output, "manifest.ready.json"),
+        JSON.stringify({
+          ...manifest,
+          files: manifest.files.map((file) =>
+            file.file === "directory.tsv.br"
+              ? {
+                  ...file,
+                  sha256: changedDigest,
+                  bytes: changedArchive.byteLength,
+                  url: `/api/datasets/${manifest.snapshot}/${changedDigest}/${file.file}`,
+                }
+              : file,
+          ),
+        }),
+      );
+      await expect(checkDataBundle(output)).rejects.toThrow(
+        `Directory archive ${message}`,
+      );
+    }
+    await writeFile(directoryPath, directoryBytes);
     const archive = join(output, "contacts.jsonl.gz");
     const changed = gzipSync("unrelated directory\n");
     await writeFile(archive, changed);

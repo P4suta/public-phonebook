@@ -10,6 +10,7 @@ import { sha256 } from "../core/identity.ts";
 import {
   CatalogSchema,
   ContactSchema,
+  DatasetFileNameSchema,
   DatasetManifestSchema,
   DigestSchema,
   GroupedSearchResponseSchema,
@@ -701,10 +702,12 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
     describeRoute({
       operationId: "downloadDataset",
       tags: ["Datasets"],
-      summary: "Download immutable complete JSONL, CSV, or vCard data",
+      summary:
+        "Download immutable complete JSONL, CSV, vCard, or native directory data",
       responses: {
         [httpStatus.ok]: {
-          description: "Gzip archive with immutable caching and an ETag",
+          description:
+            "Gzip or Brotli archive with immutable caching and an ETag",
         },
         ...failureResponses,
       },
@@ -712,28 +715,28 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
     async (c) => {
       const snapshot = c.req.param("snapshot");
       const digest = c.req.param("digest");
-      const file = c.req.param("file");
+      const file = v.safeParse(DatasetFileNameSchema, c.req.param("file"));
       if (
         !v.safeParse(DigestSchema, snapshot).success ||
         !v.safeParse(DigestSchema, digest).success ||
-        !["contacts.jsonl.gz", "contacts.csv.gz", "contacts.vcf.gz"].includes(
-          file,
-        )
+        !file.success
       )
         return problem(c, "not_found", httpStatus.notFound);
-      const object = await c.env.DATASETS.get(`${snapshot}/${digest}/${file}`);
+      const object = await c.env.DATASETS.get(
+        `${snapshot}/${digest}/${file.output}`,
+      );
       if (!object) return problem(c, "not_found", httpStatus.notFound);
       const headers = new Headers({
-        "Content-Type": file.endsWith(".gz")
-          ? "application/gzip"
-          : "application/json",
+        "Content-Type":
+          file.output === "directory.tsv.br"
+            ? "application/octet-stream"
+            : "application/gzip",
         "Content-Length": String(object.size),
         ETag: object.httpEtag,
         "Cache-Control": "public, max-age=31536000, immutable",
+        "Content-Disposition": `attachment; filename="${file.output}"`,
         "X-Dataset-Snapshot": snapshot,
       });
-      if (file.endsWith(".gz"))
-        headers.set("Content-Disposition", `attachment; filename="${file}"`);
       if (c.req.header("If-None-Match") === object.httpEtag)
         return new Response(null, { status: httpStatus.notModified, headers });
       return new Response(object.body, { headers });

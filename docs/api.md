@@ -70,7 +70,7 @@ The website formats and copies the canonical value with Japanese numbering metad
 ## Download complete data
 
 `GET /api/datasets` supplies the current manifest.
-It lists complete gzip-compressed JSONL, CSV, and vCard files with byte lengths and SHA-256 hashes.
+It lists complete gzip-compressed JSONL, CSV, and vCard files and a Brotli-compressed native directory archive with byte lengths and SHA-256 hashes.
 Use each returned URL directly.
 The URL includes both the contact snapshot and the archive digest, so a changed representation gets a different immutable URL.
 Validate the downloaded byte length and SHA-256 before processing it.
@@ -80,6 +80,42 @@ CSV cells beginning with spreadsheet formula characters receive a leading apostr
 CSV generation uses the pinned `csv-stringify` serializer with quoting, CRLF records, and its formula-escaping option.
 JSONL retains the canonical structured values.
 vCard text is escaped and folded at 75 UTF-8 bytes without splitting code points.
+
+### Native directory archive
+
+`directory.tsv.br` carries the complete directory in a compact form for offline clients.
+The server sends its exact bytes as `application/octet-stream` without `Content-Encoding`, so a client verifies the SHA-256 before decompressing it with Brotli.
+The decompressed archive is UTF-8 text with LF line endings and no byte order mark.
+Line 1 is `public-phonebook-directory`, a TAB, and the format version `1`.
+Line 2 is a one-line JSON header with `snapshot`, `generatedAt`, `contacts`, `categories`, `prefectures`, `municipalities`, `sources`, `provenances`, and `links`.
+`categories`, all 47 `prefectures`, and `municipalities` copy the snapshot catalog, without the category counts.
+`sources` lists the `id`, `url`, and any `publisher` or `title` of each source that a provenance references.
+Each provenance holds a `source` index and the `license`, `licenseUrl`, `dataAsOf`, and `retrievedAt` its contacts share.
+`links` is the dictionary of source and confirmation URLs.
+Sources follow `id`, provenances follow `source` and then their text fields, and links follow their value, all in ascending UTF-8 order without duplicates.
+Every source, provenance, and link is referenced at least once.
+Each following line is one contact with nine TAB-separated fields.
+
+| Field | Content |
+| --- | --- |
+| 1 | Index into `categories` |
+| 2 | Five-digit municipality code, or the two-digit prefecture code when the municipality is unknown |
+| 3 | Name |
+| 4 | Address as in JSONL |
+| 5 | Telephones joined by U+001F |
+| 6 | Website, or empty |
+| 7 | Index into `provenances` |
+| 8 | Indices into `links` for the source URLs, joined by U+001F |
+| 9 | Empty for an unconfirmed telephone, `*` for a confirmation without a URL, or the index into `links` of the confirmation URL |
+
+The national number is `0` followed by the E.164 digits after `+81`.
+A telephone is its publisher's spelling when the ASCII digits of that spelling equal the national number.
+Otherwise it is the national number, U+001E, and the spelling.
+Indices are decimal without leading zeros.
+Text fields never contain TAB, LF, CR, U+001E, or U+001F.
+Rows are sorted by their UTF-8 bytes, identical rows may repeat, and the last row ends with LF.
+The header's `contacts` and prefecture counts equal the rows.
+The archive omits contact and source-record IDs, which remain in JSONL.
 
 ## HTTP behavior
 

@@ -6,6 +6,10 @@ import { gzipSync } from "node:zlib";
 import * as v from "valibot";
 import { categoryDefinitions, prefectureNames } from "../src/core/catalog.ts";
 import {
+  directoryArchiveFile,
+  encodeDirectoryArchive,
+} from "../src/core/directory-archive.ts";
+import {
   CatalogSchema,
   ContactSchema,
   DatasetManifestSchema,
@@ -16,7 +20,11 @@ import { contactVCard } from "../src/core/vcard.ts";
 import { categorySources } from "./category-sources.ts";
 import { databaseSchema } from "./database-schema.ts";
 import { seedLocalData } from "./local-data.ts";
-import { contactCsv, fileDigest } from "./snapshot.ts";
+import {
+  compressDirectoryArchive,
+  contactCsv,
+  fileDigest,
+} from "./snapshot.ts";
 
 const fixtureWebsite = "https://example.org/";
 const fixtureDatasetUrl = "https://example.org/dataset";
@@ -150,12 +158,21 @@ export async function prepareCheckFixture(): Promise<void> {
     db.close();
   }
   const files = [];
-  for (const [file, content] of [
-    ["contacts.jsonl.gz", jsonl],
-    ["contacts.csv.gz", contacts.map(contactCsv).join("")],
-    ["contacts.vcf.gz", contacts.map(contactVCard).join("")],
+  for (const [file, bytes] of [
+    ["contacts.jsonl.gz", gzipSync(jsonl)],
+    ["contacts.csv.gz", gzipSync(contacts.map(contactCsv).join(""))],
+    ["contacts.vcf.gz", gzipSync(contacts.map(contactVCard).join(""))],
+    [
+      directoryArchiveFile,
+      compressDirectoryArchive(
+        encodeDirectoryArchive(contacts, {
+          snapshot,
+          catalog,
+          sources: [source],
+        }),
+      ),
+    ],
   ] as const) {
-    const bytes = gzipSync(content);
     await writeFile(join(directory, file), bytes);
     const sha256 = createHash("sha256").update(bytes).digest("hex");
     files.push({
