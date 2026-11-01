@@ -5,6 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import { gzipSync } from "node:zlib";
 import * as v from "valibot";
 import { categoryDefinitions, prefectureNames } from "../src/core/catalog.ts";
+import { PreparedDatasetManifestSchema } from "../src/core/dataset-storage.ts";
 import {
   directoryArchiveFile,
   encodeDirectoryArchive,
@@ -12,17 +13,19 @@ import {
 import {
   CatalogSchema,
   ContactSchema,
-  DatasetManifestSchema,
   SourceSchema,
 } from "../src/core/models.ts";
 import { nameTokens, normalizeName } from "../src/core/search.ts";
+import { searchIndexFile } from "../src/core/search-index.ts";
 import { contactVCard } from "../src/core/vcard.ts";
 import { categorySources } from "./category-sources.ts";
 import { databaseSchema } from "./database-schema.ts";
 import { seedLocalData } from "./local-data.ts";
+import { compressSearchIndex, readSearchIndex } from "./search-index.ts";
 import {
   compressDirectoryArchive,
   contactCsv,
+  contactRowNumbers,
   fileDigest,
 } from "./snapshot.ts";
 
@@ -123,12 +126,16 @@ export async function prepareCheckFixture(): Promise<void> {
     duplicate: 0,
     issues: {},
   });
+  const rowNumbers = contactRowNumbers(contacts);
   const db = new DatabaseSync(join(directory, "directory.sqlite"));
+  let searchIndex: Uint8Array;
   try {
     db.exec(databaseSchema);
-    for (const [index, contact] of contacts.entries()) {
+    for (const contact of contacts) {
+      const rowid = rowNumbers.get(contact.id);
+      if (rowid === undefined) throw new Error("Missing fixture row number");
       db.prepare("INSERT INTO contacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
-        index + 1,
+        rowid,
         contact.id,
         contact.name,
         normalizeName(contact.name),
@@ -140,10 +147,10 @@ export async function prepareCheckFixture(): Promise<void> {
       );
       db.prepare("INSERT INTO phones VALUES (?, ?)").run(
         contact.phones[0]?.e164 ?? "",
-        index + 1,
+        rowid,
       );
       db.prepare("INSERT INTO contact_search(rowid, terms) VALUES (?, ?)").run(
-        index + 1,
+        rowid,
         nameTokens(normalizeName(contact.name)).join(" "),
       );
     }
@@ -154,9 +161,12 @@ export async function prepareCheckFixture(): Promise<void> {
       source.id,
       JSON.stringify(source),
     );
+    searchIndex = readSearchIndex(db, { snapshot, catalog });
   } finally {
     db.close();
   }
+  const compressedIndex = compressSearchIndex(searchIndex);
+  await writeFile(join(directory, searchIndexFile), compressedIndex);
   const files = [];
   for (const [file, bytes] of [
     ["contacts.jsonl.gz", gzipSync(jsonl)],
@@ -183,7 +193,7 @@ export async function prepareCheckFixture(): Promise<void> {
     });
   }
   const databaseSha256 = await fileDigest(join(directory, "directory.sqlite"));
-  const manifest = v.parse(DatasetManifestSchema, {
+  const manifest = v.parse(PreparedDatasetManifestSchema, {
     snapshot,
     generatedAt: catalog.generatedAt,
     contacts: contacts.length,
@@ -192,6 +202,15 @@ export async function prepareCheckFixture(): Promise<void> {
     sourceDatabaseSha256: databaseSha256,
     databaseSha256,
     files,
+    searchIndex: {
+      file: searchIndexFile,
+      sha256: createHash("sha256").update(compressedIndex).digest("hex"),
+      bytes: compressedIndex.byteLength,
+      uncompressedSha256: createHash("sha256")
+        .update(searchIndex)
+        .digest("hex"),
+      uncompressedBytes: searchIndex.byteLength,
+    },
   });
   await writeFile(join(directory, "catalog.json"), JSON.stringify(catalog));
   await writeFile(

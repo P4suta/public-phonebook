@@ -138,6 +138,8 @@ Local plans and timings do not establish D1 latency or production capacity.
 
 Prepare and seed the national bundle as described in [local operation](deployment.md).
 Run `npm run data:check -- .local/phonebook` to verify every retained contact, source reference, sortable field, index column, category and prefecture count, phone relation count, search index count, archive byte length, SHA-256, and SQLite integrity.
+The same check confirms that row numbers follow the normalized name and identifier order.
+It rebuilds `search-index.br` from the database in row order, requires identical bytes, and rejects a compressed index above 8 MiB.
 The original publication is opened read-only.
 The active retained snapshot has 667,696 contacts, 561,495 distinct telephone numbers, 1,179 sources, 62 populated categories, and 47 prefectures.
 The data audit identifies the exact snapshot in its output.

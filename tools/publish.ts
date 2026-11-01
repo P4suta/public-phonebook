@@ -3,8 +3,9 @@ import { constants } from "node:fs";
 import { copyFile, mkdir, readdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import * as v from "valibot";
+import { PreparedDatasetManifestSchema } from "../src/core/dataset-storage.ts";
 import { databaseResourceName, environments } from "../src/core/environment.ts";
-import { CatalogSchema, DatasetManifestSchema } from "../src/core/models.ts";
+import { CatalogSchema } from "../src/core/models.ts";
 import { canPromote } from "../src/core/publication-policy.ts";
 import { checkDataBundle } from "./check-data.ts";
 import { command, requireCommand } from "./process.ts";
@@ -99,7 +100,7 @@ async function verifyTarget(
 ): Promise<void> {
   await verifyVersionBindings(environment, target);
   const manifest = v.parse(
-    DatasetManifestSchema,
+    PreparedDatasetManifestSchema,
     JSON.parse(
       await readFile(join(target.bundle, "manifest.ready.json"), "utf8"),
     ),

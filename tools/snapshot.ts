@@ -16,6 +16,7 @@ import { stringify } from "csv-stringify/sync";
 import * as v from "valibot";
 import { normalizeAddress } from "../src/core/address.ts";
 import { categoryDefinitions, prefectureNames } from "../src/core/catalog.ts";
+import { PreparedDatasetManifestSchema } from "../src/core/dataset-storage.ts";
 import {
   directoryArchiveEncoder,
   directoryArchiveFile,
@@ -29,11 +30,17 @@ import {
   SourceSchema,
 } from "../src/core/models.ts";
 import { nameTokens, normalizeName } from "../src/core/search.ts";
+import {
+  compareRowOrder,
+  type RowKey,
+  searchIndexFile,
+} from "../src/core/search-index.ts";
 import { contactVCard } from "../src/core/vcard.ts";
 import { categorySources } from "./category-sources.ts";
 import { mergeContacts, readCollectionOverlay } from "./collection/overlay.ts";
 import { databaseSchema } from "./database-schema.ts";
 import { importContact, importSource } from "./import-contact.ts";
+import { compressSearchIndex, readSearchIndex } from "./search-index.ts";
 
 const preparationProgressInterval = 100000;
 const prefectureCodeWidth = 2;
@@ -127,6 +134,20 @@ function* readContacts(
   }
 }
 
+export function contactRowNumbers(
+  contacts: Iterable<Pick<Contact, "id" | "name">>,
+): ReadonlyMap<string, number> {
+  const order: RowKey[] = [];
+  for (const contact of contacts)
+    order.push({ normalizedName: normalizeName(contact.name), id: contact.id });
+  order.sort(compareRowOrder);
+  return new Map(order.map((key, position) => [key.id, position + 1]));
+}
+
+function sha256Hex(bytes: Uint8Array): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
 export interface SnapshotResult {
   readonly snapshot: string;
   readonly directory: string;
@@ -200,6 +221,9 @@ export async function prepareSnapshot(
       municipalityCandidates.set(item.prefectureCode, group);
     }
     const sourceIds = new Set(sources.map((item) => item.id));
+    const rowNumbers = contactRowNumbers(
+      mergeContacts(readContacts(input, metadata.legacy), overlay.contacts),
+    );
     output.exec(databaseSchema);
     output.exec(
       "PRAGMA foreign_keys=ON; PRAGMA journal_mode=OFF; PRAGMA synchronous=OFF; BEGIN",
@@ -246,10 +270,13 @@ export async function prepareSnapshot(
       )
         throw new Error(`Conflicting region: ${contact.id}`);
       contacts += 1;
+      const rowid = rowNumbers.get(contact.id);
+      if (rowid === undefined)
+        throw new Error(`The contact order changed: ${contact.id}`);
       const normalized = normalizeName(contact.name);
       const payload = JSON.stringify(contact);
       insert.run(
-        contacts,
+        rowid,
         contact.id,
         contact.name,
         normalized,
@@ -259,8 +286,8 @@ export async function prepareSnapshot(
         contact.sourceId,
         payload,
       );
-      for (const phone of contact.phones) phoneInsert.run(phone.e164, contacts);
-      searchInsert.run(contacts, nameTokens(normalized).join(" "));
+      for (const phone of contact.phones) phoneInsert.run(phone.e164, rowid);
+      searchInsert.run(rowid, nameTokens(normalized).join(" "));
       archive.add(contact);
       categoryCounts.set(
         contact.category,
@@ -283,7 +310,10 @@ export async function prepareSnapshot(
       if (contacts % preparationProgressInterval === 0)
         console.info(JSON.stringify({ phase: "prepare", contacts }));
     }
-    if (contacts !== metadata.contacts + overlay.contacts.length)
+    if (
+      contacts !== metadata.contacts + overlay.contacts.length ||
+      contacts !== rowNumbers.size
+    )
       throw new Error("The source contact count changed");
     const countedPhones = v.parse(
       v.object({ phones: v.number() }),
@@ -347,6 +377,7 @@ export async function prepareSnapshot(
     );
     if (integrity.integrity_check !== "ok")
       throw new Error("The prepared database failed its integrity check");
+    const searchIndex = readSearchIndex(output, { snapshot, catalog });
     output.close();
     input.close();
     const files = [];
@@ -384,12 +415,26 @@ export async function prepareSnapshot(
       bytes: (await stat(archivePath)).size,
       url: `/api/datasets/${snapshot}/${archiveSha256}/${directoryArchiveFile}`,
     });
+    const compressedIndex = compressSearchIndex(searchIndex);
+    await writeFile(join(destination, searchIndexFile), compressedIndex, {
+      flag: "wx",
+    });
+    const searchIndexArtifact = {
+      file: searchIndexFile,
+      sha256: sha256Hex(compressedIndex),
+      bytes: compressedIndex.byteLength,
+      uncompressedSha256: sha256Hex(searchIndex),
+      uncompressedBytes: searchIndex.byteLength,
+    };
+    console.info(
+      JSON.stringify({ phase: "search-index", ...searchIndexArtifact }),
+    );
     await writeFile(
       join(destination, "catalog.json"),
       `${JSON.stringify(catalog)}\n`,
       { flag: "wx" },
     );
-    const manifest = {
+    const manifest = v.parse(PreparedDatasetManifestSchema, {
       snapshot,
       generatedAt: catalog.generatedAt,
       contacts,
@@ -398,7 +443,8 @@ export async function prepareSnapshot(
       sourceDatabaseSha256: await fileDigest(source),
       databaseSha256: await fileDigest(join(destination, "directory.sqlite")),
       files,
-    };
+      searchIndex: searchIndexArtifact,
+    });
     await writeFile(
       join(destination, "manifest.json"),
       `${JSON.stringify(manifest, null, jsonIndentation)}\n`,
