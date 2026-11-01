@@ -790,9 +790,34 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
         selected.iter().map(String::as_str).collect()
     };
     let mut completed = Vec::new();
+    let mut recoveries = Vec::new();
+    let mut previous = SystemTime::now();
     for name in names {
         {
             let case = name.to_owned();
+            let state = failure::simulator_state(&identifier, &failure::Xcode)?;
+            if state != failure::BOOTED {
+                let evidence = failure::keep_host_state(
+                    root,
+                    &format!("simulator-before-{case}"),
+                    previous,
+                    &failure::Xcode,
+                )?;
+                println!(
+                    "iOS check: the simulator was {state} before {case}; host evidence: {evidence}"
+                );
+                recoveries.push(json!({"before":case,"state":state,"evidence":evidence}));
+                ensure!(
+                    recoveries.len() <= failure::MAX_SIMULATOR_RECOVERIES,
+                    "The simulator left the booted state {} times; inspect {evidence}",
+                    recoveries.len()
+                );
+                logged(
+                    root,
+                    "recover-simulator",
+                    Command::new("xcrun").args(["simctl", "bootstatus", &identifier, "-b"]),
+                )?;
+            }
             if !completed.is_empty() {
                 logged(
                     root,
@@ -809,6 +834,7 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
             )?;
             let result = directory.join(format!("{case}.xcresult"));
             let started = SystemTime::now();
+            previous = started;
             let execution = logged(
                 root,
                 &case,
@@ -884,7 +910,7 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
         "result":if failed == 0 { "passed" } else { "failed" }, "complete_controlled_inventory":selected.is_empty() && !live,
         "api_environment":if live { "configured public service" } else { "controlled real service fixture" },
         "live_api_origin":if live { Some(plist_string(&application.join("Info.plist"), "PhonebookAPIOrigin")?) } else { None },
-            "tests":completed, "source_sha256":source_records(&sources),
+            "tests":completed, "simulator_recoveries":recoveries, "source_sha256":source_records(&sources),
             "state_isolation":"dedicated erased simulator; application reinstalled before every scenario",
             "simulator_runtime":RUNTIME, "simulator_device":DEVICE_TYPE,
             "physical_device":"not run", "background_scope":"foreground/background UI transitions, not discretionary BGTaskScheduler delivery"

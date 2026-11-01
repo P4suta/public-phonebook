@@ -19,7 +19,13 @@ const TEST_CLASS: &str = "DirectoryUITests";
 const SIMULATOR_LOG: &str = "simulator.log";
 const ATTACHMENTS: &str = "attachments";
 const SIMULATOR_LOG_PREDICATE: &str = "subsystem == \"page.dial.publicphonebook\" OR (messageType != info AND (process == \"PublicPhonebook\" OR process == \"PhonebookUITests-Runner\" OR process == \"SpringBoard\" OR process == \"runningboardd\" OR process == \"testmanagerd\"))";
+const HOST_LOG: &str = "host.log";
+const HOST_LOG_PREDICATE: &str = "process == \"CoreSimulatorService\" OR process == \"launchd_sim\" OR process == \"simdiskimaged\" OR subsystem BEGINSWITH \"com.apple.CoreSimulator\" OR eventMessage CONTAINS[c] \"jetsam\" OR eventMessage CONTAINS[c] \"memory pressure\"";
 const MILLISECONDS_PER_SECOND: f64 = 1000.0;
+/// The CoreSimulator state of a simulator that can run a scenario.
+pub const BOOTED: &str = "Booted";
+/// The most times one UI run may boot its simulator again after the simulator left the booted state.
+pub const MAX_SIMULATOR_RECOVERIES: usize = 1;
 
 /// Runs the Apple tools that read result bundles and simulator logs.
 pub trait Tools {
@@ -121,6 +127,9 @@ pub fn keep(scenario: &Scenario, tools: &impl Tools) -> Result<Evidence> {
     let log = simulator_log(scenario, tools)
         .and_then(|output| Ok(fs::write(directory.join(SIMULATOR_LOG), output)?));
     noted(&mut errors, "simulator log", log);
+    let host = host_state(scenario.started, tools)
+        .and_then(|report| Ok(fs::write(directory.join(HOST_LOG), report)?));
+    noted(&mut errors, "host state", host);
     let summary = summary.unwrap_or_default();
     let failures = failures(&summary, &details.unwrap_or_default(), scenario.root);
     let report = json!({
@@ -131,6 +140,7 @@ pub fn keep(scenario: &Scenario, tools: &impl Tools) -> Result<Evidence> {
         "timeline": timeline(&activities.unwrap_or_default(), summary["finishTime"].as_f64()),
         "attachments": listed.unwrap_or_default(),
         "simulator_log": SIMULATOR_LOG,
+        "host_log": HOST_LOG,
         "export_errors": errors,
     });
     fs::write(
@@ -146,6 +156,77 @@ pub fn keep(scenario: &Scenario, tools: &impl Tools) -> Result<Evidence> {
 
 fn arguments(values: &[&str]) -> Vec<OsString> {
     values.iter().map(OsString::from).collect()
+}
+
+/// Returns the simulator's CoreSimulator state, such as `Booted` or `Shutdown`.
+pub fn simulator_state(identifier: &str, tools: &impl Tools) -> Result<String> {
+    let list: Value = serde_json::from_slice(
+        &tools.output("xcrun", &arguments(&["simctl", "list", "devices", "-j"]))?,
+    )?;
+    list["devices"]
+        .as_object()
+        .into_iter()
+        .flat_map(|runtimes| runtimes.values())
+        .flat_map(|devices| devices.as_array().into_iter().flatten())
+        .find(|device| device["udid"] == identifier)
+        .and_then(|device| device["state"].as_str())
+        .map(str::to_owned)
+        .context("The test simulator is missing from the device list")
+}
+
+/// Keeps the host memory, load, device list, and CoreSimulator log after the simulator left the booted state.
+pub fn keep_host_state(
+    root: &Path,
+    name: &str,
+    since: SystemTime,
+    tools: &impl Tools,
+) -> Result<String> {
+    let relative = Path::new(EVIDENCE).join(name);
+    let directory = root.join(&relative);
+    if directory.exists() {
+        fs::remove_dir_all(&directory)?;
+    }
+    fs::create_dir_all(&directory)?;
+    fs::write(directory.join(HOST_LOG), host_state(since, tools)?)?;
+    Ok(relative.display().to_string())
+}
+
+/// Describes host memory, swap, load, the simulators, and the CoreSimulator log since a time, naming each step that failed.
+fn host_state(since: SystemTime, tools: &impl Tools) -> Result<Vec<u8>> {
+    let start = format!("@{}", since.duration_since(UNIX_EPOCH)?.as_secs());
+    let mut log = arguments(&[
+        "show",
+        "--style",
+        "compact",
+        "--predicate",
+        HOST_LOG_PREDICATE,
+    ]);
+    log.extend([OsString::from("--start"), OsString::from(start)]);
+    let steps: [(&str, Vec<OsString>); 5] = [
+        ("vm_stat", Vec::new()),
+        ("sysctl", arguments(&["vm.swapusage", "vm.loadavg"])),
+        ("uptime", Vec::new()),
+        ("xcrun", arguments(&["simctl", "list", "devices"])),
+        ("log", log),
+    ];
+    let mut report = Vec::new();
+    for (program, arguments) in steps {
+        let words = arguments
+            .iter()
+            .take(2)
+            .map(|argument| argument.to_string_lossy().into_owned())
+            .collect::<Vec<_>>()
+            .join(" ");
+        report.extend(format!("== {program} {words}\n").into_bytes());
+        match tools.output(program, &arguments) {
+            Ok(output) => report.extend(output),
+            Err(error) => report.extend(format!("failed: {error:#}").into_bytes()),
+        }
+        if !report.ends_with(b"\n") {
+            report.push(b'\n');
+        }
+    }
+    Ok(report)
 }
 
 /// Keeps a successful export and records a failed one so the report names every gap.
@@ -351,6 +432,13 @@ mod tests {
                 ("xcrun", ["simctl", "spawn", "SIMULATOR", "log", "show", ..]) if self.log => {
                     json!("launch denied by SpringBoard")
                 }
+                ("xcrun", ["simctl", "list", "devices", "-j"]) => {
+                    json!({"devices": {"iOS": [
+                        {"udid": "OTHER", "state": "Booted"},
+                        {"udid": "SIMULATOR", "state": "Shutdown"}
+                    ]}})
+                }
+                ("vm_stat", []) => json!("Pages free: 1024"),
                 ("xcrun", ["xcresulttool", "get", "test-results", "summary", ..])
                     if self.bundle =>
                 {
@@ -464,6 +552,7 @@ mod tests {
             "activities.json",
             "attachments/A.png",
             "attachments/manifest.json",
+            HOST_LOG,
         ] {
             assert!(kept.join(file).is_file(), "{file} was not kept");
         }
@@ -520,6 +609,41 @@ mod tests {
         let report: Value = serde_json::from_slice(&fs::read(kept.join("failure.json"))?)?;
         assert_eq!(report["export_errors"].as_array().map(Vec::len), Some(4));
         assert_eq!(report["failures"], json!([]));
+        Ok(())
+    }
+
+    #[test]
+    fn a_simulator_that_left_the_booted_state_keeps_the_host_state_and_names_failed_steps()
+    -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let root = directory.path();
+        let tools = Forced {
+            root: root.to_owned(),
+            bundle: false,
+            log: false,
+        };
+        assert_eq!(simulator_state("SIMULATOR", &tools)?, "Shutdown");
+        assert!(simulator_state("MISSING", &tools).is_err());
+        let kept = keep_host_state(root, "simulator-before-testNext", UNIX_EPOCH, &tools)?;
+        assert_eq!(kept, format!("{EVIDENCE}/simulator-before-testNext"));
+        let host = fs::read_to_string(root.join(&kept).join(HOST_LOG))?;
+        let sections = host
+            .lines()
+            .filter(|line| line.starts_with("== "))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            sections,
+            [
+                "== vm_stat ",
+                "== sysctl vm.swapusage vm.loadavg",
+                "== uptime ",
+                "== xcrun simctl list",
+                "== log show --style",
+            ]
+        );
+        assert!(host.contains("Pages free: 1024"));
+        assert!(host.contains("failed: sysctl refused vm.swapusage vm.loadavg"));
+        assert!(host.contains("--start @0"));
         Ok(())
     }
 

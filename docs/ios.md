@@ -61,7 +61,11 @@ The `attachments` folder holds the screenshots, the accessibility tree, and the 
 It also holds the fixture request log, which gives each request's arrival time, upstream status or error, and upstream duration.
 Each wait is a named step, and a timed-out wait reports its elapsed time and, while saving, the save progress and save error on the screen.
 `simulator.log` holds the app's directory trace with the test runner, SpringBoard, RunningBoard, and testmanagerd messages from the scenario.
+`host.log` holds the host's memory, swap, load, simulators, and CoreSimulator log from the scenario.
 The gate prints each failing assertion and its location, and records them in the UI receipt.
+The gate checks that the simulator is still booted before each scenario.
+If it isn't, the gate keeps `host.log` under `target/ios/ui-failures/simulator-before-<scenario>/`, boots the simulator once more, and records the recovery in the UI receipt.
+A second departure from the booted state fails the run.
 A failed or cancelled Native assurance job uploads `target/ios` as a seven-day artifact.
 Never run the destructive simulator setup on a personal phone.
 Use only the read-only live case and the [device verification procedure](ios-device-verification.md) on a physical device.
