@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { brotliCompressSync } from "node:zlib";
 import { SQLiteAsyncDialect } from "drizzle-orm/sqlite-core";
 import { Miniflare } from "miniflare";
 import * as v from "valibot";
@@ -9,6 +11,8 @@ import {
 import {
   manifestObjectKey,
   PreparedDatasetManifestSchema,
+  SearchIndexLocationSchema,
+  searchIndexObjectKey,
 } from "../../src/core/dataset-storage.ts";
 import { sha256 } from "../../src/core/identity.ts";
 import {
@@ -17,6 +21,8 @@ import {
   ContactSchema,
   DatasetManifestSchema,
   GroupedSearchResponseSchema,
+  ProblemSchema,
+  RowLocationSchema,
   SearchResponseSchema,
 } from "../../src/core/models.ts";
 import { checkPageChain } from "../../src/core/page-chain.ts";
@@ -865,6 +871,287 @@ describe("native D1 public API", () => {
     expect((await request("/api/contacts", { method: "POST" })).status).toBe(
       405,
     );
+  });
+});
+
+describe("website search index and row locator", () => {
+  const indexText = "public-phonebook-search-index\t1\n{}\n";
+  const indexBytes = brotliCompressSync(indexText);
+  const indexSha256 = createHash("sha256").update(indexBytes).digest("hex");
+  const indexUrl = `/api/search-index/${snapshot}/${indexSha256}`;
+  const otherSnapshot = "2".repeat(64);
+  let production: DirectoryApiBindings;
+
+  async function prepared(
+    searchIndex: Record<string, unknown>,
+  ): Promise<string> {
+    const manifest = JSON.stringify({
+      snapshot,
+      generatedAt: "2026-10-30T00:00:00Z",
+      contacts: contacts.length,
+      phones: 1,
+      sourceCount: 1,
+      sourceDatabaseSha256: "1".repeat(64),
+      databaseSha256: "2".repeat(64),
+      files: [
+        "contacts.jsonl.gz",
+        "contacts.csv.gz",
+        "contacts.vcf.gz",
+        "directory.tsv.br",
+      ].map((file) => ({
+        file,
+        sha256: "3".repeat(64),
+        bytes: 1,
+        url: `/api/datasets/${snapshot}/${"3".repeat(64)}/${file}`,
+      })),
+      searchIndex: { file: "search-index.br", ...searchIndex },
+    });
+    const digest = await sha256(manifest);
+    const bucket = await runtime.getR2Bucket("DATASETS");
+    await bucket.put(manifestObjectKey(snapshot, digest), manifest);
+    return digest;
+  }
+
+  async function serve(
+    path: string,
+    init?: RequestInit,
+    environment: DirectoryApiBindings = production,
+  ): Promise<Response> {
+    return api.fetch(
+      new Request(`https://www.dial.page${path}`, init),
+      environment,
+    );
+  }
+
+  async function problemCode(response: Response): Promise<string> {
+    const body: unknown = await response.json();
+    return v.parse(ProblemSchema, body).code;
+  }
+
+  beforeAll(async () => {
+    const bucket = await runtime.getR2Bucket("DATASETS");
+    await bucket.put(searchIndexObjectKey(snapshot, indexSha256), indexBytes);
+    production = {
+      ...bindings,
+      APP_ENV: "production",
+      DATASET_MANIFEST_SHA256: await prepared({
+        sha256: indexSha256,
+        bytes: indexBytes.byteLength,
+        uncompressedSha256: createHash("sha256")
+          .update(indexText)
+          .digest("hex"),
+        uncompressedBytes: new TextEncoder().encode(indexText).byteLength,
+      }),
+    };
+  });
+
+  it("locates the current index with a revalidated discovery response", async () => {
+    const response = await serve("/api/search-index");
+    expect(response.status).toBe(200);
+    const body: unknown = await response.json();
+    expect(v.parse(SearchIndexLocationSchema, body)).toEqual({
+      snapshot,
+      url: indexUrl,
+      sha256: indexSha256,
+      bytes: indexBytes.byteLength,
+      uncompressedSha256: createHash("sha256").update(indexText).digest("hex"),
+      uncompressedBytes: new TextEncoder().encode(indexText).byteLength,
+    });
+    expect(response.headers.get("Cache-Control")).toBe(
+      "public, no-cache, must-revalidate",
+    );
+    expect(response.headers.get("X-Dataset-Snapshot")).toBe(snapshot);
+    const etag = response.headers.get("ETag");
+    if (!etag) throw new Error("The index location validator is missing");
+    for (const validator of [etag, `W/${etag}`, `"other", ${etag}`]) {
+      const revalidated = await serve("/api/search-index", {
+        headers: { "If-None-Match": validator },
+      });
+      expect(revalidated.status, validator).toBe(304);
+      expect(await revalidated.text()).toBe("");
+    }
+    const unbound = await serve("/api/search-index", undefined, {
+      ...production,
+      DATASET_MANIFEST_SHA256: "",
+    });
+    expect(unbound.status).toBe(503);
+    expect((await serve("/api/search-index?snapshot=x")).status).toBe(400);
+    expect((await serve("/api/v1/search-index")).status).toBe(404);
+  });
+
+  it("returns the stored Brotli bytes with immutable validators", async () => {
+    const response = await serve(indexUrl, {
+      headers: { "Accept-Encoding": "gzip, deflate, br, zstd" },
+    });
+    expect(response.status).toBe(200);
+    for (const [header, value] of [
+      ["Content-Encoding", "br"],
+      ["Content-Type", "application/octet-stream"],
+      ["Content-Length", String(indexBytes.byteLength)],
+      ["ETag", `"${indexSha256}"`],
+      ["Cache-Control", "public, max-age=31536000, immutable"],
+      ["Vary", "Accept-Encoding"],
+      ["X-Dataset-Snapshot", snapshot],
+      ["X-Content-Type-Options", "nosniff"],
+    ] as const)
+      expect(response.headers.get(header), header).toBe(value);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(indexSha256);
+    const head = await serve(indexUrl, {
+      method: "HEAD",
+      headers: { "Accept-Encoding": "br" },
+    });
+    expect(head.status).toBe(200);
+    expect(head.headers.get("Content-Encoding")).toBe("br");
+    expect(await head.text()).toBe("");
+    for (const validator of [`"${indexSha256}"`, `W/"${indexSha256}"`, "*"]) {
+      const cached = await serve(indexUrl, {
+        headers: { "Accept-Encoding": "br", "If-None-Match": validator },
+      });
+      expect(cached.status, validator).toBe(304);
+      expect(cached.headers.get("ETag")).toBe(`"${indexSha256}"`);
+      expect(cached.headers.get("Cache-Control")).toBe(
+        "public, max-age=31536000, immutable",
+      );
+      expect(cached.headers.get("Content-Encoding")).toBeNull();
+      expect(await cached.text()).toBe("");
+    }
+  });
+
+  it("refuses an index request that doesn't admit Brotli", async () => {
+    for (const encoding of [
+      undefined,
+      "",
+      "identity",
+      "gzip, deflate",
+      "br;q=0",
+      "*;q=0",
+    ]) {
+      const response = await serve(
+        indexUrl,
+        encoding === undefined
+          ? undefined
+          : { headers: { "Accept-Encoding": encoding } },
+      );
+      expect(response.status, String(encoding)).toBe(406);
+      expect(await problemCode(response)).toBe("not_acceptable");
+      expect(response.headers.get("Vary")).toBe("Accept-Encoding");
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+    }
+  });
+
+  it("hides bytes that aren't the current snapshot's index", async () => {
+    const accepted = { headers: { "Accept-Encoding": "br" } };
+    for (const path of [
+      `/api/search-index/${snapshot}/${"5".repeat(64)}`,
+      `/api/search-index/${otherSnapshot}/${indexSha256}`,
+      `/api/search-index/${snapshot}/${indexSha256.toUpperCase()}`,
+      `/api/search-index/abc/${indexSha256}`,
+      `${indexUrl}/search-index.br`,
+    ]) {
+      const response = await serve(path, accepted);
+      expect(response.status, path).toBe(404);
+      expect(await problemCode(response)).toBe("not_found");
+    }
+    expect((await serve(`${indexUrl}?format=1`, accepted)).status).toBe(400);
+    const missing = "7".repeat(64);
+    const unstored = await serve(
+      `/api/search-index/${snapshot}/${missing}`,
+      accepted,
+      {
+        ...production,
+        DATASET_MANIFEST_SHA256: await prepared({
+          sha256: missing,
+          bytes: 1,
+          uncompressedSha256: missing,
+          uncompressedBytes: 1,
+        }),
+      },
+    );
+    expect(unstored.status).toBe(503);
+    const mismatched = await serve(indexUrl, accepted, {
+      ...production,
+      DATASET_MANIFEST_SHA256: await prepared({
+        sha256: indexSha256,
+        bytes: indexBytes.byteLength + 1,
+        uncompressedSha256: missing,
+        uncompressedBytes: 1,
+      }),
+    });
+    expect(mismatched.status).toBe(503);
+  });
+
+  it("returns only the contact ID of a current row", async () => {
+    for (const [row, id] of [
+      [0, "fixture:000"],
+      [172, "fixture:172"],
+    ] as const) {
+      const response = await serve(`/api/contacts/row/${snapshot}/${row}`);
+      expect(response.status).toBe(200);
+      const text = await response.text();
+      expect(text).toBe(JSON.stringify({ id }));
+      expect(v.parse(RowLocationSchema, JSON.parse(text)).id).toBe(id);
+      expect(response.headers.get("X-Dataset-Snapshot")).toBe(snapshot);
+      expect(response.headers.get("Cache-Control")).toBe(
+        "public, no-cache, must-revalidate",
+      );
+    }
+    const head = await serve(`/api/contacts/row/${snapshot}/0`, {
+      method: "HEAD",
+    });
+    expect(head.status).toBe(200);
+    expect(await head.text()).toBe("");
+  });
+
+  it("separates stale snapshots, missing rows, and malformed locators", async () => {
+    const stale = await serve(`/api/contacts/row/${otherSnapshot}/0`);
+    expect(stale.status).toBe(409);
+    expect(await problemCode(stale)).toBe("snapshot_changed");
+    expect(stale.headers.get("X-Dataset-Snapshot")).toBe(snapshot);
+    for (const row of [String(contacts.length), "9007199254740991"]) {
+      const missing = await serve(`/api/contacts/row/${snapshot}/${row}`);
+      expect(missing.status, row).toBe(404);
+      expect(await problemCode(missing)).toBe("not_found");
+    }
+    for (const path of [
+      `abc/0`,
+      `${"A".repeat(64)}/0`,
+      `${snapshot}/01`,
+      `${snapshot}/-1`,
+      `${snapshot}/%2B1`,
+      `${snapshot}/1.0`,
+      `${snapshot}/1e3`,
+      `${snapshot}/%201`,
+      `${snapshot}/9007199254740992`,
+      `${otherSnapshot}/01`,
+      `${snapshot}/0?row=0`,
+    ]) {
+      const malformed = await serve(`/api/contacts/row/${path}`);
+      expect(malformed.status, path).toBe(400);
+      expect(await problemCode(malformed)).toBe("invalid_query");
+    }
+  });
+
+  it("documents the website resources only in the unversioned contract", async () => {
+    const paths = async (base: string): Promise<string[]> => {
+      const body: unknown = await (await serve(`${base}/openapi.json`)).json();
+      return Object.keys(
+        v.parse(v.object({ paths: v.record(v.string(), v.unknown()) }), body)
+          .paths,
+      );
+    };
+    const unversioned = await paths("/api");
+    for (const path of [
+      "/api/search-index",
+      "/api/search-index/{snapshot}/{sha256}",
+      "/api/contacts/row/{snapshot}/{row}",
+    ])
+      expect(unversioned, path).toContain(path);
+    expect(
+      (await paths("/api/v1")).filter(
+        (path) => path.includes("search-index") || path.includes("/row/"),
+      ),
+    ).toEqual([]);
   });
 });
 
