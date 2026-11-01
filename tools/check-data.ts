@@ -7,6 +7,10 @@ import { brotliDecompressSync, createGunzip } from "node:zlib";
 import * as v from "valibot";
 import { normalizeAddress } from "../src/core/address.ts";
 import {
+  type PreparedDatasetManifest,
+  PreparedDatasetManifestSchema,
+} from "../src/core/dataset-storage.ts";
+import {
   directoryArchiveEncoder,
   directoryArchiveFile,
 } from "../src/core/directory-archive.ts";
@@ -14,27 +18,30 @@ import { normalizeName } from "../src/core/identity.ts";
 import {
   CatalogSchema,
   ContactSchema,
-  type DatasetManifest,
-  DatasetManifestSchema,
   type Source,
   SourceSchema,
 } from "../src/core/models.ts";
+import { checkRowOrder, readSearchIndex } from "./search-index.ts";
 import { fileDigest } from "./snapshot.ts";
 
 const commandArgumentOffset = 2;
 
+function sha256Hex(bytes: Uint8Array): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
 export async function checkDataBundle(
   directory: string,
   addressPolicy: "canonical" | "retained" = "canonical",
-): Promise<DatasetManifest> {
+): Promise<PreparedDatasetManifest> {
   const decoded: unknown = JSON.parse(
     await readFile(join(directory, "manifest.ready.json"), "utf8"),
   );
-  const manifest = v.parse(DatasetManifestSchema, decoded);
+  const manifest = v.parse(PreparedDatasetManifestSchema, decoded);
   const path = join(directory, "directory.sqlite");
   if ((await fileDigest(path)) !== manifest.databaseSha256)
     throw new Error("Database checksum mismatch");
-  for (const file of manifest.files)
+  for (const file of [...manifest.files, manifest.searchIndex])
     if (
       (await stat(join(directory, file.file))).size !== file.bytes ||
       (await fileDigest(join(directory, file.file))) !== file.sha256
@@ -199,6 +206,27 @@ export async function checkDataBundle(
         createHash("sha256").update(expectedArchive).digest("hex")
     )
       throw new Error("Directory archive differs from its directory");
+    checkRowOrder(db);
+    const expectedIndex = readSearchIndex(db, {
+      snapshot: manifest.snapshot,
+      catalog,
+    });
+    let actualIndex: Uint8Array;
+    try {
+      actualIndex = brotliDecompressSync(
+        await readFile(join(directory, manifest.searchIndex.file)),
+        { maxOutputLength: expectedIndex.byteLength },
+      );
+    } catch (error) {
+      throw new Error("Search index exceeds its directory", { cause: error });
+    }
+    if (
+      actualIndex.byteLength !== expectedIndex.byteLength ||
+      sha256Hex(actualIndex) !== sha256Hex(expectedIndex) ||
+      manifest.searchIndex.uncompressedBytes !== expectedIndex.byteLength ||
+      manifest.searchIndex.uncompressedSha256 !== sha256Hex(expectedIndex)
+    )
+      throw new Error("Search index differs from its directory");
     const integrity = v.parse(
       v.object({ integrity_check: v.literal("ok") }),
       db.prepare("PRAGMA integrity_check").get(),
@@ -210,6 +238,7 @@ export async function checkDataBundle(
         phones: counts.phones,
         sources: sources.size,
         snapshot: manifest.snapshot,
+        searchIndexBytes: manifest.searchIndex.bytes,
         integrity: integrity.integrity_check,
         addressPolicy,
       }),

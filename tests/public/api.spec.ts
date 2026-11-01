@@ -4,6 +4,10 @@ import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import * as v from "valibot";
 import {
+  PreparedDatasetManifestSchema,
+  publicDatasetManifest,
+} from "../../src/core/dataset-storage.ts";
+import {
   CatalogSchema,
   DatasetManifestSchema,
   GroupedSearchResponseSchema,
@@ -12,7 +16,7 @@ import { checkedFetch } from "../../tools/public-request.ts";
 
 test("the public catalog and grouped API retain the checked national publication", async () => {
   const local = v.parse(
-    DatasetManifestSchema,
+    PreparedDatasetManifestSchema,
     JSON.parse(
       await readFile(
         resolve(
@@ -64,7 +68,7 @@ test("every published archive matches its exact checked bytes", async ({
   test.setTimeout(180000);
   if (!baseURL) throw new Error("Missing public origin");
   const local = v.parse(
-    DatasetManifestSchema,
+    PreparedDatasetManifestSchema,
     JSON.parse(
       await readFile(
         resolve(
@@ -78,7 +82,7 @@ test("every published archive matches its exact checked bytes", async ({
   const response = await checkedFetch("/api/datasets");
   expect(response.status).toBe(200);
   const remote = v.parse(DatasetManifestSchema, await response.json());
-  expect(remote).toEqual(local);
+  expect(remote).toEqual(publicDatasetManifest(local));
   for (const file of remote.files) {
     const archive = await checkedFetch(new URL(file.url, baseURL));
     expect(archive.status).toBe(200);

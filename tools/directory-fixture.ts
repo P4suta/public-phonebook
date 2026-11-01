@@ -7,6 +7,7 @@ import { Miniflare } from "miniflare";
 import * as v from "valibot";
 import { DirectoryDiscoverySchema } from "../src/core/api-contract.ts";
 import { categoryDefinitions, prefectureNames } from "../src/core/catalog.ts";
+import { PreparedDatasetManifestSchema } from "../src/core/dataset-storage.ts";
 import {
   type DirectoryArchiveSource,
   directoryArchiveEncoder,
@@ -17,14 +18,19 @@ import {
   type Catalog,
   CatalogSchema,
   ContactSchema,
-  DatasetManifestSchema,
   SourceSchema,
 } from "../src/core/models.ts";
 import { nameTokens, normalizeName } from "../src/core/search.ts";
+import {
+  encodeSearchIndex,
+  searchIndexFile,
+  searchIndexRow,
+} from "../src/core/search-index.ts";
 import { contactVCard } from "../src/core/vcard.ts";
 import { api, type DirectoryApiBindings } from "../src/server/api.ts";
 import { databaseSchema } from "./database-schema.ts";
-import { compressDirectoryArchive } from "./snapshot.ts";
+import { compressSearchIndex } from "./search-index.ts";
+import { compressDirectoryArchive, contactRowNumbers } from "./snapshot.ts";
 
 export const contractOrigin = "https://contract.example";
 export const fixturePort = 3100;
@@ -207,12 +213,15 @@ export async function directoryFixture(
         .filter(Boolean)
         .map((sql) => DB.prepare(sql)),
     );
-    for (const [index, contact] of contacts.entries()) {
+    const rowNumbers = contactRowNumbers(contacts);
+    for (const contact of contacts) {
+      const rowid = rowNumbers.get(contact.id);
+      if (rowid === undefined) throw new Error("Missing fixture row number");
       await DB.batch([
         DB.prepare(
           "INSERT INTO contacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ).bind(
-          index + 1,
+          rowid,
           contact.id,
           contact.name,
           normalizeName(contact.name),
@@ -225,12 +234,12 @@ export async function directoryFixture(
         ...contact.phones.map((phone) =>
           DB.prepare("INSERT INTO phones VALUES (?, ?)").bind(
             phone.e164,
-            index + 1,
+            rowid,
           ),
         ),
         DB.prepare(
           "INSERT INTO contact_search(rowid,terms) VALUES (?, ?)",
-        ).bind(index + 1, nameTokens(normalizeName(contact.name)).join(" ")),
+        ).bind(rowid, nameTokens(normalizeName(contact.name)).join(" ")),
       ]);
     }
     const catalog = v.parse(CatalogSchema, {
@@ -321,7 +330,24 @@ export async function directoryFixture(
         url: `/api/datasets/${snapshot}/${sha256}/${file}`,
       });
     }
-    const manifest = v.parse(DatasetManifestSchema, {
+    const searchIndex = encodeSearchIndex(
+      contacts
+        .toSorted(
+          (left, right) =>
+            (rowNumbers.get(left.id) ?? 0) - (rowNumbers.get(right.id) ?? 0),
+        )
+        .map((contact) => searchIndexRow(contact)),
+      { snapshot, catalog },
+    );
+    const compressedIndex = compressSearchIndex(searchIndex);
+    const searchIndexSha256 = createHash("sha256")
+      .update(compressedIndex)
+      .digest("hex");
+    await bucket.put(
+      `${snapshot}/${searchIndexSha256}/${searchIndexFile}`,
+      compressedIndex,
+    );
+    const manifest = v.parse(PreparedDatasetManifestSchema, {
       snapshot,
       generatedAt: published.generatedAt,
       contacts: published.contacts,
@@ -330,6 +356,15 @@ export async function directoryFixture(
       sourceDatabaseSha256: "c".repeat(sha256HexLength),
       databaseSha256: "d".repeat(sha256HexLength),
       files,
+      searchIndex: {
+        file: searchIndexFile,
+        sha256: searchIndexSha256,
+        bytes: compressedIndex.byteLength,
+        uncompressedSha256: createHash("sha256")
+          .update(searchIndex)
+          .digest("hex"),
+        uncompressedBytes: searchIndex.byteLength,
+      },
     });
     await bucket.put(`${snapshot}/manifest.json`, JSON.stringify(manifest));
     const bindings: DirectoryApiBindings = {

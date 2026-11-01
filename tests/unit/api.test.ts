@@ -6,7 +6,10 @@ import {
   categoryDefinitions,
   prefectureNames,
 } from "../../src/core/catalog.ts";
-import { manifestObjectKey } from "../../src/core/dataset-storage.ts";
+import {
+  manifestObjectKey,
+  PreparedDatasetManifestSchema,
+} from "../../src/core/dataset-storage.ts";
 import { sha256 } from "../../src/core/identity.ts";
 import {
   CatalogSchema,
@@ -221,7 +224,7 @@ async function request(path: string, init?: RequestInit): Promise<Response> {
 describe("native D1 public API", () => {
   it("binds each Worker version to immutable manifest bytes even when contact snapshots match", async () => {
     const bucket = await runtime.getR2Bucket("DATASETS");
-    const manifest = {
+    const listing = {
       snapshot,
       generatedAt: "2026-10-30T00:00:00Z",
       contacts: contacts.length,
@@ -241,8 +244,21 @@ describe("native D1 public API", () => {
         url: `/api/datasets/${snapshot}/${"3".repeat(64)}/${file}`,
       })),
     };
+    const manifest = {
+      ...listing,
+      searchIndex: {
+        file: "search-index.br",
+        sha256: "5".repeat(64),
+        bytes: 1,
+        uncompressedSha256: "6".repeat(64),
+        uncompressedBytes: 2,
+      },
+    };
     const first = JSON.stringify(manifest);
-    expect(v.safeParse(DatasetManifestSchema, manifest).success).toBe(true);
+    expect(v.safeParse(DatasetManifestSchema, listing).success).toBe(true);
+    expect(v.safeParse(PreparedDatasetManifestSchema, manifest).success).toBe(
+      true,
+    );
     const digest = await sha256(first);
     const changed = JSON.stringify({
       ...manifest,
@@ -262,8 +278,32 @@ describe("native D1 public API", () => {
       production,
     );
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual(manifest);
+    expect(await response.text()).toBe(JSON.stringify(listing));
     expect(response.headers.get("cache-control")).toContain("no-cache");
+    const versioned = await api.fetch(
+      new Request("https://www.dial.page/api/v1/datasets"),
+      production,
+    );
+    expect(await versioned.text()).toBe(
+      JSON.stringify({
+        ...listing,
+        files: listing.files.map((file) => ({
+          ...file,
+          url: file.url.replace("/api/", "/api/v1/"),
+        })),
+      }),
+    );
+    const unindexed = JSON.stringify(listing);
+    const unindexedDigest = await sha256(unindexed);
+    await bucket.put(manifestObjectKey(snapshot, unindexedDigest), unindexed);
+    expect(
+      (
+        await api.fetch(new Request("https://www.dial.page/api/datasets"), {
+          ...production,
+          DATASET_MANIFEST_SHA256: unindexedDigest,
+        })
+      ).status,
+    ).toBe(503);
     await bucket.put(key, changed);
     expect(
       (
