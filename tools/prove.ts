@@ -9,8 +9,8 @@ import { fileDigest } from "./snapshot.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 28;
-const declaredPostconditionCount = 44;
+const verifiedUnitCount = 35;
+const declaredPostconditionCount = 64;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -38,6 +38,11 @@ const expected = [
   "retainsCoverage",
   "bootstrapAdmission",
   "snapshotAdmission",
+  "nameRankAt",
+  "groupPrecedes",
+  "searchSource",
+  "nextVisible",
+  "indexAdmission",
 ];
 const boundFiles = [
   "src/core/api-contract.ts",
@@ -153,6 +158,16 @@ const boundFiles = [
   "src/core/search-index.ts",
   "tools/search-index.ts",
   "tests/unit/search-index.test.ts",
+  "src/core/local-search-policy.ts",
+  "src/core/local-search.ts",
+  "src/core/local-search-protocol.ts",
+  "src/ui/local-search-service.ts",
+  "src/ui/local-search-worker.ts",
+  "tests/unit/local-search-fixture.ts",
+  "tests/unit/local-search-policy.test.ts",
+  "tests/unit/local-search.test.ts",
+  "tests/unit/local-search-parity.test.ts",
+  "tests/unit/local-search-worker.test.ts",
   "package.json",
   "tsconfig.json",
   "mise.toml",
@@ -176,6 +191,7 @@ const proofSources = [
   "src/core/reference-style-policy.ts",
   "src/core/publication-policy.ts",
   "src/core/snapshot-policy.ts",
+  "src/core/local-search-policy.ts",
 ];
 const modelPaths = proofSources.map(
   (path) => `${proofRoot}/proof/generated/${path.replace(/\.ts$/u, ".dfy")}`,
@@ -651,6 +667,57 @@ async function main(): Promise<void> {
       throw new Error(
         `The snapshot negative control was inconclusive: ${rejectedSnapshot.output}`,
       );
+    const localSearchSource = await readFile(
+      `${proofRoot}/src/core/local-search-policy.ts`,
+      "utf8",
+    );
+    for (const control of [
+      {
+        name: "local-rank",
+        from: "if (at > 0) return substringRank;",
+        to: "if (at > 1) return substringRank;",
+      },
+      {
+        name: "local-group-order",
+        from: "(rank === otherRank && row < otherRow);",
+        to: "(rank === otherRank && row <= otherRow);",
+      },
+      {
+        name: "local-source",
+        from: 'return index === "ready" ? "local" : "server";',
+        to: 'return index !== "unavailable" ? "local" : "server";',
+      },
+      {
+        name: "local-continuation",
+        from: "const continuationPage = 30;",
+        to: "const continuationPage = 31;",
+      },
+      {
+        name: "local-admission",
+        from: '  if (!digestMatches) return "digest_mismatch";\n',
+        to: "",
+      },
+    ]) {
+      const broken = localSearchSource.replace(control.from, control.to);
+      if (broken === localSearchSource)
+        throw new Error(
+          `The ${control.name} negative control did not mutate the implementation`,
+        );
+      const path = `proof/negative/${control.name}.ts`;
+      await writeFile(`${proofRoot}/${path}`, broken);
+      await generateModel(path);
+      const rejected = await verifyModel(image, [
+        `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
+      ]);
+      if (
+        rejected.code === 0 ||
+        !/[1-9][0-9]* error/u.test(rejected.output) ||
+        !/could not be proved|could not prove/u.test(rejected.output)
+      )
+        throw new Error(
+          `The ${control.name} negative control was inconclusive: ${rejected.output}`,
+        );
+    }
     for (const binding of bindings) {
       if (
         (await fileDigest(binding.file)) !== binding.sha256 ||
@@ -678,7 +745,7 @@ async function main(): Promise<void> {
           semantics:
             "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
           negativeControl:
-            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, and changed snapshot admission rejected",
+            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a substring ranked at the second position, a reflexive result order, a loading index searched on the device, a 31-row continuation, and an index admitted without its digest rejected",
           result: "verified",
         },
         null,
