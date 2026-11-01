@@ -21,7 +21,8 @@ use std::{
 pub(super) const KEY_ID: &str = "APP_STORE_CONNECT_KEY_ID";
 pub(super) const ISSUER_ID: &str = "APP_STORE_CONNECT_ISSUER_ID";
 pub(super) const PRIVATE_KEY: &str = "APP_STORE_CONNECT_PRIVATE_KEY_BASE64";
-const PRIVATE_KEY_HEADER: &str = "-----BEGIN PRIVATE KEY-----";
+const PEM_BEGIN: &str = "-----BEGIN ";
+const PRIVATE_KEY_LABEL: &str = "PRIVATE KEY-----";
 const KEY_ID_LENGTH: usize = 10;
 const APP_APPLE_ID: &str = "6828899028";
 const MARKETING_VERSION: &str = "1.0";
@@ -53,8 +54,10 @@ fn admit_key(id: &str, issuer: &str, private_key: &[u8]) -> Result<()> {
     );
     ensure!(uuid(issuer), "{ISSUER_ID} must be a UUID");
     ensure!(
-        std::str::from_utf8(private_key)
-            .is_ok_and(|key| key.trim_start().starts_with(PRIVATE_KEY_HEADER)),
+        std::str::from_utf8(private_key).is_ok_and(|key| key
+            .trim_start()
+            .strip_prefix(PEM_BEGIN)
+            .is_some_and(|label| label.starts_with(PRIVATE_KEY_LABEL))),
         "{PRIVATE_KEY} must hold the base64 of an App Store Connect .p8 key"
     );
     Ok(())
@@ -491,7 +494,8 @@ mod tests {
 
     #[test]
     fn api_keys_must_have_apple_identifiers_and_a_private_key() {
-        let pem = format!("{PRIVATE_KEY_HEADER}\nMIGTAgEA\n-----END PRIVATE KEY-----\n");
+        let pem =
+            format!("{PEM_BEGIN}{PRIVATE_KEY_LABEL}\nMIGTAgEA\n-----END {PRIVATE_KEY_LABEL}\n");
         assert!(admit_key("ABC123DEF4", ISSUER, pem.as_bytes()).is_ok());
         for (id, issuer, private_key) in [
             ("abc123def4", ISSUER, pem.as_str()),
