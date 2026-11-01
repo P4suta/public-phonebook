@@ -1,0 +1,23 @@
+// swift-tools-version: 6.0
+import PackageDescription
+
+let package = Package(
+  name: "Phonebook",
+  platforms: [.iOS(.v18), .macOS(.v15)],
+  products: [
+    .library(name: "PhonebookCore", targets: ["PhonebookCore"]),
+    .library(name: "PhonebookKit", targets: ["PhonebookKit"]),
+  ],
+  targets: [
+    .target(name: "PhonebookCore"),
+    .systemLibrary(name: "CSQLite"),
+    .target(name: "PhonebookKit", dependencies: ["PhonebookCore", "CSQLite"]),
+    .testTarget(
+      name: "PhonebookCoreTests", dependencies: ["PhonebookCore"],
+      resources: [.copy("PublicationContract.json")]),
+    .testTarget(
+      name: "PhonebookKitTests", dependencies: ["PhonebookKit"],
+      resources: [.copy("DirectoryContract.json")]),
+  ],
+  swiftLanguageModes: [.v6]
+)

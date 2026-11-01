@@ -1,0 +1,658 @@
+{
+  "format": 1,
+  "fileKey": "86k2lR3poqbl2lU6bqQG8V",
+  "reviewNode": "317:1020",
+  "assets": [
+    {
+      "name": "accessibility",
+      "kind": "icon",
+      "nodeId": "191:330",
+      "width": 24,
+      "height": 24,
+      "sha256": "42db5d44209f927b3d3df4aa04ee7aa2bf276179e71e26554bb96864d50bf738"
+    },
+    {
+      "name": "archive",
+      "kind": "icon",
+      "nodeId": "191:347",
+      "width": 24,
+      "height": 24,
+      "sha256": "b3d853e4a5e33d23864a95684331fb78e6f3031e887d3e1ea1a92cb26e4f3086"
+    },
+    {
+      "name": "baby",
+      "kind": "icon",
+      "nodeId": "191:353",
+      "width": 24,
+      "height": 24,
+      "sha256": "b0023b54c8224ca3a2ad31a036dd40de534ced98da40c28bde06c020778b8d37"
+    },
+    {
+      "name": "blocks",
+      "kind": "icon",
+      "nodeId": "191:357",
+      "width": 24,
+      "height": 24,
+      "sha256": "0aa9a6f0284156974a0827ca23beba2a8242d8d56cd6b1d167134f36ee73cbad"
+    },
+    {
+      "name": "book-open-check",
+      "kind": "icon",
+      "nodeId": "191:400",
+      "width": 24,
+      "height": 24,
+      "sha256": "40a0836fca2becd5232b52108100266dfd9a9e55061a6df1c013dae9bc0d20e8"
+    },
+    {
+      "name": "briefcase-business",
+      "kind": "icon",
+      "nodeId": "191:490",
+      "width": 24,
+      "height": 24,
+      "sha256": "c4960a4b065f2d60730b5f2ba41e6be0e78603ce1a1059a2350c4ab4f18d26c6"
+    },
+    {
+      "name": "building",
+      "kind": "icon",
+      "nodeId": "191:382",
+      "width": 24,
+      "height": 24,
+      "sha256": "1037c741c54506034841f8db2a48fb4bcb824af5adb89789527480dc4dc91ef9"
+    },
+    {
+      "name": "building-complex",
+      "kind": "icon",
+      "nodeId": "191:317",
+      "width": 24,
+      "height": 24,
+      "sha256": "2fa3395c935cdd3a1f6d2120c0031a0b9cea20120fce706627f68264bbffed6d"
+    },
+    {
+      "name": "calendar-check",
+      "kind": "icon",
+      "nodeId": "191:462",
+      "width": 24,
+      "height": 24,
+      "sha256": "16a0c70449374a17f2b6d821c04068ddd4bec25a48842c8587841e4bea9ab6ff"
+    },
+    {
+      "name": "calendar-days",
+      "kind": "icon",
+      "nodeId": "191:455",
+      "width": 24,
+      "height": 24,
+      "sha256": "deb0005dd395546df3c07ddc3f3d90091d8584eae6b222cff9690f63595dda88"
+    },
+    {
+      "name": "check",
+      "kind": "icon",
+      "nodeId": "316:1074",
+      "width": 24,
+      "height": 24,
+      "sha256": "13e9f9a15bf085bd6215a138faf1df9f300d61a013de7eebd64626ecbccd2b3a"
+    },
+    {
+      "name": "chevron-down",
+      "kind": "icon",
+      "nodeId": "191:554",
+      "width": 24,
+      "height": 24,
+      "sha256": "c7749e10a4cb727e5ce0c7fd48d44fb683bf93b2fa7c59643148748496b286b0"
+    },
+    {
+      "name": "chevron-left",
+      "kind": "icon",
+      "nodeId": "316:1044",
+      "width": 24,
+      "height": 24,
+      "sha256": "13205113ddbf3be86d59c08431c49a62491e9cbf59fb3a24494dd86762468518"
+    },
+    {
+      "name": "chevron-right",
+      "kind": "icon",
+      "nodeId": "316:1047",
+      "width": 24,
+      "height": 24,
+      "sha256": "f0d3065b02d11412c4892f78e5117fe306116c9f2c8733f5a32c84675c9c6feb"
+    },
+    {
+      "name": "clipboard-list",
+      "kind": "icon",
+      "nodeId": "191:420",
+      "width": 24,
+      "height": 24,
+      "sha256": "6140f959159bee9aa88430f40dc877c36be737cebed8b6aa687dae0aa62cffbf"
+    },
+    {
+      "name": "contact-round",
+      "kind": "icon",
+      "nodeId": "316:1052",
+      "width": 24,
+      "height": 24,
+      "sha256": "e308369c8060c762442ad0dca4183f3d06082ed4d983bc1ef20b7a019588a92f"
+    },
+    {
+      "name": "copy",
+      "kind": "icon",
+      "nodeId": "191:542",
+      "width": 24,
+      "height": 24,
+      "sha256": "82f7d9831f86277fe971ac8c86ff0f5cc466eb4570032f2b4eee1cdb0fb5f355"
+    },
+    {
+      "name": "download",
+      "kind": "icon",
+      "nodeId": "191:551",
+      "width": 24,
+      "height": 24,
+      "sha256": "165b1e0e101f08838fe22f449c22b76e9f25528fc7ee7d885904d440193e02e7"
+    },
+    {
+      "name": "drafting-compass",
+      "kind": "icon",
+      "nodeId": "191:407",
+      "width": 24,
+      "height": 24,
+      "sha256": "d959216afb0507c0809124d1a3482709e4214f9ef756bea1abdadd5c1139f141"
+    },
+    {
+      "name": "external-link",
+      "kind": "icon",
+      "nodeId": "191:563",
+      "width": 24,
+      "height": 24,
+      "sha256": "c88638325f5b67336b60bf868e8c324f68d19e8aa12954d482e571384c6a95fd"
+    },
+    {
+      "name": "file",
+      "kind": "icon",
+      "nodeId": "316:1065",
+      "width": 24,
+      "height": 24,
+      "sha256": "220d78790bf0fe76e57670b5faa3fb66e8bc68a7c73dfddfc8e6321a9984cba4"
+    },
+    {
+      "name": "flame",
+      "kind": "icon",
+      "nodeId": "191:479",
+      "width": 24,
+      "height": 24,
+      "sha256": "aa4ccc642894cbf5f3f78ada72478b39a9da4f9b855e34100a2cbe009791570c"
+    },
+    {
+      "name": "gallery-thumbnails",
+      "kind": "icon",
+      "nodeId": "191:342",
+      "width": 24,
+      "height": 24,
+      "sha256": "23bd6e8c32ccf3e170ed0087cfd6c16d60b7dd9d54767165f3232acab92bb144"
+    },
+    {
+      "name": "graduation-cap",
+      "kind": "icon",
+      "nodeId": "191:500",
+      "width": 24,
+      "height": 24,
+      "sha256": "93f822b89a092f78d57083c6533e027109373c87e8403d02e1e77f60b3372d50"
+    },
+    {
+      "name": "hand-heart",
+      "kind": "icon",
+      "nodeId": "191:323",
+      "width": 24,
+      "height": 24,
+      "sha256": "5dfbc8a036d3bb565ff47d2d8231a556d5150322059cababc00cb665f358935e"
+    },
+    {
+      "name": "hand-helping",
+      "kind": "icon",
+      "nodeId": "191:435",
+      "width": 24,
+      "height": 24,
+      "sha256": "72b4a5ec456d8d25b83ebdee424486845ff97336ab931aa5fae503f3b87bc563"
+    },
+    {
+      "name": "hard-hat",
+      "kind": "icon",
+      "nodeId": "191:426",
+      "width": 24,
+      "height": 24,
+      "sha256": "209a040a12c55a6144fe721035f7e5c5aac8bad8d5c972064201faa305919b20"
+    },
+    {
+      "name": "hospital",
+      "kind": "icon",
+      "nodeId": "191:298",
+      "width": 24,
+      "height": 24,
+      "sha256": "290127c3b0c97230c50e3c7791ab09a3f30b2824b92b12563423149d7bbecbea"
+    },
+    {
+      "name": "house",
+      "kind": "icon",
+      "nodeId": "191:386",
+      "width": 24,
+      "height": 24,
+      "sha256": "a5fc4f7ee65895af3695992977e2653143e0476a761d9dda0c98a6c867a90265"
+    },
+    {
+      "name": "house-heart",
+      "kind": "icon",
+      "nodeId": "191:369",
+      "width": 24,
+      "height": 24,
+      "sha256": "c27309c5c44baee2589b17f7c47b7377c46d9af12b38246008f098532805f0e7"
+    },
+    {
+      "name": "info",
+      "kind": "icon",
+      "nodeId": "316:1056",
+      "width": 24,
+      "height": 24,
+      "sha256": "dacdcd8e7bf7422dd6d3c644250554b7e674a64f2625db370ce2a02edf6e2ac5"
+    },
+    {
+      "name": "landmark",
+      "kind": "icon",
+      "nodeId": "191:310",
+      "width": 24,
+      "height": 24,
+      "sha256": "33a510c42af1613c484e8d1fe4e87be34f301fa6ce66e24a82990952f3f9dde1"
+    },
+    {
+      "name": "languages",
+      "kind": "icon",
+      "nodeId": "191:514",
+      "width": 24,
+      "height": 24,
+      "sha256": "776c4c16fefb21badc161d696ce5b5c5f088edbb1a7c2f74ff28a4d6b704e35c"
+    },
+    {
+      "name": "library-big",
+      "kind": "icon",
+      "nodeId": "191:335",
+      "width": 24,
+      "height": 24,
+      "sha256": "963b10ec53c9ac64cbb8fa624703ff738a30c914a121e9086564a3c0c388aaa9"
+    },
+    {
+      "name": "life-buoy",
+      "kind": "icon",
+      "nodeId": "191:443",
+      "width": 24,
+      "height": 24,
+      "sha256": "e3356e54b7b15a143bb570ac6c1cd628167f3bb2b2e7ff01e6e2da41309d67af"
+    },
+    {
+      "name": "luggage",
+      "kind": "icon",
+      "nodeId": "191:531",
+      "width": 24,
+      "height": 24,
+      "sha256": "5bfdd309e6522ddf9c6a638365bc1907d70cadb60b6c459710615dbe02ab18a7"
+    },
+    {
+      "name": "map-pin",
+      "kind": "icon",
+      "nodeId": "191:546",
+      "width": 24,
+      "height": 24,
+      "sha256": "9992cb3771bff9760754fbf31c6625628f48e776656fd54c5ff2e4fe9a97d8a2"
+    },
+    {
+      "name": "map-pinned",
+      "kind": "icon",
+      "nodeId": "191:519",
+      "width": 24,
+      "height": 24,
+      "sha256": "d29690c5af76577fc4498a549c548287da53055112149afd4df7de30ff7e506e"
+    },
+    {
+      "name": "menu",
+      "kind": "icon",
+      "nodeId": "316:1071",
+      "width": 24,
+      "height": 24,
+      "sha256": "53a0c44698425736392ff48da9870e017238e0911f0192020c44fcc4bf52eae8"
+    },
+    {
+      "name": "messages-square",
+      "kind": "icon",
+      "nodeId": "191:430",
+      "width": 24,
+      "height": 24,
+      "sha256": "20d4ba85d7accda0ecb9ce4078907f8ab050cab1cd9cac9b68daa86193ad1e1b"
+    },
+    {
+      "name": "person-standing",
+      "kind": "icon",
+      "nodeId": "191:506",
+      "width": 24,
+      "height": 24,
+      "sha256": "8058f19b8a2825199b757504fd7c5ec476cbdb0a2e912c2ec58a209ad212bf41"
+    },
+    {
+      "name": "phone",
+      "kind": "icon",
+      "nodeId": "191:538",
+      "width": 24,
+      "height": 24,
+      "sha256": "636b3d9a432d3007b74db1438959a45e66bc0c5c821af036e474608aba6b32b8"
+    },
+    {
+      "name": "pill",
+      "kind": "icon",
+      "nodeId": "191:302",
+      "width": 24,
+      "height": 24,
+      "sha256": "425503d505438acdf27792f34707a29221d80a9f50ad404609e6c54af821b728"
+    },
+    {
+      "name": "receipt-japanese-yen",
+      "kind": "icon",
+      "nodeId": "191:469",
+      "width": 24,
+      "height": 24,
+      "sha256": "9cb48473a08d108d5b2005675d25cfaff23189d0d7817ee771204b92a95adfb9"
+    },
+    {
+      "name": "rotate-ccw",
+      "kind": "icon",
+      "nodeId": "316:1062",
+      "width": 24,
+      "height": 24,
+      "sha256": "a5023bb4dcda5dae85063afb09c528c8b2a8a682f7a46e5bfe2778c9efa79456"
+    },
+    {
+      "name": "scale",
+      "kind": "icon",
+      "nodeId": "191:476",
+      "width": 24,
+      "height": 24,
+      "sha256": "206ba77bfdc26819d72d4821697f2877e2cbfdc43aa9da4d051eb8fc249cad8e"
+    },
+    {
+      "name": "school",
+      "kind": "icon",
+      "nodeId": "191:365",
+      "width": 24,
+      "height": 24,
+      "sha256": "c40e183d9351d8d9f2020b3732d51faaa164ec7b6a26d288254ee1abffc26cad"
+    },
+    {
+      "name": "search",
+      "kind": "icon",
+      "nodeId": "191:535",
+      "width": 24,
+      "height": 24,
+      "sha256": "3cb534d70d819e75440261de1e42286c8a80a2ce3921bc1c4b59449eaae32c52"
+    },
+    {
+      "name": "settings",
+      "kind": "icon",
+      "nodeId": "316:1078",
+      "width": 24,
+      "height": 24,
+      "sha256": "2d30f724ac77a6af706877fe3b50bd72b64898d8f000e9ec906b503d19055639"
+    },
+    {
+      "name": "shield-user",
+      "kind": "icon",
+      "nodeId": "191:484",
+      "width": 24,
+      "height": 24,
+      "sha256": "7719a1ea5b83c4c093db38b99906a0de7b58878a0ab48b3fc5cfd19150e2a16f"
+    },
+    {
+      "name": "shopping-bag",
+      "kind": "icon",
+      "nodeId": "191:412",
+      "width": 24,
+      "height": 24,
+      "sha256": "b7fda3a966e01e79b82e64555012e28cd022bf6a6f1196f4ffe2cc836473d4c3"
+    },
+    {
+      "name": "sliders-horizontal",
+      "kind": "icon",
+      "nodeId": "316:1059",
+      "width": 24,
+      "height": 24,
+      "sha256": "aec8a57d8510921583c6d5e11eb8f55d46f339967a525346183cbe2e169ed707"
+    },
+    {
+      "name": "sprout",
+      "kind": "icon",
+      "nodeId": "191:524",
+      "width": 24,
+      "height": 24,
+      "sha256": "6e93b5260116c8dfe3a8c199b57b9fbaa03e38284deccc5519b6a4074ae1be51"
+    },
+    {
+      "name": "tooth",
+      "kind": "icon",
+      "nodeId": "191:567",
+      "width": 24,
+      "height": 24,
+      "sha256": "89722f628f4d8e7c4dc7e4841f49dac01b05ca78beb254612269437491dcf8c1"
+    },
+    {
+      "name": "triangle-alert",
+      "kind": "icon",
+      "nodeId": "316:1068",
+      "width": 24,
+      "height": 24,
+      "sha256": "482de7675dbc0cd992f7bc2e5f1749ec6b20ffe1c43c593323addb7e1a491269"
+    },
+    {
+      "name": "university",
+      "kind": "icon",
+      "nodeId": "191:395",
+      "width": 24,
+      "height": 24,
+      "sha256": "cb8aa88c43af90b1f51a3e53803122d7ad04eb3952f64959b34bae149e227133"
+    },
+    {
+      "name": "users-round",
+      "kind": "icon",
+      "nodeId": "191:495",
+      "width": 24,
+      "height": 24,
+      "sha256": "acf6335d0bdd055dbf4edcfcddb6803cfecc8ff3f95935ba3f1c46daa4b53af2"
+    },
+    {
+      "name": "x",
+      "kind": "icon",
+      "nodeId": "191:558",
+      "width": 24,
+      "height": 24,
+      "sha256": "75971904da857823c437cb2eb2c6ef1b8ab27ab6db876fa727bf66c43e016bc6"
+    },
+    {
+      "name": "mark-ink",
+      "kind": "brand",
+      "nodeId": "316:1013",
+      "width": 64,
+      "height": 64,
+      "sha256": "30394218b76e1ef66f68f4092bb925a8c54d3cd9de7666f75bbddad14a93331d"
+    },
+    {
+      "name": "mark-paper",
+      "kind": "brand",
+      "nodeId": "316:1016",
+      "width": 64,
+      "height": 64,
+      "sha256": "ce5109153ab7031d7656f6723fa6a9498b9db157bbace92bd1ea24f362ee15b9"
+    },
+    {
+      "name": "app-icon-default",
+      "kind": "brand",
+      "nodeId": "316:1017",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "9263a6ff132fd06713dd3912ac73d53c0e813517199859db7838b4dab2b4f824"
+    },
+    {
+      "name": "app-icon-dark",
+      "kind": "brand",
+      "nodeId": "316:1020",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "105b94aee916ece7f1a45b5ef075e71646e1a86331998abe640c590118caeb7b"
+    },
+    {
+      "name": "app-icon-tinted",
+      "kind": "brand",
+      "nodeId": "316:1023",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "693766b8d5684cd94af408680046099d73e4720e5c2862c5fa174fec0ef3d922"
+    },
+    {
+      "name": "favicon-16",
+      "kind": "brand",
+      "nodeId": "316:1029",
+      "width": 16,
+      "height": 16,
+      "sha256": "308eeeee255fa82a6d2a24f6f80e03b8bf197b9109a26d1a8e984fad7e9c7886"
+    },
+    {
+      "name": "favicon-dark-16",
+      "kind": "brand",
+      "nodeId": "316:1033",
+      "width": 16,
+      "height": 16,
+      "sha256": "086da8e6395c56ab47b7fc8ee646931713c349d15c7a982ced276e50398148eb"
+    },
+    {
+      "name": "favicon-32",
+      "kind": "brand",
+      "nodeId": "316:1037",
+      "width": 32,
+      "height": 32,
+      "sha256": "4adb0d72606a016c46954e7a5c1a7e434549ee7bc2e2e49e2692c2c9cc04d774"
+    },
+    {
+      "name": "favicon-dark-32",
+      "kind": "brand",
+      "nodeId": "316:1041",
+      "width": 32,
+      "height": 32,
+      "sha256": "eaf5bfd8d2ca70987b548205da69fdc861da6a1626ea0fe9591cb78207f8ffae"
+    },
+    {
+      "name": "social-preview",
+      "kind": "brand",
+      "nodeId": "317:1016",
+      "width": 1200,
+      "height": 630,
+      "sha256": "a45e1d0839a3ccb4edaaf43d4251209253782117cffb98c5b0d159bae0109a1a"
+    },
+    {
+      "name": "app-icon-development-default",
+      "kind": "brand",
+      "nodeId": "347:1254",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "f0f7b49a9ebace9180f373d635bfbd1d1e8023398dd2ab51eea7202ab1459682"
+    },
+    {
+      "name": "app-icon-development-dark",
+      "kind": "brand",
+      "nodeId": "347:1270",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "517446df2061c3de6a171200367ebeb6a34a502b979a2350762baf5975ce227b"
+    },
+    {
+      "name": "app-icon-development-tinted",
+      "kind": "brand",
+      "nodeId": "347:1286",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "1b11898eeaf226189aad2f350e97c62bfba060d99a158cc75c4ba3a5348aac8f"
+    },
+    {
+      "name": "app-icon-verification-default",
+      "kind": "brand",
+      "nodeId": "347:1304",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "116aa18bab7a305d518c2c84acb7bf04bb38f41e20b6c921e41f3c30718de4d2"
+    },
+    {
+      "name": "app-icon-verification-dark",
+      "kind": "brand",
+      "nodeId": "347:1320",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "b8cb95b2ccd62fd3769fe8ae80d6c04ab7f85019dccf3d997a70bee0dd8a0018"
+    },
+    {
+      "name": "app-icon-verification-tinted",
+      "kind": "brand",
+      "nodeId": "347:1336",
+      "width": 1024,
+      "height": 1024,
+      "sha256": "b125c3cbbf2c1ef427b74aa1afaa224b0088c0810e4072ebb99664cb829ff95e"
+    }
+  ],
+  "categories": {
+    "agriculture_employment_support": "sprout",
+    "archive": "archive",
+    "certified_child_center": "school",
+    "child_consultation": "hand-helping",
+    "consumer_affairs": "shopping-bag",
+    "dental": "tooth",
+    "disability_support": "accessibility",
+    "employment_office": "briefcase-business",
+    "fire_brigade_office": "flame",
+    "foreign_employment_support": "languages",
+    "graduate_employment_support": "graduation-cap",
+    "junior_college": "book-open-check",
+    "kindergarten": "blocks",
+    "labour_bureau": "clipboard-list",
+    "labour_consultation": "messages-square",
+    "labour_inspection": "hard-hat",
+    "legal_affairs": "scale",
+    "library": "library-big",
+    "local_employment_support": "map-pinned",
+    "medical": "hospital",
+    "municipal_office": "landmark",
+    "museum": "gallery-thumbnails",
+    "nursery": "baby",
+    "nursing_care": "hand-heart",
+    "parent_employment_support": "users-round",
+    "pension_consultation": "calendar-check",
+    "pension_office": "calendar-days",
+    "pharmacy": "pill",
+    "police_consultation": "shield-user",
+    "prefectural_office": "building-complex",
+    "relocation_employment_support": "luggage",
+    "small_scale_childcare": "house-heart",
+    "social_withdrawal_support": "life-buoy",
+    "tax_office": "receipt-japanese-yen",
+    "technical_college": "drafting-compass",
+    "university": "university",
+    "unlicensed_childcare": "house",
+    "workplace_childcare": "building",
+    "youth_employment_support": "person-standing"
+  },
+  "aliases": {
+    "alert": "triangle-alert",
+    "archive": "archive",
+    "back": "chevron-left",
+    "download": "download",
+    "external": "external-link",
+    "file": "file",
+    "filters": "sliders-horizontal",
+    "info": "info",
+    "library": "library-big",
+    "location": "map-pin",
+    "museum": "gallery-thumbnails",
+    "next": "chevron-right",
+    "phone": "phone",
+    "retry": "rotate-ccw",
+    "save": "contact-round",
+    "search": "search"
+  }
+}

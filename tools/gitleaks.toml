@@ -1,0 +1,7 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Public Figma document identifier in the supplied design URL"
+regexTarget = "secret"
+regexes = ['''^86k2lR3poqbl2lU6bqQG8V$''']

@@ -15,3 +15,14 @@
 /proof/generated/
 /proof/input/
 /proof/negative/
+/ios/.build/
+/ios/DerivedData/
+/ios/PublicPhonebook.xcodeproj/
+/ios/GeneratedAssets.xcassets/*
+!/ios/GeneratedAssets.xcassets/Contents.json
+!/ios/GeneratedAssets.xcassets/AppIcon.appiconset/
+!/ios/GeneratedAssets.xcassets/AppIconDevelopment.appiconset/
+!/ios/GeneratedAssets.xcassets/AppIconVerification.appiconset/
+/ios/Signing.local.xcconfig
+/ios/.swift-mutation-testing-cache/
+/tools/ios-check/target/

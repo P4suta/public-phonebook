@@ -16,7 +16,8 @@
       "package.json",
       "biome.json",
       "*.json",
-      "!!src/routeTree.gen.ts"
+      "!!src/routeTree.gen.ts",
+      "!!tools/ios-check/target/**"
     ]
   },
   "formatter": { "indentStyle": "space" },

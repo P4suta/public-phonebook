@@ -39,6 +39,8 @@ async function scanSecrets(): Promise<void> {
     "dir",
     "--no-banner",
     "--redact",
+    "--config",
+    "tools/gitleaks.toml",
     destination,
   ]);
   console.info(JSON.stringify({ operation: "secrets", files }));
@@ -46,6 +48,26 @@ async function scanSecrets(): Promise<void> {
 
 for (const script of ["typecheck", "lint", "test", "build", "audit"])
   await requireCommand("npm", ["run", script]);
+const nativeTools = ["--manifest-path", "tools/ios-check/Cargo.toml"];
+await requireCommand("cargo", ["fmt", ...nativeTools, "--check"]);
+await requireCommand("cargo", [
+  "clippy",
+  "--locked",
+  ...nativeTools,
+  "--all-targets",
+  "--",
+  "-D",
+  "warnings",
+]);
+await requireCommand("cargo", ["test", "--locked", ...nativeTools]);
+for (const action of ["icons --check", "audit"])
+  await requireCommand("cargo", [
+    "run",
+    "--locked",
+    ...nativeTools,
+    "--",
+    ...action.split(" "),
+  ]);
 const decoded: unknown = JSON.parse(
   await readFile("test-results/unit.json", "utf8"),
 );
