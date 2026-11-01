@@ -518,21 +518,7 @@ fn device(root: &Path) -> Result<Simulator> {
         "simulator-ready",
         Command::new("xcrun").args(["simctl", "bootstatus", simulator.id(), "-b"]),
     )?;
-    logged(
-        root,
-        "simulator-log-config",
-        Command::new("xcrun").args([
-            "simctl",
-            "spawn",
-            simulator.id(),
-            "log",
-            "config",
-            "--subsystem",
-            failure::APP_SUBSYSTEM,
-            "--mode",
-            "level:info,persist:info",
-        ]),
-    )?;
+    persist_app_trace(root, simulator.id())?;
     for (key, value) in [
         ("DidShowContinuousPathIntroduction", "true"),
         ("KeyboardContinuousPathEnabled", "false"),
@@ -554,6 +540,25 @@ fn device(root: &Path) -> Result<Simulator> {
         )?;
     }
     Ok(simulator)
+}
+
+/// Keeps the app's info-level directory trace in the simulator log until the simulator shuts down.
+fn persist_app_trace(root: &Path, identifier: &str) -> Result<Output> {
+    logged(
+        root,
+        "simulator-log-config",
+        Command::new("xcrun").args([
+            "simctl",
+            "spawn",
+            identifier,
+            "log",
+            "config",
+            "--subsystem",
+            failure::APP_SUBSYSTEM,
+            "--mode",
+            "level:info,persist:info",
+        ]),
+    )
 }
 
 fn ui_command(root: &Path, identifier: &str) -> Command {
@@ -817,6 +822,7 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
                     "recover-simulator",
                     Command::new("xcrun").args(["simctl", "bootstatus", &identifier, "-b"]),
                 )?;
+                persist_app_trace(root, &identifier)?;
             }
             if !completed.is_empty() {
                 logged(
