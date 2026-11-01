@@ -55,9 +55,6 @@ struct OnboardingScreen: View {
       Feature(
         icon: "search", title: "通信なしで、すぐにさがせます",
         detail: "全国の電話番号をこのiPhoneに保存するので、電波がなくてもさがせます。")
-      Feature(
-        icon: "shield-user", title: "自分の連絡先はそのままです",
-        detail: "連絡先アプリには何も入れません。アプリを削除すると、保存したデータも消えます。")
     case .caller:
       heading("着信に施設の名前を出す")
       Text("役所や病院などから電話がかかってきたとき、着信画面に施設の名前を出します。")
