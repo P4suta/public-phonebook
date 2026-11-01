@@ -9,8 +9,8 @@ import { fileDigest } from "./snapshot.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 28;
-const declaredPostconditionCount = 44;
+const verifiedUnitCount = 31;
+const declaredPostconditionCount = 55;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -38,6 +38,8 @@ const expected = [
   "retainsCoverage",
   "bootstrapAdmission",
   "snapshotAdmission",
+  "leaseAdmission",
+  "evidenceAdmission",
 ];
 const boundFiles = [
   "src/core/api-contract.ts",
@@ -67,6 +69,12 @@ const boundFiles = [
   "tools/release-lifecycle.ts",
   "tools/release-provider.ts",
   "tools/release-store.ts",
+  "tools/control-store.ts",
+  "tools/control-lease.ts",
+  "tools/control-import.ts",
+  "tests/unit/control-store.test.ts",
+  "tests/unit/control-lease.test.ts",
+  "tests/unit/control-import.test.ts",
   "tools/release-retention.ts",
   "tools/release.ts",
   "tools/release-rehearsal.ts",
@@ -533,6 +541,16 @@ async function main(): Promise<void> {
         from: "return !previousPresent && !terminal && owned && versionMatches;",
         to: "return !previousPresent && !terminal && versionMatches;",
       },
+      {
+        name: "lease-expiry",
+        from: "if (serverTimeMs >= expiresAtMs) return",
+        to: "if (serverTimeMs > expiresAtMs) return",
+      },
+      {
+        name: "evidence-signer",
+        from: '  if (signer !== expectedSigner) return "different-signer";\n',
+        to: "",
+      },
     ]) {
       const brokenPublication = publicationSource.replace(
         control.from,
@@ -678,7 +696,7 @@ async function main(): Promise<void> {
           semantics:
             "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
           negativeControl:
-            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, and changed snapshot admission rejected",
+            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a lease taken over at its expiry instant, and evidence from another signer rejected",
           result: "verified",
         },
         null,

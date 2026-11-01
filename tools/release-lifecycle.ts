@@ -12,7 +12,6 @@ export interface ReleaseTarget {
   readonly databaseId: string;
   readonly manifestSha256: string;
   readonly artifactSha256: string | null;
-  readonly bundle: string;
   readonly manifestBinding: "snapshot" | "digest";
 }
 export type ReleasePhase =

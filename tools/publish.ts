@@ -1,13 +1,16 @@
 import { createHash, randomUUID } from "node:crypto";
-import { constants } from "node:fs";
-import { copyFile, mkdir, readdir, readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import * as v from "valibot";
-import { PreparedDatasetManifestSchema } from "../src/core/dataset-storage.ts";
 import { databaseResourceName, environments } from "../src/core/environment.ts";
-import { CatalogSchema } from "../src/core/models.ts";
+import { CatalogSchema, DigestSchema } from "../src/core/models.ts";
 import { canPromote } from "../src/core/publication-policy.ts";
 import { checkDataBundle } from "./check-data.ts";
+import { acquireLease, type PublicationLease } from "./control-lease.ts";
+import {
+  type ControlStore,
+  controlStoreFromEnvironment,
+} from "./control-store.ts";
 import { command, requireCommand } from "./process.ts";
 import { validatePublicationCoverage } from "./publication-coverage.ts";
 import {
@@ -26,10 +29,14 @@ import {
   verifyVersionBindings,
 } from "./release-provider.ts";
 import {
+  type JournalWriter,
+  journalWriter,
   loadRelease,
+  materializeVerificationDataset,
   type RemoteEnvironment,
   releaseLock,
-  saveRelease,
+  runProvenance,
+  storeVerificationDataset,
 } from "./release-store.ts";
 import { fileDigest } from "./snapshot.ts";
 import { validateStagingApplication } from "./staging-access.ts";
@@ -42,6 +49,7 @@ const actionArgumentOffset = 2;
 const maximumArguments = 3;
 const workerBuildDirectory = ".cloudflare/output/v0/workers/default";
 const cf = resolve("node_modules/.bin/cf");
+const verificationCache = ".local/control-cache/datasets";
 const treeSchema = v.pipe(v.string(), v.regex(/^[a-f0-9]{40}$/u));
 
 class RecoveryExerciseFailure extends Error {
@@ -72,55 +80,42 @@ export async function buildDigest(directory: string): Promise<string> {
   return hash.digest("hex");
 }
 
-async function verificationBundle(bundle: string): Promise<string> {
-  const manifestPath = resolve(bundle, "manifest.ready.json");
-  const digest = await fileDigest(manifestPath);
-  const destination = resolve(".local/releases/bundles", digest);
-  await mkdir(destination, { recursive: true });
-  for (const name of ["manifest.ready.json", "catalog.json"]) {
-    const source = resolve(bundle, name);
-    const target = join(destination, name);
-    try {
-      await copyFile(source, target, constants.COPYFILE_EXCL);
-    } catch (error) {
-      if (
-        !(error instanceof Error && "code" in error && error.code === "EEXIST")
-      )
-        throw error;
-    }
-    if ((await fileDigest(source)) !== (await fileDigest(target)))
-      throw new Error("A preserved verification bundle has conflicting bytes");
-  }
-  return destination;
+function verificationBundle(
+  store: ControlStore,
+  target: ReleaseTarget,
+): Promise<string> {
+  return materializeVerificationDataset(
+    store,
+    target.manifestSha256,
+    resolve(verificationCache),
+  );
 }
 
 async function verifyTarget(
   environment: RemoteEnvironment,
   target: ReleaseTarget,
+  store: ControlStore,
 ): Promise<void> {
   await verifyVersionBindings(environment, target);
-  const manifest = v.parse(
-    PreparedDatasetManifestSchema,
-    JSON.parse(
-      await readFile(join(target.bundle, "manifest.ready.json"), "utf8"),
-    ),
+  const bundle = await verificationBundle(store, target);
+  const identity = v.parse(
+    v.object({ snapshot: DigestSchema, databaseSha256: DigestSchema }),
+    JSON.parse(await readFile(join(bundle, "manifest.ready.json"), "utf8")),
   );
   const catalog = v.parse(
     CatalogSchema,
-    JSON.parse(await readFile(join(target.bundle, "catalog.json"), "utf8")),
+    JSON.parse(await readFile(join(bundle, "catalog.json"), "utf8")),
   );
   if (
-    manifest.snapshot !== target.snapshot ||
-    manifest.databaseSha256 !== target.databaseSha256 ||
-    catalog.snapshot !== target.snapshot ||
-    (await fileDigest(join(target.bundle, "manifest.ready.json"))) !==
-      target.manifestSha256
+    identity.snapshot !== target.snapshot ||
+    identity.databaseSha256 !== target.databaseSha256 ||
+    catalog.snapshot !== target.snapshot
   )
     throw new Error(
       "The verification bundle differs from its release identity",
     );
   process.env.DIAL_PUBLIC_ORIGIN = environments[environment].origin;
-  process.env.DIAL_PUBLIC_BUNDLE = target.bundle;
+  process.env.DIAL_PUBLIC_BUNDLE = bundle;
   const failures: unknown[] = [];
   try {
     await requireCommand("npm", [
@@ -159,15 +154,28 @@ async function verifyTarget(
   }
 }
 
+interface PublicationContext {
+  readonly environment: RemoteEnvironment;
+  readonly store: ControlStore;
+  readonly writer: JournalWriter;
+  readonly lease: PublicationLease;
+}
+
 function releasePorts(
-  environment: RemoteEnvironment,
+  { environment, store, writer, lease }: PublicationContext,
   sourceBundle: string,
 ): ReleasePorts {
   return {
-    save: (journal) => saveRelease(environment, journal),
+    async save(journal): Promise<void> {
+      lease.assertHeld();
+      await writer.save(journal);
+    },
     active: () => activeVersion(environment),
-    restore: (previous) => restoreVersion(environment, previous),
-    verify: (target) => verifyTarget(environment, target),
+    async restore(previous): Promise<void> {
+      lease.assertHeld();
+      await restoreVersion(environment, previous);
+    },
+    verify: (target) => verifyTarget(environment, target, store),
     async prepare(target): Promise<void> {
       const manifest = await checkDataBundle(sourceBundle);
       const prepared = v.parse(
@@ -199,6 +207,7 @@ function releasePorts(
       if (environment === "staging") await validateStagingApplication();
     },
     async activate(target): Promise<void> {
+      lease.assertHeld();
       const deployed = await command(
         cf,
         [
@@ -243,8 +252,11 @@ function verifiedPredecessor(
   throw new Error("An incomplete publication requires recovery");
 }
 
-async function adoptProduction(bundle: string): Promise<void> {
-  if (await loadRelease("production"))
+async function adoptProduction(
+  bundle: string,
+  context: PublicationContext,
+): Promise<void> {
+  if (context.writer.current())
     throw new Error("Production already has a publication journal");
   const manifest = await checkDataBundle(bundle, "retained");
   const active = await activeVersion("production");
@@ -255,15 +267,15 @@ async function adoptProduction(bundle: string): Promise<void> {
     snapshot: manifest.snapshot,
     databaseSha256: manifest.databaseSha256,
     databaseId: await activeDatabaseId("production", active.versionId),
-    manifestSha256: await fileDigest(join(bundle, "manifest.ready.json")),
+    manifestSha256: await storeVerificationDataset(context.store, bundle),
     artifactSha256: null,
-    bundle: await verificationBundle(bundle),
     manifestBinding: "snapshot",
   };
-  await verifyTarget("production", target);
+  await verifyTarget("production", target, context.store);
   if ((await activeVersion("production")).versionId !== target.versionId)
     throw new Error("Production changed during baseline verification");
-  await saveRelease("production", {
+  context.lease.assertHeld();
+  await context.writer.save({
     candidate: target,
     previous: null,
     phase: "verified",
@@ -298,7 +310,23 @@ async function main(args: readonly string[]): Promise<void> {
     throw new Error(
       "Usage: publish ENVIRONMENT BUNDLE [--bootstrap|--resume-bootstrap|--recover|--adopt|--status|--rehearse-recovery]",
     );
-  const unlock = await releaseLock(environment);
+  const store = controlStoreFromEnvironment();
+  const provenance = runProvenance();
+  if (action === "--status") {
+    const head = await loadRelease(store, environment);
+    console.info(
+      JSON.stringify({
+        operation: "publication.status",
+        environment,
+        sequence: head?.record.sequence ?? null,
+        provenance: head?.record.provenance ?? null,
+        journal: head?.journal ?? null,
+        active: await activeVersion(environment),
+      }),
+    );
+    return;
+  }
+  const lease = await acquireLease(store, environment, provenance);
   let buildUnlock: (() => Promise<void>) | null = null;
   async function releaseBuild(): Promise<void> {
     const release = buildUnlock;
@@ -306,19 +334,19 @@ async function main(args: readonly string[]): Promise<void> {
     await release?.();
   }
   try {
-    let journal = await loadRelease(environment);
-    const ports = releasePorts(environment, bundle);
-    if (action === "--status") {
-      console.info(
-        JSON.stringify({
-          operation: "publication.status",
-          environment,
-          journal,
-          active: await activeVersion(environment),
-        }),
-      );
-      return;
-    }
+    const context: PublicationContext = {
+      environment,
+      store,
+      lease,
+      writer: journalWriter(
+        store,
+        environment,
+        provenance,
+        await loadRelease(store, environment),
+      ),
+    };
+    let journal = context.writer.current()?.journal ?? null;
+    const ports = releasePorts(context, bundle);
     if (action === "--recover") {
       if (!journal)
         throw new Error("There is no publication journal to recover");
@@ -363,7 +391,7 @@ async function main(args: readonly string[]): Promise<void> {
         throw new Error(
           "Only the existing public production baseline can be adopted",
         );
-      await adoptProduction(bundle);
+      await adoptProduction(bundle, context);
       return;
     }
     const bootstrap = action === "--bootstrap";
@@ -388,7 +416,7 @@ async function main(args: readonly string[]): Promise<void> {
       join(bundle, "manifest.ready.json"),
     );
     if (environment === "production") {
-      const staging = await loadRelease("staging");
+      const staging = (await loadRelease(store, "staging"))?.journal;
       const checked = staging?.phase === "verified" ? staging.candidate : null;
       if (
         !checked ||
@@ -418,7 +446,10 @@ async function main(args: readonly string[]): Promise<void> {
         ? v.parse(
             CatalogSchema,
             JSON.parse(
-              await readFile(join(previous.bundle, "catalog.json"), "utf8"),
+              await readFile(
+                join(await verificationBundle(store, previous), "catalog.json"),
+                "utf8",
+              ),
             ),
           )
         : undefined;
@@ -443,6 +474,8 @@ async function main(args: readonly string[]): Promise<void> {
         await readFile(`.local/remote-data/${environment}.json`, "utf8"),
       ),
     );
+    if ((await storeVerificationDataset(store, bundle)) !== manifestSha256)
+      throw new Error("The verification dataset changed during publication");
     const target: ReleaseTarget = {
       releaseId: randomUUID(),
       versionId: "",
@@ -452,7 +485,6 @@ async function main(args: readonly string[]): Promise<void> {
       databaseId: prepared.database,
       manifestSha256,
       artifactSha256: await buildDigest(resolve(workerBuildDirectory)),
-      bundle: await verificationBundle(bundle),
       manifestBinding: "digest",
     };
     const guardedPorts: ReleasePorts = {
@@ -474,7 +506,7 @@ async function main(args: readonly string[]): Promise<void> {
     try {
       result = await runRelease(target, previous, guardedPorts, bootstrap);
     } catch (error) {
-      const recovered = await loadRelease(environment);
+      const recovered = context.writer.current()?.journal;
       if (
         exercise &&
         error instanceof Error &&
@@ -516,7 +548,7 @@ async function main(args: readonly string[]): Promise<void> {
     try {
       await releaseBuild();
     } finally {
-      await unlock();
+      await lease.release();
     }
   }
 }

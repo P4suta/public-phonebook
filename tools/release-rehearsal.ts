@@ -5,6 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import * as v from "valibot";
 import { CatalogSchema, ContactSchema } from "../src/core/models.ts";
 import { checkDataBundle } from "./check-data.ts";
+import { controlStoreFromEnvironment } from "./control-store.ts";
 import { requireCommand } from "./process.ts";
 import { loadRelease } from "./release-store.ts";
 import { fileDigest, prepareSnapshot } from "./snapshot.ts";
@@ -162,7 +163,7 @@ async function main(args: readonly string[]): Promise<void> {
   const full = resolve(sourceBundle);
   const subset = await prepare(full, resolve(".local/release-rehearsal"));
   if (action === "prepare") return;
-  const previous = await loadRelease("staging");
+  const previous = await loadRelease(controlStoreFromEnvironment(), "staging");
   await stagingData(subset);
   await stagingPublish(subset, previous ? undefined : "--bootstrap");
   await stagingData(full);

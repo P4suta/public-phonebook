@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { controlStoreFromEnvironment } from "./control-store.ts";
 import { requireCommand } from "./process.ts";
 import { loadRelease } from "./release-store.ts";
 
@@ -25,7 +26,10 @@ async function main(args: readonly string[]): Promise<void> {
       environment,
       bundle,
     ]);
-    const existing = await loadRelease(environment);
+    const existing = await loadRelease(
+      controlStoreFromEnvironment(),
+      environment,
+    );
     const config = environment === "staging" ? "stg" : "prd";
     if (environment === "production" && !existing)
       await requireCommand("doppler", [

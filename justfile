@@ -82,7 +82,7 @@ ios-ui-test *args:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- ui-test "$@"
 
 data-remote environment bundle:
-    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --no-fallback -- npm run data:remote -- {{ quote(environment) }} {{ quote(bundle) }}
+    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --only-secrets R2_ACCESS_KEY_ID --only-secrets R2_SECRET_ACCESS_KEY --no-fallback -- npm run data:remote -- {{ quote(environment) }} {{ quote(bundle) }}
 
 publish environment bundle=".local/phonebook":
     doppler run --project public-phonebook --config {{ if environment == "staging" { "stg" } else { "prd" } }} --no-fallback -- npm run publish -- {{ quote(environment) }} {{ quote(bundle) }}
@@ -97,7 +97,11 @@ release-status environment:
     doppler run --project public-phonebook --config {{ if environment == "staging" { "stg" } else { "prd" } }} --no-fallback -- npm run publish -- {{ quote(environment) }} .local/phonebook --status
 
 release-retention environment:
-    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --no-fallback -- node tools/release-retention.ts {{ quote(environment) }}
+    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --only-secrets R2_ACCESS_KEY_ID --only-secrets R2_SECRET_ACCESS_KEY --no-fallback -- node tools/release-retention.ts {{ quote(environment) }}
+
+[positional-arguments]
+control-import directory *flags:
+    node tools/control-import.ts "$@"
 
 release-rehearse bundle=".local/phonebook":
     node tools/release-rehearsal.ts run {{ quote(bundle) }}
