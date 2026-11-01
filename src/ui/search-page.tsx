@@ -135,22 +135,6 @@ export function SearchPage(): ReactElement {
     [regions, returnTo],
   );
 
-  useEffect(() => {
-    if (restoredInput.current || !form.current) return;
-    restoredInput.current = true;
-    const restored = parseWebSearch(
-      Object.fromEntries(new FormData(form.current)),
-    );
-    if (restored.ok && webSearchParameters(restored.value).toString() !== key) {
-      void navigate({
-        to: "/",
-        search: { ...restored.value, error: "" },
-        replace: true,
-        resetScroll: false,
-      });
-    }
-  }, [key, navigate]);
-
   const query = useQuery({
     queryKey,
     queryFn: async ({ signal }) => {
@@ -216,6 +200,21 @@ export function SearchPage(): ReactElement {
     },
     [navigate],
   );
+
+  useEffect(() => {
+    if (restoredInput.current || !form.current) return;
+    restoredInput.current = true;
+    const restored = parseWebSearch(
+      Object.fromEntries(new FormData(form.current)),
+    );
+    if (restored.ok && restored.value.q !== search.q)
+      void navigate({
+        to: "/",
+        search: { q: restored.value.q, category: "", cursor: "", error: "" },
+        replace: true,
+        resetScroll: false,
+      });
+  }, [search.q, navigate]);
 
   useEffect(() => {
     const q = input.trim();
@@ -332,7 +331,11 @@ export function SearchPage(): ReactElement {
             </p>
           </div>
         </div>
-        <search className={css.searchArea} data-local-search={index.status}>
+        <search
+          className={css.searchArea}
+          data-local-search={index.status}
+          data-index-generation={index.generation}
+        >
           <form
             ref={form}
             method="get"

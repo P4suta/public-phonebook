@@ -192,6 +192,8 @@ Browser failures retain screenshots, videos, traces, and structured diagnostics 
 Design cases retain native video even on success.
 WebKit uses native video instead of Playwright screenshots because its screenshot synchronizer injects a stylesheet that violates CSP.
 The console and CSP gates remain enabled, and no context bypasses CSP.
+WebKit reports a fetch that a navigation cancelled as an access-control failure, so the console gate ignores that report only for same-origin URLs, which can't fail access control.
+The page also stops an unfinished index load when it's hidden and starts it again when it's shown.
 The [native-select compatibility decision](adr/hashed-native-select-style-compatibility.md) records the search-page style-attribute hash and its positive and negative controls.
 The [interactive reference decision](adr/openapi-driven-interactive-reference.md) records the separate API-page style policy, dependency configuration, and rendering boundaries.
 Generated-reference tests compare the operation list with the live OpenAPI document, send successful and invalid requests, inspect native responses, search with the keyboard, and check failure recovery.

@@ -1,5 +1,22 @@
 import { test as base, expect, type Page } from "@playwright/test";
 
+const accessControlFailure = /(\S+) due to access control checks\.$/u;
+
+/**
+ * WebKit reports a fetch that a navigation cancelled as an access-control failure, sometimes as a page error.
+ * A same-origin request can't fail access control, so that report can only mean the cancellation.
+ */
+function sameOriginCancellation(message: string, origin: string): boolean {
+  const target = accessControlFailure.exec(message)?.[1];
+  const { host } = new URL(origin);
+  return (
+    target !== undefined &&
+    [`${origin}/`, `//${host}/`, `/${host}/`].some((prefix) =>
+      target.startsWith(prefix),
+    )
+  );
+}
+
 export async function externalLinkIssues(
   page: Page,
 ): Promise<readonly string[]> {
@@ -107,7 +124,10 @@ export const test = base.extend<{
           const status = /^Failed to load resource:.*status of (\d+)/u.exec(
             message,
           )?.[1];
-          return !status || !httpFailures.has(Number(status));
+          return (
+            (!status || !httpFailures.has(Number(status))) &&
+            !sameOriginCancellation(message, origin)
+          );
         }),
         "The browser must not report runtime or policy failures",
       ).toEqual([]);

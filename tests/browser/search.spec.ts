@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { foundation } from "../../src/ui/foundations.ts";
 import { expect, test } from "./fixtures.ts";
+import { waitForLocalSearch } from "./search-sources.ts";
 
 const centerTolerance = 2;
 const edgeTolerance = 1;
@@ -217,6 +218,8 @@ test("a category continuation ends with a new term, and clearing the term return
 }) => {
   await page.goto("/?q=国立国会図書館&category=library");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
+  await waitForLocalSearch(page);
+  await expect(page).toHaveURL(/category=library/);
   await expect(page.locator("[data-result-category]")).toHaveCount(1);
   const input = page.getByRole("searchbox");
   await input.fill("国立国会図書館関西館");

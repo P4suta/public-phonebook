@@ -84,6 +84,7 @@ export class LocalIndexClient {
   #requests = 0;
   readonly #pending = new Map<number, (answer: Answer | null) => void>();
   #reloading = false;
+  #location: AbortController | null = null;
 
   readonly subscribe = (listener: () => void): (() => void) => {
     this.#listeners.add(listener);
@@ -130,7 +131,16 @@ export class LocalIndexClient {
     return answer?.type === "page" ? answer : null;
   }
 
+  /** Stops an unfinished load when the page is hidden, so leaving the page cancels nothing mid-flight; a shown page starts it again. */
+  suspend(): void {
+    if (this.#state.status !== "loading") return;
+    this.dispose();
+    this.#update(initialState);
+  }
+
   dispose(): void {
+    this.#location?.abort();
+    this.#location = null;
     this.#worker?.terminate();
     this.#worker = null;
     this.#settle();
@@ -144,16 +154,20 @@ export class LocalIndexClient {
   }
 
   async #locate(): Promise<void> {
+    const request = new AbortController();
+    this.#location = request;
     let location: v.InferOutput<typeof SearchIndexLocationSchema>;
     try {
       location = v.parse(
         SearchIndexLocationSchema,
-        await requestJson("/api/search-index"),
+        await requestJson("/api/search-index", request.signal),
       );
     } catch {
-      this.#fail();
+      if (!request.signal.aborted) this.#fail();
       return;
     }
+    if (this.#location !== request) return;
+    this.#location = null;
     const message: LocalSearchRequest = {
       type: "load",
       url: location.url,
@@ -255,8 +269,15 @@ export function useLocalIndex(enabled: boolean): {
     () => initialState,
   );
   useEffect(() => {
-    if (enabled) client.start();
+    if (!enabled) return;
+    const start = (): void => client.start();
+    const suspend = (): void => client.suspend();
+    start();
+    window.addEventListener("pageshow", start);
+    window.addEventListener("pagehide", suspend);
     return (): void => {
+      window.removeEventListener("pageshow", start);
+      window.removeEventListener("pagehide", suspend);
       client.dispose();
     };
   }, [client, enabled]);

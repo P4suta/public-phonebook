@@ -12,6 +12,7 @@ import {
 
 const query = "国立国会図書館";
 const announcementDelay = 600;
+const indexReloadTimeout = 60_000;
 const indexLocation = "/api/search-index";
 const loadedAt = new Date("2026-11-02T00:00:00Z");
 const typingFrom = new Date("2026-11-02T01:00:00Z");
@@ -148,6 +149,11 @@ test("a local result opens its facility, and a changed snapshot reloads the inde
     page.getByRole("heading", { name: "電話番号のデータが新しくなりました" }),
   ).toBeVisible();
   await expect.poll(() => locations.length).toBe(1);
+  await expect(searchSource(page)).toHaveAttribute(
+    "data-index-generation",
+    "2",
+    { timeout: indexReloadTimeout },
+  );
   await waitForLocalSearch(page);
   await expect(page).toHaveURL(`/?q=${encodeURIComponent(query)}`);
   await expect(page.locator("article").first().getByRole("heading")).toHaveText(
