@@ -31,6 +31,10 @@ phone-quality bundle report:
 check:
     npm run check
 
+[positional-arguments]
+check-linux *args:
+    node tools/check-linux.ts "$@"
+
 test:
     node tools/test.ts
 
