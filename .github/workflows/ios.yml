@@ -32,6 +32,7 @@ jobs:
           path: target/ios/proof-receipt.json
           if-no-files-found: error
           retention-days: 7
+          overwrite: true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: failure()
         with:
@@ -39,6 +40,7 @@ jobs:
           path: target/ios
           if-no-files-found: ignore
           retention-days: 7
+          overwrite: true
   native:
     name: Native assurance
     runs-on: xcode-27
@@ -67,6 +69,7 @@ jobs:
             target/ios/mutation-receipt.json
           if-no-files-found: error
           retention-days: 7
+          overwrite: true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: failure()
         with:
@@ -74,6 +77,7 @@ jobs:
           path: target/ios
           if-no-files-found: ignore
           retention-days: 7
+          overwrite: true
   delivery:
     name: TestFlight delivery
     needs: [proofs, native]
@@ -144,3 +148,4 @@ jobs:
           path: target/ios/*.log
           if-no-files-found: ignore
           retention-days: 7
+          overwrite: true

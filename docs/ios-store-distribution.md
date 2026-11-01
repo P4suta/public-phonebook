@@ -57,6 +57,8 @@ The owner starts it by hand on `main`, and its jobs fail on any other branch.
 5. `just ios-testflight` uploads the verified package with `xcrun altool --upload-package` and waits until App Store Connect marks the build `VALID`.
 6. An `always()` step deletes the temporary keychain if the command didn't.
 
+Rerunning all jobs or only the failed delivery job gives the delivery a new, larger build number.
+The project's Info.plist files take `CFBundleVersion` from `CURRENT_PROJECT_VERSION`, which the archive command sets.
 No package, key, certificate, profile, or secret becomes an artifact.
 A failed delivery keeps only its command logs, and the commands that write logs never receive the signing values.
 The [build-number decision](adr/number-testflight-builds-from-the-workflow-run.md) explains the build numbers, the upload route, and the processing wait.

@@ -518,6 +518,40 @@ mod tests {
     }
 
     #[test]
+    fn both_bundles_take_their_build_number_from_the_build_setting() -> Result<()> {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        for file in [
+            "ios/Config/App-Info.plist",
+            "ios/Config/CallDirectory-Info.plist",
+        ] {
+            let xml = fs::read_to_string(root.join(file))?;
+            let document = roxmltree::Document::parse_with_options(
+                &xml,
+                roxmltree::ParsingOptions {
+                    allow_dtd: true,
+                    ..roxmltree::ParsingOptions::default()
+                },
+            )?;
+            let properties = signing::entries(
+                document
+                    .root_element()
+                    .first_element_child()
+                    .context("The property list is empty")?,
+            )?;
+            let version = properties
+                .get("CFBundleVersion")
+                .copied()
+                .with_context(|| format!("{file} has no CFBundleVersion"))?;
+            assert_eq!(
+                signing::text(version)?,
+                "$(CURRENT_PROJECT_VERSION)",
+                "{file}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn ci_archives_sign_manually_without_account_access() -> Result<()> {
         let build = BuildNumber::from_run(42, 3)?;
         let directory = Path::new("/build/app-store-run");

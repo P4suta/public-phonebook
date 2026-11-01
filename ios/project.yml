@@ -90,6 +90,7 @@ targets:
       path: Config/App-Info.plist
       properties:
         CFBundleDisplayName: $(PHONEBOOK_DISPLAY_NAME)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDevelopmentRegion: ja
         CFBundleLocalizations: [ja]
         PhonebookAppGroup: $(PHONEBOOK_APP_GROUP)
@@ -115,6 +116,7 @@ targets:
       path: Config/CallDirectory-Info.plist
       properties:
         CFBundleDisplayName: $(PHONEBOOK_DISPLAY_NAME)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.callkit.call-directory
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).CallDirectoryHandler

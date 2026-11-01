@@ -134,9 +134,11 @@ pub(super) struct Profile {
     pub device_scoped: bool,
 }
 
-type Entries<'a, 'input> = BTreeMap<String, roxmltree::Node<'a, 'input>>;
+pub(super) type Entries<'a, 'input> = BTreeMap<String, roxmltree::Node<'a, 'input>>;
 
-fn entries<'a, 'input>(dictionary: roxmltree::Node<'a, 'input>) -> Result<Entries<'a, 'input>> {
+pub(super) fn entries<'a, 'input>(
+    dictionary: roxmltree::Node<'a, 'input>,
+) -> Result<Entries<'a, 'input>> {
     ensure!(
         dictionary.has_tag_name("dict"),
         "Expected a property-list dictionary"
@@ -157,7 +159,7 @@ fn entries<'a, 'input>(dictionary: roxmltree::Node<'a, 'input>) -> Result<Entrie
     Ok(values)
 }
 
-fn text(node: roxmltree::Node<'_, '_>) -> Result<String> {
+pub(super) fn text(node: roxmltree::Node<'_, '_>) -> Result<String> {
     ensure!(
         node.has_tag_name("string"),
         "Expected a property-list string"
