@@ -11,10 +11,11 @@ use std::{
     path::{Path, PathBuf},
     process::{Child, Command, Output, Stdio},
     thread,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 mod build_number;
 mod distribution;
+mod failure;
 mod mutation;
 mod proof;
 mod receipts;
@@ -517,6 +518,21 @@ fn device(root: &Path) -> Result<Simulator> {
         "simulator-ready",
         Command::new("xcrun").args(["simctl", "bootstatus", simulator.id(), "-b"]),
     )?;
+    logged(
+        root,
+        "simulator-log-config",
+        Command::new("xcrun").args([
+            "simctl",
+            "spawn",
+            simulator.id(),
+            "log",
+            "config",
+            "--subsystem",
+            failure::APP_SUBSYSTEM,
+            "--mode",
+            "level:info,persist:info",
+        ]),
+    )?;
     for (key, value) in [
         ("DidShowContinuousPathIntroduction", "true"),
         ("KeyboardContinuousPathEnabled", "false"),
@@ -725,6 +741,10 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
     if receipt.exists() {
         fs::remove_file(&receipt)?;
     }
+    let evidence = root.join(failure::EVIDENCE);
+    if evidence.exists() {
+        fs::remove_dir_all(&evidence)?;
+    }
     let sources = source_hashes(root)?;
     let _fixture = if live {
         None
@@ -788,6 +808,7 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
                     .arg(&application),
             )?;
             let result = directory.join(format!("{case}.xcresult"));
+            let started = SystemTime::now();
             let execution = logged(
                 root,
                 &case,
@@ -813,16 +834,43 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
                 require_ui_case(&read_result("summary")?, &read_result("tests")?, name)
             });
             let error = verdict.as_ref().err().map(|error| format!("{error:#}"));
+            let evidence = error.as_ref().map(|error| {
+                println!("FAIL: {case}: {error}");
+                let scenario = failure::Scenario {
+                    root,
+                    simulator: &identifier,
+                    name,
+                    bundle: &result,
+                    started,
+                };
+                match failure::keep(&scenario, &failure::Xcode) {
+                    Ok(kept) => {
+                        for failed in &kept.failures {
+                            println!("  failure: {}", failed.text);
+                            for location in &failed.locations {
+                                println!("    at {location}");
+                            }
+                        }
+                        for gap in &kept.errors {
+                            println!("  evidence gap: {gap}");
+                        }
+                        println!("  evidence: {}", kept.directory);
+                        kept.record()
+                    }
+                    Err(error) => {
+                        println!("  evidence was not kept: {error:#}");
+                        json!({"error":format!("{error:#}")})
+                    }
+                }
+            });
+            if error.is_none() {
+                println!("PASS: {case}");
+            }
             completed.push(json!({
                 "test":name,
                 "result":if verdict.is_ok() { "passed" } else { "failed" },
-                "error":error,"bundle":result
+                "error":error,"bundle":result,"evidence":evidence
             }));
-            if let Some(error) = error {
-                println!("FAIL: {case}: {error}");
-            } else {
-                println!("PASS: {case}");
-            }
         }
     }
     require_current_sources(root, &sources)?;
@@ -844,8 +892,8 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
     )?;
     ensure!(
         failed == 0,
-        "{failed} native iOS UI scenarios failed; {}",
-        directory.display()
+        "{failed} native iOS UI scenarios failed; inspect {}",
+        evidence.display()
     );
     println!(
         "PASS: {} native iOS UI scenarios; {}",

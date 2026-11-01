@@ -98,8 +98,21 @@ async function serve(): Promise<void> {
     incoming: IncomingMessage,
     outgoing: ServerResponse,
   ): Promise<void> {
+    const received = new Date();
+    const started = performance.now();
     const controller = new AbortController();
-    outgoing.once("close", () => controller.abort());
+    outgoing.once("close", () => {
+      controller.abort();
+      console.info(
+        JSON.stringify({
+          operation: "fixture.request",
+          path: incoming.url,
+          received: received.toISOString(),
+          status: outgoing.writableFinished ? outgoing.statusCode : "closed",
+          milliseconds: Math.round(performance.now() - started),
+        }),
+      );
+    });
     try {
       const forwarded = incoming.headers["x-fixture-origin"];
       const origin =
