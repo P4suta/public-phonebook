@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import * as v from "valibot";
 import { prepareCheckFixture } from "./check-fixture.ts";
 import { command, requireCommand } from "./process.ts";
+import { requireWorkflowPolicy } from "./workflow-policy.ts";
 
 const minimumScanFiles = 20;
 const minimumBehavioralTests = 20;
@@ -78,7 +79,14 @@ const results = v.parse(
 if (results.numPassedTests < minimumBehavioralTests)
   throw new Error("The behavioral test inventory is incomplete");
 await scanSecrets();
-await requireCommand("actionlint", [".github/workflows/checks.yml"]);
+await requireCommand("actionlint", []);
+await requireCommand("zizmor", [
+  "--offline",
+  "--persona=pedantic",
+  "--strict-collection",
+  ".github",
+]);
+await requireWorkflowPolicy(".");
 await prepareCheckFixture();
 await requireCommand("npm", [
   "exec",
