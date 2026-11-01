@@ -335,6 +335,9 @@ test("the contact design gate detects displaced actions and duplicate framed nav
   expect(rules).toContain("action-chrome");
   expect(rules).toContain("phone-column-width");
   expect(rules).toContain("result-address");
+  await page.locator('article a[href*="google.com/maps/"]').evaluate((map) => {
+    map.remove();
+  });
 });
 
 for (const width of [320, 1440]) {

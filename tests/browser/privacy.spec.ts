@@ -48,7 +48,10 @@ test("the browser keeps only screen positions for the tab, no index copy, and ne
   const result = page.locator("article").first();
   await expect(result).toBeVisible();
   await result.getByRole("link", { name: /の情報を見る$/u }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page).toHaveURL(/\/contacts\/[^/?]+\?from=/u);
+  await expect(
+    page.getByRole("heading", { level: 1, name: query }),
+  ).toBeVisible();
   await page.goBack();
   await expect(page.locator("article").first()).toBeVisible();
   await waitForLocalSearch(page);
