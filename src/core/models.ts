@@ -7,7 +7,13 @@ import {
 import { IdentifierSchema, SortableNameSchema } from "./identity.ts";
 import { normalizePhone } from "./phone.ts";
 
-const completeArchiveCount = 3;
+const datasetFiles = [
+  "contacts.jsonl.gz",
+  "contacts.csv.gz",
+  "contacts.vcf.gz",
+  "directory.tsv.br",
+] as const;
+const completeArchiveCount = datasetFiles.length;
 const sha256HexLength = 64;
 
 export const DigestSchema = v.pipe(
@@ -15,8 +21,8 @@ export const DigestSchema = v.pipe(
   v.length(sha256HexLength),
   v.regex(/^[a-f0-9]{64}$/u),
 );
-const CountSchema = v.pipe(v.number(), v.safeInteger(), v.minValue(0));
-const TextSchema = v.pipe(v.string(), v.minLength(1));
+export const CountSchema = v.pipe(v.number(), v.safeInteger(), v.minValue(0));
+export const TextSchema = v.pipe(v.string(), v.minLength(1));
 export const PublicUrlSchema = v.pipe(
   v.string(),
   v.url(),
@@ -122,8 +128,9 @@ export const CatalogSchema = v.strictObject({
 });
 export type Catalog = v.InferOutput<typeof CatalogSchema>;
 
+export const DatasetFileNameSchema = v.picklist(datasetFiles);
 export const DatasetFileSchema = v.strictObject({
-  file: v.picklist(["contacts.jsonl.gz", "contacts.csv.gz", "contacts.vcf.gz"]),
+  file: DatasetFileNameSchema,
   sha256: DigestSchema,
   bytes: CountSchema,
   url: v.string(),

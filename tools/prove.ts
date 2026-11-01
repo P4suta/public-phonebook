@@ -148,6 +148,8 @@ const boundFiles = [
   "tools/prove.ts",
   "tools/process.ts",
   "tools/snapshot.ts",
+  "src/core/directory-archive.ts",
+  "tests/unit/directory-archive.test.ts",
   "package.json",
   "tsconfig.json",
   "mise.toml",

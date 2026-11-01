@@ -7,7 +7,8 @@ import {
 import { dirname } from "node:path";
 import * as v from "valibot";
 import { DirectoryDiscoverySchema } from "../src/core/api-contract.ts";
-import { SearchResponseSchema } from "../src/core/models.ts";
+import { directoryArchiveFile } from "../src/core/directory-archive.ts";
+import { VersionedDatasetManifestSchema } from "../src/core/models.ts";
 import {
   contractOrigin,
   directoryFixture,
@@ -16,7 +17,6 @@ import {
 
 const listenHostname = "127.0.0.1";
 const loopbackHostnames = [listenHostname, "localhost"];
-const continuationPageLimit = 8;
 const httpOk = 200;
 const httpServerError = 500;
 const commandArgumentOffset = 2;
@@ -27,6 +27,7 @@ interface ContractResponse {
   readonly status: number;
   readonly headers: Readonly<Record<string, string>>;
   readonly body: string;
+  readonly encoding?: "base64";
 }
 
 export async function contractResponses(): Promise<
@@ -34,11 +35,10 @@ export async function contractResponses(): Promise<
 > {
   const fixture = await directoryFixture();
   const responses: ContractResponse[] = [];
-  async function request(path: string): Promise<string> {
+  async function request(path: string, binary = false): Promise<string> {
     const response = await fixture.fetch(
       new Request(new URL(path, contractOrigin)),
     );
-    const body = await response.text();
     const headers: Record<string, string> = {};
     for (const name of [
       "Content-Type",
@@ -46,40 +46,29 @@ export async function contractResponses(): Promise<
       "X-Directory-API-Version",
     ])
       headers[name] = response.headers.get(name) ?? "";
-    responses.push({ path, status: response.status, headers, body });
+    const status = response.status;
+    if (binary) {
+      let bytes = "";
+      for (const byte of new Uint8Array(await response.arrayBuffer()))
+        bytes += String.fromCharCode(byte);
+      const body = btoa(bytes);
+      responses.push({ path, status, headers, body, encoding: "base64" });
+      return body;
+    }
+    const body = await response.text();
+    responses.push({ path, status, headers, body });
     return body;
   }
   try {
     const raw: unknown = JSON.parse(await request("/api/v1"));
     const discovery = v.parse(DirectoryDiscoverySchema, raw);
     await request(discovery.catalog);
-    const queries = [
-      new URLSearchParams({ limit: "50" }),
-      new URLSearchParams({ limit: "50", q: "試験" }),
-      new URLSearchParams({ limit: "50", prefecture: "01" }),
-      new URLSearchParams({ limit: "50", prefecture: "02" }),
-    ];
-    for (const query of queries) {
-      let path: string | null = `${discovery.contacts}&${query}`;
-      const visited = new Set<string>();
-      while (path) {
-        if (visited.size >= continuationPageLimit || visited.has(path))
-          throw new Error(
-            "The provider contract continuation did not terminate",
-          );
-        visited.add(path);
-        const value: unknown = JSON.parse(await request(path));
-        const page = v.parse(SearchResponseSchema, value);
-        if (page.links.next) {
-          const next = new URL(page.links.next);
-          path = next.pathname + next.search;
-        } else path = null;
-      }
-    }
-    await request(`/api/v1/sources/test?snapshot=${discovery.snapshot}`);
-    await request(
-      `/api/v1/contacts/13%3Adental/contact.vcf?snapshot=${discovery.snapshot}`,
-    );
+    const listing: unknown = JSON.parse(await request(discovery.datasets));
+    const archive = v
+      .parse(VersionedDatasetManifestSchema, listing)
+      .files.find((file) => file.file === directoryArchiveFile);
+    if (!archive) throw new Error("The provider contract has no archive");
+    await request(archive.url, true);
     return responses;
   } finally {
     await fixture.dispose();

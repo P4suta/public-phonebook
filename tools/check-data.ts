@@ -3,15 +3,20 @@ import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { createGunzip } from "node:zlib";
+import { brotliDecompressSync, createGunzip } from "node:zlib";
 import * as v from "valibot";
 import { normalizeAddress } from "../src/core/address.ts";
+import {
+  directoryArchiveEncoder,
+  directoryArchiveFile,
+} from "../src/core/directory-archive.ts";
 import { normalizeName } from "../src/core/identity.ts";
 import {
   CatalogSchema,
   ContactSchema,
   type DatasetManifest,
   DatasetManifestSchema,
+  type Source,
   SourceSchema,
 } from "../src/core/models.ts";
 import { fileDigest } from "./snapshot.ts";
@@ -51,12 +56,15 @@ export async function checkDataBundle(
     if (JSON.stringify(catalogFile) !== JSON.stringify(catalog))
       throw new Error("Catalog artifact mismatch");
     const sources = new Set<string>();
+    const sourceRecords: Source[] = [];
     for (const row of db.prepare("SELECT id, payload FROM sources").iterate()) {
       const value: unknown = JSON.parse(v.parse(v.string(), row.payload));
       const source = v.parse(SourceSchema, value);
       if (source.id !== row.id) throw new Error("Source index mismatch");
       sources.add(source.id);
+      sourceRecords.push(source);
     }
+    const archive = directoryArchiveEncoder();
     const hash = createHash("sha256");
     const categories = new Map<string, number>();
     const prefectures = new Map<string, number>();
@@ -89,6 +97,7 @@ export async function checkDataBundle(
         !contact.municipalityCode.startsWith(contact.prefectureCode)
       )
         throw new Error(`Contact region mismatch: ${contact.id}`);
+      archive.add(contact);
       const line = `${JSON.stringify(contact)}\n`;
       hash.update(line);
       snapshotBytes += new TextEncoder().encode(line).byteLength;
@@ -164,6 +173,32 @@ export async function checkDataBundle(
       archiveHash.digest("hex") !== manifest.snapshot
     )
       throw new Error("JSONL archive differs from its directory");
+    const expectedArchive = new TextEncoder().encode(
+      archive.finish({
+        snapshot: manifest.snapshot,
+        catalog,
+        sources: sourceRecords,
+      }),
+    );
+    const compressedArchive = await readFile(
+      join(directory, directoryArchiveFile),
+    );
+    let actualArchive: Uint8Array;
+    try {
+      actualArchive = brotliDecompressSync(compressedArchive, {
+        maxOutputLength: expectedArchive.length,
+      });
+    } catch (error) {
+      throw new Error("Directory archive exceeds its directory", {
+        cause: error,
+      });
+    }
+    if (
+      actualArchive.byteLength !== expectedArchive.byteLength ||
+      createHash("sha256").update(actualArchive).digest("hex") !==
+        createHash("sha256").update(expectedArchive).digest("hex")
+    )
+      throw new Error("Directory archive differs from its directory");
     const integrity = v.parse(
       v.object({ integrity_check: v.literal("ok") }),
       db.prepare("PRAGMA integrity_check").get(),

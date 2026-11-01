@@ -104,7 +104,9 @@ async function main(args: readonly string[]): Promise<void> {
         "--file",
         resolve(bundle, file.file),
         "--content-type",
-        "application/gzip",
+        file.file === "directory.tsv.br"
+          ? "application/octet-stream"
+          : "application/gzip",
         "--content-length",
         String(file.bytes),
       ]);
