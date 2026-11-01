@@ -166,7 +166,8 @@ export function writePolicy(key: string): WritePolicy {
 }
 
 function requireWritePolicy(key: string, condition: WriteCondition): void {
-  if (condition.kind === "replace" && writePolicy(key) !== "conditional")
+  const policy = writePolicy(key);
+  if (condition.kind === "replace" && policy !== "conditional")
     throw new Error(`The control object can't be replaced: ${key}`);
 }
 

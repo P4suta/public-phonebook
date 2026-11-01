@@ -9,11 +9,16 @@ import { fileDigest } from "./snapshot.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 31;
-const declaredPostconditionCount = 55;
+const verifiedUnitCount = 28;
+const declaredPostconditionCount = 44;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
+const releaseControlVerifiedUnits = 3;
+const releaseControlPostconditions = 11;
+const provenUnitCount = verifiedUnitCount + releaseControlVerifiedUnits;
+const provenPostconditionCount =
+  declaredPostconditionCount + releaseControlPostconditions;
 
 const expected = [
   "canFetchNext",
@@ -34,12 +39,12 @@ const expected = [
   "sourceRowsAccounted",
   "stagingAdmission",
   "recoveryDecision",
+  "leaseAdmission",
+  "evidenceAdmission",
   "canRetireResource",
   "retainsCoverage",
   "bootstrapAdmission",
   "snapshotAdmission",
-  "leaseAdmission",
-  "evidenceAdmission",
 ];
 const boundFiles = [
   "src/core/api-contract.ts",
@@ -286,7 +291,7 @@ async function main(): Promise<void> {
         (sum, source) =>
           sum + [...source.matchAll(/^\s*\/\/@ ensures /gm)].length,
         0,
-      ) !== declaredPostconditionCount
+      ) !== provenPostconditionCount
     )
       throw new Error("The declared postcondition inventory changed");
     for (const path of proofSources) await generateModel(path);
@@ -333,7 +338,7 @@ async function main(): Promise<void> {
     if (
       positive.code !== 0 ||
       !new RegExp(
-        `finished with ${verifiedUnitCount} verified, 0 errors`,
+        `finished with ${provenUnitCount} verified, 0 errors`,
         "u",
       ).test(positive.output)
     )
@@ -691,12 +696,12 @@ async function main(): Promise<void> {
           image,
           models: modelBindings,
           contracts: expected,
-          verifiedUnits: verifiedUnitCount,
-          postconditions: declaredPostconditionCount,
+          verifiedUnits: provenUnitCount,
+          postconditions: provenPostconditionCount,
           semantics:
             "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
           negativeControl:
-            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a lease taken over at its expiry instant, and evidence from another signer rejected",
+            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, and changed snapshot admission rejected",
           result: "verified",
         },
         null,
@@ -745,8 +750,8 @@ async function main(): Promise<void> {
     console.info(
       JSON.stringify({
         operation: "proof",
-        verifiedUnits: verifiedUnitCount,
-        postconditions: declaredPostconditionCount,
+        verifiedUnits: provenUnitCount,
+        postconditions: provenPostconditionCount,
         negativeControl: "rejected",
         receiptControls: "rejected",
         result: "verified",
@@ -769,8 +774,8 @@ if (process.argv[commandArgumentOffset] === "--check-receipt") {
       ),
       models: v.array(v.object({ path: v.string(), sha256: v.string() })),
       contracts: v.array(v.string()),
-      verifiedUnits: v.literal(verifiedUnitCount),
-      postconditions: v.literal(declaredPostconditionCount),
+      verifiedUnits: v.literal(provenUnitCount),
+      postconditions: v.literal(provenPostconditionCount),
       result: v.literal("verified"),
     }),
     receipt,
