@@ -1,0 +1,5 @@
+#include "Signing.xcconfig"
+PHONEBOOK_BUNDLE_ID = page.dial.publicphonebook.devicechecks
+PHONEBOOK_DISPLAY_NAME = Public Phonebook QA
+PHONEBOOK_API_ORIGIN = https:/$()/www.dial.page
+ASSETCATALOG_COMPILER_APPICON_NAME = AppIconVerification

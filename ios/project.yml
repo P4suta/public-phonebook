@@ -1,0 +1,160 @@
+name: PublicPhonebook
+options:
+  minimumXcodeGenVersion: 2.46.0
+  deploymentTarget:
+    iOS: "18.0"
+packages:
+  Phonebook:
+    path: .
+configs:
+  Debug: debug
+  DevelopmentRelease: release
+  VerificationDebug: debug
+  VerificationRelease: release
+  ProductionDebug: debug
+  Release: release
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+    TARGETED_DEVICE_FAMILY: "1"
+    CODE_SIGN_STYLE: Automatic
+    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "1.0"
+    PHONEBOOK_APP_GROUP: group.$(PHONEBOOK_BUNDLE_ID)
+    PHONEBOOK_CALL_DIRECTORY: $(PHONEBOOK_BUNDLE_ID).CallDirectory
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    GCC_TREAT_WARNINGS_AS_ERRORS: YES
+configFiles:
+  Debug: Config/Development.xcconfig
+  DevelopmentRelease: Config/Development.xcconfig
+  VerificationDebug: Config/Verification.xcconfig
+  VerificationRelease: Config/Verification.xcconfig
+  ProductionDebug: Config/Production.xcconfig
+  Release: Config/Production.xcconfig
+targetTemplates:
+  SharedExtension:
+    platform: iOS
+    sources:
+      - Native
+      - path: Config/PrivacyInfo.xcprivacy
+        buildPhase: resources
+    dependencies:
+      - package: Phonebook
+        product: PhonebookCore
+      - package: Phonebook
+        product: PhonebookKit
+    settings:
+      base:
+        APPLICATION_EXTENSION_API_ONLY: YES
+        CODE_SIGN_ENTITLEMENTS: Config/Shared.entitlements
+    info:
+      properties:
+        CFBundleDevelopmentRegion: ja
+        CFBundleLocalizations: [ja]
+        PhonebookAppGroup: $(PHONEBOOK_APP_GROUP)
+        PhonebookCallDirectory: $(PHONEBOOK_CALL_DIRECTORY)
+        PhonebookAPIOrigin: $(PHONEBOOK_API_ORIGIN)
+        ITSAppUsesNonExemptEncryption: false
+targets:
+  PublicPhonebook:
+    type: application
+    platform: iOS
+    sources:
+      - App
+      - Native
+      - path: GeneratedAssets.xcassets
+        buildPhase: resources
+      - path: Config/PrivacyInfo.xcprivacy
+        buildPhase: resources
+      - path: ../design/licenses/Lucide.txt
+        buildPhase: resources
+    dependencies:
+      - package: Phonebook
+        product: PhonebookCore
+      - package: Phonebook
+        product: PhonebookKit
+      - target: CallDirectory
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_BUNDLE_ID)
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_ENTITLEMENTS: Config/Shared.entitlements
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    info:
+      path: Config/App-Info.plist
+      properties:
+        CFBundleDisplayName: $(PHONEBOOK_DISPLAY_NAME)
+        CFBundleDevelopmentRegion: ja
+        CFBundleLocalizations: [ja]
+        PhonebookAppGroup: $(PHONEBOOK_APP_GROUP)
+        PhonebookCallDirectory: $(PHONEBOOK_CALL_DIRECTORY)
+        PhonebookAPIOrigin: $(PHONEBOOK_API_ORIGIN)
+        PhonebookBackgroundRefresh: $(PHONEBOOK_BUNDLE_ID).refresh
+        ITSAppUsesNonExemptEncryption: false
+        UIBackgroundModes: [processing]
+        BGTaskSchedulerPermittedIdentifiers: [$(PHONEBOOK_BUNDLE_ID).refresh]
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+  CallDirectory:
+    type: app-extension
+    templates: [SharedExtension]
+    sources:
+      - CallDirectory
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_CALL_DIRECTORY)
+    info:
+      path: Config/CallDirectory-Info.plist
+      properties:
+        CFBundleDisplayName: $(PHONEBOOK_DISPLAY_NAME)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.callkit.call-directory
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).CallDirectoryHandler
+  PhonebookUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - UITests
+    dependencies:
+      - target: PublicPhonebook
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_BUNDLE_ID).UITests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  PublicPhonebook:
+    build:
+      targets:
+        PublicPhonebook: all
+    test:
+      config: VerificationDebug
+      targets: [PhonebookUITests]
+    run:
+      config: Debug
+    archive:
+      config: Release
+  PublicPhonebookDevelopment:
+    build:
+      targets:
+        PublicPhonebook: all
+    run:
+      config: Debug
+    archive:
+      config: DevelopmentRelease
+  PublicPhonebookVerification:
+    build:
+      targets:
+        PublicPhonebook: all
+    run:
+      config: VerificationDebug
+    test:
+      config: VerificationDebug
+      targets: [PhonebookUITests]
+    archive:
+      config: VerificationRelease
