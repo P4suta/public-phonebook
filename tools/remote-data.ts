@@ -91,7 +91,7 @@ async function main(args: readonly string[]): Promise<void> {
         "--location-hint",
         "apac",
       ]);
-    for (const file of manifest.files) {
+    for (const file of [...manifest.files, manifest.searchIndex]) {
       if (file.bytes > maximumR2UploadBytes)
         throw new Error("An archive exceeds the supported R2 upload size");
       await cloudflare([
@@ -104,7 +104,7 @@ async function main(args: readonly string[]): Promise<void> {
         "--file",
         resolve(bundle, file.file),
         "--content-type",
-        file.file === "directory.tsv.br"
+        file.file.endsWith(".br")
           ? "application/octet-stream"
           : "application/gzip",
         "--content-length",

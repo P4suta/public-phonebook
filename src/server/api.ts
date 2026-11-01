@@ -4,7 +4,11 @@ import { describeRoute, openAPIRouteHandler, resolver } from "hono-openapi";
 import * as v from "valibot";
 import { DirectoryDiscoverySchema } from "../core/api-contract.ts";
 import { categoryDefinitions, prefectureNames } from "../core/catalog.ts";
-import { manifestObjectKey } from "../core/dataset-storage.ts";
+import {
+  manifestObjectKey,
+  PreparedDatasetManifestSchema,
+  publicDatasetManifest,
+} from "../core/dataset-storage.ts";
 import { type FailureStatus, httpStatus } from "../core/http-status.ts";
 import { sha256 } from "../core/identity.ts";
 import {
@@ -675,7 +679,9 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
       if (manifestSha256 && (await sha256(text)) !== manifestSha256)
         return problem(c, "unavailable", httpStatus.unavailable);
       const value: unknown = JSON.parse(text);
-      const parsed = v.parse(DatasetManifestSchema, value);
+      const parsed = publicDatasetManifest(
+        v.parse(PreparedDatasetManifestSchema, value),
+      );
       if (
         parsed.snapshot !== catalog.snapshot ||
         parsed.contacts !== catalog.contacts

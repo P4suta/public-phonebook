@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import { parsePhoneNumberFromString } from "libphonenumber-js/max";
 import * as v from "valibot";
-import { DatasetManifestSchema } from "../src/core/models.ts";
+import { PreparedDatasetManifestSchema } from "../src/core/dataset-storage.ts";
 import { formatPhone, normalizePhone } from "../src/core/phone.ts";
 import { fileDigest } from "./snapshot.ts";
 
@@ -35,7 +35,7 @@ async function main(): Promise<void> {
   const manifest: unknown = JSON.parse(
     await readFile(`${directory}/manifest.ready.json`, "utf8"),
   );
-  const bundle = v.parse(DatasetManifestSchema, manifest);
+  const bundle = v.parse(PreparedDatasetManifestSchema, manifest);
   const snapshot = bundle.snapshot;
   const databaseSha256 = await fileDigest(`${directory}/directory.sqlite`);
   if (databaseSha256 !== bundle.databaseSha256)

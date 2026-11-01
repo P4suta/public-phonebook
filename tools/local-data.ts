@@ -90,7 +90,7 @@ export async function seedLocalData(
       .bind(identity)
       .run();
     const bucket = await runtime.getR2Bucket("DATASETS");
-    for (const file of manifest.files) {
+    for (const file of [...manifest.files, manifest.searchIndex]) {
       await bucket.put(
         `${manifest.snapshot}/${file.sha256}/${file.file}`,
         await readFile(join(directory, file.file)),

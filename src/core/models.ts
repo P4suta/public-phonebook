@@ -135,17 +135,18 @@ export const DatasetFileSchema = v.strictObject({
   bytes: CountSchema,
   url: v.string(),
 });
+export const DatasetListingSchema = v.strictObject({
+  snapshot: DigestSchema,
+  generatedAt: TextSchema,
+  contacts: CountSchema,
+  phones: CountSchema,
+  sourceCount: CountSchema,
+  sourceDatabaseSha256: DigestSchema,
+  databaseSha256: DigestSchema,
+  files: v.pipe(v.array(DatasetFileSchema), v.length(completeArchiveCount)),
+});
 const CompleteDatasetManifestSchema = v.pipe(
-  v.strictObject({
-    snapshot: DigestSchema,
-    generatedAt: TextSchema,
-    contacts: CountSchema,
-    phones: CountSchema,
-    sourceCount: CountSchema,
-    sourceDatabaseSha256: DigestSchema,
-    databaseSha256: DigestSchema,
-    files: v.pipe(v.array(DatasetFileSchema), v.length(completeArchiveCount)),
-  }),
+  DatasetListingSchema,
   v.check(
     (manifest) =>
       new Set(manifest.files.map((file) => file.file)).size ===

@@ -1,20 +1,33 @@
-import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createHash, randomBytes } from "node:crypto";
+import { copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { brotliDecompressSync, gunzipSync, gzipSync } from "node:zlib";
 import * as v from "valibot";
 import { expect, it } from "vitest";
+import {
+  type PreparedDatasetManifest,
+  PreparedDatasetManifestSchema,
+} from "../../src/core/dataset-storage.ts";
 import { decodeDirectoryArchive } from "../../src/core/directory-archive.ts";
 import {
+  type Catalog,
   CatalogSchema,
+  type Contact,
   ContactSchema,
-  DatasetManifestSchema,
+  type Source,
   SourceSchema,
 } from "../../src/core/models.ts";
+import { nameTokens, normalizeName } from "../../src/core/search.ts";
+import {
+  decodeSearchIndex,
+  encodeSearchIndex,
+  searchIndexLimits,
+} from "../../src/core/search-index.ts";
 import { checkDataBundle } from "../../tools/check-data.ts";
 import { databaseSchema } from "../../tools/database-schema.ts";
+import { compressSearchIndex } from "../../tools/search-index.ts";
 import {
   compressDirectoryArchive,
   fileDigest,
@@ -127,7 +140,7 @@ it("prepares canonical native data with normalized addresses and complete archiv
     ).toContain("東京都千代田区1-2-3");
     await checkDataBundle(output);
     const manifest = v.parse(
-      DatasetManifestSchema,
+      PreparedDatasetManifestSchema,
       JSON.parse(await readFile(join(output, "manifest.ready.json"), "utf8")),
     );
     expect(manifest.files.map((file) => file.file)).toEqual([
@@ -213,6 +226,267 @@ it("prepares canonical native data with normalized addresses and complete archiv
     ).toContain("東京都千代田区1-2-3");
   } finally {
     if (db.isOpen) db.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+function writeInput(
+  path: string,
+  contacts: readonly Contact[],
+  source: Source,
+  catalog: Catalog,
+): void {
+  const db = new DatabaseSync(path);
+  try {
+    db.exec(databaseSchema);
+    for (const [index, contact] of contacts.entries())
+      db.prepare("INSERT INTO contacts VALUES (?,?,?,?,?,?,?,?,?)").run(
+        index + 1,
+        contact.id,
+        contact.name,
+        normalizeName(contact.name),
+        contact.prefectureCode,
+        contact.municipalityCode,
+        contact.category,
+        contact.sourceId,
+        JSON.stringify(contact),
+      );
+    db.prepare("INSERT INTO sources VALUES (?,?)").run(
+      source.id,
+      JSON.stringify(source),
+    );
+    db.prepare("INSERT INTO metadata VALUES ('catalog',?)").run(
+      JSON.stringify(catalog),
+    );
+  } finally {
+    db.close();
+  }
+}
+
+it("numbers D1 rows by normalized name and identifier and rebuilds the search index", async () => {
+  const root = await mkdtemp(join(tmpdir(), "phonebook-row-order-"));
+  const contacts = (
+    [
+      ["c:0", "図書館", "13101", ["03-3581-2330"]],
+      ["c:1", "Ｂ図書館", null, ["03-3581-2331", "090-1234-5678"]],
+      ["c:2", "a図書館", "26366", ["03-3581-2332"]],
+      ["c:3", "Ａ図書館", "26366", ["03-3581-2333"]],
+      ["c:4", "ab", null, ["03-3581-2334"]],
+      ["c:5", "𠮷野家", "13101", ["03-3581-2335"]],
+      ["c:6", "\u{e000}施設", null, ["03-3581-2336"]],
+    ] as const
+  ).map(([id, name, municipalityCode, phones]) =>
+    v.parse(ContactSchema, {
+      id,
+      name,
+      category: "library",
+      prefectureCode: municipalityCode?.slice(0, 2) ?? "13",
+      municipalityCode,
+      address:
+        municipalityCode === null ? "東京都内" : "東京都千代田区永田町1-10-1",
+      phones: phones.map((display) => ({
+        display,
+        e164: `+81${display.replaceAll("-", "").slice(1)}`,
+      })),
+      website: null,
+      sourceId: "source",
+      sourceRecordId: id,
+      sourceUrls: ["https://example.go.jp/"],
+      license: "CC0",
+      licenseUrl: "https://example.go.jp/terms",
+      dataAsOf: "2026-10-01",
+      retrievedAt: "2026-10-30T00:00:00Z",
+      phoneConfirmed: false,
+      phoneConfirmationUrl: null,
+    }),
+  );
+  const expectedOrder = ["c:4", "c:2", "c:3", "c:1", "c:0", "c:6", "c:5"];
+  const source = v.parse(SourceSchema, {
+    id: "source",
+    url: "https://example.go.jp/data.csv",
+    sha256: "a".repeat(64),
+    dataAsOf: "2026-10-01",
+    retrievedAt: "2026-10-30T00:00:00Z",
+    indexUrl: null,
+    indexSha256: null,
+    licenseUrl: null,
+    licenseSha256: null,
+    artifacts: [],
+    rows: contacts.length,
+    accepted: contacts.length,
+    missingPhone: 0,
+    invalid: 0,
+    duplicate: 0,
+    issues: {},
+  });
+  const inputCatalog = v.parse(CatalogSchema, {
+    snapshot: "b".repeat(64),
+    generatedAt: "2026-10-30T00:00:00Z",
+    contacts: contacts.length,
+    phones: contacts.length + 1,
+    sourceCount: 1,
+    categories: [],
+    prefectures: [],
+    municipalities: [
+      { code: "13101", prefectureCode: "13", name: "千代田区" },
+      { code: "26366", prefectureCode: "26", name: "精華町" },
+    ],
+  });
+  try {
+    writeInput(join(root, "input.sqlite"), contacts, source, inputCatalog);
+    const output = join(root, "bundle");
+    await prepareSnapshot(join(root, "input.sqlite"), output);
+    const manifestPath = join(output, "manifest.ready.json");
+    const manifestText = await readFile(manifestPath, "utf8");
+    const manifest = v.parse(
+      PreparedDatasetManifestSchema,
+      JSON.parse(manifestText),
+    );
+    const databasePath = join(output, "directory.sqlite");
+    const db = new DatabaseSync(databasePath, { readOnly: true });
+    const rowids = new Map<string, number>();
+    try {
+      const rows = v.parse(
+        v.array(v.object({ rowid: v.number(), id: v.string() })),
+        db.prepare("SELECT rowid, id FROM contacts ORDER BY rowid").all(),
+      );
+      expect(rows.map((row) => row.id)).toEqual(expectedOrder);
+      expect(rows.map((row) => row.rowid)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+      for (const row of rows) rowids.set(row.id, row.rowid);
+      for (const contact of contacts) {
+        const numbers = db
+          .prepare(
+            "SELECT number FROM phones WHERE contact_rowid = ? ORDER BY number",
+          )
+          .all(rowids.get(contact.id) ?? 0)
+          .map((row) => row.number);
+        expect(numbers, contact.id).toEqual(
+          contact.phones.map((phone) => phone.e164).sort(),
+        );
+        for (const term of nameTokens(normalizeName(contact.name))) {
+          const matched = db
+            .prepare(
+              "SELECT rowid FROM contact_search WHERE contact_search MATCH ? ORDER BY rowid",
+            )
+            .all(term)
+            .map((row) => row.rowid);
+          expect(matched, `${contact.id} ${term}`).toEqual(
+            contacts
+              .filter((other) =>
+                nameTokens(normalizeName(other.name)).includes(term),
+              )
+              .map((other) => rowids.get(other.id))
+              .sort((left = 0, right = 0) => left - right),
+          );
+        }
+      }
+    } finally {
+      db.close();
+    }
+    const jsonl = gunzipSync(await readFile(join(output, "contacts.jsonl.gz")));
+    expect(createHash("sha256").update(jsonl).digest("hex")).toBe(
+      manifest.snapshot,
+    );
+    expect(
+      jsonl
+        .toString("utf8")
+        .trim()
+        .split("\n")
+        .map((line) => v.parse(ContactSchema, JSON.parse(line)).id),
+    ).toEqual(contacts.map((contact) => contact.id));
+    const indexPath = join(output, "search-index.br");
+    const compressedIndex = await readFile(indexPath);
+    const indexBytes = brotliDecompressSync(compressedIndex);
+    expect(manifest.searchIndex).toEqual({
+      file: "search-index.br",
+      sha256: createHash("sha256").update(compressedIndex).digest("hex"),
+      bytes: compressedIndex.byteLength,
+      uncompressedSha256: createHash("sha256").update(indexBytes).digest("hex"),
+      uncompressedBytes: indexBytes.byteLength,
+    });
+    const index = decodeSearchIndex(indexBytes);
+    expect(index.header.snapshot).toBe(manifest.snapshot);
+    expect(index.header.regions).toEqual(["13", "13101", "26366"]);
+    expect(index.rows.map((row) => [row.normalizedName, row.name])).toEqual(
+      expectedOrder.map((id) => {
+        const name = contacts.find((contact) => contact.id === id)?.name ?? "";
+        return [normalizeName(name), name];
+      }),
+    );
+    expect(index.rows[3]).toMatchObject({
+      region: "13",
+      phones: ["0335812331", "09012345678"],
+    });
+    await checkDataBundle(output);
+
+    const catalog = v.parse(
+      CatalogSchema,
+      JSON.parse(await readFile(join(output, "catalog.json"), "utf8")),
+    );
+    const databaseBytes = await readFile(databasePath);
+    async function rejectsIndex(
+      bytes: Uint8Array,
+      message: string,
+    ): Promise<void> {
+      await writeFile(indexPath, bytes);
+      const sha256 = createHash("sha256").update(bytes).digest("hex");
+      await writeFile(
+        manifestPath,
+        JSON.stringify({
+          ...manifest,
+          searchIndex: { ...manifest.searchIndex, sha256, bytes: bytes.length },
+        } satisfies PreparedDatasetManifest),
+      );
+      await expect(checkDataBundle(output), message).rejects.toThrow(message);
+    }
+    await rejectsIndex(
+      compressSearchIndex(
+        encodeSearchIndex(
+          index.rows.map((row) =>
+            row.name === "Ａ図書館" ? { ...row, name: "ａ図書館" } : row,
+          ),
+          { snapshot: manifest.snapshot, catalog },
+        ),
+      ),
+      "Search index differs",
+    );
+    await rejectsIndex(
+      compressSearchIndex(new Uint8Array([...indexBytes, 0x0a])),
+      "Search index exceeds",
+    );
+    await rejectsIndex(
+      randomBytes(searchIndexLimits.compressedBytes + 1),
+      String(searchIndexLimits.compressedBytes),
+    );
+    await writeFile(indexPath, compressedIndex);
+    await writeFile(manifestPath, manifestText);
+    await checkDataBundle(output);
+
+    await copyFile(databasePath, join(root, "original.sqlite"));
+    const swapped = new DatabaseSync(databasePath, {
+      enableForeignKeyConstraints: false,
+    });
+    try {
+      swapped.exec(
+        "UPDATE contacts SET rowid = 0 WHERE id = 'c:2'; UPDATE contacts SET rowid = 2 WHERE id = 'c:3'; UPDATE contacts SET rowid = 3 WHERE id = 'c:2'",
+      );
+    } finally {
+      swapped.close();
+    }
+    await writeFile(
+      manifestPath,
+      JSON.stringify({
+        ...manifest,
+        databaseSha256: await fileDigest(databasePath),
+      } satisfies PreparedDatasetManifest),
+    );
+    await expect(checkDataBundle(output)).rejects.toThrow(
+      "normalized name and identifier order",
+    );
+    await writeFile(databasePath, databaseBytes);
+    await writeFile(manifestPath, manifestText);
+    await checkDataBundle(output);
+  } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
