@@ -9,7 +9,7 @@ Run `mise x -- just check`.
 It runs strict TypeScript checking, Biome, type-aware Oxlint, deterministic unit and property tests, and a complete client and Worker build.
 It also runs dependency auditing, a publishable-file secret scan, workflow checks, and built-browser checks.
 The browser check creates a separate local D1 and R2 fixture with three contacts and uses port 8790.
-It covers the design, contact, API reference, external-link, information, CSP, privacy, search, search-trigger, and startup cases that need no national archive.
+It covers the design, contact, API reference, external-link, information, CSP, privacy, row page, search, search-trigger, and startup cases that need no national archive.
 It requires no owner-specific service, credentials, or national archive.
 
 The workflow checks run actionlint over every workflow and zizmor offline with the pedantic persona over `.github`.
@@ -49,6 +49,11 @@ It covers Unicode tokenization, name normalization, cursor encoding, vCard byte 
 The external-link confirmation decision is checked over all 32 combinations of its five Boolean inputs and isn't part of the proof inventory.
 Native Miniflare tests execute the actual API and Drizzle adapter against D1.
 Their 173-record fixture checks complete keyset traversal, combined filters, bounded category previews, and independent category continuation without omissions or duplicates.
+Those tests run the API in Node, which ignores a response's body encoding mode.
+A separate test bundles the API module into workerd and reads the raw HTTP response without decoding it.
+It requires the stored Brotli bytes of the search index with `Content-Encoding: br`, and fails when the runtime encodes the body again.
+The built-browser check covers the row page's redirect and update page, but it doesn't read the index body.
+The local preview server decodes a Worker's encoded body while it keeps the encoded length, so it can't deliver pre-encoded bytes intact.
 Planted duplicate categories, foreign-category rows, repeated identities, false totals, and mixed snapshots must fail response validation.
 Runtime initialization has a safety deadline rather than a performance assertion.
 A timeout supplies no behavioral evidence.
@@ -63,9 +68,9 @@ The trusted public-key endpoint is derived from the configured issuer, never the
 Revisit this boundary if Access token semantics, the JWT library, or asset routing changes.
 
 Run `mise x -- just prove`.
-LemmaScript 0.6.5 translates the actual annotated search, search-trigger, copy, reference-style, publication, collection, and snapshot policy implementations to Dafny.
+LemmaScript 0.6.5 translates the actual annotated search, search-trigger, copy, reference-style, publication, collection, snapshot, and row locator policy implementations to Dafny.
 The gate requires unmodified generated output and every function listed in `tools/prove.ts`.
-Dafny 4.11.0 checks its expected nonempty unit and postcondition inventory for the supported search, search-trigger, copy, styling, publication, school-evidence, unique-candidate, source-accounting, and versioned-API snapshot decisions.
+Dafny 4.11.0 checks its expected nonempty unit and postcondition inventory for the supported search, search-trigger, copy, styling, publication, school-evidence, unique-candidate, source-accounting, versioned-API snapshot, and row locator decisions.
 The copy policy partitions current success, current failure, and superseded completion over the full Boolean domain.
 The browser adapter uses fresh symbol identities and suppresses superseded state and announcements.
 Separate negative controls accept limit 101, ignore a municipality when choosing a catalog total, store a failure status, reverse the completion guard, reverse the trusted-click guard, and retain reference opacity while retaining their contracts.
@@ -76,6 +81,8 @@ Publication controls also drop manifest equality, recovery ownership, pending-re
 The production coverage decision admits only validated integer counts within ten million records, keeping its arithmetic within exact JavaScript integer representation.
 Collection controls remove name evidence, admit an empty candidate set, and omit duplicate rows from accounting.
 The snapshot control admits a supplied snapshot that differs from the active dataset.
+The row locator decision partitions malformed input, a stale snapshot, a missing row, and a located row, and places a located row's D1 rowid within the contact count.
+Its controls locate the row equal to the contact count and skip the snapshot check.
 Each must fail with an unproved contract rather than a tool error.
 A tool error, timeout, missing condition, or empty inventory cannot count as that rejection.
 

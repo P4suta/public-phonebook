@@ -8,6 +8,8 @@ import {
   type GroupedSearchResponse,
   GroupedSearchResponseSchema,
   ProblemSchema,
+  type RowLocation,
+  RowLocationSchema,
   type SearchResponse,
   SearchResponseSchema,
   type Source,
@@ -74,6 +76,20 @@ export async function getContact(
   return v.parse(
     ContactSchema,
     await requestJson(`/api/contacts/${encodeURIComponent(id)}`, signal),
+  );
+}
+
+export async function getRowLocation(
+  snapshot: string,
+  row: string,
+  signal?: AbortSignal,
+): Promise<RowLocation> {
+  return v.parse(
+    RowLocationSchema,
+    await requestJson(
+      `/api/contacts/row/${encodeURIComponent(snapshot)}/${encodeURIComponent(row)}`,
+      signal,
+    ),
   );
 }
 
