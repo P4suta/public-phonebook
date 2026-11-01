@@ -31,10 +31,6 @@ phone-quality bundle report:
 check:
     npm run check
 
-[positional-arguments]
-check-linux *args:
-    node tools/check-linux.ts "$@"
-
 test:
     node tools/test.ts
 
@@ -43,6 +39,10 @@ typecheck:
 
 lint:
     npm run lint
+
+[positional-arguments]
+check-linux *args:
+    node tools/check-linux.ts "$@"
 
 [positional-arguments]
 e2e *args:
