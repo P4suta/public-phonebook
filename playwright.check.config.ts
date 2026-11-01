@@ -6,7 +6,8 @@ const serverTimeoutMs = 120000;
 
 export default defineConfig({
   testDir: "./tests/browser",
-  testMatch: /(?:design|external-links|information)\.spec\.ts/,
+  testMatch:
+    /\/(?:api-reference-design|contact-design|csp|design|external-links|information|privacy|search|search-trigger|startup)\.spec\.ts$/,
   forbidOnly: true,
   retries: 0,
   workers: browserWorkers,
