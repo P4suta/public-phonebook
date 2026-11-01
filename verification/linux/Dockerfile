@@ -6,7 +6,7 @@ RUN apt-get update \
     && apt-get install --yes --no-install-recommends gcc=4:13.2.0-7ubuntu1 libc6-dev=2.39-0ubuntu8.9 shellcheck=0.9.0-1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=docker.io/jdxcode/mise:2026.10.19@sha256:6bd2515bf27389f537921fc8c3e5a6579f15cf889a63a8432dc542670174e50a /usr/local/bin/mise /usr/local/bin/mise
+COPY --from=docker.io/jdxcode/mise:2026.10.23@sha256:c13bf248d1d2939fb0597df3fbeeac5bd39c53d0210364d1ca00b126ed1212d2 /usr/local/bin/mise /usr/local/bin/mise
 
 ENV MISE_DATA_DIR=/opt/mise \
     RUSTUP_HOME=/opt/rustup \
