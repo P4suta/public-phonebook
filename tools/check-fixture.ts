@@ -12,6 +12,7 @@ import {
 } from "../src/core/directory-archive.ts";
 import {
   CatalogSchema,
+  type Contact,
   ContactSchema,
   SourceSchema,
 } from "../src/core/models.ts";
@@ -38,11 +39,8 @@ const digestCharacterCount = 64;
 const fixtureContactCount = 3;
 const fixtureServerPort = 8790;
 
-export async function prepareCheckFixture(): Promise<void> {
-  const directory = ".local/check-fixture";
-  await rm(directory, { recursive: true, force: true });
-  await mkdir(directory, { recursive: true });
-  const contacts = [
+export function checkFixtureContacts(): Contact[] {
+  return [
     ["国立国会図書館", "13", "13101", "03-3581-2331", "+81335812331"],
     [
       "国立国会図書館国際子ども図書館",
@@ -73,6 +71,13 @@ export async function prepareCheckFixture(): Promise<void> {
       phoneConfirmationUrl: null,
     }),
   );
+}
+
+export async function prepareCheckFixture(): Promise<void> {
+  const directory = ".local/check-fixture";
+  await rm(directory, { recursive: true, force: true });
+  await mkdir(directory, { recursive: true });
+  const contacts = checkFixtureContacts();
   const jsonl = contacts
     .map((contact) => `${JSON.stringify(contact)}\n`)
     .join("");
