@@ -47,6 +47,7 @@ A pull request that changes native inputs runs `just ios-check` on the hosted `x
 One that changes proof inputs runs `just prove` and `just ios-prove`.
 The manual Checks workflow accepts an assurance input that runs both jobs and adds the sanitizer and mutation campaigns.
 No commit, push, or pull request starts the sanitizer or mutation campaign.
+The manual TestFlight workflow runs all four campaigns for one `main` commit before it signs and uploads that commit.
 
 The full UI harness creates and erases its own simulator and reinstalls the app for every scenario.
 It turns off slide-to-type and its introduction, because that introduction can cover the screen under test.

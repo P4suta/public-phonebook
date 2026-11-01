@@ -95,6 +95,18 @@ export async function readContact(
   return v.parse(ContactSchema, value);
 }
 
+export async function readRowContactId(
+  db: DirectoryDatabase,
+  rowid: number,
+): Promise<string | null> {
+  const row = await db
+    .select({ id: schema.contacts.id })
+    .from(schema.contacts)
+    .where(eq(schema.contacts.rowid, rowid))
+    .get();
+  return row?.id ?? null;
+}
+
 export async function readSource(
   db: DirectoryDatabase,
   id: string,

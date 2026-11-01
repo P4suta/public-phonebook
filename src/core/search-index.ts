@@ -313,15 +313,20 @@ function textLines(bytes: Uint8Array, label: string, count: number): string[] {
   return result;
 }
 
-export function decodeSearchIndex(bytes: Uint8Array): SearchIndex {
-  const signature = new TextEncoder().encode(
-    `${indexSignature}${lineTerminator}`,
+const signatureLine = new TextEncoder().encode(
+  `${indexSignature}${lineTerminator}`,
+);
+
+export function hasSearchIndexSignature(bytes: Uint8Array): boolean {
+  return (
+    bytes.byteLength >= signatureLine.byteLength &&
+    signatureLine.every((byte, index) => bytes[index] === byte)
   );
-  if (
-    bytes.byteLength < signature.byteLength ||
-    !signature.every((byte, index) => bytes[index] === byte)
-  )
-    fail("Unsupported search index format");
+}
+
+export function decodeSearchIndex(bytes: Uint8Array): SearchIndex {
+  const signature = signatureLine;
+  if (!hasSearchIndexSignature(bytes)) fail("Unsupported search index format");
   const headerEnd = bytes.indexOf(lineFeedByte, signature.byteLength);
   if (headerEnd < 0) fail("A search index needs a header");
   const decoded: unknown = JSON.parse(

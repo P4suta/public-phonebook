@@ -34,11 +34,69 @@ Configure the authorized team in the ignored `ios/Signing.local.xcconfig`.
 Run `mise x -- just ios-archive` to create a production Release archive and export a local App Store `.ipa` package.
 The command uses Xcode's existing account and automatic provisioning.
 It never uploads the package or submits a review.
-The command inspects the exported app and its embedded extension, verifies their signatures and distribution entitlements, and checks the production origin, shared group, version, icon, privacy manifests, and bundled notices.
+The command inspects the exported app and its embedded extension, verifies their signatures and distribution entitlements, and checks the production origin, shared group, version, build number, icon, privacy manifests, and bundled notices.
 It preserves a SHA-256 digest, source-file hashes, selected Git revision, dirty-tree state, and a CycloneDX dependency inventory under a unique `target/ios/app-store-*` directory.
 `target/ios/app-store-candidate.json` points to the inspected export from the command's preceding successful run.
-A private dirty-tree rehearsal is explicitly ineligible for release.
-Protected CI attestation and reproduction from an exact Git revision need separate release evidence.
+A local archive uses build number 1 unless `--build-number N` selects another.
+`--require-receipts` refuses to archive unless the native, sanitizer, mutation, and Lean receipts passed for the current sources.
+A private local archive is never eligible for release, and only the TestFlight workflow below produces a release-eligible package.
+
+## TestFlight delivery
+
+The `TestFlight` workflow in `.github/workflows/ios.yml` delivers a signed production build to TestFlight.
+The owner starts it by hand on `main`, and its jobs fail on any other branch.
+
+1. A Linux job runs `just ios-prove`, and a macOS job runs `just ios-check`, `just ios-sanitize`, and `just ios-mutate` at the same commit.
+   Each job uploads only its source-bound receipts.
+2. The delivery job waits for the owner's review in the `testflight` environment.
+   It downloads the receipts and fetches the signing values from the Doppler `ci_testflight` config through GitHub OIDC.
+3. `just ios-archive --require-receipts --build-number N --signing ci` refuses a dirty checkout and any receipt that failed or verified other sources.
+   It checks both profiles for their identifiers, team, App Group, and App Store distribution type.
+   It creates a temporary keychain, imports the distribution certificate for `codesign` only, and installs the profiles.
+4. The command archives and exports with manual signing, removes the keychain and profiles, and verifies the export as the local command does.
+5. `just ios-testflight` uploads the verified package with `xcrun altool --upload-package` and waits until App Store Connect marks the build `VALID`.
+6. An `always()` step deletes the temporary keychain if the command didn't.
+
+Rerunning all jobs or only the failed delivery job gives the delivery a new, larger build number.
+The project's Info.plist files take `CFBundleVersion` from `CURRENT_PROJECT_VERSION`, which the archive command sets.
+No package, key, certificate, profile, or secret becomes an artifact.
+A failed delivery keeps only its command logs, and the commands that write logs never receive the signing values.
+The [build-number decision](adr/number-testflight-builds-from-the-workflow-run.md) explains the build numbers, the upload route, and the processing wait.
+
+### Doppler values
+
+The delivery job reads these keys from the `ci_testflight` config of the `public-phonebook` Doppler project.
+Store each file as standard base64 on one line, for example with `base64 -i FILE`, so that the log masks it whole.
+
+| Key | Value |
+| --- | --- |
+| `APP_STORE_CONNECT_KEY_ID` | The ten-character ID of the App Manager API key |
+| `APP_STORE_CONNECT_ISSUER_ID` | The issuer ID shown above the team keys |
+| `APP_STORE_CONNECT_PRIVATE_KEY_BASE64` | The downloaded `AuthKey_KEY_ID.p8` file |
+| `APPLE_DISTRIBUTION_CERTIFICATE_BASE64` | The Apple Distribution certificate and its private key, exported as a `.p12` file |
+| `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD` | The password of that `.p12` file |
+| `APP_PROVISIONING_PROFILE_BASE64` | The App Store profile for `page.dial.publicphonebook` |
+| `CALL_DIRECTORY_PROVISIONING_PROFILE_BASE64` | The App Store profile for `page.dial.publicphonebook.CallDirectory` |
+
+The commands refuse an empty value, an unresolved Doppler reference, and a value that isn't base64 where the table names a file.
+
+### Owner setup
+
+1. In App Store Connect, create a team API key with the App Manager role and download its `.p8` file.
+2. Create an Apple Distribution certificate and export it with its private key as a password-protected `.p12` file.
+3. Create an App Store provisioning profile with that certificate for each of the two App IDs.
+   Both App IDs need the `group.page.dial.publicphonebook` App Group.
+4. Fill the seven keys above in the Doppler `ci_testflight` config.
+5. Create a Doppler service account with read access to that config only.
+   Give it a GitHub OIDC identity for the subject `repo:P4suta@42543015/public-phonebook@1438449191:environment:testflight`.
+6. Store the identity's ID as the `DOPPLER_IDENTITY_ID` variable of the GitHub `testflight` environment.
+7. Start the `TestFlight` workflow on `main`, then review and approve its delivery job.
+
+### What stays manual
+
+- Adding the processed build to TestFlight testing groups.
+- App Store submission, review details, and release.
+- Renewing the certificate, profiles, and API key before they expire, and updating the Doppler values.
 
 The package uses local PhonebookCore and PhonebookKit targets with no remote Swift package dependencies.
 Lucide and Feather-derived glyphs carry their original notices inside the app.

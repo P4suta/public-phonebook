@@ -67,6 +67,9 @@ export const ContactSchema = v.strictObject({
 });
 export type Contact = v.InferOutput<typeof ContactSchema>;
 
+export const RowLocationSchema = v.strictObject({ id: IdentifierSchema });
+export type RowLocation = v.InferOutput<typeof RowLocationSchema>;
+
 export const SourceSchema = v.strictObject({
   id: TextSchema,
   publisher: v.optional(TextSchema),
@@ -242,6 +245,7 @@ export const ProblemSchema = v.strictObject({
     "snapshot_changed",
     "not_found",
     "method_not_allowed",
+    "not_acceptable",
     "unavailable",
   ]),
   requestId: v.string(),
