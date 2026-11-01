@@ -28,6 +28,16 @@ import { compressDirectoryArchive } from "./snapshot.ts";
 
 export const contractOrigin = "https://contract.example";
 export const fixturePort = 3100;
+// RFC 1952 stores the compressing operating system in byte 9 of the gzip header.
+const gzipOperatingSystemOffset = 9;
+const gzipUnknownOperatingSystem = 0xff;
+
+/** Compresses with gzip and clears the host-dependent header byte so every platform writes the same corpus. */
+function portableGzip(data: string): Uint8Array {
+  const bytes = gzipSync(data);
+  bytes[gzipOperatingSystemOffset] = gzipUnknownOperatingSystem;
+  return bytes;
+}
 const fixtureOrigin = `http://localhost:${fixturePort}`;
 const fixtureCategories = ["medical", "dental", "library"] as const;
 const prefectureCodeDigits = 2;
@@ -287,9 +297,9 @@ export async function directoryFixture(
     ]);
     const files = [];
     for (const [file, bytes] of [
-      ["contacts.jsonl.gz", gzipSync(jsonl)],
-      ["contacts.csv.gz", gzipSync("fixture\n")],
-      ["contacts.vcf.gz", gzipSync(contacts.map(contactVCard).join(""))],
+      ["contacts.jsonl.gz", portableGzip(jsonl)],
+      ["contacts.csv.gz", portableGzip("fixture\n")],
+      ["contacts.vcf.gz", portableGzip(contacts.map(contactVCard).join(""))],
       [
         directoryArchiveFile,
         real?.archive ??
