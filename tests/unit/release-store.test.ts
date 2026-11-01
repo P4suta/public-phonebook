@@ -256,16 +256,29 @@ describe("candidate evidence", () => {
     for (const stage of candidateStages)
       await recordCandidateEvidence(store, evidence(stage));
     await requireCandidateEvidence(store, tree, manifest);
+    expect(
+      await recordCandidateEvidence(
+        store,
+        evidence("e2e", { provenance: { ...actions, runAttempt: 3 } }),
+      ),
+    ).toBe("unchanged");
     await expect(
       recordCandidateEvidence(store, evidence("e2e", { result: "failed" })),
-    ).rejects.toThrow("different bytes");
+    ).rejects.toThrow("Only a passing stage");
+    await expect(
+      recordCandidateEvidence(
+        store,
+        evidence("e2e", { provenance: { kind: "local" } }),
+      ),
+    ).rejects.toThrow("Different candidate evidence");
   });
 
   it("refuses a missing stage, a failed stage, a stale tree, a different manifest, and a different signer", async () => {
     await recordCandidateEvidence(store, evidence("check"));
-    await recordCandidateEvidence(
-      store,
-      evidence("data", { result: "failed" }),
+    await store.write(
+      controlKeys.candidate(tree, manifest, "data"),
+      encodeRecord(evidence("data", { result: "failed" })),
+      { kind: "create" },
     );
     await recordCandidateEvidence(
       store,

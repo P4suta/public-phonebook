@@ -1,8 +1,14 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import * as v from "valibot";
 import { DigestSchema } from "../src/core/models.ts";
 import { command } from "./process.ts";
+import {
+  type CandidateEvidence,
+  CandidateEvidenceSchema,
+  type CandidateStage,
+  encodeRecord,
+} from "./release-store.ts";
 
 const receiptName = "test-receipt.json";
 const receiptFormat = 1;
@@ -32,6 +38,54 @@ export async function saveVerificationReceipt(
       result: "passed",
     }),
     { flush: true },
+  );
+}
+
+export function stageReceiptPath(
+  directory: string,
+  sourceTree: string,
+  manifestSha256: string,
+  stage: CandidateStage,
+): string {
+  return join(
+    directory,
+    "receipts",
+    v.parse(treeSchema, sourceTree),
+    v.parse(DigestSchema, manifestSha256),
+    `${stage}.json`,
+  );
+}
+
+export async function saveStageReceipt(
+  evidence: CandidateEvidence,
+  directory = resolve(".local"),
+): Promise<string> {
+  const record = v.parse(CandidateEvidenceSchema, evidence);
+  const path = stageReceiptPath(
+    directory,
+    record.sourceTree,
+    record.manifestSha256,
+    record.stage,
+  );
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, encodeRecord(record), { flush: true });
+  return path;
+}
+
+export async function readStageReceipt(
+  directory: string,
+  sourceTree: string,
+  manifestSha256: string,
+  stage: CandidateStage,
+): Promise<CandidateEvidence> {
+  return v.parse(
+    CandidateEvidenceSchema,
+    JSON.parse(
+      await readFile(
+        stageReceiptPath(directory, sourceTree, manifestSha256, stage),
+        "utf8",
+      ),
+    ),
   );
 }
 
