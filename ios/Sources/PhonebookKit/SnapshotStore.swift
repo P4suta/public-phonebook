@@ -1,0 +1,484 @@
+import Foundation
+import PhonebookCore
+
+public struct SnapshotManifest: Codable, Sendable {
+  public static let currentFormat = 2
+
+  public let format: Int
+  public let generation: UUID
+  public let previous: UUID?
+  public let snapshot: SnapshotID
+  public let generatedAt: String
+  public let updatedAt: Date
+  public let records: Int
+  public let origin: String?
+}
+
+public struct IdentificationEntry: Sendable, Equatable {
+  public let number: Int64
+  public let label: String
+}
+
+private final class SnapshotDraft {
+  let generation: UUID
+  let header: ArchiveHeader
+  let database: SQLiteDatabase
+  let lease: SQLiteDatabase
+  let names: FileHandle
+  let origin: String?
+  var insertContact: SQLiteStatement?
+  var insertPhone: SQLiteStatement?
+  var kinds = Data()
+  var records = 0
+  var phase: PublicationPhase = .staging
+
+  init(
+    generation: UUID, header: ArchiveHeader, database: SQLiteDatabase, lease: SQLiteDatabase,
+    names: FileHandle, origin: String?
+  ) throws {
+    self.generation = generation
+    self.header = header
+    self.database = database
+    self.lease = lease
+    self.names = names
+    self.origin = origin
+    insertContact = try database.prepare(
+      "INSERT INTO contacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    insertPhone = try database.prepare("INSERT OR IGNORE INTO phones VALUES (?, ?)")
+  }
+
+  func finalizeStatements() {
+    insertContact = nil
+    insertPhone = nil
+  }
+}
+
+/// The dictionaries of one generation, indexed for building contacts.
+struct ArchiveIndex: Sendable {
+  let header: ArchiveHeader
+  let prefectures: [String: String]
+  let municipalities: [String: String]
+
+  init(header: ArchiveHeader) {
+    self.header = header
+    prefectures = Dictionary(
+      uniqueKeysWithValues: header.prefectures.map { ($0.code.rawValue, $0.name) })
+    municipalities = Dictionary(
+      header.municipalities.map { ($0.code, $0.name) }, uniquingKeysWith: { first, _ in first })
+  }
+}
+
+/// Builds the caller label of each number from the rows that list it, in number order.
+private struct CallerLabels {
+  private var current: Int64?
+  private var names: [String] = []
+  private var categories: [String] = []
+
+  /// Adds one row and returns the finished label of the previous number when the number changes.
+  mutating func add(number: Int64, name: String, category: String) throws -> IdentificationEntry? {
+    let finished = number == current ? nil : try finish()
+    if number != current {
+      current = number
+      names.removeAll(keepingCapacity: true)
+      categories.removeAll(keepingCapacity: true)
+    }
+    guard names.count < 4096 else { throw ImportError.projectionTooLarge }
+    names.append(name)
+    categories.append(category)
+    return finished
+  }
+
+  func finish() throws -> IdentificationEntry? {
+    guard let current else { return nil }
+    let label = CallerLabel.make(
+      names: names, category: Set(categories).sorted().joined(separator: "・"))
+    guard label.utf8.count <= 1024 else { throw ImportError.projectionTooLarge }
+    return IdentificationEntry(number: current, label: label)
+  }
+}
+
+public actor SnapshotStore {
+  public let root: URL
+  private var draft: SnapshotDraft?
+  private var indexes: [UUID: ArchiveIndex] = [:]
+  private let makeGeneration: @Sendable () -> UUID
+  private let files: any SnapshotFiles
+  private let trace: any TraceSink
+  public private(set) var cleanupPending = false
+
+  public init(
+    root: URL, makeGeneration: @escaping @Sendable () -> UUID = UUID.init,
+    files: any SnapshotFiles = LocalSnapshotFiles(), trace: any TraceSink = DiscardingTraceSink()
+  ) throws {
+    self.root = root
+    self.makeGeneration = makeGeneration
+    self.files = files
+    self.trace = trace
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    var root = root
+    var values = URLResourceValues()
+    values.isExcludedFromBackup = true
+    try root.setResourceValues(values)
+    #if os(iOS)
+      try FileManager.default.setAttributes(
+        [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+        ofItemAtPath: root.path
+      )
+    #endif
+  }
+
+  private static let generationExtensions = ["sqlite", "names", "kinds"]
+  private var manifestURL: URL { root.appendingPathComponent("active.json") }
+
+  private func url(_ generation: UUID, _ kind: String) -> URL {
+    root.appendingPathComponent(generation.uuidString + "." + kind)
+  }
+
+  public func manifest() throws -> SnapshotManifest? {
+    guard FileManager.default.fileExists(atPath: manifestURL.path) else { return nil }
+    struct Format: Decodable { let format: Int }
+    let data = try files.readManifest(at: manifestURL)
+    // An earlier storage format needs a fresh save, so it counts as no saved directory.
+    guard try JSONDecoder().decode(Format.self, from: data).format == SnapshotManifest.currentFormat
+    else { return nil }
+    let manifest = try JSONDecoder().decode(SnapshotManifest.self, from: data)
+    guard (0...5_000_000).contains(manifest.records),
+      (0...253_402_300_799).contains(manifest.updatedAt.timeIntervalSince1970),
+      manifest.previous != manifest.generation,
+      Self.generationExtensions.allSatisfy({
+        FileManager.default.fileExists(atPath: url(manifest.generation, $0).path)
+      })
+    else { throw ImportError.invalidSnapshot }
+    return manifest
+  }
+
+  public func begin(header: ArchiveHeader, origin: URL? = nil) throws {
+    guard draft == nil else { throw ImportError.alreadyUpdating }
+    let lease = try SQLiteDatabase(
+      url: root.appendingPathComponent("writer.sqlite"), readOnly: false)
+    try lease.execute("PRAGMA busy_timeout = 0")
+    try lease.execute("BEGIN EXCLUSIVE")
+    let active = try manifest()
+    do {
+      try cleanup(retaining: Set([active?.generation, active?.previous].compactMap { $0 }))
+      cleanupPending = false
+    } catch { cleanupPending = true }
+    let generation = makeGeneration()
+    try Data().write(to: url(generation, "sqlite"), options: .withoutOverwriting)
+    try Data().write(to: url(generation, "names"), options: .withoutOverwriting)
+    do {
+      let database = try SQLiteDatabase(url: url(generation, "sqlite"), readOnly: false)
+      try database.execute("PRAGMA journal_mode = OFF")
+      try database.execute("PRAGMA synchronous = OFF")
+      for statement in [
+        "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL) WITHOUT ROWID",
+        "CREATE TABLE categories (id INTEGER PRIMARY KEY, label TEXT NOT NULL)",
+        """
+        CREATE TABLE contacts (
+          id INTEGER PRIMARY KEY, category INTEGER NOT NULL, region TEXT NOT NULL,
+          name TEXT NOT NULL, address TEXT NOT NULL, phones TEXT NOT NULL, website TEXT,
+          provenance INTEGER NOT NULL, origin TEXT NOT NULL, confirmation TEXT NOT NULL)
+        """,
+        """
+        CREATE TABLE phones (
+          number INTEGER NOT NULL, contact INTEGER NOT NULL, PRIMARY KEY (number, contact)
+        ) WITHOUT ROWID
+        """,
+      ] {
+        try database.execute(statement)
+      }
+      try database.execute("BEGIN")
+      let encoded = try JSONEncoder().encode(header)
+      try database.execute(
+        "INSERT INTO meta VALUES ('header', ?)", [.text(String(decoding: encoded, as: UTF8.self))])
+      for (index, category) in header.categories.enumerated() {
+        try database.execute(
+          "INSERT INTO categories VALUES (?, ?)", [.integer(Int64(index)), .text(category.label)])
+      }
+      draft = try SnapshotDraft(
+        generation: generation, header: header, database: database, lease: lease,
+        names: try FileHandle(forWritingTo: url(generation, "names")),
+        origin: origin?.absoluteString)
+      trace.record(TraceEvent(phase: .stage, outcome: .started, snapshot: header.snapshot))
+    } catch {
+      try removeGeneration(generation)
+      throw error
+    }
+  }
+
+  public func append(_ records: [ArchiveRecord]) throws {
+    guard let draft, draft.phase == .staging, let insertContact = draft.insertContact,
+      let insertPhone = draft.insertPhone
+    else { throw ImportError.invalidSnapshot }
+    try Task.checkCancellation()
+    guard draft.records + records.count <= draft.header.contacts else {
+      throw ImportError.unexpectedCount
+    }
+    var names = Data()
+    for record in records {
+      draft.records += 1
+      let id = Int64(draft.records)
+      try insertContact.run([
+        .integer(id), .integer(Int64(record.category)), .text(record.region), .text(record.name),
+        .text(record.address),
+        .text(
+          record.phones.map { $0.e164.rawValue + "\u{1E}" + $0.display }.joined(separator: "\u{1F}")
+        ),
+        record.website.map { .text($0) } ?? .null, .integer(Int64(record.provenance)),
+        .text(record.origin.map(String.init).joined(separator: ",")),
+        .text(Self.confirmationText(record.confirmation)),
+      ])
+      for phone in record.phones {
+        try insertPhone.run([.integer(phone.e164.number), .integer(id)])
+      }
+      names.append(contentsOf: SearchInput.normalizedName(record.name).utf8.filter { $0 != 0x0A })
+      names.append(0x0A)
+      draft.kinds.append(UInt8(record.category))
+    }
+    try draft.names.write(contentsOf: names)
+  }
+
+  public func publish(at date: Date) throws -> SnapshotManifest {
+    try Task.checkCancellation()
+    guard let draft, draft.phase == .staging,
+      (0...253_402_300_799).contains(date.timeIntervalSince1970)
+    else { throw ImportError.invalidSnapshot }
+    guard draft.records == draft.header.contacts else { throw ImportError.unexpectedCount }
+    try prepareNumbers(draft)
+    guard
+      PublicationDecision.decide(
+        current: !Task.isCancelled, complete: true, snapshot: true, records: true) == .publish
+    else { throw CancellationError() }
+    try draft.database.execute("COMMIT")
+    draft.finalizeStatements()
+    try draft.database.close()
+    try draft.kinds.write(to: url(draft.generation, "kinds"), options: .withoutOverwriting)
+    try draft.names.synchronize()
+    try draft.names.close()
+    let database = try FileHandle(forUpdating: url(draft.generation, "sqlite"))
+    try database.synchronize()
+    try database.close()
+    let previous = try manifest()
+    let manifest = SnapshotManifest(
+      format: SnapshotManifest.currentFormat, generation: draft.generation,
+      previous: previous?.generation, snapshot: draft.header.snapshot,
+      generatedAt: draft.header.generatedAt, updatedAt: date, records: draft.records,
+      origin: draft.origin)
+    let data = try JSONEncoder().encode(manifest)
+    draft.phase = draft.phase.applying(.prepare).applying(.beginActivation)
+    let snapshot = draft.header.snapshot
+    trace.record(TraceEvent(phase: .activation, outcome: .started, snapshot: snapshot))
+    do {
+      try files.activateManifest(data, at: manifestURL)
+    } catch {
+      let visible: SnapshotManifest?
+      do { visible = try self.manifest() } catch {
+        trace.record(TraceEvent(phase: .activation, outcome: .deferred, snapshot: snapshot))
+        throw ImportError.activationUncertain
+      }
+      guard visible?.generation == manifest.generation else {
+        draft.phase = .uncertain.applying(.confirmInactive)
+        trace.record(TraceEvent(phase: .activation, outcome: .rejected, snapshot: snapshot))
+        throw error
+      }
+    }
+    draft.phase = .uncertain.applying(.confirmActive)
+    self.draft = nil
+    trace.record(
+      TraceEvent(
+        phase: .activation, outcome: .completed, snapshot: snapshot,
+        records: UInt64(manifest.records)))
+    do {
+      try cleanup(retaining: Set([manifest.generation, manifest.previous].compactMap { $0 }))
+      cleanupPending = false
+    } catch {
+      cleanupPending = true
+      trace.record(TraceEvent(phase: .cleanup, outcome: .deferred, snapshot: snapshot))
+    }
+    do { try draft.lease.close() } catch { cleanupPending = true }
+    return manifest
+  }
+
+  public func abort() throws {
+    guard let draft else { return }
+    self.draft = nil
+    defer { try? draft.lease.close() }
+    draft.finalizeStatements()
+    try? draft.names.close()
+    try draft.database.close()
+    if draft.phase.applying(.abort).canDiscard { try removeGeneration(draft.generation) }
+  }
+
+  private func removeGeneration(_ generation: UUID) throws {
+    for kind in Self.generationExtensions {
+      let target = url(generation, kind)
+      if FileManager.default.fileExists(atPath: target.path) {
+        try files.removeGeneration(at: target)
+      }
+    }
+  }
+
+  private func cleanup(retaining generations: Set<UUID>) throws {
+    for item in try FileManager.default.contentsOfDirectory(
+      at: root, includingPropertiesForKeys: nil)
+    {
+      let name = item.lastPathComponent
+      guard let generation = UUID(uuidString: String(name.prefix(36))),
+        !generations.contains(generation)
+      else { continue }
+      indexes[generation] = nil
+      try files.removeGeneration(at: item)
+    }
+  }
+
+  private static func confirmationText(_ value: ArchiveRecord.Confirmation) -> String {
+    switch value {
+    case .none: ""
+    case .unlinked: "*"
+    case .link(let index): String(index)
+    }
+  }
+
+  /// Lists every number once and checks its caller label before the generation can activate.
+  private func prepareNumbers(_ draft: SnapshotDraft) throws {
+    let database = draft.database
+    try database.execute("CREATE TABLE numbers (number INTEGER PRIMARY KEY)")
+    let insert = try database.prepare("INSERT INTO numbers VALUES (?)")
+    let rows = try database.prepare(
+      """
+      SELECT p.number, c.name, k.label
+      FROM phones p JOIN contacts c ON c.id = p.contact JOIN categories k ON k.id = c.category
+      ORDER BY p.number, c.id
+      """)
+    try rows.bind([])
+    var labels = CallerLabels()
+    var steps = 0
+    while let row = try rows.step() {
+      steps += 1
+      if steps.isMultiple(of: 4096) { try Task.checkCancellation() }
+      if let entry = try labels.add(
+        number: SQLiteDatabase.integer(row, 0), name: try SQLiteDatabase.text(row, 1),
+        category: try SQLiteDatabase.text(row, 2))
+      {
+        try insert.run([.integer(entry.number)])
+      }
+    }
+    if let entry = try labels.finish() { try insert.run([.integer(entry.number)]) }
+  }
+
+  private func readable(_ generation: UUID?) throws -> (SQLiteDatabase, UUID) {
+    guard let active = try manifest() else { throw ImportError.unavailableStorage }
+    let generation = generation ?? active.generation
+    guard generation == active.generation || generation == active.previous else {
+      throw ImportError.invalidSnapshot
+    }
+    return (try SQLiteDatabase(url: url(generation, "sqlite"), readOnly: true), generation)
+  }
+
+  private func index(_ database: SQLiteDatabase, _ generation: UUID) throws -> ArchiveIndex {
+    if let cached = indexes[generation] { return cached }
+    let text = try database.query("SELECT value FROM meta WHERE key = 'header'") {
+      try SQLiteDatabase.text($0, 0, maximumBytes: 67_108_864)
+    }
+    guard let first = text.first else { throw ImportError.invalidSnapshot }
+    let header = try JSONDecoder().decode(ArchiveHeader.self, from: Data(first.utf8))
+    let index = ArchiveIndex(header: header)
+    indexes[generation] = index
+    return index
+  }
+
+  public func header(generation: UUID) throws -> ArchiveHeader {
+    let (database, generation) = try readable(generation)
+    return try index(database, generation).header
+  }
+
+  public func searchIndex(generation: UUID) throws -> LocalSearch {
+    _ = try readable(generation)
+    return try LocalSearch(names: url(generation, "names"), kinds: url(generation, "kinds"))
+  }
+
+  public func contactIDs(generation: UUID, number: Int64) throws -> [Int64] {
+    let (database, _) = try readable(generation)
+    return try database.query(
+      "SELECT contact FROM phones WHERE number = ? ORDER BY contact LIMIT 4096", [.integer(number)]
+    ) { SQLiteDatabase.integer($0, 0) }
+  }
+
+  public func contacts(generation: UUID, ids: [Int64]) throws -> [Contact] {
+    guard ids.count <= 500 else { throw ImportError.invalidRecord }
+    guard !ids.isEmpty else { return [] }
+    let (database, generation) = try readable(generation)
+    let index = try index(database, generation)
+    let placeholders = Array(repeating: "?", count: ids.count).joined(separator: ",")
+    let rows = try database.query(
+      """
+      SELECT id, category, region, name, address, phones, website, provenance, origin, confirmation
+      FROM contacts WHERE id IN (\(placeholders))
+      """, ids.map { .integer($0) }
+    ) { try Self.contact($0, index: index) }
+    let byID = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
+    return ids.compactMap { byID[$0] }
+  }
+
+  private static func contact(_ row: OpaquePointer, index: ArchiveIndex) throws -> Contact {
+    let header = index.header
+    let category = Int(SQLiteDatabase.integer(row, 1))
+    let provenance = Int(SQLiteDatabase.integer(row, 7))
+    let region = try SQLiteDatabase.text(row, 2)
+    let origin = try SQLiteDatabase.text(row, 8).split(separator: ",").compactMap { Int($0) }
+    guard header.categories.indices.contains(category),
+      header.provenances.indices.contains(provenance),
+      origin.allSatisfy(header.links.indices.contains)
+    else { throw ImportError.invalidRecord }
+    let entry = header.provenances[provenance]
+    let source = header.sources[entry.source]
+    let confirmation = try SQLiteDatabase.text(row, 9)
+    let phones = try SQLiteDatabase.text(row, 5).split(separator: "\u{1F}").map { item in
+      let parts = item.split(separator: "\u{1E}", maxSplits: 1, omittingEmptySubsequences: false)
+      guard parts.count == 2 else { throw ImportError.invalidRecord }
+      return Phone(display: String(parts[1]), e164: try CanonicalPhone(String(parts[0])))
+    }
+    return Contact(
+      id: SQLiteDatabase.integer(row, 0), name: try SQLiteDatabase.text(row, 3),
+      categoryKey: header.categories[category].id, category: header.categories[category].label,
+      prefecture: index.prefectures[String(region.prefix(2))] ?? "",
+      municipality: region.count == 5 ? index.municipalities[region] : nil,
+      address: try SQLiteDatabase.text(row, 4), phones: phones,
+      website: try SQLiteDatabase.optionalText(row, 6),
+      provenance: Provenance(
+        publisher: source.publisher ?? header.categories[category].publisher,
+        sourceURL: source.url, publications: origin.map { header.links[$0] },
+        license: entry.license, licenseURL: entry.licenseUrl, dataAsOf: entry.dataAsOf,
+        retrievedAt: entry.retrievedAt, confirmed: !confirmation.isEmpty,
+        confirmationURL: Int(confirmation).flatMap {
+          header.links.indices.contains($0) ? header.links[$0] : nil
+        }))
+  }
+
+  public func identification(generation: UUID, after number: Int64, limit: Int = 1000) throws
+    -> [IdentificationEntry]
+  {
+    guard number >= 0, (1...1000).contains(limit) else { throw ImportError.invalidRecord }
+    let (database, _) = try readable(generation)
+    let rows = try database.prepare(
+      """
+      SELECT p.number, c.name, k.label FROM phones p
+      JOIN contacts c ON c.id = p.contact JOIN categories k ON k.id = c.category
+      WHERE p.number IN (SELECT number FROM numbers WHERE number > ? ORDER BY number LIMIT ?)
+      ORDER BY p.number, c.id
+      """)
+    try rows.bind([.integer(number), .integer(Int64(limit))])
+    var entries: [IdentificationEntry] = []
+    var labels = CallerLabels()
+    while let row = try rows.step() {
+      if let entry = try labels.add(
+        number: SQLiteDatabase.integer(row, 0), name: try SQLiteDatabase.text(row, 1),
+        category: try SQLiteDatabase.text(row, 2))
+      {
+        entries.append(entry)
+      }
+    }
+    if let entry = try labels.finish() { entries.append(entry) }
+    return entries
+  }
+}

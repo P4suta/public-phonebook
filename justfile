@@ -47,6 +47,40 @@ e2e *args:
 prove:
     npm run prove
 
+ios-generate:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- generate
+
+ios-archive:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- archive
+
+ios-screenshots origin:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- screenshots --origin {{ quote(origin) }}
+
+icons:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- icons
+
+icons-check:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- icons --check
+
+ios-unit-test:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- unit-test
+
+ios-check:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- check
+
+ios-prove:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- prove
+
+ios-sanitize:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- sanitize
+
+ios-mutate:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- mutate
+
+[positional-arguments]
+ios-ui-test *args:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- ui-test "$@"
+
 data-remote environment bundle:
     doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --no-fallback -- npm run data:remote -- {{ quote(environment) }} {{ quote(bundle) }}
 

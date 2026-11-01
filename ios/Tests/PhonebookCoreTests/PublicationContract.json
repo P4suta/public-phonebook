@@ -1,0 +1,10 @@
+{
+  "events": ["prepare", "beginActivation", "confirmActive", "confirmInactive", "abort"],
+  "states": {
+    "staging": {"canDiscard": true, "transitions": {"prepare": "prepared", "beginActivation": "staging", "confirmActive": "staging", "confirmInactive": "staging", "abort": "discarded"}},
+    "prepared": {"canDiscard": true, "transitions": {"prepare": "prepared", "beginActivation": "uncertain", "confirmActive": "prepared", "confirmInactive": "prepared", "abort": "discarded"}},
+    "uncertain": {"canDiscard": false, "transitions": {"prepare": "uncertain", "beginActivation": "uncertain", "confirmActive": "active", "confirmInactive": "prepared", "abort": "uncertain"}},
+    "active": {"canDiscard": false, "transitions": {"prepare": "active", "beginActivation": "active", "confirmActive": "active", "confirmInactive": "active", "abort": "active"}},
+    "discarded": {"canDiscard": true, "transitions": {"prepare": "discarded", "beginActivation": "discarded", "confirmActive": "discarded", "confirmInactive": "discarded", "abort": "discarded"}}
+  }
+}

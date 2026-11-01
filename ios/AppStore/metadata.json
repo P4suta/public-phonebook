@@ -1,0 +1,20 @@
+{
+  "appStoreId": "6828899028",
+  "bundleId": "page.dial.publicphonebook",
+  "sku": "public-phonebook-ios",
+  "primaryLocale": "ja",
+  "version": "1.0",
+  "releaseType": "MANUAL",
+  "name": "Public Phonebook",
+  "subtitle": "公開施設の電話番号・着信識別",
+  "promotionalText": "学校や役所、病院などの電話番号を、名前でさがせます。\n全国の公開データをiPhoneに保存すると、施設や窓口からの着信に名前が出ます。",
+  "description": "Public Phonebookは、学校や役所、病院などの公開されている電話番号をさがせる電話帳です。\n名前の一部か電話番号を入れると、施設の種類ごとに候補が出ます。\n全国のデータをiPhoneに保存するので、電波がなくてもすぐにさがせます。\nさがした言葉は、iPhoneの外に送りません。\n電話番号のコピー、電話をかけること、住所の地図、データのもとの情報の確認ができます。\n\n着信に名前を出す\n・全国の公開データをiPhoneに保存すると、保存した番号からの着信に施設の名前を出せます。\n・着信に名前を出す機能は、アプリの案内に従ってiPhoneの設定でオンにしてください。\n\nデータの保存と更新\nはじめて開いたときの案内で、全国のデータを保存します。\nWi-Fiでもモバイル通信でも保存できます。\nその後は月に1回くらい、自動で新しくします。\n自動更新の時刻と実行はiOSが決めます。\n\n着信に名前が出るのは、保存したデータにその番号があるときだけです。\nすべての番号の掲載や、着信時の表示を保証するものではありません。\n電話をかけたり受けたりするのは、いつもの電話アプリです。\n\n本サービスは国や自治体の公式アプリではありません。\n掲載している情報は、変更などにより実際と違う場合があります。\n使う前に、各施設の公式の情報とデータのもとの情報もたしかめてください。",
+  "keywords": "電話帳,公共施設,電話番号,着信識別,発信者,オフライン,自治体,図書館,施設検索,オープンデータ",
+  "supportUrl": "https://www.dial.page/support",
+  "marketingUrl": "https://www.dial.page",
+  "privacyUrl": "https://www.dial.page/privacy",
+  "primaryCategory": "UTILITIES",
+  "secondaryCategory": "REFERENCE",
+  "signInRequired": false,
+  "reviewNotes": "No account or sign-in is required.\nThis is a native SwiftUI app with a Call Directory identification extension.\nThe standard Phone app continues to handle calls. The app does not block calls or replace the default dialer.\nTo test: launch the app and tap the start button on the first screen; it saves the national public directory over Wi-Fi or cellular data, and search then runs on the device. Settings in the app can also save it manually. Use the app button to open iOS call identification settings and enable Public Phonebook. A number must be present in the saved directory for identification.\nThe app adds nothing to Contacts, does not request Contacts access, and does not upload the user's contacts or call history.\nAutomatic updates use BGProcessingTask with network connectivity; iOS decides delivery timing. A manual update is available.\nThe app links every record to its data sources. It is not an official government app."
+}

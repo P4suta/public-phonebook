@@ -1,0 +1,117 @@
+import PhonebookKit
+import SwiftUI
+
+/// Explains the app, its data, privacy, and how to reach the developer without leaving the app.
+struct AboutScreen: View {
+  let model: DirectoryModel
+  @Environment(\.openURL) private var openURL
+
+  var body: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 20) {
+        Text("Public Phonebookについて").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+        Text("学校や役所、病院などの電話番号を、名前でさがせるアプリです。")
+        Text("国や自治体などが公開しているデータをもとにしています。")
+        Text("国や自治体の公式アプリではありません。")
+
+        section("使い方")
+        Text("検索欄に施設や窓口の名前か、電話番号を入れます。名前の一部でも、さがせます。")
+        Text("「設定」で、着信に施設の名前を出す機能をオンにできます。")
+        Text("電話をかけたり受けたりするのは、いつもの電話アプリです。")
+
+        section("データについて")
+        Text("全国の施設や窓口の電話番号を、このiPhoneに保存しています。")
+        Text("月に1回くらい、自動で新しくします。")
+        NavigationLink {
+          SourcesScreen(categories: model.categories)
+        } label: {
+          IconLabel(icon: "info", text: "データの出典を見る")
+        }
+        .buttonStyle(MonoButtonStyle())
+        .accessibilityIdentifier("sources-link")
+
+        section("プライバシー")
+        Text("検索した言葉は、このiPhoneの中だけで使います。サービスには送りません。")
+        Text("自分の連絡先や通話の履歴を読んだり、変えたり、サービスに送ったりすることはありません。")
+        Text("データを保存するときは、公開データを受け取るために、IPアドレスなどの接続の情報を使います。配信にはCloudflareを使っています。")
+        Text("着信に名前を出す機能をオンにすると、保存した公開データをiOSに渡します。")
+        Text("アカウントの登録、広告、行動の追跡はありません。保存したデータは、アプリを削除すると消えます。")
+        Text("地図や施設のページなど、ほかのサイトを開いたときは、そのサイトの決まりが使われます。")
+
+        section("開発者に声を伝える")
+        Text("感想や使い方の質問、不具合、情報のまちがいは、メールで送ってください。")
+        Text("電話番号や住所など、いらない個人の情報は書かないでください。")
+        Button {
+          if let url = URL(string: "mailto:support@dial.page") { openURL(url) }
+        } label: {
+          IconLabel(icon: "messages-square", text: "開発者にメールを送る")
+        }
+        .buttonStyle(MonoButtonStyle())
+        .accessibilityHint("メールアプリを開きます。")
+
+        NavigationLink {
+          LicenseScreen()
+        } label: {
+          IconLabel(icon: "file", text: "ライセンスを見る")
+        }
+        .buttonStyle(MonoButtonStyle())
+        .accessibilityIdentifier("license-link")
+        Text(
+          "バージョン \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")"
+        )
+        .font(.footnote)
+      }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .background(.white)
+    .navigationTitle("Public Phonebookについて").navigationBarTitleDisplayMode(.inline)
+    .accessibilityIdentifier("about-content")
+  }
+
+  private func section(_ title: String) -> some View {
+    Text(title).font(.title2.bold()).padding(.top, 12).accessibilityAddTraits(.isHeader)
+  }
+}
+
+/// Lists who publishes each category of the saved data and under which license.
+private struct SourcesScreen: View {
+  let categories: [CategoryInfo]
+
+  var body: some View {
+    ScrollView {
+      LazyVStack(alignment: .leading, spacing: 0) {
+        Text("施設や窓口の種類ごとに、データを公開している組織と、使うときの決まりです。")
+          .padding(.bottom, 12)
+        ForEach(categories) { category in
+          VStack(alignment: .leading, spacing: 4) {
+            Text(category.label).bold()
+            Text("\(category.publisher)・\(category.license)").font(.callout)
+          }
+          .padding(.vertical, 12)
+          .accessibilityElement(children: .combine)
+          Rectangle().fill(.black).frame(height: 1)
+        }
+      }.padding(20)
+    }
+    .background(.white)
+    .navigationTitle("データの出典").navigationBarTitleDisplayMode(.inline)
+  }
+}
+
+struct LicenseScreen: View {
+  private var notices: String {
+    guard let url = Bundle.main.url(forResource: "Lucide", withExtension: "txt"),
+      let text = try? String(contentsOf: url, encoding: .utf8)
+    else { return "ライセンスを開けませんでした。" }
+    return text
+  }
+
+  var body: some View {
+    ScrollView {
+      Text(notices).font(.callout).textSelection(.enabled)
+        .frame(maxWidth: .infinity, alignment: .leading).padding(16)
+    }
+    .foregroundStyle(.black).background(.white)
+    .navigationTitle("ライセンス").navigationBarTitleDisplayMode(.inline)
+    .accessibilityIdentifier("license-content")
+  }
+}

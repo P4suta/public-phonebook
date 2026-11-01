@@ -1,0 +1,19 @@
+included:
+  - App
+  - Native
+  - CallDirectory
+  - ContactProvider
+  - Sources
+  - Tests
+  - UITests
+only_rules:
+  - force_cast
+  - force_try
+  - force_unwrapping
+  - duplicate_imports
+  - unused_closure_parameter
+  - empty_count
+  - empty_string
+  - legacy_constructor
+  - trailing_whitespace
+  - unneeded_override
