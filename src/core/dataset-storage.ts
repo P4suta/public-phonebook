@@ -38,6 +38,45 @@ export function publicDatasetManifest(
   return v.parse(DatasetManifestSchema, v.parse(PublicListingSchema, manifest));
 }
 
+export const SearchIndexLocationSchema = v.pipe(
+  v.strictObject({
+    snapshot: DigestSchema,
+    url: v.string(),
+    sha256: DigestSchema,
+    bytes: SearchIndexArtifactSchema.entries.bytes,
+    uncompressedSha256: DigestSchema,
+    uncompressedBytes: CountSchema,
+  }),
+  v.check(
+    (location) =>
+      location.url ===
+      `/api/search-index/${location.snapshot}/${location.sha256}`,
+    "A search index URL must name its snapshot and digest",
+  ),
+);
+export type SearchIndexLocation = v.InferOutput<
+  typeof SearchIndexLocationSchema
+>;
+
+export function searchIndexLocation(
+  manifest: PreparedDatasetManifest,
+): SearchIndexLocation {
+  const { sha256, bytes, uncompressedSha256, uncompressedBytes } =
+    manifest.searchIndex;
+  return v.parse(SearchIndexLocationSchema, {
+    snapshot: manifest.snapshot,
+    url: `/api/search-index/${manifest.snapshot}/${sha256}`,
+    sha256,
+    bytes,
+    uncompressedSha256,
+    uncompressedBytes,
+  });
+}
+
+export function searchIndexObjectKey(snapshot: string, sha256: string): string {
+  return `${v.parse(DigestSchema, snapshot)}/${v.parse(DigestSchema, sha256)}/${searchIndexFile}`;
+}
+
 export function manifestObjectKey(
   snapshot: string,
   manifestSha256?: string,

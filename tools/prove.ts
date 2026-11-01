@@ -9,8 +9,8 @@ import { fileDigest } from "./snapshot.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 35;
-const declaredPostconditionCount = 64;
+const verifiedUnitCount = 36;
+const declaredPostconditionCount = 69;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -43,6 +43,7 @@ const expected = [
   "searchSource",
   "nextVisible",
   "indexAdmission",
+  "rowLocatorDecision",
 ];
 const boundFiles = [
   "src/core/api-contract.ts",
@@ -149,6 +150,11 @@ const boundFiles = [
   "src/core/http-status.ts",
   "src/core/environment.ts",
   "src/server/api.ts",
+  "src/core/row-locator-policy.ts",
+  "src/core/content-negotiation.ts",
+  "tests/unit/row-locator.test.ts",
+  "tests/unit/content-negotiation.test.ts",
+  "tests/unit/workerd-api.test.ts",
   "cloudflare.config.ts",
   "tools/prove.ts",
   "tools/process.ts",
@@ -192,6 +198,7 @@ const proofSources = [
   "src/core/publication-policy.ts",
   "src/core/snapshot-policy.ts",
   "src/core/local-search-policy.ts",
+  "src/core/row-locator-policy.ts",
 ];
 const modelPaths = proofSources.map(
   (path) => `${proofRoot}/proof/generated/${path.replace(/\.ts$/u, ".dfy")}`,
@@ -718,6 +725,42 @@ async function main(): Promise<void> {
           `The ${control.name} negative control was inconclusive: ${rejected.output}`,
         );
     }
+    const rowSource = await readFile(
+      `${proofRoot}/src/core/row-locator-policy.ts`,
+      "utf8",
+    );
+    for (const control of [
+      {
+        name: "row-range",
+        from: 'if (row >= contacts) return "not_found";',
+        to: 'if (row > contacts) return "not_found";',
+      },
+      {
+        name: "row-snapshot",
+        from: '  if (!current) return "snapshot_changed";\n',
+        to: "",
+      },
+    ]) {
+      const brokenRow = rowSource.replace(control.from, control.to);
+      if (brokenRow === rowSource)
+        throw new Error(
+          `The ${control.name} negative control did not mutate the implementation`,
+        );
+      const path = `proof/negative/${control.name}.ts`;
+      await writeFile(`${proofRoot}/${path}`, brokenRow);
+      await generateModel(path);
+      const rejected = await verifyModel(image, [
+        `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
+      ]);
+      if (
+        rejected.code === 0 ||
+        !/[1-9][0-9]* error/u.test(rejected.output) ||
+        !/could not be proved|could not prove/u.test(rejected.output)
+      )
+        throw new Error(
+          `The ${control.name} negative control was inconclusive: ${rejected.output}`,
+        );
+    }
     for (const binding of bindings) {
       if (
         (await fileDigest(binding.file)) !== binding.sha256 ||
@@ -745,7 +788,7 @@ async function main(): Promise<void> {
           semantics:
             "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
           negativeControl:
-            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a substring ranked at the second position, a reflexive result order, a loading index searched on the device, a 31-row continuation, and an index admitted without its digest rejected",
+            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a substring ranked at the second position, a reflexive result order, a loading index searched on the device, a 31-row continuation, an index admitted without its digest, an off-by-one row range, and a snapshot-blind row locator rejected",
           result: "verified",
         },
         null,

@@ -24,6 +24,10 @@ export const uiCopy = {
   },
   about: "Public Phonebookについてくわしく知る" satisfies Action,
   searchReturn: "さがす画面にもどる" satisfies Action,
+  rowUpdated: {
+    title: "電話番号のデータが新しくなりました",
+    body: "施設をえらんだあとに、データが新しくなりました。もう一度さがしてください。" satisfies Instruction,
+  },
   sourceTitle: "電話番号のもとの情報",
   sourceAction: "電話番号のもとの情報を見る" satisfies Action,
   copy: "コピーする" satisfies Action,
