@@ -47,6 +47,7 @@ export interface WriteResult {
 export interface ControlStore {
   read(key: string): Promise<ReadResult>;
   head(key: string): Promise<ObjectHead | null>;
+  download(key: string, destination: string): Promise<ObjectHead | null>;
   write(
     key: string,
     body: ObjectBody,
@@ -165,8 +166,23 @@ export function writePolicy(key: string): WritePolicy {
   throw new Error(`Unsupported control key: ${key}`);
 }
 
-function requireWritePolicy(key: string, condition: WriteCondition): void {
-  if (condition.kind === "replace" && writePolicy(key) !== "conditional")
+export type KeyLayout = "control" | "dataset";
+const datasetArchiveKey = /^[a-f0-9]{64}\/[a-f0-9]{64}\/[a-z0-9][a-z0-9._-]*$/u;
+
+function requireWritePolicy(
+  key: string,
+  condition: WriteCondition,
+  layout: KeyLayout = "control",
+): void {
+  if (layout === "dataset") {
+    if (!datasetArchiveKey.test(key) || condition.kind !== "create")
+      throw new Error(
+        `The dataset bucket accepts only new archive keys: ${key}`,
+      );
+    return;
+  }
+  const policy = writePolicy(key);
+  if (condition.kind === "replace" && policy !== "conditional")
     throw new Error(`The control object can't be replaced: ${key}`);
 }
 
@@ -215,6 +231,7 @@ export async function writeOnce(
 export interface FileStoreOptions {
   readonly now?: () => Date;
   readonly lockedPrefixes?: readonly string[];
+  readonly layout?: KeyLayout;
 }
 
 export function fileControlStore(
@@ -255,9 +272,16 @@ export function fileControlStore(
         const body = await existing(key);
         return body ? { etag: quotedTag(body), bytes: body.byteLength } : null;
       }),
+    download: (key, destination) =>
+      serialized(async () => {
+        const body = await existing(key);
+        if (!body) return null;
+        await writeFile(destination, body, { flush: true });
+        return { etag: quotedTag(body), bytes: body.byteLength };
+      }),
     write: (key, body, condition) =>
       serialized(async () => {
-        requireWritePolicy(key, condition);
+        requireWritePolicy(key, condition, options.layout);
         const bytes = await bodyBytes(body);
         const current = await existing(key);
         if (current && locked.some((prefix) => key.startsWith(prefix)))
@@ -362,6 +386,8 @@ async function errorCode(response: Response): Promise<string> {
 export function r2ControlStore(options: R2StoreOptions): ControlStore {
   if (!allowedBuckets().has(options.bucket))
     throw new Error("The control store refuses an unlisted bucket");
+  const layout: KeyLayout =
+    options.bucket === releaseControl.bucket ? "control" : "dataset";
   const client = new AwsClient({
     accessKeyId: options.accessKeyId,
     secretAccessKey: options.secretAccessKey,
@@ -439,8 +465,41 @@ export function r2ControlStore(options: R2StoreOptions): ControlStore {
         bytes: Number(response.headers.get("Content-Length") ?? "0"),
       };
     },
+    async download(key, destination) {
+      const { response } = await request(key, async () => ({ method: "GET" }));
+      if (response.status === httpStatus.notFound) {
+        await response.body?.cancel();
+        return null;
+      }
+      if (!response.ok || !response.body)
+        throw new ControlStoreFailure(
+          "download",
+          key,
+          response.status,
+          await errorCode(response),
+        );
+      const etag = entityTag(response, key);
+      const reader = response.body.getReader();
+      const handle = await open(destination, "w");
+      let bytes = 0;
+      try {
+        for (;;) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          const value: unknown = chunk.value;
+          if (!(value instanceof Uint8Array))
+            throw new Error(`The control store sent no bytes: ${key}`);
+          await handle.write(value);
+          bytes += value.byteLength;
+        }
+        await handle.sync();
+      } finally {
+        await handle.close();
+      }
+      return { etag, bytes };
+    },
     async write(key, body, condition) {
-      requireWritePolicy(key, condition);
+      requireWritePolicy(key, condition, layout);
       const length = body instanceof Uint8Array ? body.byteLength : body.bytes;
       if (length > maximumSinglePutBytes)
         throw new Error(`A control object exceeds one upload: ${key}`);

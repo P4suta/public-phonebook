@@ -9,6 +9,7 @@ import { evidenceAdmission } from "../src/core/publication-policy.ts";
 import {
   type ControlStore,
   controlKeys,
+  isConflict,
   type RemoteEnvironment,
   readObject,
   SequenceSchema,
@@ -71,6 +72,7 @@ export function provenanceSigner(provenance: RunProvenance): string {
 }
 
 export const candidateSigner = `${releaseControl.repository}/${releaseControl.candidateWorkflow}@refs/heads/${releaseControl.releaseBranch}`;
+export const releaseSigner = `${releaseControl.repository}/.github/workflows/${releaseControl.releaseWorkflow}@refs/heads/${releaseControl.releaseBranch}`;
 
 const targetEntries = {
   releaseId: v.pipe(v.string(), v.uuid()),
@@ -396,17 +398,41 @@ export type CandidateEvidence = v.InferOutput<typeof CandidateEvidenceSchema>;
 export async function recordCandidateEvidence(
   store: ControlStore,
   evidence: CandidateEvidence,
-): Promise<void> {
+): Promise<"created" | "unchanged"> {
   const record = v.parse(CandidateEvidenceSchema, evidence);
-  await writeOnce(
-    store,
-    controlKeys.candidate(
-      record.sourceTree,
-      record.manifestSha256,
-      record.stage,
-    ),
-    encodeRecord(record),
+  if (record.result !== "passed")
+    throw new Error("Only a passing stage becomes candidate evidence");
+  const key = controlKeys.candidate(
+    record.sourceTree,
+    record.manifestSha256,
+    record.stage,
   );
+  try {
+    await store.write(key, encodeRecord(record), { kind: "create" });
+    return "created";
+  } catch (error) {
+    if (!isConflict(error)) throw error;
+    const existing = await readObject(store, key);
+    const stored = existing
+      ? v.safeParse(
+          CandidateEvidenceSchema,
+          JSON.parse(new TextDecoder().decode(existing.body)),
+        )
+      : null;
+    if (
+      stored?.success &&
+      stored.output.stage === record.stage &&
+      stored.output.sourceTree === record.sourceTree &&
+      stored.output.manifestSha256 === record.manifestSha256 &&
+      stored.output.result === "passed" &&
+      provenanceSigner(stored.output.provenance) ===
+        provenanceSigner(record.provenance)
+    )
+      return "unchanged";
+    throw new Error(`Different candidate evidence already exists: ${key}`, {
+      cause: error,
+    });
+  }
 }
 
 export interface StageAdmission {

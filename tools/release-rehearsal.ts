@@ -131,8 +131,11 @@ async function stagingPublish(bundle: string, action?: string): Promise<void> {
     process.execPath,
     "tools/publish.ts",
     "staging",
-    bundle,
     ...(action ? [action] : []),
+    "--dataset",
+    await fileDigest(join(bundle, "manifest.ready.json")),
+    "--bundle",
+    bundle,
   ]);
 }
 async function stagingData(bundle: string): Promise<void> {
@@ -144,6 +147,10 @@ async function stagingData(bundle: string): Promise<void> {
     "prd",
     "--only-secrets",
     "CLOUDFLARE_ACCOUNT_ID",
+    "--only-secrets",
+    "R2_ACCESS_KEY_ID",
+    "--only-secrets",
+    "R2_SECRET_ACCESS_KEY",
     "--no-fallback",
     "--",
     process.execPath,

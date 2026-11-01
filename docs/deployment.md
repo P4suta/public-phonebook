@@ -85,15 +85,33 @@ During an Access outage, stop publication and repair the configured identity or 
 Do not enable anonymous bypass or restore an expired token for recovery.
 The [staging authorization decision](adr/authenticate-the-entire-staging-origin.md) explains the shared boundary.
 
+### Release inputs
+
+Every publication names its dataset by the SHA-256 of its ready manifest.
+
 ```sh
-mise x -- just release .local/phonebook
+mise x -- just release DATASET
 ```
 
-The release command runs the complete local test gate before remote preparation.
-It prepares and checks staging before production and reuses immutable data resources.
-For the first migration, preserve the validated existing production bundle at `.local/published-phonebook`.
-The command adopts that exact public baseline before its first replacement.
-Adoption permits the retained address spelling while preserving all checksum, provenance, index, count, and archive checks.
+The release command dispatches `release.yml` on `main` with the dataset input, finds the dispatched run, and watches it.
+It never publishes from the local machine and never adopts or bootstraps an environment on its own.
+Production publishes only from that workflow, with candidate evidence for the same Git tree and manifest.
+The publisher refuses a local production publication, while `just recover` and `just release-status` stay available locally.
+
+| Command | Inputs | Effect |
+| --- | --- | --- |
+| `just publish staging DATASET [BUNDLE]` | Dataset digest, optional bundle | Publishes staging from a clean checkout |
+| `just publish-admission ENV DATASET [BUNDLE]` | Environment, dataset digest | Runs every admission check without a lease, build, or provider effect |
+| `just data-fetch DATASET DIRECTORY` | Dataset digest, target directory | Restores the bundle from the control store and checks every file |
+| `just test --bundle DIRECTORY --stage STAGE` | Bundle, stages | Runs selected stages of the gate and writes one receipt per stage |
+
+The bundle defaults to `.local/datasets/DATASET`, which `just data-fetch` fills.
+The publisher refuses a bundle whose manifest digest differs from the named dataset.
+The stages are `check`, `data`, `phones`, `prove`, and `e2e`, and each passing stage writes `.local/receipts/TREE/MANIFEST/STAGE.json`.
+A run of every stage also writes the combined local receipt that staging publication requires.
+In GitHub Actions, `--record` stores each passing stage as candidate evidence under `candidates/TREE/MANIFEST/`.
+A local run can't record candidate evidence, so a local receipt never stands in for the release gate.
+Production admits a candidate only when every stage has passing evidence for the same tree and manifest from `candidate.yml` on `main`.
 Normal preparation and publication require canonical addresses.
 
 For a private failure exercise, run `mise x -- just release-rehearse .local/phonebook` after the full local gate.
@@ -103,7 +121,8 @@ It publishes A, activates B, injects the expected verification failure, verifies
 The exercise affects staging only.
 
 The data command validates the complete local bundle before remote writes.
-It uploads content-addressed archives and the manifest to the environment's private R2 bucket.
+It uploads content-addressed archives and the manifest through the S3 API, only to the environment's private R2 bucket and only under new archive keys.
+It creates a missing bucket only outside CI, and a CI run without the bucket stops for the owner.
 It imports bound SQL batches through the pinned cf CLI, within D1's parameter and request budgets.
 An import identity and checkpoint commit in the same native D1 transaction as each batch.
 A lost acknowledgement can resume from the stored checkpoint without duplicate inserts.
@@ -113,8 +132,9 @@ The full digest remains the import identity, so a prefix collision cannot overwr
 Repeated preparation reuses the exact database artifact and preserves earlier database resources.
 The final checks compare counts, foreign keys, the complete catalog, and fixed payload samples with the validated source.
 
-The publisher requires a clean committed checkout, current full-test and proof receipts, and a verified remote-data receipt.
-Production additionally requires the identical active verified staging Git tree, contact snapshot, database SHA-256, and manifest SHA-256.
+The publisher requires a clean committed checkout and a verified remote-data receipt.
+Staging also requires current full-test and proof receipts from the local gate.
+Production requires admitted candidate evidence instead, and the identical active verified staging Git tree, contact snapshot, database SHA-256, and manifest SHA-256.
 Tree identity allows a merge commit to preserve an already checked candidate when its files are unchanged.
 Each environment is rebuilt with its own bindings and origin before the prebuilt cf deployment.
 The cf deployment applies the Worker's triggers, including custom domains.
@@ -170,8 +190,8 @@ Replace `staging` with `production` for public recovery.
 An unrelated active deployment is refused rather than overwritten.
 Repair access or provider availability before retrying failed verification.
 
-The first staging publication requires `--bootstrap` and has no verified rollback target.
-If its activation succeeded but verification was interrupted, run `doppler run --project public-phonebook --config stg --no-fallback -- node tools/publish.ts staging BUNDLE --resume-bootstrap`.
+The first staging publication requires `--bootstrap` with `--dataset` and has no verified rollback target.
+If its activation succeeded but verification was interrupted, run `doppler run --project public-phonebook --config stg --no-fallback -- node tools/publish.ts staging --resume-bootstrap`.
 It accepts only the owned active initial candidate and its original committed source.
 If that candidate failed verification, run `--bootstrap` again from corrected committed source.
 It supersedes the failed candidate only while no staging publication is verified and the failed candidate still owns the active version.

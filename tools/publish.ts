@@ -34,7 +34,11 @@ import {
   loadRelease,
   materializeVerificationDataset,
   type RemoteEnvironment,
+  RemoteEnvironmentSchema,
+  type RunProvenance,
   releaseLock,
+  releaseSigner,
+  requireCandidateEvidence,
   runProvenance,
   storeVerificationDataset,
 } from "./release-store.ts";
@@ -45,11 +49,10 @@ import { auditVerificationArtifacts } from "./verification-artifacts.ts";
 import { requireVerificationReceipt } from "./verification-receipt.ts";
 
 const commandArgumentOffset = 2;
-const actionArgumentOffset = 2;
-const maximumArguments = 3;
 const workerBuildDirectory = ".cloudflare/output/v0/workers/default";
 const cf = resolve("node_modules/.bin/cf");
 const verificationCache = ".local/control-cache/datasets";
+const fetchedDatasets = ".local/datasets";
 const treeSchema = v.pipe(v.string(), v.regex(/^[a-f0-9]{40}$/u));
 
 class RecoveryExerciseFailure extends Error {
@@ -291,27 +294,216 @@ async function adoptProduction(
   );
 }
 
-async function main(args: readonly string[]): Promise<void> {
-  const environment = v.parse(v.picklist(["staging", "production"]), args[0]);
-  const bundle = resolve(args[1] ?? ".local/phonebook");
-  const action = v.parse(
-    v.picklist([
-      "publish",
-      "--bootstrap",
-      "--recover",
-      "--adopt",
-      "--status",
-      "--rehearse-recovery",
-      "--resume-bootstrap",
-    ]),
-    args[actionArgumentOffset] ?? "publish",
-  );
-  if (args.length > maximumArguments)
+const publishActions = [
+  "publish",
+  "--bootstrap",
+  "--recover",
+  "--adopt",
+  "--status",
+  "--rehearse-recovery",
+  "--resume-bootstrap",
+  "--check-admission",
+] as const;
+export type PublishAction = (typeof publishActions)[number];
+const datasetActions: ReadonlySet<PublishAction> = new Set([
+  "publish",
+  "--bootstrap",
+  "--adopt",
+  "--rehearse-recovery",
+  "--check-admission",
+]);
+const effectfulActions: ReadonlySet<PublishAction> = new Set([
+  "publish",
+  "--bootstrap",
+  "--adopt",
+  "--rehearse-recovery",
+  "--resume-bootstrap",
+]);
+const publishUsage = `Usage: publish ENVIRONMENT [${publishActions.filter((action) => action !== "publish").join("|")}] [--dataset MANIFEST_SHA256] [--bundle DIRECTORY]`;
+
+export interface PublishArguments {
+  readonly environment: RemoteEnvironment;
+  readonly action: PublishAction;
+  readonly dataset: string;
+  readonly bundle: string;
+}
+
+export function parsePublishArguments(
+  args: readonly string[],
+): PublishArguments {
+  const [first, ...rest] = args;
+  const environment = v.safeParse(RemoteEnvironmentSchema, first);
+  if (!environment.success) throw new Error(publishUsage);
+  let action: PublishAction = "publish";
+  let dataset = "";
+  let bundle = "";
+  for (let index = 0; index < rest.length; index += 1) {
+    const flag = rest[index];
+    const value = rest[index + 1];
+    if (flag === "--dataset" && value && !dataset) {
+      dataset = v.parse(DigestSchema, value);
+      index += 1;
+    } else if (flag === "--bundle" && value && !bundle) {
+      bundle = resolve(value);
+      index += 1;
+    } else if (
+      action === "publish" &&
+      v.is(v.picklist(publishActions), flag) &&
+      flag !== "publish"
+    )
+      action = flag;
+    else throw new Error(publishUsage);
+  }
+  if (datasetActions.has(action) !== (dataset !== ""))
     throw new Error(
-      "Usage: publish ENVIRONMENT BUNDLE [--bootstrap|--resume-bootstrap|--recover|--adopt|--status|--rehearse-recovery]",
+      datasetActions.has(action)
+        ? `The ${action} action requires an explicit --dataset`
+        : `The ${action} action takes no dataset`,
     );
+  if (bundle && !dataset) throw new Error(publishUsage);
+  return {
+    environment: environment.output,
+    action,
+    dataset,
+    bundle: bundle || (dataset ? resolve(fetchedDatasets, dataset) : ""),
+  };
+}
+
+export function publicationAuthority(
+  environment: RemoteEnvironment,
+  action: PublishAction,
+  provenance: RunProvenance,
+): void {
+  if (environment !== "production" || !effectfulActions.has(action)) return;
+  if (provenance.kind === "local")
+    throw new Error(
+      "Production publishes only from the release workflow; --recover, --status, and --check-admission stay available locally",
+    );
+  if (provenance.workflow !== releaseSigner)
+    throw new Error(`Production publishes only from ${releaseSigner}`);
+}
+
+interface AdmittedCandidate {
+  readonly sourceTree: string;
+  readonly manifest: Awaited<ReturnType<typeof checkDataBundle>>;
+  readonly manifestSha256: string;
+  readonly previous: ReleaseTarget | null;
+}
+
+async function admitCandidate(
+  environment: RemoteEnvironment,
+  store: ControlStore,
+  options: PublishArguments,
+  journal: ReleaseJournal | null,
+): Promise<AdmittedCandidate> {
+  const sourceTree = await committedTree();
+  const manifest = await checkDataBundle(options.bundle);
+  const manifestSha256 = await fileDigest(
+    join(options.bundle, "manifest.ready.json"),
+  );
+  if (manifestSha256 !== options.dataset)
+    throw new Error("The bundle's manifest differs from the --dataset digest");
+  if (environment === "production") {
+    await requireCandidateEvidence(store, sourceTree, manifestSha256);
+    const staging = (await loadRelease(store, "staging"))?.journal;
+    const checked = staging?.phase === "verified" ? staging.candidate : null;
+    if (
+      !checked ||
+      !canPromote(
+        sourceTree,
+        checked.sourceTree ?? "",
+        manifest.snapshot,
+        checked.snapshot,
+        true,
+        manifest.databaseSha256,
+        checked.databaseSha256,
+        manifestSha256,
+        checked.manifestSha256,
+      ) ||
+      (await activeVersion("staging")).versionId !== checked.versionId
+    )
+      throw new Error(
+        "Production requires the identical active verified staging source and dataset artifacts",
+      );
+  } else await requireLocalReceipts(sourceTree);
+  const previous = verifiedPredecessor(journal);
+  const catalog: unknown = JSON.parse(
+    await readFile(join(options.bundle, "catalog.json"), "utf8"),
+  );
+  const precedingCatalog =
+    previous && environment === "production"
+      ? v.parse(
+          CatalogSchema,
+          JSON.parse(
+            await readFile(
+              join(await verificationBundle(store, previous), "catalog.json"),
+              "utf8",
+            ),
+          ),
+        )
+      : undefined;
+  validatePublicationCoverage(catalog, precedingCatalog);
+  return { sourceTree, manifest, manifestSha256, previous };
+}
+
+async function requireLocalReceipts(sourceTree: string): Promise<void> {
+  await requireVerificationReceipt(sourceTree);
+  await requireCommand(process.execPath, ["tools/prove.ts", "--check-receipt"]);
+}
+
+async function checkAdmission(
+  options: PublishArguments,
+  store: ControlStore,
+): Promise<void> {
+  const journal = (await loadRelease(store, options.environment))?.journal;
+  try {
+    if (
+      journal &&
+      journal.phase !== "verified" &&
+      journal.phase !== "recovered"
+    )
+      throw new Error("An incomplete publication requires recovery");
+    const admitted = await admitCandidate(
+      options.environment,
+      store,
+      options,
+      journal ?? null,
+    );
+    if (!admitted.previous)
+      throw new Error("Publication requires a verified predecessor");
+    console.info(
+      JSON.stringify({
+        operation: "publication.admission",
+        environment: options.environment,
+        sourceTree: admitted.sourceTree,
+        dataset: admitted.manifestSha256,
+        result: "admitted",
+      }),
+    );
+  } catch (error) {
+    console.info(
+      JSON.stringify({
+        operation: "publication.admission",
+        environment: options.environment,
+        dataset: options.dataset,
+        result: "refused",
+        reason: error instanceof Error ? error.message : "unknown",
+      }),
+    );
+    throw error;
+  }
+}
+
+async function main(args: readonly string[]): Promise<void> {
+  const options = parsePublishArguments(args);
+  const { environment, action, bundle } = options;
   const store = controlStoreFromEnvironment();
   const provenance = runProvenance();
+  publicationAuthority(environment, action, provenance);
+  if (action === "--check-admission") {
+    await checkAdmission(options, store);
+    return;
+  }
   if (action === "--status") {
     const head = await loadRelease(store, environment);
     console.info(
@@ -361,13 +553,9 @@ async function main(args: readonly string[]): Promise<void> {
       );
       return;
     }
-    const initialTree = await committedTree();
-    await requireVerificationReceipt(initialTree);
-    await requireCommand(process.execPath, [
-      "tools/prove.ts",
-      "--check-receipt",
-    ]);
     if (action === "--resume-bootstrap") {
+      const initialTree = await committedTree();
+      await requireLocalReceipts(initialTree);
       if (
         environment !== "staging" ||
         !journal ||
@@ -410,52 +598,8 @@ async function main(args: readonly string[]): Promise<void> {
       journal.phase !== "recovered"
     )
       journal = await recoverRelease(journal, ports);
-    const sourceTree = await committedTree();
-    const manifest = await checkDataBundle(bundle);
-    const manifestSha256 = await fileDigest(
-      join(bundle, "manifest.ready.json"),
-    );
-    if (environment === "production") {
-      const staging = (await loadRelease(store, "staging"))?.journal;
-      const checked = staging?.phase === "verified" ? staging.candidate : null;
-      if (
-        !checked ||
-        !canPromote(
-          sourceTree,
-          checked.sourceTree ?? "",
-          manifest.snapshot,
-          checked.snapshot,
-          true,
-          manifest.databaseSha256,
-          checked.databaseSha256,
-          manifestSha256,
-          checked.manifestSha256,
-        ) ||
-        (await activeVersion("staging")).versionId !== checked.versionId
-      )
-        throw new Error(
-          "Production requires the identical active verified staging source and dataset artifacts",
-        );
-    }
-    const previous = verifiedPredecessor(journal);
-    const catalog: unknown = JSON.parse(
-      await readFile(join(bundle, "catalog.json"), "utf8"),
-    );
-    const precedingCatalog =
-      previous && environment === "production"
-        ? v.parse(
-            CatalogSchema,
-            JSON.parse(
-              await readFile(
-                join(await verificationBundle(store, previous), "catalog.json"),
-                "utf8",
-              ),
-            ),
-          )
-        : undefined;
-    validatePublicationCoverage(catalog, precedingCatalog);
-    if (environment === "production")
-      await requireVerificationReceipt(sourceTree, manifestSha256);
+    const { sourceTree, manifest, manifestSha256, previous } =
+      await admitCandidate(environment, store, options, journal);
     const exercise = action === "--rehearse-recovery";
     if (exercise && (environment !== "staging" || !previous))
       throw new Error(

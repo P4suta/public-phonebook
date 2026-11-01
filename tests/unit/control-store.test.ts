@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -311,6 +311,28 @@ describe("R2 control store", () => {
           secretAccessKey: "b",
         }),
       ).toThrow("unlisted bucket");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("streams a downloaded object to a file and reports absence", async () => {
+    const server = await fakeR2((request) =>
+      request.url.endsWith(digest)
+        ? { status: 200, headers: { ETag: '"blob"' }, body: "blob bytes" }
+        : { status: 404 },
+    );
+    try {
+      const store = r2(server.endpoint);
+      const target = join(directory, "download");
+      expect(await store.download(controlKeys.blob(digest), target)).toEqual({
+        etag: '"blob"',
+        bytes: 10,
+      });
+      expect(await readFile(target, "utf8")).toBe("blob bytes");
+      expect(
+        await store.download(controlKeys.blob("c".repeat(64)), target),
+      ).toBeNull();
     } finally {
       await server.close();
     }
