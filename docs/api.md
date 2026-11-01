@@ -129,7 +129,8 @@ The response revalidates with an ETag, like the catalog.
 The decoded bytes are `search-index.br` format 1, which [the search index decision](adr/publish-a-name-ordered-search-index-for-the-website.md) describes.
 Only the current snapshot and the current digest exist, and any other pair returns 404.
 A request returns 406 unless its `Accept-Encoding` names `br`, or `*`, with a nonzero weight.
-A request without `Accept-Encoding` also returns 406, because the index has no unencoded representation.
+Cloudflare rewrites `Accept-Encoding` before the Worker runs, so the Worker first reads the visitor's own value from `cf.clientAcceptEncoding`.
+When neither value reaches the Worker, it also returns 406, because the index has no unencoded representation.
 The response carries the digest as a strong ETag, answers a matching `If-None-Match` with 304, and is cached for a year as immutable.
 Its `Content-Type` is `application/octet-stream`, because the decoded index mixes UTF-8 lines with binary category and region parts.
 Check the decoded length, the decoded SHA-256, the format line, and the header snapshot before using the index.
