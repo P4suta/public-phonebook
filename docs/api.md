@@ -117,6 +117,36 @@ Rows are sorted by their UTF-8 bytes, identical rows may repeat, and the last ro
 The header's `contacts` and prefecture counts equal the rows.
 The archive omits contact and source-record IDs, which remain in JSONL.
 
+## Website search index
+
+The website's search index is a website contract rather than a public download.
+`/api/datasets` doesn't list it, and the versioned `/api/v1` API doesn't serve it.
+`GET /api/search-index` returns the current `snapshot`, the immutable index `url`, and the `bytes` and `sha256` of the Brotli bytes.
+It also returns the `uncompressedBytes` and `uncompressedSha256` of the decoded index.
+The response revalidates with an ETag, like the catalog.
+
+`GET /api/search-index/{snapshot}/{sha256}` returns the stored Brotli bytes with `Content-Encoding: br`, so the HTTP client decodes them.
+The decoded bytes are `search-index.br` format 1, which [the search index decision](adr/publish-a-name-ordered-search-index-for-the-website.md) describes.
+Only the current snapshot and the current digest exist, and any other pair returns 404.
+A request returns 406 unless its `Accept-Encoding` names `br`, or `*`, with a nonzero weight.
+Cloudflare rewrites `Accept-Encoding` before the Worker runs, so the Worker first reads the visitor's own value from `cf.clientAcceptEncoding`.
+When neither value reaches the Worker, it also returns 406, because the index has no unencoded representation.
+The response carries the digest as a strong ETag, answers a matching `If-None-Match` with 304, and is cached for a year as immutable.
+Its `Content-Type` is `application/octet-stream`, because the decoded index mixes UTF-8 lines with binary category and region parts.
+Check the decoded length, the decoded SHA-256, the format line, and the header snapshot before using the index.
+
+## Locate a contact by index row
+
+`GET /api/contacts/row/{snapshot}/{row}` returns `{ "id": "…" }` for a 0-based row of that snapshot's search index.
+The row is a decimal number without a sign or leading zeros.
+D1 numbers contacts in index order, so row `n` is the contact whose D1 rowid is `n + 1`.
+A malformed snapshot or row returns 400, a snapshot that isn't current returns 409, and a row at or past the contact count returns 404.
+A 409 response names the current snapshot in `X-Dataset-Snapshot`, so reload the search index and search again.
+The response carries only the contact ID, which the public contact resource already exposes.
+
+The website page `/contacts/row/{snapshot}/{row}` redirects with 303 to `/contacts/{id}` and keeps its `from` search path.
+When the snapshot changed, the page returns 409 with a short explanation and a link back to the search, and it works without JavaScript.
+
 ## HTTP behavior
 
 GET, HEAD, and OPTIONS are supported.
@@ -125,6 +155,6 @@ Public CORS permits anonymous reads and exposes validators, snapshot identity, r
 Catalog ETags identify the serialized catalog representation.
 Immutable archive URLs carry ETags and support conditional reads.
 Errors use RFC 9457 `application/problem+json` with `code`, `status`, and a generated `requestId`.
-400 denotes invalid input, 404 a missing resource, 409 an obsolete cursor snapshot, and 503 temporary unavailability.
+400 denotes invalid input, 404 a missing resource, 406 an unacceptable content coding, 409 an obsolete cursor or row snapshot, and 503 temporary unavailability.
 A 503 response includes Retry-After.
 Error bodies omit SQL, stack traces, credentials, and user queries.

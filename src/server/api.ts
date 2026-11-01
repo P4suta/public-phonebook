@@ -5,13 +5,22 @@ import * as v from "valibot";
 import { DirectoryDiscoverySchema } from "../core/api-contract.ts";
 import { categoryDefinitions, prefectureNames } from "../core/catalog.ts";
 import {
+  admitsContentCoding,
+  matchesEntityTag,
+} from "../core/content-negotiation.ts";
+import {
   manifestObjectKey,
+  type PreparedDatasetManifest,
   PreparedDatasetManifestSchema,
   publicDatasetManifest,
+  SearchIndexLocationSchema,
+  searchIndexLocation,
+  searchIndexObjectKey,
 } from "../core/dataset-storage.ts";
 import { type FailureStatus, httpStatus } from "../core/http-status.ts";
 import { sha256 } from "../core/identity.ts";
 import {
+  type Catalog,
   CatalogSchema,
   ContactSchema,
   DatasetFileNameSchema,
@@ -20,10 +29,15 @@ import {
   GroupedSearchResponseSchema,
   type Problem,
   ProblemSchema,
+  RowLocationSchema,
   SearchResponseSchema,
   SourceSchema,
   VersionedDatasetManifestSchema,
 } from "../core/models.ts";
+import {
+  type RowLocatorDecision,
+  rowLocatorDecision,
+} from "../core/row-locator-policy.ts";
 import { parseSearch } from "../core/search.ts";
 import { storesSearch } from "../core/search-policy.ts";
 import { snapshotAdmission } from "../core/snapshot-policy.ts";
@@ -33,6 +47,7 @@ import {
   directoryDatabase,
   readCatalog,
   readContact,
+  readRowContactId,
   readSource,
   readSources,
   searchContactGroups,
@@ -57,6 +72,13 @@ const corsPreflightMaxAgeSeconds = 86400;
 const maximumUrlBytes = 8192;
 const problemTypeBase = "https://www.dial.page/api/problems/";
 const mutableCache = "public, no-cache, must-revalidate";
+const immutableCache = "public, max-age=31536000, immutable";
+const searchIndexCoding = "br";
+const searchIndexMediaType = "application/octet-stream";
+const rowPosition = /^(?:0|[1-9][0-9]*)$/u;
+// D1 numbers rows from 1 in search index order, so a row position maps to the next rowid.
+const rowidOffset = 1;
+const ClientEncodingSchema = v.object({ clientAcceptEncoding: v.string() });
 
 export type DirectoryApiBindings = Pick<
   DirectoryBindings,
@@ -166,6 +188,7 @@ function problem(
     snapshot_changed: "The dataset changed; restart the search",
     not_found: "The resource was not found",
     method_not_allowed: "Use GET, HEAD, or OPTIONS",
+    not_acceptable: "No representation matches the accepted content codings",
     unavailable: "The directory is temporarily unavailable",
   };
   if (status === httpStatus.unavailable) c.header("Retry-After", "5");
@@ -191,6 +214,261 @@ function settle(c: ApiContext, task: Promise<void>): Promise<void> {
     return task;
   }
   return Promise.resolve();
+}
+
+async function readPreparedManifest(
+  c: ApiContext,
+  catalog: Catalog,
+): Promise<PreparedDatasetManifest | null> {
+  const manifestSha256 = c.env.DATASET_MANIFEST_SHA256 || undefined;
+  if (c.env.APP_ENV !== "development" && !manifestSha256) return null;
+  const manifest = await c.env.DATASETS.get(
+    manifestObjectKey(catalog.snapshot, manifestSha256),
+  );
+  if (!manifest) return null;
+  const text = await new Response(manifest.body).text();
+  if (manifestSha256 && (await sha256(text)) !== manifestSha256) return null;
+  const value: unknown = JSON.parse(text);
+  const parsed = v.parse(PreparedDatasetManifestSchema, value);
+  return parsed.snapshot === catalog.snapshot &&
+    parsed.contacts === catalog.contacts
+    ? parsed
+    : null;
+}
+
+/** Reads the visitor's own Accept-Encoding, which Cloudflare keeps in `cf` after it rewrites the header. */
+function acceptedEncodings(request: Request): string | null {
+  const cf = v.safeParse(
+    ClientEncodingSchema,
+    "cf" in request ? request.cf : undefined,
+  );
+  return cf.success
+    ? cf.output.clientAcceptEncoding
+    : request.headers.get("Accept-Encoding");
+}
+
+function parseRowPosition(text: string): number | null {
+  if (!rowPosition.test(text)) return null;
+  const row = Number(text);
+  return Number.isSafeInteger(row) ? row : null;
+}
+
+const rowFailureStatus = {
+  invalid_query: httpStatus.badRequest,
+  snapshot_changed: httpStatus.conflict,
+  not_found: httpStatus.notFound,
+} as const satisfies Record<
+  Exclude<RowLocatorDecision, "located">,
+  FailureStatus
+>;
+
+type RouteDescription = Parameters<typeof describeRoute>[0];
+type RouteParameter = NonNullable<RouteDescription["parameters"]>[number];
+type RouteResponse = NonNullable<RouteDescription["responses"]>[string];
+
+function digestPath(name: string, description: string): RouteParameter {
+  return {
+    name,
+    in: "path",
+    required: true,
+    description,
+    schema: { type: "string", pattern: "^[a-f0-9]{64}$" },
+  };
+}
+
+function problemResponse(description: string): RouteResponse {
+  return {
+    description,
+    content: {
+      "application/problem+json": { schema: resolver(ProblemSchema) },
+    },
+  };
+}
+
+function registerWebsiteResources(api: Hono<ApiEnvironment>): void {
+  api.get(
+    "/api/search-index",
+    describeRoute({
+      operationId: "getSearchIndex",
+      tags: ["Search index"],
+      summary: "Locate and verify the current website search index",
+      description:
+        "Returns the immutable URL of the current snapshot's search index with the byte length and SHA-256 of the Brotli bytes and of the decoded index. Check the decoded length, digest, format line, and snapshot before using the index.",
+      responses: {
+        [httpStatus.ok]: {
+          description: "The current search index location",
+          content: {
+            "application/json": {
+              schema: resolver(SearchIndexLocationSchema),
+            },
+          },
+        },
+        [httpStatus.notModified]: {
+          description: "The cached location is still current",
+        },
+        [httpStatus.unavailable]: problemResponse(
+          "An RFC 9457 problem with a request ID",
+        ),
+      },
+    }),
+    async (c) => {
+      const catalog = await readCatalog(directoryDatabase(c.env.DB));
+      const manifest = await readPreparedManifest(c, catalog);
+      if (!manifest) return problem(c, "unavailable", httpStatus.unavailable);
+      const location = searchIndexLocation(manifest);
+      const etag = `"${await sha256(JSON.stringify(location))}"`;
+      c.header("X-Dataset-Snapshot", catalog.snapshot);
+      c.header("ETag", etag);
+      c.header("Cache-Control", mutableCache);
+      if (matchesEntityTag(c.req.header("If-None-Match"), etag))
+        return c.body(null, httpStatus.notModified);
+      return c.json(location);
+    },
+  );
+
+  api.get(
+    "/api/search-index/:snapshot/:sha256",
+    describeRoute({
+      operationId: "downloadSearchIndex",
+      tags: ["Search index"],
+      summary: "Download the immutable website search index",
+      description:
+        "Returns the stored Brotli bytes with Content-Encoding br, so the browser decodes them. Only the current snapshot and digest exist. The request's Accept-Encoding must admit br. The decoded index is the website's search-index format 1.",
+      parameters: [
+        digestPath("snapshot", "The current snapshot from /api/search-index"),
+        digestPath("sha256", "The SHA-256 of the Brotli bytes"),
+      ],
+      responses: {
+        [httpStatus.ok]: {
+          description:
+            "The Brotli-encoded index with a strong ETag and immutable caching",
+          content: {
+            [searchIndexMediaType]: {
+              schema: { type: "string", format: "binary" },
+            },
+          },
+        },
+        [httpStatus.notModified]: {
+          description: "The cached index is still valid",
+        },
+        [httpStatus.notFound]: problemResponse(
+          "The snapshot or digest isn't the current search index",
+        ),
+        [httpStatus.notAcceptable]: problemResponse(
+          "The request's Accept-Encoding doesn't admit br",
+        ),
+        [httpStatus.unavailable]: problemResponse(
+          "An RFC 9457 problem with a request ID",
+        ),
+      },
+    }),
+    async (c) => {
+      const snapshot = c.req.param("snapshot");
+      const digest = c.req.param("sha256");
+      if (!v.is(DigestSchema, snapshot) || !v.is(DigestSchema, digest))
+        return problem(c, "not_found", httpStatus.notFound);
+      const catalog = await readCatalog(directoryDatabase(c.env.DB));
+      if (snapshot !== catalog.snapshot)
+        return problem(c, "not_found", httpStatus.notFound);
+      const manifest = await readPreparedManifest(c, catalog);
+      if (!manifest) return problem(c, "unavailable", httpStatus.unavailable);
+      if (digest !== manifest.searchIndex.sha256)
+        return problem(c, "not_found", httpStatus.notFound);
+      c.header("Vary", "Accept-Encoding");
+      if (!admitsContentCoding(acceptedEncodings(c.req.raw), searchIndexCoding))
+        return problem(c, "not_acceptable", httpStatus.notAcceptable);
+      const validators = {
+        ETag: `"${digest}"`,
+        "Cache-Control": immutableCache,
+        Vary: "Accept-Encoding",
+        "X-Dataset-Snapshot": snapshot,
+      };
+      if (matchesEntityTag(c.req.header("If-None-Match"), validators.ETag))
+        return new Response(null, {
+          status: httpStatus.notModified,
+          headers: validators,
+        });
+      const object = await c.env.DATASETS.get(
+        searchIndexObjectKey(snapshot, digest),
+      );
+      if (!object) return problem(c, "unavailable", httpStatus.unavailable);
+      if (object.size !== manifest.searchIndex.bytes) {
+        await object.body.cancel();
+        return problem(c, "unavailable", httpStatus.unavailable);
+      }
+      return new Response(object.body, {
+        headers: {
+          ...validators,
+          "Content-Type": searchIndexMediaType,
+          "Content-Encoding": searchIndexCoding,
+          "Content-Length": String(object.size),
+        },
+        encodeBody: "manual",
+      });
+    },
+  );
+
+  api.get(
+    "/api/contacts/row/:snapshot/:row",
+    describeRoute({
+      operationId: "locateContactRow",
+      tags: ["Search index"],
+      summary: "Find the contact at a search index row",
+      description:
+        "Returns the stable ID of the contact at a 0-based row of the snapshot's search index. A snapshot that is no longer current returns 409; reload the search index and search again.",
+      parameters: [
+        digestPath("snapshot", "The snapshot of the search index"),
+        {
+          name: "row",
+          in: "path",
+          required: true,
+          description:
+            "A 0-based row in decimal without leading zeros or a sign",
+          schema: { type: "string", pattern: "^(0|[1-9][0-9]*)$" },
+        },
+      ],
+      responses: {
+        [httpStatus.ok]: {
+          description: "The contact ID at the row",
+          content: {
+            "application/json": { schema: resolver(RowLocationSchema) },
+          },
+        },
+        [httpStatus.badRequest]: problemResponse(
+          "The snapshot or row is malformed",
+        ),
+        [httpStatus.notFound]: problemResponse(
+          "The row is outside the current snapshot",
+        ),
+        [httpStatus.conflict]: problemResponse(
+          "The snapshot changed; reload the search index",
+        ),
+        [httpStatus.unavailable]: problemResponse(
+          "An RFC 9457 problem with a request ID",
+        ),
+      },
+    }),
+    async (c) => {
+      const snapshot = c.req.param("snapshot");
+      const position = parseRowPosition(c.req.param("row"));
+      const row = position ?? 0;
+      const db = directoryDatabase(c.env.DB);
+      const catalog = await readCatalog(db);
+      c.header("X-Dataset-Snapshot", catalog.snapshot);
+      const decision = rowLocatorDecision(
+        v.is(DigestSchema, snapshot) && position !== null,
+        snapshot === catalog.snapshot,
+        row,
+        catalog.contacts,
+      );
+      if (decision !== "located")
+        return problem(c, decision, rowFailureStatus[decision]);
+      const id = await readRowContactId(db, row + rowidOffset);
+      if (id === null) throw new Error("A located search index row is missing");
+      c.header("Cache-Control", mutableCache);
+      return c.json(v.parse(RowLocationSchema, { id }));
+    },
+  );
 }
 
 function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
@@ -668,25 +946,9 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
     }),
     async (c) => {
       const catalog = await readCatalog(directoryDatabase(c.env.DB));
-      const manifestSha256 = c.env.DATASET_MANIFEST_SHA256 || undefined;
-      if (c.env.APP_ENV !== "development" && !manifestSha256)
-        return problem(c, "unavailable", httpStatus.unavailable);
-      const manifest = await c.env.DATASETS.get(
-        manifestObjectKey(catalog.snapshot, manifestSha256),
-      );
-      if (!manifest) return problem(c, "unavailable", httpStatus.unavailable);
-      const text = await new Response(manifest.body).text();
-      if (manifestSha256 && (await sha256(text)) !== manifestSha256)
-        return problem(c, "unavailable", httpStatus.unavailable);
-      const value: unknown = JSON.parse(text);
-      const parsed = publicDatasetManifest(
-        v.parse(PreparedDatasetManifestSchema, value),
-      );
-      if (
-        parsed.snapshot !== catalog.snapshot ||
-        parsed.contacts !== catalog.contacts
-      )
-        return problem(c, "unavailable", httpStatus.unavailable);
+      const prepared = await readPreparedManifest(c, catalog);
+      if (!prepared) return problem(c, "unavailable", httpStatus.unavailable);
+      const parsed = publicDatasetManifest(prepared);
       c.header("X-Dataset-Snapshot", catalog.snapshot);
       c.header("Cache-Control", mutableCache);
       return c.json(
@@ -739,7 +1001,7 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
             : "application/gzip",
         "Content-Length": String(object.size),
         ETag: object.httpEtag,
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": immutableCache,
         "Content-Disposition": `attachment; filename="${file.output}"`,
         "X-Dataset-Snapshot": snapshot,
       });
@@ -748,6 +1010,8 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
       return new Response(object.body, { headers });
     },
   );
+
+  if (base === "/api") registerWebsiteResources(api);
 
   api.get(
     `${base}/openapi.json`,

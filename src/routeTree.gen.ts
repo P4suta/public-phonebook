@@ -17,6 +17,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as ContactsIdRouteImport } from './routes/contacts.$id'
 import { Route as ContactsIdSourceRouteImport } from './routes/contacts.$id_.source'
+import { Route as ContactsRowSnapshotRowRouteImport } from './routes/contacts.row.$snapshot.$row'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +59,11 @@ const ContactsIdSourceRoute = ContactsIdSourceRouteImport.update({
   path: '/contacts/$id/source',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContactsRowSnapshotRowRoute = ContactsRowSnapshotRowRouteImport.update({
+  id: '/contacts/row/$snapshot/$row',
+  path: '/contacts/row/$snapshot/$row',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/support': typeof SupportRoute
   '/contacts/$id': typeof ContactsIdRoute
   '/contacts/$id/source': typeof ContactsIdSourceRoute
+  '/contacts/row/$snapshot/$row': typeof ContactsRowSnapshotRowRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/support': typeof SupportRoute
   '/contacts/$id': typeof ContactsIdRoute
   '/contacts/$id/source': typeof ContactsIdSourceRoute
+  '/contacts/row/$snapshot/$row': typeof ContactsRowSnapshotRowRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/support': typeof SupportRoute
   '/contacts/$id': typeof ContactsIdRoute
   '/contacts/$id_/source': typeof ContactsIdSourceRoute
+  '/contacts/row/$snapshot/$row': typeof ContactsRowSnapshotRowRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/contacts/$id'
     | '/contacts/$id/source'
+    | '/contacts/row/$snapshot/$row'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/contacts/$id'
     | '/contacts/$id/source'
+    | '/contacts/row/$snapshot/$row'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/contacts/$id'
     | '/contacts/$id_/source'
+    | '/contacts/row/$snapshot/$row'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   SupportRoute: typeof SupportRoute
   ContactsIdRoute: typeof ContactsIdRoute
   ContactsIdSourceRoute: typeof ContactsIdSourceRoute
+  ContactsRowSnapshotRowRoute: typeof ContactsRowSnapshotRowRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactsIdSourceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contacts/row/$snapshot/$row': {
+      id: '/contacts/row/$snapshot/$row'
+      path: '/contacts/row/$snapshot/$row'
+      fullPath: '/contacts/row/$snapshot/$row'
+      preLoaderRoute: typeof ContactsRowSnapshotRowRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   SupportRoute: SupportRoute,
   ContactsIdRoute: ContactsIdRoute,
   ContactsIdSourceRoute: ContactsIdSourceRoute,
+  ContactsRowSnapshotRowRoute: ContactsRowSnapshotRowRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
