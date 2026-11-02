@@ -12,9 +12,11 @@ export async function command(
   args: readonly string[],
   capture = false,
   cwd?: string,
+  env?: NodeJS.ProcessEnv,
 ): Promise<CommandResult> {
   const child = spawn(executable, args, {
     cwd,
+    env,
     stdio: capture ? ["ignore", "pipe", "pipe"] : "inherit",
   });
   let output = "";
@@ -49,8 +51,9 @@ export async function requireCommand(
   executable: string,
   args: readonly string[],
   cwd?: string,
+  env?: NodeJS.ProcessEnv,
 ): Promise<void> {
-  const result = await command(executable, args, false, cwd);
+  const result = await command(executable, args, false, cwd, env);
   if (result.code !== 0)
     throw new Error(
       `Command failed (${result.code}): ${executable} ${args.join(" ")}`,

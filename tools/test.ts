@@ -4,6 +4,7 @@ import * as v from "valibot";
 import { requireBuildBudget } from "./build-budget.ts";
 import { checkDataBundle } from "./check-data.ts";
 import { controlStoreFromEnvironment } from "./control-store.ts";
+import { defaultBundle, localBundleVariable } from "./local-bundle.ts";
 import { command, requireCommand } from "./process.ts";
 import {
   type CandidateEvidence,
@@ -23,7 +24,6 @@ import {
 } from "./verification-receipt.ts";
 
 const commandArgumentOffset = 2;
-const defaultBundle = ".local/phonebook";
 const evidenceFormat = 1;
 
 export interface TestArguments {
@@ -76,6 +76,14 @@ export function performanceCommand(bundle: string): readonly string[] {
   return ["tools/search-performance.ts", bundle, "--output", performanceReport];
 }
 
+/** Names the bundle for the e2e checks that compare the server with its files. */
+export function e2eEnvironment(
+  bundle: string,
+  environment: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  return { ...environment, [localBundleVariable]: bundle };
+}
+
 export function stageRunner(
   bundle: string,
 ): Record<CandidateStage, () => Promise<void>> {
@@ -98,7 +106,8 @@ export function stageRunner(
         ".local/phone-quality.json",
       ]),
     prove: () => requireCommand("npm", ["run", "prove"]),
-    e2e: () => requireCommand("npm", ["run", "e2e"]),
+    e2e: () =>
+      requireCommand("npm", ["run", "e2e"], undefined, e2eEnvironment(bundle)),
   };
 }
 

@@ -5,6 +5,7 @@ import { uiCopy } from "../../src/ui/copy.ts";
 import { iconIdPrefix, siteIcons } from "../../src/ui/icon-catalog.ts";
 import { type PageMatch, pageIcons } from "../../src/ui/route-icons.ts";
 import { expect, test } from "./fixtures.ts";
+import { knownContact } from "./known-contact.ts";
 
 const ok = 200;
 const iconFileType = 1;
@@ -16,7 +17,6 @@ const pngRgba = 6;
 const pngDepth = 8;
 const rgbaBitsPerPixel = 32;
 const paintedExtent = 0;
-const fixtureContact = `/contacts/${encodeURIComponent("fixture:0")}`;
 const spritePattern = /<svg[^>]*data-icon-sprite=""[^>]*>(.*?)<\/svg>/gsu;
 const symbolPattern = /<symbol id="([^"]+)"/gu;
 const usePattern = /<use href="#([^"]+)"/gu;
@@ -207,16 +207,17 @@ test("the server returns each declared site icon, the manifest, and the sharing 
 test("each server render inlines one sprite with exactly the symbols its routes can draw", async ({
   request,
 }) => {
+  const contactPath = `/contacts/${encodeURIComponent((await knownContact(request)).id)}`;
   const contact = v.parse(
     ContactSchema,
-    await (await request.get(`/api${fixtureContact}`)).json(),
+    await (await request.get(`/api${contactPath}`)).json(),
   );
   const root = { routeId: "__root__" } as const;
   const pages: readonly (readonly [string, readonly PageMatch[]])[] = [
     ["/", [root, { routeId: "/" }]],
     [`/?q=${encodeURIComponent(contact.name)}`, [root, { routeId: "/" }]],
-    [fixtureContact, [root, { routeId: "/contacts/$id", loaderData: contact }]],
-    [`${fixtureContact}/source`, [root, { routeId: "/contacts/$id_/source" }]],
+    [contactPath, [root, { routeId: "/contacts/$id", loaderData: contact }]],
+    [`${contactPath}/source`, [root, { routeId: "/contacts/$id_/source" }]],
     ["/about", [root, { routeId: "/about" }]],
     ["/data", [root, { routeId: "/data" }]],
     ["/developers", [root, { routeId: "/developers" }]],

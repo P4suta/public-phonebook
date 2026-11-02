@@ -1,8 +1,26 @@
-import { test as base, expect, type Page } from "@playwright/test";
+import {
+  test as base,
+  type ConsoleMessage,
+  expect,
+  type Page,
+} from "@playwright/test";
 import { iconIdPrefix } from "../../src/ui/icon-catalog.ts";
 
 const accessControlFailure = /(\S+) due to access control checks\.$/u;
 const symbolExcerpt = 160;
+const firefoxDriverScripts = "chrome://juggler/";
+const abortedLoad = "NS_BINDING_ABORTED";
+
+/**
+ * Firefox's driver loads its own scripts into each worker it attaches to.
+ * When the page ends a worker during that bootstrap, the driver reports the aborted load from its chrome script, where no page code runs.
+ */
+function driverBootstrapAbort(message: ConsoleMessage): boolean {
+  return (
+    message.location().url.startsWith(firefoxDriverScripts) &&
+    message.text().includes(abortedLoad)
+  );
+}
 
 /**
  * WebKit reports a fetch that a navigation cancelled as an access-control failure, sometimes as a page error.
@@ -124,9 +142,13 @@ export const test = base.extend<{
         )
           errors.push(`Unexpected script request: ${request.url()}`);
       });
+      const driverAborts: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
       page.on("console", (message) => {
-        if (message.type() === "error") errors.push(message.text());
+        if (message.type() === "error")
+          (driverBootstrapAbort(message) ? driverAborts : errors).push(
+            message.text(),
+          );
       });
       await use();
       if (!page.isClosed()) {
@@ -145,6 +167,10 @@ export const test = base.extend<{
       }
       await info.attach("browser-errors", {
         body: JSON.stringify(errors, null, 2),
+        contentType: "application/json",
+      });
+      await info.attach("driver-bootstrap-aborts", {
+        body: JSON.stringify(driverAborts, null, 2),
         contentType: "application/json",
       });
       expect(
