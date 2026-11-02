@@ -12,7 +12,12 @@ import {
   iconNames,
   iconSymbols,
 } from "../../src/ui/icon-catalog.ts";
-import { CategoryIcon, categoryIcon, Icon } from "../../src/ui/icons.tsx";
+import {
+  CategoryIcon,
+  categoryIcon,
+  Icon,
+  IconSprite,
+} from "../../src/ui/icons.tsx";
 import {
   type ServiceInformation,
   serviceInformation,
@@ -101,14 +106,25 @@ it("draws the email and privacy links with their own masters", () => {
 });
 
 it("defines one symbol per icon name, painted only with the surrounding text color", () => {
-  expect(
-    [...iconSymbols.matchAll(/<symbol id="([\w-]+)"/gu)].map(
-      (match) => match[1],
-    ),
-  ).toEqual(iconNames.map((name) => `${iconIdPrefix}${name}`));
-  expect([...iconSymbols.matchAll(/(?:fill|stroke)="([^"]*)"/gu)].length).toBe(
-    [...iconSymbols.matchAll(/(?:fill|stroke)="(?:none|currentColor)"/gu)]
-      .length,
+  expect(Object.keys(iconSymbols)).toEqual(iconNames);
+  for (const name of iconNames)
+    expect(
+      [...iconSymbols[name].matchAll(/<symbol id="([\w-]+)"/gu)].map(
+        (match) => match[1],
+      ),
+    ).toEqual([`${iconIdPrefix}${name}`]);
+  const sprite = Object.values(iconSymbols).join("");
+  expect([...sprite.matchAll(/(?:fill|stroke)="([^"]*)"/gu)].length).toBe(
+    [...sprite.matchAll(/(?:fill|stroke)="(?:none|currentColor)"/gu)].length,
+  );
+});
+
+it("defines only the symbols a page names, in the given order", () => {
+  const sprite = renderToStaticMarkup(
+    createElement(IconSprite, { className: "sprite", names: ["x", "copy"] }),
+  );
+  expect(sprite).toBe(
+    `<svg class="sprite" width="0" height="0" aria-hidden="true" data-icon-sprite="">${iconSymbols.x}${iconSymbols.copy}</svg>`,
   );
 });
 

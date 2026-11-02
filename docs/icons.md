@@ -40,7 +40,7 @@ The same command writes the website's assets from the same masters.
 
 | Output | Master | Use |
 | --- | --- | --- |
-| `src/ui/icon-catalog.ts` | Every product icon and `design/icons.json` | Typed icon names, the sprite's symbols, category mappings, and head declarations |
+| `src/ui/icon-catalog.ts` | Every product icon and `design/icons.json` | Typed icon names, each icon's sprite symbol, category mappings, and head declarations |
 | `public/icons/NAME.svg` | Each product icon | The unchanged Figma export |
 | `public/icons/LICENSE.txt` | `design/licenses/Lucide.txt` | The Lucide and Feather notices beside the glyphs |
 | `public/favicon.ico` | `favicon-16`, `favicon-32` | Windows icon file with 32-bit Portable Network Graphics (PNG) images |
@@ -52,10 +52,21 @@ The same command writes the website's assets from the same masters.
 | `public/social-preview.png` | `social-preview` | Open Graph image at 1200 by 630 pixels |
 | `public/manifest.webmanifest` | The installation icons | Install manifest |
 
-The sprite has one `<symbol>` per product icon, painted with `currentColor`.
+Each product icon has one `<symbol>`, painted with `currentColor`.
 A clip path in a symbol keeps only its shape, because its paint never draws.
-Every page defines it once at the start of the document, so an icon needs no request and still draws offline.
-`src/ui/icons.tsx` draws every symbol from that sprite, so each icon takes the text color of its control.
+Every page defines a sprite once at the start of the document, so an icon needs no request and still draws offline.
+The sprite holds only the symbols that the page's routes can draw, in the server render or in any later client render.
+`src/ui/route-icons.ts` lists those icons for each route, and the root shell inlines the union for the matched routes.
+The search page keeps every category icon, because a local search can show any category.
+A contact page adds only the icon of its contact's category, which its loader returns.
+`src/ui/icons.tsx` draws every icon from the page's sprite, so each icon takes the text color of its control.
+
+`tests/unit/route-icons.test.ts` derives each route's icons from the code its `Route` reaches and requires the lists to match.
+The walk accepts icon literals, conditions between them, and icon props that a component used only as a JSX tag forwards.
+It refuses any other icon value, so a new pattern fails the test instead of leaving a symbol out.
+The lint configuration forbids type assertions and unchecked `any` values, which closes the remaining ways to make an icon name.
+The test pins the two flows the walk can't follow: the contact page's category and the links of the information pages.
+A browser check fetches each page and requires its sprite to match the list and to define every `<use href>` in the page.
 The website resolves a category's icon from the same mappings as the app, including the `file` fallback.
 Unit tests compare the web mappings with `IconCatalog.swift` and with the catalog's intended icon names.
 They also require a distinct master for every category.
