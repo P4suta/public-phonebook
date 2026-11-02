@@ -14,6 +14,6 @@ public enum DeltaAdmission: String, CaseIterable, Sendable {
   }
 
   public static func admitsCopy(start: Int, count: Int, baseRows: Int) -> Bool {
-    start >= 0 && count >= 1 && start <= baseRows && count <= baseRows - start
+    start >= 0 && count >= 1 && count <= baseRows && start <= baseRows - count
   }
 }

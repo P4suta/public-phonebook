@@ -4,7 +4,7 @@ use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fmt::Write as _, fs, path::Path, process::Command};
 
-const THEOREMS: [&str; 20] = [
+const THEOREMS: [&str; 21] = [
     "activeAbsorbsEveryEvent",
     "activeSurvivesEveryFiniteTrace",
     "uncertainAbortRetainsData",
@@ -24,14 +24,15 @@ const THEOREMS: [&str; 20] = [
     "digestDecidesMatchingCounts",
     "copyAdmissionMatchesTheProviderGuard",
     "admittedCopyReadsOnlyBaseRows",
-    "copyGuardCannotOverflowInt64",
+    "copyGuardSubtractionCannotOverflowInt64",
+    "admittedCopyEndCannotOverflowInt64",
 ];
 const RECEIVE_SOURCE: &str =
     include_str!("../../../../ios/Sources/PhonebookCore/ReceiveBudget.swift");
 const DELTA_SOURCE: &str =
     include_str!("../../../../ios/Sources/PhonebookCore/DeltaAdmission.swift");
 /// The Swift delta decision that `verification/ios/DeltaAdmission.lean` models, without whitespace.
-const DELTA_REFINEMENT: &str = "publicenumDeltaAdmission:String,CaseIterable,Sendable{caseapply,baseMismatch,malformed,countMismatch,lengthMismatch,digestMismatchpublicstaticfuncdecide(baseMatches:Bool,wellFormed:Bool,rows:Int,expectedRows:Int,bytes:Int,expectedBytes:Int,digestMatches:Bool)->Self{if!baseMatches{return.baseMismatch}if!wellFormed{return.malformed}ifrows!=expectedRows{return.countMismatch}ifbytes!=expectedBytes{return.lengthMismatch}if!digestMatches{return.digestMismatch}return.apply}publicstaticfuncadmitsCopy(start:Int,count:Int,baseRows:Int)->Bool{start>=0&&count>=1&&start<=baseRows&&count<=baseRows-start}}";
+const DELTA_REFINEMENT: &str = "publicenumDeltaAdmission:String,CaseIterable,Sendable{caseapply,baseMismatch,malformed,countMismatch,lengthMismatch,digestMismatchpublicstaticfuncdecide(baseMatches:Bool,wellFormed:Bool,rows:Int,expectedRows:Int,bytes:Int,expectedBytes:Int,digestMatches:Bool)->Self{if!baseMatches{return.baseMismatch}if!wellFormed{return.malformed}ifrows!=expectedRows{return.countMismatch}ifbytes!=expectedBytes{return.lengthMismatch}if!digestMatches{return.digestMismatch}return.apply}publicstaticfuncadmitsCopy(start:Int,count:Int,baseRows:Int)->Bool{start>=0&&count>=1&&count<=baseRows&&start<=baseRows-count}}";
 const PROOF_MODULES: [&str; 3] = ["Publication", "ReceiveBudget", "DeltaAdmission"];
 /// Each false claim must fail at its proof on line 2, which shows that the kernel checks that model.
 const FALSE_CLAIMS: [(&str, &str, &str); 2] = [

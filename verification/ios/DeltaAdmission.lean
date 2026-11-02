@@ -21,7 +21,7 @@ def decideDelta (baseMatches wellFormed : Bool) (rows expectedRows bytes expecte
   else .apply
 
 def admitsCopy (start count baseRows : Int) : Prop :=
-  start ≥ 0 ∧ count ≥ 1 ∧ start ≤ baseRows ∧ count ≤ baseRows - start
+  start ≥ 0 ∧ count ≥ 1 ∧ count ≤ baseRows ∧ start ≤ baseRows - count
 
 theorem deltaAppliesOnlyWhenEveryCheckPasses (baseMatches wellFormed digestMatches : Bool)
     (rows expectedRows bytes expectedBytes : Int) :
@@ -76,10 +76,14 @@ theorem admittedCopyReadsOnlyBaseRows (start count baseRows position : Int)
   rcases h with ⟨_, _, _, _⟩
   omega
 
-theorem copyGuardCannotOverflowInt64 (start count baseRows : Int)
+theorem copyGuardSubtractionCannotOverflowInt64 (count baseRows : Int) (hCount : count ≥ 1)
+    (hRows : count ≤ baseRows) (hMax : baseRows ≤ 9223372036854775807) :
+    0 ≤ baseRows - count ∧ baseRows - count ≤ 9223372036854775807 := by
+  omega
+
+theorem admittedCopyEndCannotOverflowInt64 (start count baseRows : Int)
     (h : admitsCopy start count baseRows) (hMax : baseRows ≤ 9223372036854775807) :
-    0 ≤ baseRows - start ∧ baseRows - start ≤ 9223372036854775807 ∧
-      start + count ≤ 9223372036854775807 := by
+    -9223372036854775808 ≤ start + count ∧ start + count ≤ 9223372036854775807 := by
   rcases h with ⟨_, _, _, _⟩
   omega
 
@@ -91,6 +95,7 @@ theorem copyGuardCannotOverflowInt64 (start count baseRows : Int)
 #print axioms digestDecidesMatchingCounts
 #print axioms copyAdmissionMatchesTheProviderGuard
 #print axioms admittedCopyReadsOnlyBaseRows
-#print axioms copyGuardCannotOverflowInt64
+#print axioms copyGuardSubtractionCannotOverflowInt64
+#print axioms admittedCopyEndCannotOverflowInt64
 
 end Phonebook

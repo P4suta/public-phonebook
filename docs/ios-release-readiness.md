@@ -47,7 +47,7 @@ The workflow and its delivery path haven't run yet, because they need the owner'
 
 | Item | Owner | Waiting for |
 | --- | --- | --- |
-| Publish snapshot deltas and apply them in the app | Developer | #55 |
+| Produce snapshot deltas in the hosted release, which the app applies since #95 | Developer | A `release.yml` that fetches the retained bundles before preparation |
 | Measure the national import time, memory, and storage, and the Call Directory load on a device | Developer and owner | A device run |
 | Create the App Manager key, the distribution certificate, both App Store profiles, the Doppler values, and the OIDC identity | Owner | The [owner setup](ios-store-distribution.md#owner-setup) |
 | Run the `TestFlight` workflow on `main`, which reruns `ios-check`, `ios-prove`, `ios-sanitize`, and `ios-mutate` for that commit | Owner | The owner setup |

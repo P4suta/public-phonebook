@@ -23,7 +23,7 @@ Consult the actual receipt and logs for the current candidate's results.
 | Shared icons | Figma node and digest inventory, SVG allowlist, exact derived assets, mask safe area, browser metadata, and sprite checks | Semantic clarity and brand recognition remain design judgments |
 | Dependency and secret boundaries | npm audit, pinned RustSec advisory snapshot, gitleaks over a nonempty publishable inventory | RustSec snapshot excludes newer advisories and registry yank status |
 
-Lean checks 20 named theorems and rejects a false active-deletion claim and a false digest-mismatch admission.
+Lean checks 21 named theorems and rejects a false active-deletion claim and a false digest-mismatch admission.
 The TypeScript proof gate checks its full declared contract inventory and deliberate broken implementations.
 Neither result proves the entire app.
 The proof gate rejects unsupported proof escapes and stale source or generated-model receipts.
