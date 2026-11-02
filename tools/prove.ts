@@ -181,6 +181,7 @@ const boundFiles = [
   "tests/unit/directory-delta.test.ts",
   "tests/unit/content-negotiation.test.ts",
   "tests/unit/workerd-api.test.ts",
+  "tests/unit/workerd-fixture.ts",
   "cloudflare.config.ts",
   "tools/prove.ts",
   "tools/process.ts",

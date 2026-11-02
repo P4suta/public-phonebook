@@ -40,6 +40,7 @@ import { contactVCard } from "../src/core/vcard.ts";
 import { api, type DirectoryApiBindings } from "../src/server/api.ts";
 import { databaseSchema } from "./database-schema.ts";
 import { requireDirectoryText, sha256Digest } from "./directory-delta.ts";
+import { insertStatements, type SqlStatement } from "./remote-statements.ts";
 import { compressSearchIndex } from "./search-index.ts";
 import { compressDirectoryArchive, contactRowNumbers } from "./snapshot.ts";
 
@@ -246,6 +247,51 @@ function sha256Hex(data: string | Uint8Array): string {
   return createHash("sha256").update(data).digest("hex");
 }
 
+/**
+ * Inserts the contact, phone, and search rows in a few multi-row statements.
+ * Each statement crosses from Node to workerd separately, so fewer statements keep fixtures fast under load.
+ */
+export function contactSeedStatements(
+  contacts: readonly Contact[],
+  rowNumbers: ReadonlyMap<string, number>,
+): SqlStatement[] {
+  const rowid = (contact: Contact): number => {
+    const row = rowNumbers.get(contact.id);
+    if (row === undefined)
+      throw new Error(`Missing fixture row number: ${contact.id}`);
+    return row;
+  };
+  return [
+    ...insertStatements(
+      "contacts",
+      contacts.map((contact) => [
+        rowid(contact),
+        contact.id,
+        contact.name,
+        normalizeName(contact.name),
+        contact.prefectureCode,
+        contact.municipalityCode,
+        contact.category,
+        contact.sourceId,
+        JSON.stringify(contact),
+      ]),
+    ),
+    ...insertStatements(
+      "phones",
+      contacts.flatMap((contact) =>
+        contact.phones.map((phone) => [phone.e164, rowid(contact)]),
+      ),
+    ),
+    ...insertStatements(
+      "contact_search",
+      contacts.map((contact) => [
+        rowid(contact),
+        nameTokens(normalizeName(contact.name)).join(" "),
+      ]),
+    ),
+  ];
+}
+
 /** One synthetic revision with its snapshot identity and decoded native archive. */
 interface SyntheticRevision {
   readonly contacts: readonly Contact[];
@@ -360,53 +406,23 @@ export async function directoryFixture(
     const bucket = await runtime.getR2Bucket("DATASETS");
     const synthetic = syntheticRevision(options.revision);
     const { contacts, jsonl, snapshot, catalog, source } = synthetic;
-    await DB.batch(
-      databaseSchema
-        .split(";")
-        .map((sql) => sql.trim())
-        .filter(Boolean)
-        .map((sql) => DB.prepare(sql)),
-    );
+    await DB.exec(databaseSchema.replaceAll("\n", " "));
     const rowNumbers = contactRowNumbers(contacts);
-    for (const contact of contacts) {
-      const rowid = rowNumbers.get(contact.id);
-      if (rowid === undefined) throw new Error("Missing fixture row number");
-      await DB.batch([
-        DB.prepare(
-          "INSERT INTO contacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ).bind(
-          rowid,
-          contact.id,
-          contact.name,
-          normalizeName(contact.name),
-          contact.prefectureCode,
-          contact.municipalityCode,
-          contact.category,
-          contact.sourceId,
-          JSON.stringify(contact),
-        ),
-        ...contact.phones.map((phone) =>
-          DB.prepare("INSERT INTO phones VALUES (?, ?)").bind(
-            phone.e164,
-            rowid,
-          ),
-        ),
-        DB.prepare(
-          "INSERT INTO contact_search(rowid,terms) VALUES (?, ?)",
-        ).bind(rowid, nameTokens(normalizeName(contact.name)).join(" ")),
-      ]);
-    }
     const real = await readRealDirectory(snapshot);
     const published = real?.catalog ?? catalog;
-    await DB.batch([
-      DB.prepare("INSERT INTO metadata VALUES ('catalog', ?)").bind(
-        JSON.stringify(published),
-      ),
-      DB.prepare("INSERT INTO sources VALUES (?, ?)").bind(
-        source.id,
-        JSON.stringify(source),
-      ),
-    ]);
+    await DB.batch(
+      [
+        ...contactSeedStatements(contacts, rowNumbers),
+        {
+          sql: "INSERT INTO metadata VALUES ('catalog', ?)",
+          params: [JSON.stringify(published)],
+        },
+        {
+          sql: "INSERT INTO sources VALUES (?, ?)",
+          params: [source.id, JSON.stringify(source)],
+        },
+      ].map((statement) => DB.prepare(statement.sql).bind(...statement.params)),
+    );
     const files = [];
     const archive =
       real?.archive ?? compressDirectoryArchive(synthetic.archiveText);
