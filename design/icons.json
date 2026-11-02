@@ -20,6 +20,14 @@
       "sha256": "b3d853e4a5e33d23864a95684331fb78e6f3031e887d3e1ea1a92cb26e4f3086"
     },
     {
+      "name": "arrow-left",
+      "kind": "icon",
+      "nodeId": "381:2664",
+      "width": 24,
+      "height": 24,
+      "sha256": "58c5457b7df427025c2d2e2fb74ddc02442fa28a9f48ef851862e0dad7c87259"
+    },
+    {
       "name": "baby",
       "kind": "icon",
       "nodeId": "191:353",
@@ -36,12 +44,44 @@
       "sha256": "0aa9a6f0284156974a0827ca23beba2a8242d8d56cd6b1d167134f36ee73cbad"
     },
     {
+      "name": "book-marked",
+      "kind": "icon",
+      "nodeId": "324:2263",
+      "width": 24,
+      "height": 24,
+      "sha256": "1032b77c676e363bcb2b5c550b4562de8e8e8d0a00e1c5e1e92ee9bac92b7f5b"
+    },
+    {
       "name": "book-open-check",
       "kind": "icon",
       "nodeId": "191:400",
       "width": 24,
       "height": 24,
       "sha256": "40a0836fca2becd5232b52108100266dfd9a9e55061a6df1c013dae9bc0d20e8"
+    },
+    {
+      "name": "book-open-text",
+      "kind": "icon",
+      "nodeId": "324:2271",
+      "width": 24,
+      "height": 24,
+      "sha256": "310b326b72e3840db8f88b9bba2d2940ce1681e98e3e68ee2d9f38316c16137c"
+    },
+    {
+      "name": "book-user",
+      "kind": "icon",
+      "nodeId": "324:2361",
+      "width": 24,
+      "height": 24,
+      "sha256": "c7d17d502514b7daf2d9caa3af3447871a7744c03c8fc5e71682c221da7c1bc0"
+    },
+    {
+      "name": "brain",
+      "kind": "icon",
+      "nodeId": "324:2316",
+      "width": 24,
+      "height": 24,
+      "sha256": "75effd6fa26bd2e1241acad28dfc273189210ee7f175a92a47598ae0ef9bd4ee"
     },
     {
       "name": "briefcase-business",
@@ -124,6 +164,22 @@
       "sha256": "6140f959159bee9aa88430f40dc877c36be737cebed8b6aa687dae0aa62cffbf"
     },
     {
+      "name": "clipboard-pen",
+      "kind": "icon",
+      "nodeId": "324:2299",
+      "width": 24,
+      "height": 24,
+      "sha256": "fba12cd912e2f3065420ede4f853f7c75503baafca76a974089b4243634d5186"
+    },
+    {
+      "name": "code",
+      "kind": "icon",
+      "nodeId": "381:2690",
+      "width": 24,
+      "height": 24,
+      "sha256": "4f4c48f5d4054539e745372d8f9941324694595a4dbd0b52764b223ad8942e86"
+    },
+    {
       "name": "contact-round",
       "kind": "icon",
       "nodeId": "316:1052",
@@ -132,12 +188,28 @@
       "sha256": "e308369c8060c762442ad0dca4183f3d06082ed4d983bc1ef20b7a019588a92f"
     },
     {
+      "name": "container",
+      "kind": "icon",
+      "nodeId": "323:2250",
+      "width": 24,
+      "height": 24,
+      "sha256": "1743c131a5faa0ecbab9adb26033f89bd21f87f106220724e3366050ca03d336"
+    },
+    {
       "name": "copy",
       "kind": "icon",
       "nodeId": "191:542",
       "width": 24,
       "height": 24,
       "sha256": "82f7d9831f86277fe971ac8c86ff0f5cc466eb4570032f2b4eee1cdb0fb5f355"
+    },
+    {
+      "name": "database",
+      "kind": "icon",
+      "nodeId": "381:2683",
+      "width": 24,
+      "height": 24,
+      "sha256": "e7de64fc8ea0709f0a557770be868c518c0454712e232bc5379a0989e9834e75"
     },
     {
       "name": "download",
@@ -156,6 +228,14 @@
       "sha256": "d959216afb0507c0809124d1a3482709e4214f9ef756bea1abdadd5c1139f141"
     },
     {
+      "name": "dumbbell",
+      "kind": "icon",
+      "nodeId": "324:2340",
+      "width": 24,
+      "height": 24,
+      "sha256": "d79b3960f2ba069e82aeb34f76d11f542ce0eba033d187b71c96f1a10f48cdb6"
+    },
+    {
       "name": "external-link",
       "kind": "icon",
       "nodeId": "191:563",
@@ -170,6 +250,30 @@
       "width": 24,
       "height": 24,
       "sha256": "220d78790bf0fe76e57670b5faa3fb66e8bc68a7c73dfddfc8e6321a9984cba4"
+    },
+    {
+      "name": "file-braces",
+      "kind": "icon",
+      "nodeId": "381:2696",
+      "width": 24,
+      "height": 24,
+      "sha256": "4424b48fd7e72cdcb06ba1e3be0f76fb3ab765b8883600f6462f2f4186b3cc57"
+    },
+    {
+      "name": "file-search",
+      "kind": "icon",
+      "nodeId": "381:2713",
+      "width": 24,
+      "height": 24,
+      "sha256": "a6f1008c294d70fc57e2d167ff9fdf9d999599184f436f220d3c02df0f84474b"
+    },
+    {
+      "name": "fire-extinguisher",
+      "kind": "icon",
+      "nodeId": "324:2324",
+      "width": 24,
+      "height": 24,
+      "sha256": "a63ce4d89a202a93aac0968ea4e3fc7bbfb6f9b8acf4010944191ac2adff64d0"
     },
     {
       "name": "flame",
@@ -188,12 +292,28 @@
       "sha256": "23bd6e8c32ccf3e170ed0087cfd6c16d60b7dd9d54767165f3232acab92bb144"
     },
     {
+      "name": "gavel",
+      "kind": "icon",
+      "nodeId": "324:2373",
+      "width": 24,
+      "height": 24,
+      "sha256": "f9a0926af60e114812c3e57f967e890515b97225e8e5e2db9d6b80c2c836c09f"
+    },
+    {
       "name": "graduation-cap",
       "kind": "icon",
       "nodeId": "191:500",
       "width": 24,
       "height": 24,
       "sha256": "93f822b89a092f78d57083c6533e027109373c87e8403d02e1e77f60b3372d50"
+    },
+    {
+      "name": "hammer",
+      "kind": "icon",
+      "nodeId": "323:2271",
+      "width": 24,
+      "height": 24,
+      "sha256": "00f9c28cae2cc62a58e12b751a2a929287f2703c9b0504cbede1e64d52a3dfe6"
     },
     {
       "name": "hand-heart",
@@ -220,6 +340,22 @@
       "sha256": "209a040a12c55a6144fe721035f7e5c5aac8bad8d5c972064201faa305919b20"
     },
     {
+      "name": "heart-handshake",
+      "kind": "icon",
+      "nodeId": "324:2285",
+      "width": 24,
+      "height": 24,
+      "sha256": "34e6769efcee7d66842bafd76d826af46463034b19d155a74bd99c9d78d2b838"
+    },
+    {
+      "name": "heart-plus",
+      "kind": "icon",
+      "nodeId": "323:2266",
+      "width": 24,
+      "height": 24,
+      "sha256": "384f6965dc1d0a418ff6d39fe07ebfdd252eb58e007d087e3b1938bf21fdd771"
+    },
+    {
       "name": "hospital",
       "kind": "icon",
       "nodeId": "191:298",
@@ -242,6 +378,14 @@
       "width": 24,
       "height": 24,
       "sha256": "c27309c5c44baee2589b17f7c47b7377c46d9af12b38246008f098532805f0e7"
+    },
+    {
+      "name": "house-plus",
+      "kind": "icon",
+      "nodeId": "324:2333",
+      "width": 24,
+      "height": 24,
+      "sha256": "9131fa91ed700456a4086294749f1c7934325fac9d3e032319781ed3d2a72612"
     },
     {
       "name": "info",
@@ -292,6 +436,14 @@
       "sha256": "5bfdd309e6522ddf9c6a638365bc1907d70cadb60b6c459710615dbe02ab18a7"
     },
     {
+      "name": "mail",
+      "kind": "icon",
+      "nodeId": "381:2721",
+      "width": 24,
+      "height": 24,
+      "sha256": "adeb357d9d4ce9d49b6a1fa84e21d563452208c5cee95adbecfca8789f71090f"
+    },
+    {
       "name": "map-pin",
       "kind": "icon",
       "nodeId": "191:546",
@@ -324,6 +476,30 @@
       "sha256": "20d4ba85d7accda0ecb9ce4078907f8ab050cab1cd9cac9b68daa86193ad1e1b"
     },
     {
+      "name": "notebook-pen",
+      "kind": "icon",
+      "nodeId": "324:2259",
+      "width": 24,
+      "height": 24,
+      "sha256": "00c347bb6e1bb0d756f4781a878e6ee85e10129495df46535f267b1a206c56f5"
+    },
+    {
+      "name": "notebook-tabs",
+      "kind": "icon",
+      "nodeId": "324:2282",
+      "width": 24,
+      "height": 24,
+      "sha256": "3e0428f6e06dc304f848b020cd992c83203ca4ad6cc7d1ca73e1811a6e7b9b9a"
+    },
+    {
+      "name": "pencil-ruler",
+      "kind": "icon",
+      "nodeId": "324:2251",
+      "width": 24,
+      "height": 24,
+      "sha256": "f4b3d25efca8c0712858ada98d00105e8fc733999ecf09fc79b0c64854afb0a8"
+    },
+    {
       "name": "person-standing",
       "kind": "icon",
       "nodeId": "191:506",
@@ -348,6 +524,14 @@
       "sha256": "425503d505438acdf27792f34707a29221d80a9f50ad404609e6c54af821b728"
     },
     {
+      "name": "presentation",
+      "kind": "icon",
+      "nodeId": "324:2293",
+      "width": 24,
+      "height": 24,
+      "sha256": "8529ea9503649351b0d8d6137b69eed4702e0f2bb539783a7ff7207586fd87b5"
+    },
+    {
       "name": "receipt-japanese-yen",
       "kind": "icon",
       "nodeId": "191:469",
@@ -362,6 +546,14 @@
       "width": 24,
       "height": 24,
       "sha256": "a5023bb4dcda5dae85063afb09c528c8b2a8a682f7a46e5bfe2778c9efa79456"
+    },
+    {
+      "name": "rotate-cw",
+      "kind": "icon",
+      "nodeId": "381:2670",
+      "width": 24,
+      "height": 24,
+      "sha256": "3ca513586b507badb90b7e5dab1ae59f1272c06615f6494de7a3f019ad1185e9"
     },
     {
       "name": "scale",
@@ -388,12 +580,36 @@
       "sha256": "3cb534d70d819e75440261de1e42286c8a80a2ce3921bc1c4b59449eaae32c52"
     },
     {
+      "name": "send",
+      "kind": "icon",
+      "nodeId": "451:1430",
+      "width": 24,
+      "height": 24,
+      "sha256": "3ed55f8e4924d47a081a1aa5d8a60ee3aaeb58cde7b2236a4d4771011d103fa9"
+    },
+    {
       "name": "settings",
       "kind": "icon",
       "nodeId": "316:1078",
       "width": 24,
       "height": 24,
       "sha256": "2d30f724ac77a6af706877fe3b50bd72b64898d8f000e9ec906b503d19055639"
+    },
+    {
+      "name": "shield",
+      "kind": "icon",
+      "nodeId": "324:2327",
+      "width": 24,
+      "height": 24,
+      "sha256": "b72ee31f3e02db91e96195229708ed94352d3cf28b1148aaf20f65728da8df36"
+    },
+    {
+      "name": "shield-check",
+      "kind": "icon",
+      "nodeId": "323:2261",
+      "width": 24,
+      "height": 24,
+      "sha256": "356a8e2e30196014a135f567b5587761cec8d9eeea774f3b057bdde47cff4f46"
     },
     {
       "name": "shield-user",
@@ -412,6 +628,14 @@
       "sha256": "b7fda3a966e01e79b82e64555012e28cd022bf6a6f1196f4ffe2cc836473d4c3"
     },
     {
+      "name": "signpost",
+      "kind": "icon",
+      "nodeId": "324:2356",
+      "width": 24,
+      "height": 24,
+      "sha256": "0c7aa2ec1d73d309c56813815ab0e2e95957446d23d0e79956bb9fe665bc7bfb"
+    },
+    {
       "name": "sliders-horizontal",
       "kind": "icon",
       "nodeId": "316:1059",
@@ -426,6 +650,38 @@
       "width": 24,
       "height": 24,
       "sha256": "6e93b5260116c8dfe3a8c199b57b9fbaa03e38284deccc5519b6a4074ae1be51"
+    },
+    {
+      "name": "stamp",
+      "kind": "icon",
+      "nodeId": "324:2366",
+      "width": 24,
+      "height": 24,
+      "sha256": "1f8a262c43dbd2c95476ee6120ff33b3400b645a729a70e3af89b9812fc59705"
+    },
+    {
+      "name": "stethoscope",
+      "kind": "icon",
+      "nodeId": "324:2306",
+      "width": 24,
+      "height": 24,
+      "sha256": "65df9ac6aad19609ca152d8b2e211d926a6784bf11dc7928bf7c70cce79f5c0d"
+    },
+    {
+      "name": "store",
+      "kind": "icon",
+      "nodeId": "323:2276",
+      "width": 24,
+      "height": 24,
+      "sha256": "d6dc28104a0fe3ca6b900c5affd349e3c0577e986ddb1053b88316d3288be489"
+    },
+    {
+      "name": "theater",
+      "kind": "icon",
+      "nodeId": "324:2351",
+      "width": 24,
+      "height": 24,
+      "sha256": "c54f03ba5ba747b7ccc45027748b6fbde0389fc2c6d41834f90af446b42b3850"
     },
     {
       "name": "tooth",
@@ -458,6 +714,22 @@
       "width": 24,
       "height": 24,
       "sha256": "acf6335d0bdd055dbf4edcfcddb6803cfecc8ff3f95935ba3f1c46daa4b53af2"
+    },
+    {
+      "name": "venus-and-mars",
+      "kind": "icon",
+      "nodeId": "323:2257",
+      "width": 24,
+      "height": 24,
+      "sha256": "c57efb820dba1e2279288e95b7d5974fd5e068dc7177ff33fe0309ba77104bb9"
+    },
+    {
+      "name": "wrench",
+      "kind": "icon",
+      "nodeId": "324:2288",
+      "width": 24,
+      "height": 24,
+      "sha256": "11fd1ab86fb02dfbe4ec384bc8af8e38bc0af6a664043ba174584f5b41ec07f8"
     },
     {
       "name": "x",
@@ -599,16 +871,32 @@
   "categories": {
     "agriculture_employment_support": "sprout",
     "archive": "archive",
+    "business_support": "store",
     "certified_child_center": "school",
     "child_consultation": "hand-helping",
+    "child_family_support": "heart-plus",
+    "community_center": "house-plus",
+    "compulsory_education_school": "book-open-text",
     "consumer_affairs": "shopping-bag",
+    "court": "gavel",
+    "cultural_hall": "theater",
+    "customs": "container",
     "dental": "tooth",
     "disability_support": "accessibility",
+    "domestic_violence_support": "shield-check",
+    "education_board": "clipboard-pen",
+    "elementary_school": "pencil-ruler",
     "employment_office": "briefcase-business",
     "fire_brigade_office": "flame",
+    "fire_department": "fire-extinguisher",
     "foreign_employment_support": "languages",
+    "gender_equality_center": "venus-and-mars",
     "graduate_employment_support": "graduation-cap",
+    "health_center": "stethoscope",
+    "high_school": "book-marked",
+    "immigration_office": "stamp",
     "junior_college": "book-open-check",
+    "junior_high_school": "notebook-pen",
     "kindergarten": "blocks",
     "labour_bureau": "clipboard-list",
     "labour_consultation": "messages-square",
@@ -617,23 +905,33 @@
     "library": "library-big",
     "local_employment_support": "map-pinned",
     "medical": "hospital",
+    "mental_health_center": "brain",
+    "miscellaneous_school": "presentation",
     "municipal_office": "landmark",
     "museum": "gallery-thumbnails",
     "nursery": "baby",
     "nursing_care": "hand-heart",
     "parent_employment_support": "users-round",
+    "passport_office": "book-user",
     "pension_consultation": "calendar-check",
     "pension_office": "calendar-days",
     "pharmacy": "pill",
     "police_consultation": "shield-user",
+    "police_station": "shield",
     "prefectural_office": "building-complex",
     "relocation_employment_support": "luggage",
+    "secondary_school": "notebook-tabs",
     "small_scale_childcare": "house-heart",
     "social_withdrawal_support": "life-buoy",
+    "special_needs_school": "heart-handshake",
+    "sports_facility": "dumbbell",
     "tax_office": "receipt-japanese-yen",
     "technical_college": "drafting-compass",
+    "tourist_information": "signpost",
     "university": "university",
     "unlicensed_childcare": "house",
+    "vocational_school": "wrench",
+    "vocational_training": "hammer",
     "workplace_childcare": "building",
     "youth_employment_support": "person-standing"
   },

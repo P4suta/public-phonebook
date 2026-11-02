@@ -13,41 +13,15 @@ import {
   iconSymbols,
 } from "../../src/ui/icon-catalog.ts";
 import { CategoryIcon, categoryIcon, Icon } from "../../src/ui/icons.tsx";
+import {
+  type ServiceInformation,
+  serviceInformation,
+} from "../../src/ui/service-information.ts";
 
 const nativeScreens = "ios/App";
 const nativeCatalog = "ios/Sources/PhonebookKit/IconCatalog.swift";
 const { icon: actionIconSize, categoryIcon: categoryIconSize } =
   foundation.control;
-
-/** Categories that #33 added after the Figma masters, which both clients draw with the fallback icon until masters exist. */
-const categoriesWithoutMasters = [
-  "elementary_school",
-  "junior_high_school",
-  "high_school",
-  "compulsory_education_school",
-  "secondary_school",
-  "special_needs_school",
-  "vocational_school",
-  "miscellaneous_school",
-  "education_board",
-  "health_center",
-  "mental_health_center",
-  "fire_department",
-  "police_station",
-  "community_center",
-  "sports_facility",
-  "cultural_hall",
-  "tourist_information",
-  "passport_office",
-  "immigration_office",
-  "court",
-  "customs",
-  "gender_equality_center",
-  "domestic_violence_support",
-  "child_family_support",
-  "vocational_training",
-  "business_support",
-];
 
 function hasMaster(category: string): boolean {
   return Object.hasOwn(categoryIcons, category);
@@ -100,21 +74,30 @@ it("maps each web category to the same canonical Figma export as the iPhone app"
   expect(new Set(fallbacks)).toEqual(new Set([categoryFallbackIcon]));
 });
 
-it("keeps mapped categories distinct and names each category still waiting for a master", () => {
-  const mapped = categoryDefinitions.filter((category) =>
-    hasMaster(category.id),
-  );
-  const mappedIcons = mapped.map((category) => categoryIcon(category.id));
-  expect(new Set(mappedIcons).size).toBe(mapped.length);
-  expect(mappedIcons).not.toContain(categoryFallbackIcon);
+it("gives every category its own distinct master instead of the fallback", () => {
   expect(
     categoryDefinitions
       .filter((category) => !hasMaster(category.id))
       .map((category) => category.id),
-  ).toEqual(categoriesWithoutMasters);
-  for (const category of categoryDefinitions)
-    if (!hasMaster(category.id))
-      expect(categoryIcon(category.id)).toBe(categoryFallbackIcon);
+  ).toEqual([]);
+  const icons = categoryDefinitions.map((category) =>
+    categoryIcon(category.id),
+  );
+  expect(new Set(icons).size).toBe(categoryDefinitions.length);
+  expect(icons).not.toContain(categoryFallbackIcon);
+});
+
+it("draws the email and privacy links with their own masters", () => {
+  const icons = serviceInformation.flatMap((information) =>
+    information.links.map(
+      (link: ServiceInformation["links"][number]) =>
+        [link.href, link.icon] as const,
+    ),
+  );
+  expect(Object.fromEntries(icons)).toMatchObject({
+    "mailto:support@dial.page": "mail",
+    "/privacy": "shield-check",
+  });
 });
 
 it("defines one symbol per icon name, painted only with the surrounding text color", () => {

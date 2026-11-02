@@ -371,7 +371,7 @@ function RequestForm({
             className={`${styles.button} ${styles.solid}`}
             aria-label={`${referenceCopy.attempt.submit}（${operationName(operation)}）`}
           >
-            <Icon name="chevron-right" />
+            <Icon name="send" />
             {referenceCopy.attempt.submit}
           </button>
         </div>

@@ -49,7 +49,7 @@ function ContactPage(): ReactElement {
           <p>データの日付：{formatDate(contact.dataAsOf)}</p>
         )}
         <div className={css.actions}>
-          <LinkButton href={sourcePath} icon="info">
+          <LinkButton href={sourcePath} icon="file-search">
             {uiCopy.sourceAction}
           </LinkButton>
         </div>
