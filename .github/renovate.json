@@ -48,7 +48,6 @@
         "vite",
         "@vitejs/plugin-react",
         "@vanilla-extract/**",
-        "postcss",
         "aws4fetch",
         "node",
         "just",
