@@ -35,6 +35,7 @@ const tags: Readonly<Record<string, string>> = {
 
 /** Japanese operation summaries, keyed by OpenAPI operation ID. */
 const summaries: Readonly<Record<string, string>> = {
+  getDiscovery: "各APIのURLと、API仕様書、この説明のURLを取得する",
   getCatalog: "施設の種類と地域、いまのデータセットを取得する",
   searchContacts: "名前や電話番号、種類、地域で施設をさがす",
   searchContactGroups: "施設の種類ごとに、当てはまる施設を少しずつ見る",
