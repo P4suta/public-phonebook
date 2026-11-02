@@ -19,7 +19,7 @@ import {
 } from "../src/core/directory-delta.ts";
 import { deltaPublication } from "../src/core/directory-delta-policy.ts";
 
-// Ten times the decoded national directory, so a corrupt base can't exhaust memory.
+// Over ten times the 80 MB decoded national archive, so a corrupt base can't exhaust memory.
 const maximumDecodedArchiveBytes = 1_073_741_824;
 
 export function sha256Digest(): DeltaDigest {

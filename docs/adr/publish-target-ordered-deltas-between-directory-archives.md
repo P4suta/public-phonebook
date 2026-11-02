@@ -42,6 +42,11 @@ Prove the copy range guard, the size rule, and the admission decision in Dafny.
 
 ## Consequences
 
+The production snapshot of 667,696 contacts was prepared from the 650,933-contact base, with a canonical copy of that base as its delta base.
+Its delta took 374,905 bytes, 2.8 percent of the 13,428,507-byte archive.
+Every base row stayed a copy, although the maps renumbered 719 of 720 provenances, 879 of 883 links, and 20 categories.
+A row-by-row difference of the same pair repeated every row and took 26,499,639 bytes, about twice the complete archive.
+Applying that delta in Node took 0.7 seconds, and the data check passed on the prepared bundle.
 A client applies a delta while it streams the instructions, hashes the rebuilt archive as it writes it, and needs no local sort.
 A recollection that only changes retrieval times costs one map entry per provenance instead of every row.
 A bad provenance choice can only add literal rows, because the target digest decides whether a delta is right.
