@@ -1,4 +1,3 @@
-import { ChevronDown, Send } from "lucide-react";
 import { type FormEvent, type ReactElement, useRef, useState } from "react";
 import {
   codeExamples,
@@ -19,7 +18,7 @@ import {
   statusMeaning,
 } from "./api-reference-copy.ts";
 import { CopyButton } from "./components.tsx";
-import { foundation } from "./foundations.ts";
+import { Icon } from "./icons.tsx";
 import {
   attemptPlan,
   browserSender,
@@ -240,7 +239,7 @@ function Field({
               </option>
             ))}
           </select>
-          <ChevronDown className={css.chevron} aria-hidden="true" />
+          <Icon name="chevron-down" className={css.chevron} />
         </span>
       ) : (
         <input
@@ -372,7 +371,7 @@ function RequestForm({
             className={`${styles.button} ${styles.solid}`}
             aria-label={`${referenceCopy.attempt.submit}（${operationName(operation)}）`}
           >
-            <Send size={foundation.control.icon} aria-hidden="true" />
+            <Icon name="chevron-right" />
             {referenceCopy.attempt.submit}
           </button>
         </div>

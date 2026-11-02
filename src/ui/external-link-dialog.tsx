@@ -1,9 +1,8 @@
-import { ExternalLink, X } from "lucide-react";
 import { type ReactElement, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { confirmsNavigation } from "../core/navigation-policy.ts";
 import { type ExternalDestination, uiCopy } from "./copy.ts";
-import { foundation } from "./foundations.ts";
+import { Icon } from "./icons.tsx";
 import * as css from "./styles.css.ts";
 
 const primaryButton = 0;
@@ -99,7 +98,7 @@ export function ExternalLinkConfirmation(): ReactElement {
             dialog.current?.close();
           }}
         >
-          <ExternalLink size={foundation.control.icon} aria-hidden="true" />
+          <Icon name="external-link" />
           {uiCopy.external.open}
         </button>
         <button
@@ -107,7 +106,7 @@ export function ExternalLinkConfirmation(): ReactElement {
           className={css.button}
           onClick={() => dialog.current?.close()}
         >
-          <X size={foundation.control.icon} aria-hidden="true" />
+          <Icon name="x" />
           {uiCopy.external.cancel}
         </button>
       </div>

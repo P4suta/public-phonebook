@@ -1,16 +1,4 @@
 import {
-  ArrowLeft,
-  BookUser,
-  Check,
-  ChevronRight,
-  Copy,
-  ExternalLink,
-  type LucideIcon,
-  MapPin,
-  Phone,
-  RotateCw,
-} from "lucide-react";
-import {
   type MouseEvent,
   type ReactElement,
   type ReactNode,
@@ -24,8 +12,8 @@ import { formatPhone } from "../core/phone.ts";
 import { cleanAddress } from "../core/search.ts";
 import { copyText } from "./clipboard.ts";
 import { type ExternalDestination, uiCopy } from "./copy.ts";
-import { foundation } from "./foundations.ts";
-import { CategoryIcon } from "./icons.tsx";
+import type { IconName } from "./icon-catalog.ts";
+import { CategoryIcon, Icon } from "./icons.tsx";
 import { opensNewTab } from "./links.ts";
 import type { ResultCardView } from "./result-cards.ts";
 import * as css from "./styles.css.ts";
@@ -37,7 +25,7 @@ function copyFeedback(outcome: "copied" | "failed", subject: string): string {
 export function LinkButton({
   href,
   children,
-  icon: Icon,
+  icon,
   primary = false,
   download = false,
   accessibleLabel,
@@ -45,7 +33,7 @@ export function LinkButton({
 }: {
   readonly href: string;
   readonly children: ReactNode;
-  readonly icon: LucideIcon;
+  readonly icon: IconName;
   readonly primary?: boolean;
   readonly download?: boolean;
   readonly accessibleLabel?: string;
@@ -66,7 +54,7 @@ export function LinkButton({
           : accessibleLabel
       }
     >
-      <Icon size={foundation.control.icon} aria-hidden="true" />
+      <Icon name={icon} />
       {children}
       {newTab && !accessibleLabel && (
         <span className={css.srOnly}>（新しいタブ）</span>
@@ -84,7 +72,7 @@ export function BackButton({
 }): ReactElement {
   return (
     <div className={css.actions}>
-      <LinkButton href={href} icon={ArrowLeft}>
+      <LinkButton href={href} icon="chevron-left">
         {children}
       </LinkButton>
     </div>
@@ -114,11 +102,7 @@ export function CopyButton({
   const latest = useRef<symbol | null>(null);
   const requests = feedback?.requests ?? latest;
   const icon =
-    state === "copied" ? (
-      <Check size={foundation.control.icon} aria-hidden="true" />
-    ) : (
-      <Copy size={foundation.control.icon} aria-hidden="true" />
-    );
+    state === "copied" ? <Icon name="check" /> : <Icon name="copy" />;
   async function copy(trusted: boolean): Promise<void> {
     const request = Symbol();
     requests.current = request;
@@ -212,12 +196,12 @@ function PhoneActions({
                 href={`tel:${e164}`}
                 primary
                 accessibleLabel={`${display}に電話をかける`}
-                icon={Phone}
+                icon="phone"
               >
                 電話をかける
               </LinkButton>
               {vcard && index === 0 && (
-                <LinkButton href={vcard} download icon={BookUser}>
+                <LinkButton href={vcard} download icon="contact-round">
                   電話帳に入れる
                 </LinkButton>
               )}
@@ -284,7 +268,7 @@ export function ResultCard({
             }}
           >
             <span>{card.name}</span>
-            <ChevronRight size={foundation.control.icon} aria-hidden="true" />
+            <Icon name="chevron-right" />
           </a>
         </h3>
         {card.region && <p className={css.region}>{card.region}</p>}
@@ -336,14 +320,10 @@ export function ContactCard({
             data-external-destination={"address" satisfies ExternalDestination}
             aria-label={`${address}の地図を開く（新しいタブ）`}
           >
-            <MapPin size={foundation.control.icon} aria-hidden="true" />
+            <Icon name="map-pin" />
             <span>
               {address}
-              <ExternalLink
-                className={css.trailingIcon}
-                size={foundation.control.icon}
-                aria-hidden="true"
-              />
+              <Icon name="external-link" className={css.trailingIcon} />
             </span>
           </a>
         </div>
@@ -363,7 +343,7 @@ export function OfficialLink({
   readonly children: ReactNode;
 }): ReactElement {
   return (
-    <LinkButton href={href} icon={ExternalLink} destination={destination}>
+    <LinkButton href={href} icon="external-link" destination={destination}>
       {children}
     </LinkButton>
   );
@@ -383,12 +363,12 @@ export function LoadingError({
       <h2 className={css.subheading}>{uiCopy.loadFailed(subject)}</h2>
       <div className={css.actions}>
         {restartHref ? (
-          <LinkButton href={restartHref} icon={RotateCw}>
+          <LinkButton href={restartHref} icon="rotate-ccw">
             {uiCopy.reloadFromStart(subject)}
           </LinkButton>
         ) : (
           <button type="button" className={css.button} onClick={retry}>
-            <RotateCw size={foundation.control.icon} aria-hidden="true" />
+            <Icon name="rotate-ccw" />
             {uiCopy.reload(subject)}
           </button>
         )}

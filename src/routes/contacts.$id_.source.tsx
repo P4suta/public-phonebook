@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { FileBraces } from "lucide-react";
 import type { ReactElement } from "react";
 import { getCatalog, getSource } from "../ui/client.ts";
 import { BackButton, LinkButton, OfficialLink } from "../ui/components.tsx";
@@ -76,7 +75,7 @@ function SourcePage(): ReactElement {
           </OfficialLink>
           <LinkButton
             href={`/api/sources/${encodeURIComponent(source.id)}`}
-            icon={FileBraces}
+            icon="file"
           >
             開発者向けの記録を見る
           </LinkButton>
