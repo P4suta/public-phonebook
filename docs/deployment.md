@@ -168,7 +168,8 @@ Conditional writes keep one writer per object: a create sends `If-None-Match: *`
 | --- | --- | --- |
 | `blobs/sha256/DIGEST` | Databases and archives | Once |
 | `datasets/MANIFEST/` | Ready manifest and catalog for verification | Once |
-| `collections/REPORT/`, `collection-cache/` | Collection reports and cached sources | Once |
+| `collections/REPORT/` | Collection outputs, source artifact list, and prepared dataset link | Once |
+| `collection-cache/DIGEST` | Source bytes of a collection | Once |
 | `candidates/TREE/MANIFEST/STAGE.json` | Candidate evidence per stage | Once |
 | `journals/ENV/head.json` | Current publication journal | Conditional replacement |
 | `journals/ENV/history/SEQUENCE.json` | Every journal record | Append-only, bucket lock |
@@ -181,6 +182,7 @@ Verification reads the manifest and catalog from `datasets/MANIFEST/`, so the jo
 Each publication command holds the environment's lease, which lasts 10 minutes, renews every 60 seconds, and expires by R2's response time.
 A second publisher is refused while the lease is live and can take it over after it expires.
 The [control bucket decision](adr/keep-release-records-in-a-conditionally-written-control-bucket.md) explains the format and the lease.
+The `Collect` workflow writes the collection keys and a prepared dataset from the `data` environment, as [data sources](data-sources.md#collection-in-github-actions) describes.
 
 Import the owner's format 1 records once, after checking the plan.
 
@@ -219,6 +221,21 @@ The command never deletes resources.
 The control store keeps the journals and verification bundles for recovery.
 Provider provisioning, network delivery, and the truth of upstream records remain external trust boundaries.
 Read the [recovery decision](adr/recover-complete-worker-and-dataset-publications.md), [in-place verification decision](adr/verify-release-candidates-in-place-before-approval.md), and [verification contract](verification.md) for their checks and limits.
+
+## Dependency updates
+
+Renovate merges minor and patch updates on its own once the required checks pass, except for the ones a publication depends on.
+The `deployment dependencies` group holds updates that change the deployed Worker, its build, or a release path, and labels them `release-rehearsal`.
+It covers cf, Miniflare, `@cloudflare/*`, TanStack Start with the router release it pins, Vite and its plugins, vanilla-extract, PostCSS, and aws4fetch.
+It also covers the `node`, `just`, `doppler`, `rust`, and `xcodegen` tools and the GitHub Actions of the TestFlight workflow and the toolchain action.
+The Linux check image's mise moves with them, because `just check-linux` refuses a mise that differs from the toolchain action's.
+npm lock file maintenance waits in its own branch, because it moves the bundler and CSS tools that Vite resolves within ranges.
+Merge such an update only after `mise x -- just release-rehearse .local/phonebook` passes on its branch after the full local gate.
+That recipe runs `tools/release-rehearsal.ts`, which publishes a real subset and then the full data to staging.
+When it changes the TestFlight workflow or its tools, also run `mise x -- just ios-archive`.
+The hosted rehearsal replaces the local one once `release.yml` lands, and each new deployment workflow's actions join the group then.
+Major updates already wait for the owner and need the same rehearsal.
+Vulnerability fixes still merge on their own, because the shared preset forces automerge for them.
 
 ## Support mail
 

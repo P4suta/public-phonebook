@@ -18,7 +18,9 @@ export type WorkflowRule =
   | "job-permissions-missing"
   | "action-not-pinned"
   | "action-not-allowed"
-  | "script-interpolation";
+  | "script-interpolation"
+  | "id-token-without-environment"
+  | "id-token-outside-dispatch";
 
 export interface WorkflowViolation {
   readonly file: string;
@@ -36,6 +38,10 @@ const workflowDirectory = ".github/workflows";
 const actionDirectory = ".github/actions";
 const workflowExtension = /\.ya?ml$/u;
 const actionFiles = ["action.yml", "action.yaml"];
+const credentialTriggers: readonly string[] = [
+  "workflow_dispatch",
+  "workflow_call",
+];
 
 const StepSchema = v.looseObject({
   uses: v.optional(v.string()),
@@ -44,13 +50,43 @@ const StepSchema = v.looseObject({
 const StepsSchema = v.optional(v.array(StepSchema));
 const JobSchema = v.looseObject({
   permissions: v.optional(v.unknown()),
+  environment: v.optional(v.unknown()),
   uses: v.optional(v.string()),
   steps: StepsSchema,
 });
 const WorkflowSchema = v.looseObject({
+  on: v.optional(v.unknown()),
   permissions: v.optional(v.unknown()),
   jobs: v.record(v.string(), JobSchema),
 });
+const IdTokenGrantSchema = v.union([
+  v.literal("write-all"),
+  v.looseObject({ "id-token": v.literal("write") }),
+]);
+const NamedEnvironmentSchema = v.union([
+  v.pipe(v.string(), v.minLength(1)),
+  v.looseObject({ name: v.pipe(v.string(), v.minLength(1)) }),
+]);
+const TriggerSchema = v.union([
+  v.pipe(
+    v.string(),
+    v.transform((trigger) => [trigger]),
+  ),
+  v.array(v.string()),
+  v.pipe(
+    v.record(v.string(), v.unknown()),
+    v.transform((triggers) => Object.keys(triggers)),
+  ),
+]);
+
+export function startsOnlyByDispatchOrCall(triggers: unknown): boolean {
+  const parsed = v.safeParse(TriggerSchema, triggers);
+  return (
+    parsed.success &&
+    parsed.output.length > 0 &&
+    parsed.output.every((trigger) => credentialTriggers.includes(trigger))
+  );
+}
 const ActionSchema = v.looseObject({
   runs: v.looseObject({ using: v.string(), steps: StepsSchema }),
 });
@@ -122,6 +158,25 @@ export function workflowViolations(
       location: "permissions",
       rule: "workflow-permissions-not-empty",
     });
+  const credentialJobs = Object.entries(workflow.jobs).filter(([, job]) =>
+    v.is(IdTokenGrantSchema, job.permissions),
+  );
+  if (credentialJobs.length > 0 && !startsOnlyByDispatchOrCall(workflow.on))
+    violations.push({
+      file,
+      location: "on",
+      rule: "id-token-outside-dispatch",
+    });
+  for (const [id, job] of credentialJobs)
+    if (
+      job.uses === undefined &&
+      !v.is(NamedEnvironmentSchema, job.environment)
+    )
+      violations.push({
+        file,
+        location: `jobs.${id}`,
+        rule: "id-token-without-environment",
+      });
   for (const [id, job] of Object.entries(workflow.jobs)) {
     const location = `jobs.${id}`;
     if (!("permissions" in job))
