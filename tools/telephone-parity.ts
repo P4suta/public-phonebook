@@ -1,9 +1,8 @@
-import { createReadStream } from "node:fs";
 import { join } from "node:path";
-import { createGunzip } from "node:zlib";
 import { parse } from "csv-parse";
 import * as v from "valibot";
 import { escapeVCard } from "../src/core/vcard.ts";
+import { readGzipArchive } from "./archive-stream.ts";
 import { contactCsvColumns, guardSpreadsheetFormula } from "./snapshot.ts";
 
 /** `retained` also admits an earlier publication, whose CSV writer guarded the telephone cell as a formula. */
@@ -53,7 +52,7 @@ export async function* utf8Lines(
 }
 
 function gunzippedLines(path: string): AsyncGenerator<string> {
-  return utf8Lines(createReadStream(path).compose(createGunzip()));
+  return utf8Lines(readGzipArchive(path));
 }
 
 async function* jsonlTelephones(
@@ -71,9 +70,7 @@ async function* jsonlTelephones(
 
 async function* csvTelephones(path: string): AsyncGenerator<CsvTelephones> {
   let header = true;
-  for await (const record of createReadStream(path)
-    .compose(createGunzip())
-    .compose(parse())) {
+  for await (const record of readGzipArchive(path, parse())) {
     const cells = v.parse(CsvRecordSchema, record);
     if (header) {
       if (
