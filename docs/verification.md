@@ -281,6 +281,8 @@ Immutable Releases and the `v*` tag ruleset are repository settings that only th
 Prepare and seed the national bundle as described in [local operation](deployment.md).
 Run `npm run data:check -- .local/phonebook` to verify every retained contact, source reference, sortable field, index column, category and prefecture count, phone relation count, search index count, archive byte length, SHA-256, and SQLite integrity.
 The same check confirms that row numbers follow the normalized name and identifier order.
+It reads the JSON Lines, CSV, and vCard archives in step and requires the same telephone numbers, in the same order, for every contact.
+Only the adoption of an earlier production bundle admits that publication's apostrophe before each CSV telephone cell.
 It rebuilds `search-index.br` from the database in row order, requires identical bytes, and rejects a compressed index above 8 MiB.
 For each directory delta, it checks both digests and lengths, the size rule, the base it names, and the rebuilt archive's identity and header line.
 It also compares every literal row with the archive row at its position and requires the instructions to cover every row.
@@ -354,7 +356,9 @@ They also exercise native code copying, direct operation links and reload, JavaS
 The reference adapter preserves native button semantics, labels read-only response editors, exposes collapsed combobox state, and restores keyboard access to response scrolling.
 The palette gate covers CSS and SVG opacity as well as masks, gradients, shadows, filters, blending, and paint colors.
 Its negative controls run inside the live reference page as well as isolated fixtures.
-CSV fixtures independently parse serializer output and cover embedded commas, quotes, newlines, empty values, and all six guarded formula prefixes.
+CSV fixtures independently parse serializer output and cover embedded commas, quotes, newlines, empty values, and all ten guarded formula prefixes in every free-text column.
+A fixed-seed property requires that guard to match the serializer's own formula escaping for generated text.
+The verbatim telephone cell admits only validated E.164 numbers, and the writer refuses a contact whose number would bypass that schema.
 Publication fixtures use native D1 batches to lose a response after commit, resume from its checkpoint, preserve every bound value, and roll back both records and checkpoints after an invalid batch.
 The same proven one-through-one-hundred bound guards SQL parameter counts.
 Remote SQL execution, provider transactions, archive storage, and HTTPS delivery remain external semantic boundaries.

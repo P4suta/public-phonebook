@@ -26,6 +26,7 @@ import {
   CatalogSchema,
   type Contact,
   ContactSchema,
+  E164Schema,
   type Source,
   SourceSchema,
 } from "../src/core/models.ts";
@@ -247,9 +248,7 @@ export async function prepareSnapshot(
     const searchInsert = output.prepare(
       "INSERT INTO contact_search(rowid, terms) VALUES (?, ?)",
     );
-    csv.write(
-      "id,name,category,prefecture_code,municipality_code,address,phone_numbers,website,source_id,source_url,license,license_url,data_as_of\r\n",
-    );
+    csv.write(contactCsvHeader);
     for (const value of mergeContacts(
       readContacts(input, metadata.legacy),
       overlay.contacts,
@@ -495,26 +494,94 @@ export async function prepareSnapshot(
   }
 }
 
+export const contactCsvColumns = [
+  "id",
+  "name",
+  "category",
+  "prefecture_code",
+  "municipality_code",
+  "address",
+  "phone_numbers",
+  "website",
+  "source_id",
+  "source_url",
+  "license",
+  "license_url",
+  "data_as_of",
+] as const;
+type ContactCsvColumn = (typeof contactCsvColumns)[number];
+const csvRecordDelimiter = "\r\n";
+export const contactCsvHeader = `${contactCsvColumns.join(",")}${csvRecordDelimiter}`;
+const csvTelephoneSeparator = ";";
+const formulaGuard = "'";
+/** The leading characters that csv-stringify's `escape_formulas` guards in a string cell. */
+const spreadsheetFormulaPrefixes: ReadonlySet<string> = new Set([
+  "=",
+  "+",
+  "-",
+  "@",
+  "\t",
+  "\r",
+  "\u{ff1d}",
+  "\u{ff0b}",
+  "\u{ff0d}",
+  "\u{ff20}",
+]);
+
+export function guardSpreadsheetFormula(text: string): string {
+  return spreadsheetFormulaPrefixes.has(text.charAt(0))
+    ? `${formulaGuard}${text}`
+    : text;
+}
+
+/** Joined E.164 numbers hold only `+`, digits, and `;`, which give a spreadsheet no function, reference, or command. */
+export const FormulaInertTelephonesSchema = v.pipe(
+  v.array(E164Schema),
+  v.minLength(1),
+  v.transform((numbers) => numbers.join(csvTelephoneSeparator)),
+  v.brand("FormulaInertTelephones"),
+);
+
+/** Text always takes the formula guard; only a validated telephone list skips it. */
+type CsvCell =
+  | string
+  | {
+      readonly verbatim: v.InferOutput<typeof FormulaInertTelephonesSchema>;
+    };
+
+function csvCellText(cell: CsvCell): string {
+  return typeof cell === "string"
+    ? guardSpreadsheetFormula(cell)
+    : cell.verbatim;
+}
+
 export function contactCsv(contact: Contact): string {
-  const values = [
-    contact.id,
-    contact.name,
-    contact.category,
-    contact.prefectureCode,
-    contact.municipalityCode ?? "",
-    contact.address,
-    contact.phones.map((phone) => phone.e164).join(";"),
-    contact.website ?? "",
-    contact.sourceId,
-    contact.sourceUrls.join(" "),
-    contact.license,
-    contact.licenseUrl,
-    contact.dataAsOf,
-  ];
-  return stringify([values], {
-    quoted: true,
-    quoted_empty: true,
-    record_delimiter: "\r\n",
-    escape_formulas: true,
-  });
+  const cells: Record<ContactCsvColumn, CsvCell> = {
+    id: contact.id,
+    name: contact.name,
+    category: contact.category,
+    prefecture_code: contact.prefectureCode,
+    municipality_code: contact.municipalityCode ?? "",
+    address: contact.address,
+    phone_numbers: {
+      verbatim: v.parse(
+        FormulaInertTelephonesSchema,
+        contact.phones.map((phone) => phone.e164),
+      ),
+    },
+    website: contact.website ?? "",
+    source_id: contact.sourceId,
+    source_url: contact.sourceUrls.join(" "),
+    license: contact.license,
+    license_url: contact.licenseUrl,
+    data_as_of: contact.dataAsOf,
+  };
+  return stringify(
+    [contactCsvColumns.map((column) => csvCellText(cells[column]))],
+    {
+      quoted: true,
+      quoted_empty: true,
+      record_delimiter: csvRecordDelimiter,
+    },
+  );
 }

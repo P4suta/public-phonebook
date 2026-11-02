@@ -496,6 +496,37 @@ it("numbers D1 rows by normalized name and identifier and rebuilds the search in
     await writeFile(databasePath, databaseBytes);
     await writeFile(manifestPath, manifestText);
     await checkDataBundle(output);
+
+    const csvPath = join(output, "contacts.csv.gz");
+    const csvBytes = await readFile(csvPath);
+    const csvText = gunzipSync(csvBytes).toString("utf8");
+    expect(csvText).toContain('"+81335812331;+819012345678"');
+    const guarded = gzipSync(csvText.replaceAll('"+81', "\"'+81"));
+    await writeFile(csvPath, guarded);
+    const guardedDigest = await fileDigest(csvPath);
+    await writeFile(
+      manifestPath,
+      JSON.stringify({
+        ...manifest,
+        files: manifest.files.map((file) =>
+          file.file === "contacts.csv.gz"
+            ? {
+                ...file,
+                sha256: guardedDigest,
+                bytes: guarded.byteLength,
+                url: `/api/datasets/${manifest.snapshot}/${guardedDigest}/${file.file}`,
+              }
+            : file,
+        ),
+      } satisfies PreparedDatasetManifest),
+    );
+    await expect(checkDataBundle(output)).rejects.toThrow(
+      "CSV telephone numbers differ from the JSONL archive: c:0",
+    );
+    await checkDataBundle(output, "retained");
+    await writeFile(csvPath, csvBytes);
+    await writeFile(manifestPath, manifestText);
+    await checkDataBundle(output);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
