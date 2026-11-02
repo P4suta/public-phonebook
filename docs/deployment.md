@@ -190,6 +190,13 @@ Replace `staging` with `production` for public recovery.
 An unrelated active deployment is refused rather than overwritten.
 Repair access or provider availability before retrying failed verification.
 
+### Worker versions
+
+The provider reads a deployment that routes 100% to the current version and 0% to at most one candidate, in either order.
+It reports both versions with their release tags, and it refuses any other split, because traffic moves from 0% to 100% in one step.
+Every Worker response carries `x-dial-version` with the answering version ID from `CF_VERSION_METADATA`.
+A check of a 0% candidate compares this header with the candidate's ID, because Cloudflare routes a request whose override doesn't apply to the current version without an error.
+
 The first staging publication requires `--bootstrap` with `--dataset` and has no verified rollback target.
 If its activation succeeded but verification was interrupted, run `doppler run --project public-phonebook --config stg --no-fallback -- node tools/publish.ts staging --resume-bootstrap`.
 It accepts only the owned active initial candidate and its original committed source.
