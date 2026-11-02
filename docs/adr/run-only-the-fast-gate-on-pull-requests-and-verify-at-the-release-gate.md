@@ -62,7 +62,8 @@ Rejected alternatives:
 
 A broken build, a fixture browser regression, a Cargo failure, a failed proof, or a native failure no longer blocks a pull request.
 The release gate or a manual Assurance run finds it instead, so `main` can hold such a defect until then.
-Dispatch the Assurance workflow or run `just assurance` when a change touches the build, the proofs, or native code.
+Before pushing a change to the build, the browser checks, or Rust code, run `just check-build` locally.
+Dispatch the Assurance workflow or run `just assurance` when a change touches the proofs or native code.
 `just check-linux` stays the local pre-push equivalent of Verify, because it runs the same fast gate in the pinned Linux container.
 
 The ruleset still requires `Checks` to be current with `main`, so every merge makes the other open pull requests update and rerun the fast gate.

@@ -13,6 +13,7 @@ It requires no owner-specific service, credentials, or national archive.
 
 Before every push, run `mise x -- just check-linux` as well.
 It's the local equivalent of the Verify job, as the [Linux gate](#linux-equivalent-of-verify) section describes.
+Before pushing a change to the build, the browser checks, or Rust code, also run `mise x -- just check-build`, because pull requests don't run it.
 
 The workflow checks run actionlint over every workflow and zizmor offline with the pedantic persona over `.github`.
 Offline mode leaves out zizmor's online audits, so the result doesn't depend on network access or a token.
@@ -20,6 +21,8 @@ The typed policy in `tools/workflow-policy.ts` also checks every workflow and lo
 It requires explicit permissions on every workflow and job, and every top-level block must be empty.
 It allows only `actions/checkout`, `actions/cache`, `actions/upload-artifact`, `actions/download-artifact`, `dopplerhq/secrets-fetch-action`, and `jdx/mise-action`, each pinned to a full commit SHA.
 It rejects `inputs` or `github.event` expressions inside a `run:` script, which must receive those values through `env:`.
+It admits `id-token: write` only in a job that names an environment or calls a reusable workflow.
+A workflow with such a job may start only from `workflow_dispatch` or `workflow_call`.
 A workflow that `pull_request`, `pull_request_target`, `merge_group`, or `push` triggers is a change workflow.
 Each of its jobs must name a literal `ubuntu-` runner.
 No job may run `just assurance`, `just check-build`, `just prove`, `just e2e`, `just test`, or a `just ios-` recipe.

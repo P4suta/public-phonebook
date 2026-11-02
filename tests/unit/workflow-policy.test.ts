@@ -157,6 +157,99 @@ it("rejects input and event interpolation inside run scripts", () => {
     expect(interpolatesUntrustedContext(script)).toBe(false);
 });
 
+function credentialWorkflow(triggers: string, job: string): string {
+  return `on: ${triggers}
+permissions: {}
+jobs:
+  store:
+    runs-on: ubuntu-24.04
+${job}`;
+}
+
+const dispatchedCredentialJob = `    environment: data
+    permissions:
+      contents: read
+      id-token: write
+    steps: []`;
+
+it("admits an OIDC token only in an environment job of a workflow started by dispatch or call", () => {
+  for (const triggers of [
+    "workflow_dispatch",
+    "[workflow_dispatch]",
+    "\n  workflow_dispatch:\n  workflow_call:",
+  ])
+    expect(
+      rules(credentialWorkflow(triggers, dispatchedCredentialJob)),
+    ).toEqual([]);
+  expect(
+    rules(
+      credentialWorkflow(
+        "workflow_dispatch",
+        `    environment:
+      name: data
+    permissions: write-all
+    steps: []`,
+      ),
+    ),
+  ).toEqual([]);
+  expect(
+    rules(
+      credentialWorkflow(
+        "workflow_dispatch",
+        `    permissions:
+      id-token: write
+    uses: $/.github/workflows/candidate.yml`,
+      ),
+    ),
+  ).toEqual([]);
+  expect(
+    rules(`on: pull_request
+permissions: {}
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: none
+    steps: []`),
+  ).toEqual([]);
+});
+
+it("rejects an OIDC token in a job without an environment", () => {
+  for (const job of [
+    "    permissions:\n      id-token: write",
+    "    permissions: write-all",
+    '    environment: ""\n    permissions:\n      id-token: write',
+    "    environment:\n      url: https://example.com\n    permissions: write-all",
+  ])
+    expect(
+      rules(credentialWorkflow("workflow_dispatch", `${job}\n    steps: []`)),
+    ).toEqual(["id-token-without-environment"]);
+});
+
+it("rejects an OIDC token in a workflow that a push, pull request, or schedule starts", () => {
+  for (const triggers of [
+    "push",
+    "[pull_request, workflow_dispatch]",
+    "\n  schedule:\n    - cron: '0 0 * * *'\n  workflow_dispatch:",
+    "[]",
+    "{}",
+  ])
+    expect(
+      rules(credentialWorkflow(triggers, dispatchedCredentialJob)),
+    ).toEqual(["id-token-outside-dispatch"]);
+  expect(
+    rules(
+      credentialWorkflow(
+        "push",
+        `    permissions:
+      id-token: write
+    uses: $/.github/workflows/candidate.yml`,
+      ),
+    ),
+  ).toEqual(["id-token-outside-dispatch"]);
+});
+
 function changeWorkflow(trigger: string, job: string): string {
   return `on: ${trigger}
 permissions: {}
