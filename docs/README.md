@@ -11,7 +11,8 @@
 - [Prepare the native App Store distribution](ios-store-distribution.md).
 - [Track native release readiness](ios-release-readiness.md).
 - [Read the native Cloudflare architecture decision](adr/native-cloudflare-typescript-services.md).
-- [Review the generated interactive API reference decision](adr/openapi-driven-interactive-reference.md).
+- [Render the API reference on the server](adr/server-rendered-api-reference.md).
+- [Review the superseded interactive API reference decision](adr/openapi-driven-interactive-reference.md).
 - [Verify release candidates in place before approval](adr/verify-release-candidates-in-place-before-approval.md).
 - [Recover complete Worker and dataset publications](adr/recover-complete-worker-and-dataset-publications.md).
 - [Keep release records in a conditionally written control bucket](adr/keep-release-records-in-a-conditionally-written-control-bucket.md).

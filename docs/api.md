@@ -3,8 +3,9 @@
 This document describes the local TypeScript implementation.
 The existing public deployment is unchanged.
 The running API describes its contract at `/api/openapi.json`.
-Open `/developers` for the locally bundled Scalar reference, operation search, code examples, and interactive requests against the current API.
-The viewer reads the generated contract rather than maintaining a second list of operations.
+Open `/developers` for the reference that the server renders from that contract.
+It lists each operation with its parameters, response meanings, curl and JavaScript examples, and a request form that also works without JavaScript.
+The reference reads the generated contract rather than maintaining a second list of operations.
 No API key, cookie, account, or HTML scraping is required.
 
 ## Discover and search

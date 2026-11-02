@@ -68,8 +68,9 @@ Buttons have visible labels, explicit focus indicators, and generous targets.
 The search action touches the search-field border on wide screens and sits below the field on narrow screens.
 Search actions have a minimum width and grow to fit their labels.
 The API reference uses the existing desktop and mobile frames with an editable operation-navigation and parameter layout.
-Its desktop content uses 24-pixel gutters to accommodate the library's sidebar and documentation columns.
-Scalar supplies its detailed runtime controls; the application theme enforces black-and-white output and minimum target sizes.
+Its operation list sits beside the content from the column breakpoint and before it on narrower screens.
+Each operation separates its parameters, responses, examples, and request form with solid rules and type size, not color.
+Request fields have visible labels, and the response status appears as text below the form.
 The search field has a visible label and a persistent hint above it, with no placeholder or decorative glyph.
 
 The website uses typed Vanilla Extract styles and the generic sans-serif family, so text follows the reader's operating system and browser font settings without a font download.
@@ -168,7 +169,7 @@ The dialog names what the link opens, the destination host, and the new tab, and
 Opening, cancelling, and Escape return focus to the link, and the dialog stores no choice.
 The open action opens the destination in a new tab without an opener or referrer.
 Activations with a modifier key or the middle button go straight to the browser, and links without JavaScript open their new tab directly.
-Links inside the API reference use a general description.
+Links without a declared destination use a general description.
 The dialog's backdrop is opaque white, so it adds no tint or translucent surface.
 Relative service navigation and telephone actions retain their native destinations.
 Known terminal map annotations are removed without stripping building descriptions.

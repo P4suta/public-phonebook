@@ -53,7 +53,6 @@ export async function actionIconIssues(page: Page): Promise<readonly string[]> {
       actions.flatMap((action) => {
         if (
           !(action instanceof HTMLElement) ||
-          action.closest("[data-api-reference]") ||
           action.getClientRects().length === 0
         )
           return [];
