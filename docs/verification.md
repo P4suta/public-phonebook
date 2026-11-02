@@ -147,7 +147,7 @@ The trusted public-key endpoint is derived from the configured issuer, never the
 Revisit this boundary if Access token semantics, the JWT library, or asset routing changes.
 
 Run `mise x -- just prove`.
-LemmaScript 0.6.5 translates the actual annotated search, search-trigger, copy, reference-style, publication, collection, snapshot, and row locator policy implementations to Dafny.
+LemmaScript 0.6.5 translates the actual annotated search, search-trigger, copy, reference-style, publication, collection, snapshot, row locator, and directory delta policy implementations to Dafny.
 The gate requires unmodified generated output and every function listed in `tools/prove.ts`.
 Dafny 4.11.0 checks its expected nonempty unit and postcondition inventory for the supported search, search-trigger, copy, styling, publication, school-evidence, unique-candidate, source-accounting, versioned-API snapshot, and row locator decisions.
 The copy policy partitions current success, current failure, and superseded completion over the full Boolean domain.
@@ -162,6 +162,8 @@ Collection controls remove name evidence, admit an empty candidate set, and omit
 The snapshot control admits a supplied snapshot that differs from the active dataset.
 The row locator decision partitions malformed input, a stale snapshot, a missing row, and a located row, and places a located row's D1 rowid within the contact count.
 Its controls locate the row equal to the contact count and skip the snapshot check.
+The directory delta decisions bound each copy inside the base, publish a delta only at half the complete archive or less, and admit a rebuilt archive only when every check holds.
+Their controls admit a delta as large as the archive, a copy one row past the base, and a result without a digest match.
 Each must fail with an unproved contract rather than a tool error.
 A tool error, timeout, missing condition, or empty inventory cannot count as that rejection.
 
@@ -244,6 +246,10 @@ Prepare and seed the national bundle as described in [local operation](deploymen
 Run `npm run data:check -- .local/phonebook` to verify every retained contact, source reference, sortable field, index column, category and prefecture count, phone relation count, search index count, archive byte length, SHA-256, and SQLite integrity.
 The same check confirms that row numbers follow the normalized name and identifier order.
 It rebuilds `search-index.br` from the database in row order, requires identical bytes, and rejects a compressed index above 8 MiB.
+For each directory delta, it checks both digests and lengths, the size rule, the base it names, and the rebuilt archive's identity and header line.
+It also compares every literal row with the archive row at its position and requires the instructions to cover every row.
+The bundle doesn't hold the base, so the check can't read copied rows; preparation applies each delta to its base and requires identical bytes before it records the delta.
+Fixed-seed properties over generated pairs, including renumbered dictionaries and recollections, require the same exact reconstruction.
 The original publication is opened read-only.
 The active retained snapshot has 667,696 contacts, 561,495 distinct telephone numbers, 1,179 sources, 62 populated categories, and 47 prefectures.
 The data audit identifies the exact snapshot in its output.
