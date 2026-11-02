@@ -23,10 +23,10 @@ function AboutPage(): ReactElement {
           電話番号のもとの情報や、データを使うときの決まりをたしかめられます。
         </p>
         <nav aria-label="データとAPIの説明" className={css.actions}>
-          <LinkButton href="/data" icon="info">
+          <LinkButton href="/data" icon="database">
             データについてくわしく知る
           </LinkButton>
-          <LinkButton href="/developers" icon="file">
+          <LinkButton href="/developers" icon="code">
             APIの使い方を見る
           </LinkButton>
         </nav>
@@ -37,7 +37,7 @@ function AboutPage(): ReactElement {
           <LinkButton href="/support" icon="life-buoy">
             使い方と、声を伝える方法を見る
           </LinkButton>
-          <LinkButton href="/privacy" icon="file">
+          <LinkButton href="/privacy" icon="shield-check">
             プライバシーについて読む
           </LinkButton>
         </nav>

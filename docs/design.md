@@ -77,8 +77,7 @@ The website uses typed Vanilla Extract styles and the generic sans-serif family,
 The [Digital Agency design system](https://design.digital.go.jp/dads/foundations/typography/) states that its Noto Sans JP choice doesn't restrict system fonts and that information must not depend on the font.
 Figma uses Noto Sans JP as the stand-in for the Android system font, because Figma can't render each reader's font.
 The website and the iPhone app draw category and action icons from the same [Figma masters](icons.md).
-The 39 categories with a master have different icon geometry.
-The other 26 categories share the `file` icon on both clients until their masters exist.
+Every category has its own master with different icon geometry.
 The website offers only categories present in the active publication.
 Every size derives from the parameters in `src/ui/foundations.ts`.
 The parameters are a 4-pixel grid, a 16-pixel body size, and a line-height ratio of 1.5.

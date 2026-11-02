@@ -7,7 +7,7 @@ A user study would need to establish recognition of that meaning.
 The mark uses black and white and has separate optical drawings for small favicons.
 
 `design/icons.json` records each exported SVG's Figma node, dimensions, SHA-256 digest, category mapping, and native resource name.
-The checked-in sources comprise 58 product icons and 16 brand variants.
+The checked-in sources comprise 92 product icons and 16 brand variants.
 Production uses an unbadged app icon for both App Store and TestFlight.
 Development and verification builds use `DEV` and `QA` badges in all three appearances.
 The product icons keep their [Lucide and Feather notices](../design/licenses/Lucide.txt).
@@ -27,8 +27,8 @@ The primary app icon uses opaque red, green, and blue channels.
 The dark appearance retains its intended transparency.
 Unit tests decode generated images independently to check their dimensions, color type, and depth.
 
-Native category mappings cover 39 of the 65 catalog categories.
-The app shows the `file` icon for the other categories.
+Native category mappings cover all 65 catalog categories.
+The app keeps the `file` icon for a category without a mapping.
 `ios-generate` generates native resource images.
 The native build verifies ignored image sets.
 `icons-check` includes the tracked native AppIcon assets.
@@ -53,11 +53,12 @@ The same command writes the website's assets from the same masters.
 | `public/manifest.webmanifest` | The installation icons | Install manifest |
 
 The sprite has one `<symbol>` per product icon, painted with `currentColor`.
+A clip path in a symbol keeps only its shape, because its paint never draws.
 Every page defines it once at the start of the document, so an icon needs no request and still draws offline.
 `src/ui/icons.tsx` draws every symbol from that sprite, so each icon takes the text color of its control.
 The website resolves a category's icon from the same mappings as the app, including the `file` fallback.
 Unit tests compare the web mappings with `IconCatalog.swift` and with the catalog's intended icon names.
-They also list the 26 categories that still need a master.
+They also require a distinct master for every category.
 
 Rasters other than the dark native appearance must be opaque.
 Every pixel of a maskable icon outside the central circle with 40% of the icon's width as its radius must be paper white.

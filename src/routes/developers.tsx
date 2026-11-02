@@ -68,7 +68,7 @@ function DevelopersPage(): ReactElement {
     <main id="main" className={referenceCss.page}>
       <nav aria-label={referenceCopy.pageActions} className={css.actions}>
         <BackButton />
-        <LinkButton href={openApiPath} icon="file">
+        <LinkButton href={openApiPath} icon="file-braces">
           {referenceCopy.openapi}
         </LinkButton>
         <CopyButton

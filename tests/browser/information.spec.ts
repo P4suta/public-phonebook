@@ -1,4 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
+import { referenceCopy } from "../../src/ui/api-reference-copy.ts";
+import { uiCopy } from "../../src/ui/copy.ts";
 import { serviceInformation } from "../../src/ui/service-information.ts";
 import { auditDesign } from "./design-policy.ts";
 import { expect, test } from "./fixtures.ts";
@@ -58,6 +60,38 @@ test("the initial screen gives a complete instruction and one project-informatio
     .getByRole("link", { name: "さがす画面にもどる", exact: true })
     .click();
   await expect(page.getByRole("searchbox")).toHaveValue("");
+});
+
+test("each page action leads with its own icon", async ({ page }) => {
+  const contact = `/contacts/${encodeURIComponent("fixture:0")}`;
+  const actions = [
+    ["/about", "データについてくわしく知る", "database"],
+    ["/about", "APIの使い方を見る", "code"],
+    ["/about", "プライバシーについて読む", "shield-check"],
+    ["/about", "さがす画面にもどる", "arrow-left"],
+    ["/support", "開発者にメールを送る", "mail"],
+    ["/developers", referenceCopy.openapi, "file-braces"],
+    [contact, uiCopy.sourceAction, "file-search"],
+    [contact, "電話帳に入れる", "book-user"],
+    [`${contact}/source`, "開発者向けの記録を見る", "file-braces"],
+  ] as const;
+  for (const [path, name, icon] of actions) {
+    await page.goto(path);
+    await expect(
+      page.getByRole("link", { name, exact: true }).locator("svg").first(),
+      `${path} ${name}`,
+    ).toHaveAttribute("data-icon", icon);
+  }
+  await page.goto("/developers");
+  await expect(
+    page
+      .getByRole("button", {
+        name: `${referenceCopy.attempt.submit}（GET /api/contacts）`,
+        exact: true,
+      })
+      .locator("svg")
+      .first(),
+  ).toHaveAttribute("data-icon", "send");
 });
 
 for (const width of [320, 1440])

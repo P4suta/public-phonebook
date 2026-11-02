@@ -140,12 +140,12 @@ export const serviceInformation = [
       {
         href: "mailto:support@dial.page",
         label: "開発者にメールを送る",
-        icon: "messages-square",
+        icon: "mail",
       },
       {
         href: "/privacy",
         label: "プライバシーについて読む",
-        icon: "file",
+        icon: "shield-check",
       },
     ],
   },

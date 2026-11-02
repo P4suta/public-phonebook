@@ -11,6 +11,8 @@ No API key, cookie, account, or HTML scraping is required.
 ## Discover and search
 
 Start with `GET /api` and `GET /api/catalog`.
+`GET /api` returns the URL of each resource, the OpenAPI document, and the reference.
+`GET /api/v1` returns the versioned links pinned to the current snapshot, with `version`, `snapshot`, and `generatedAt`.
 The catalog supplies category IDs, prefecture codes, municipality codes, counts, and the current snapshot.
 
 ```sh

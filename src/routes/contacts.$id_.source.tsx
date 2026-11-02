@@ -75,7 +75,7 @@ function SourcePage(): ReactElement {
           </OfficialLink>
           <LinkButton
             href={`/api/sources/${encodeURIComponent(source.id)}`}
-            icon="file"
+            icon="file-braces"
           >
             開発者向けの記録を見る
           </LinkButton>

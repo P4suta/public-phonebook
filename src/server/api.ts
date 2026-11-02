@@ -2,7 +2,12 @@ import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
 import { describeRoute, openAPIRouteHandler, resolver } from "hono-openapi";
 import * as v from "valibot";
-import { DirectoryDiscoverySchema } from "../core/api-contract.ts";
+import {
+  type DirectoryDiscovery,
+  DirectoryDiscoverySchema,
+  type UnversionedDiscovery,
+  UnversionedDiscoverySchema,
+} from "../core/api-contract.ts";
 import { categoryDefinitions, prefectureNames } from "../core/catalog.ts";
 import {
   admitsContentCoding,
@@ -286,6 +291,50 @@ function problemResponse(description: string): RouteResponse {
       "application/problem+json": { schema: resolver(ProblemSchema) },
     },
   };
+}
+
+type DiscoveryCatalog = Pick<Catalog, "snapshot" | "generatedAt">;
+
+const exampleDiscoveryCatalog: DiscoveryCatalog = {
+  snapshot: "11c97b6f677ab45fd62ee43db1037df05c4e6a8cfee6d1e8d8473b26589ad85b",
+  generatedAt: "2026-10-29T00:00:00Z",
+};
+
+function discoveryLinks(
+  base: "/api" | "/api/v1",
+): Record<keyof UnversionedDiscovery, string> {
+  return {
+    name: "Public Phonebook API",
+    contacts: `${base}/contacts`,
+    contactGroups: `${base}/contact-groups`,
+    catalog: `${base}/catalog`,
+    sources: `${base}/sources`,
+    datasets: `${base}/datasets`,
+    datasetDeltas: `${base}/dataset-deltas`,
+    openapi: `${base}/openapi.json`,
+    docs: "/developers",
+  };
+}
+
+function unversionedDiscovery(): UnversionedDiscovery {
+  return v.parse(UnversionedDiscoverySchema, discoveryLinks("/api"));
+}
+
+function pinnedDiscovery(catalog: DiscoveryCatalog): DirectoryDiscovery {
+  const links = discoveryLinks("/api/v1");
+  const pin = (path: string): string => `${path}?snapshot=${catalog.snapshot}`;
+  return v.parse(DirectoryDiscoverySchema, {
+    ...links,
+    version: "1",
+    snapshot: catalog.snapshot,
+    generatedAt: catalog.generatedAt,
+    contacts: pin(links.contacts),
+    contactGroups: pin(links.contactGroups),
+    catalog: pin(links.catalog),
+    sources: pin(links.sources),
+    datasets: pin(links.datasets),
+    datasetDeltas: pin(links.datasetDeltas),
+  });
 }
 
 function registerWebsiteResources(api: Hono<ApiEnvironment>): void {
@@ -623,37 +672,62 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
     await next();
   });
 
-  api.get(base, async (c) => {
-    const discovery = {
-      name: "Public Phonebook API",
-      contacts: `${base}/contacts`,
-      contactGroups: `${base}/contact-groups`,
-      catalog: `${base}/catalog`,
-      sources: `${base}/sources`,
-      datasets: `${base}/datasets`,
-      datasetDeltas: `${base}/dataset-deltas`,
-      openapi: `${base}/openapi.json`,
-      docs: "/developers",
-    };
-    if (base !== "/api/v1") return c.json(discovery);
-    const catalog = await readCatalog(directoryDatabase(c.env.DB));
-    const pin = (path: string): string =>
-      `${path}?snapshot=${catalog.snapshot}`;
-    return c.json(
-      v.parse(DirectoryDiscoverySchema, {
-        ...discovery,
-        version: "1",
-        snapshot: catalog.snapshot,
-        generatedAt: catalog.generatedAt,
-        contacts: pin(discovery.contacts),
-        contactGroups: pin(discovery.contactGroups),
-        catalog: pin(discovery.catalog),
-        sources: pin(discovery.sources),
-        datasets: pin(discovery.datasets),
-        datasetDeltas: pin(discovery.datasetDeltas),
-      }),
-    );
-  });
+  api.get(
+    base,
+    describeResource({
+      operationId: "getDiscovery",
+      tags: ["Directory"],
+      summary:
+        "Discover the resource URLs, the OpenAPI document, and the reference",
+      description:
+        base === "/api/v1"
+          ? "Returns each versioned resource URL pinned to the current snapshot, with the snapshot and its generation time. Follow these links for a consistent import. A pin that's no longer current returns 409."
+          : "Returns the URL of each unversioned resource, this OpenAPI document, and the /developers reference. The body doesn't depend on the dataset. Query parameters are rejected.",
+      responses: {
+        [httpStatus.ok]: {
+          description:
+            base === "/api/v1"
+              ? "Resource URLs pinned to the current snapshot"
+              : "The unversioned resource URLs",
+          content: {
+            "application/json":
+              base === "/api/v1"
+                ? {
+                    schema: resolver(DirectoryDiscoverySchema),
+                    example: pinnedDiscovery(exampleDiscoveryCatalog),
+                  }
+                : {
+                    schema: resolver(UnversionedDiscoverySchema),
+                    example: unversionedDiscovery(),
+                  },
+          },
+        },
+        ...(base === "/api/v1"
+          ? {
+              [httpStatus.badRequest]: problemResponse(
+                "A parameter other than one well-formed snapshot",
+              ),
+              [httpStatus.conflict]: problemResponse(
+                "The snapshot changed; follow the current discovery links",
+              ),
+              [httpStatus.unavailable]: problemResponse(
+                "An RFC 9457 problem with a request ID",
+              ),
+            }
+          : {
+              [httpStatus.badRequest]: problemResponse(
+                "The request has a query parameter",
+              ),
+            }),
+      },
+    }),
+    async (c) =>
+      c.json(
+        base === "/api/v1"
+          ? pinnedDiscovery(await readCatalog(directoryDatabase(c.env.DB)))
+          : unversionedDiscovery(),
+      ),
+  );
 
   api.get(
     `${base}/catalog`,

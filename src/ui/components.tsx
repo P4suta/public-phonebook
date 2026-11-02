@@ -72,7 +72,7 @@ export function BackButton({
 }): ReactElement {
   return (
     <div className={css.actions}>
-      <LinkButton href={href} icon="chevron-left">
+      <LinkButton href={href} icon="arrow-left">
         {children}
       </LinkButton>
     </div>
@@ -201,7 +201,7 @@ function PhoneActions({
                 電話をかける
               </LinkButton>
               {vcard && index === 0 && (
-                <LinkButton href={vcard} download icon="contact-round">
+                <LinkButton href={vcard} download icon="book-user">
                   電話帳に入れる
                 </LinkButton>
               )}
@@ -363,12 +363,12 @@ export function LoadingError({
       <h2 className={css.subheading}>{uiCopy.loadFailed(subject)}</h2>
       <div className={css.actions}>
         {restartHref ? (
-          <LinkButton href={restartHref} icon="rotate-ccw">
+          <LinkButton href={restartHref} icon="rotate-cw">
             {uiCopy.reloadFromStart(subject)}
           </LinkButton>
         ) : (
           <button type="button" className={css.button} onClick={retry}>
-            <Icon name="rotate-ccw" />
+            <Icon name="rotate-cw" />
             {uiCopy.reload(subject)}
           </button>
         )}
