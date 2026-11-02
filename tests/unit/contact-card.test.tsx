@@ -1,4 +1,3 @@
-import { Database } from "lucide-react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import * as v from "valibot";
@@ -58,16 +57,17 @@ it("renders external web resources with isolated tabs and an accessible announce
   expect(external).toContain('target="_blank"');
   expect(external).toContain('rel="noopener noreferrer"');
   expect(external).toContain('data-external-destination="license"');
-  expect(external).toMatch(/^<a[^>]*><svg[^>]*lucide-external-link/u);
+  expect(external).toMatch(/^<a[^>]*><svg[^>]*data-icon="external-link"/u);
+  expect(external.match(/data-icon="external-link"/gu)).toHaveLength(1);
   expect(external).toContain("（新しいタブ）");
   const local = renderToStaticMarkup(
-    <LinkButton href="/data" icon={Database} destination="license">
+    <LinkButton href="/data" icon="info" destination="license">
       データについて
     </LinkButton>,
   );
   expect(local).not.toContain("target=");
   expect(local).not.toContain("data-external-destination");
-  expect(local).toContain("lucide-database");
+  expect(local).toContain('data-icon="info"');
 });
 
 it("shows every telephone action and one contact-save action for a multi-number facility", () => {
@@ -111,7 +111,7 @@ it("shows every telephone action and one contact-save action for a multi-number 
     expect(markup.match(/contact\.vcf/g) ?? []).toHaveLength(detail ? 1 : 0);
     if (detail)
       expect(markup).toMatch(
-        /<a[^>]*data-external-destination="address"[^>]*><svg[^>]*lucide-map-pin[^>]*>.*?<\/svg><span>Tokyo<svg[^>]*lucide-external-link/u,
+        /<a[^>]*data-external-destination="address"[^>]*><svg[^>]*data-icon="map-pin"[^>]*>.*?<\/svg><span>Tokyo<svg[^>]*data-icon="external-link"/u,
       );
     else {
       expect(markup).not.toContain("Tokyo");

@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
-import { FileBraces } from "lucide-react";
 import type { ReactElement } from "react";
 import {
   planReferenceRequest,
@@ -69,7 +68,7 @@ function DevelopersPage(): ReactElement {
     <main id="main" className={referenceCss.page}>
       <nav aria-label={referenceCopy.pageActions} className={css.actions}>
         <BackButton />
-        <LinkButton href={openApiPath} icon={FileBraces}>
+        <LinkButton href={openApiPath} icon="file">
           {referenceCopy.openapi}
         </LinkButton>
         <CopyButton
