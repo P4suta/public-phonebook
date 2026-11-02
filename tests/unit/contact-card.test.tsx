@@ -4,8 +4,10 @@ import * as v from "valibot";
 import { expect, it, vi } from "vitest";
 import { ContactSchema } from "../../src/core/models.ts";
 import {
+  BackButton,
   ContactCard,
   LinkButton,
+  LoadingError,
   OfficialLink,
   ResultCard,
 } from "../../src/ui/components.tsx";
@@ -43,7 +45,9 @@ vi.mock("../../src/ui/styles.css.ts", () => ({
   heading: "heading",
   solid: "solid",
   srOnly: "srOnly",
+  stack: "stack",
   status: "status",
+  subheading: "subheading",
   telephone: "telephone",
   trailingIcon: "trailingIcon",
 }));
@@ -111,6 +115,10 @@ it("shows every telephone action and one contact-save action for a multi-number 
     expect(markup.match(/contact\.vcf/g) ?? []).toHaveLength(detail ? 1 : 0);
     if (detail)
       expect(markup).toMatch(
+        /<a[^>]*contact\.vcf[^>]*><svg[^>]*data-icon="book-user"/u,
+      );
+    if (detail)
+      expect(markup).toMatch(
         /<a[^>]*data-external-destination="address"[^>]*><svg[^>]*data-icon="map-pin"[^>]*>.*?<\/svg><span>Tokyo<svg[^>]*data-icon="external-link"/u,
       );
     else {
@@ -122,6 +130,24 @@ it("shows every telephone action and one contact-save action for a multi-number 
       );
     }
   }
+});
+
+it("draws the back and reload actions with their own masters", () => {
+  const drawn = (markup: string): string[] =>
+    [...markup.matchAll(/data-icon="([\w-]+)"/gu)].map(
+      (match) => match[1] ?? "",
+    );
+  expect(drawn(renderToStaticMarkup(createElement(BackButton)))).toEqual([
+    "arrow-left",
+  ]);
+  for (const restartHref of ["/", undefined])
+    expect(
+      drawn(
+        renderToStaticMarkup(
+          createElement(LoadingError, { retry: () => undefined, restartHref }),
+        ),
+      ),
+    ).toEqual(["rotate-cw"]);
 });
 
 it("links a device result through its index row and keeps the national number's digits", () => {

@@ -14,10 +14,10 @@ const NAME_LIMIT: usize = 64;
 const SVG_BYTE_LIMIT: usize = 262_144;
 const IMPORT_BYTE_LIMIT: u64 = 2_097_152;
 const MAX_DIMENSION: u32 = 1200;
-const UI_ICON_COUNT: usize = 58;
+const UI_ICON_COUNT: usize = 92;
 const BRAND_ASSET_COUNT: usize = 16;
 const ASSET_COUNT: usize = UI_ICON_COUNT + BRAND_ASSET_COUNT;
-const CATEGORY_MAPPING_COUNT: usize = 39;
+const CATEGORY_MAPPING_COUNT: usize = 65;
 const ALIAS_COUNT: usize = 16;
 const UI_ICON_GRID: u32 = 24;
 const APP_ICON_SIZE: u32 = 1024;
@@ -89,6 +89,8 @@ enum Paint {
     Authored,
     /// Paints black with the surrounding text color and refuses white.
     Foreground,
+    /// Drops the paint of a foreground clip path, whose content contributes only its shape.
+    Geometry,
 }
 
 #[derive(Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
@@ -494,7 +496,9 @@ fn attributes(
             "Namespaced SVG attribute: {}",
             attribute.name()
         );
-        if skip.contains(&attribute.name()) {
+        if skip.contains(&attribute.name())
+            || (mode == Paint::Geometry && ["fill", "stroke"].contains(&attribute.name()))
+        {
             continue;
         }
         if attribute.name() == "id" {
@@ -525,6 +529,11 @@ fn element(
     if ["title", "desc"].contains(&name) {
         return Ok(());
     }
+    let mode = if name == "clipPath" && mode == Paint::Foreground {
+        Paint::Geometry
+    } else {
+        mode
+    };
     write!(markup, "<{name}")?;
     attributes(node, &[], mode, identities, markup)?;
     let children = node
@@ -963,7 +972,7 @@ pub fn generate(root: &Path, check: bool) -> Result<()> {
     }
     reconcile(root, &web, check)?;
     println!(
-        "PASS: 58 Figma UI icons, 39 category mappings, 16 native aliases, 9 native app icon appearances, and {} web outputs",
+        "PASS: {UI_ICON_COUNT} Figma UI icons, {CATEGORY_MAPPING_COUNT} category mappings, {ALIAS_COUNT} native aliases, 9 native app icon appearances, and {} web outputs",
         web.len()
     );
     Ok(())
@@ -1149,6 +1158,23 @@ mod tests {
         assert!(symbols(&[("check", master.as_bytes()), ("check", master.as_bytes())]).is_err());
         let quoted = master.replace("<path", "<path data-label=\"it's\"");
         assert!(symbols(&[("check", quoted.as_bytes())]).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn sprite_symbols_keep_clip_geometry_without_its_paint() -> Result<()> {
+        let master = "<svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n<g clip-path=\"url(#clip0_1_2)\">\n<path d=\"M8 6L10 4\" stroke=\"black\" stroke-width=\"2\"/>\n</g>\n<defs>\n<clipPath id=\"clip0_1_2\">\n<rect width=\"24\" height=\"24\" fill=\"white\"/>\n</clipPath>\n</defs>\n</svg>\n";
+        assert_eq!(
+            symbols(&[("ruler", master.as_bytes())])?,
+            [
+                "<symbol id=\"icon-ruler\" viewBox=\"0 0 24 24\" fill=\"none\"><g clip-path=\"url(#clip0_1_2)\"><path d=\"M8 6L10 4\" stroke=\"currentColor\" stroke-width=\"2\"/></g><defs><clipPath id=\"clip0_1_2\"><rect width=\"24\" height=\"24\"/></clipPath></defs></symbol>"
+            ]
+        );
+        let painted = master.replace(
+            "<path",
+            "<rect width=\"2\" height=\"2\" fill=\"white\"/><path",
+        );
+        assert!(symbols(&[("ruler", painted.as_bytes())]).is_err());
         Ok(())
     }
 
