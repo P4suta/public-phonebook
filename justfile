@@ -42,6 +42,10 @@ lint:
     npm run lint
 
 [positional-arguments]
+check-linux *args:
+    node tools/check-linux.ts "$@"
+
+[positional-arguments]
 e2e *args:
     npm run e2e -- "$@"
 
