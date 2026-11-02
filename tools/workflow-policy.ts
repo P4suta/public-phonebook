@@ -10,6 +10,9 @@ export const allowedActions: readonly string[] = [
   "actions/download-artifact",
   "dopplerhq/secrets-fetch-action",
   "jdx/mise-action",
+  "actions/attest-build-provenance",
+  "actions/attest-sbom",
+  "actions/attest",
 ];
 
 export type WorkflowRule =
@@ -20,7 +23,12 @@ export type WorkflowRule =
   | "action-not-allowed"
   | "script-interpolation"
   | "id-token-without-environment"
-  | "id-token-outside-dispatch";
+  | "id-token-outside-dispatch"
+  | "release-environment-off-main"
+  | "production-without-predecessor"
+  | "publication-concurrency"
+  | "doppler-environment-injection"
+  | "doppler-config-mismatch";
 
 export interface WorkflowViolation {
   readonly file: string;
@@ -140,6 +148,98 @@ function stepViolations(
   });
 }
 
+export const releaseEnvironments: readonly string[] = [
+  "candidate",
+  "release-candidate",
+  "observe",
+  "production",
+];
+const publishingEnvironments: readonly string[] = [
+  "release-candidate",
+  "production",
+];
+export const publicationGroup = "publication-production";
+const mainBranchGuard = 'test "$GITHUB_REF" = refs/heads/main';
+const dopplerAction = "dopplerhq/secrets-fetch-action@";
+const dopplerConfigPrefix = "ci_";
+
+const ReleaseStepSchema = v.looseObject({
+  uses: v.optional(v.string()),
+  run: v.optional(v.string()),
+  with: v.optional(v.record(v.string(), v.unknown())),
+  "continue-on-error": v.optional(v.unknown()),
+});
+const ReleaseJobSchema = v.looseObject({
+  environment: v.optional(v.unknown()),
+  needs: v.optional(v.union([v.string(), v.array(v.string())])),
+  concurrency: v.optional(v.unknown()),
+  steps: v.optional(v.array(ReleaseStepSchema)),
+});
+const PublicationConcurrencySchema = v.looseObject({
+  group: v.literal(publicationGroup),
+  "cancel-in-progress": v.literal(false),
+});
+
+function environmentName(environment: unknown): string | null {
+  if (typeof environment === "string") return environment;
+  const named = v.safeParse(v.looseObject({ name: v.string() }), environment);
+  return named.success ? named.output.name : null;
+}
+
+export function dopplerConfigFor(environment: string): string {
+  return `${dopplerConfigPrefix}${environment.replaceAll("-", "_")}`;
+}
+
+function releaseJobViolations(
+  file: string,
+  location: string,
+  document: unknown,
+): readonly WorkflowViolation[] {
+  const job = v.parse(ReleaseJobSchema, document);
+  const environment = environmentName(job.environment);
+  const steps = job.steps ?? [];
+  const violations: WorkflowViolation[] = [];
+  if (
+    environment !== null &&
+    releaseEnvironments.includes(environment) &&
+    steps[0]?.run?.trim() !== mainBranchGuard
+  )
+    violations.push({ file, location, rule: "release-environment-off-main" });
+  if (
+    environment === "production" &&
+    (job.needs === undefined || job.needs.length === 0)
+  )
+    violations.push({ file, location, rule: "production-without-predecessor" });
+  if (
+    environment !== null &&
+    publishingEnvironments.includes(environment) &&
+    !v.is(PublicationConcurrencySchema, job.concurrency)
+  )
+    violations.push({ file, location, rule: "publication-concurrency" });
+  for (const [index, step] of steps.entries()) {
+    if (!step.uses?.startsWith(dopplerAction)) continue;
+    const stepLocation = `${location}.steps[${index}]`;
+    if (step.with?.["inject-env-vars"] !== "false")
+      violations.push({
+        file,
+        location: stepLocation,
+        rule: "doppler-environment-injection",
+      });
+    const refusalControl = step["continue-on-error"] === true;
+    if (
+      !refusalControl &&
+      (environment === null ||
+        step.with?.["doppler-config"] !== dopplerConfigFor(environment))
+    )
+      violations.push({
+        file,
+        location: stepLocation,
+        rule: "doppler-config-mismatch",
+      });
+  }
+  return violations;
+}
+
 export function workflowViolations(
   file: string,
   document: unknown,
@@ -184,6 +284,7 @@ export function workflowViolations(
     if (job.uses !== undefined)
       violations.push(...referenceViolations(file, location, job.uses));
     violations.push(...stepViolations(file, location, job.steps));
+    violations.push(...releaseJobViolations(file, location, job));
   }
   return violations;
 }

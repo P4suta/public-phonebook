@@ -1,0 +1,91 @@
+name: Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: SHA-256 of the dataset's ready manifest
+        type: string
+        required: true
+  workflow_call:
+    inputs:
+      dataset:
+        description: SHA-256 of the dataset's ready manifest
+        type: string
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: candidate-${{ github.ref }}-${{ inputs.dataset }}
+  cancel-in-progress: false
+
+jobs:
+  assurance:
+    name: Source assurance
+    permissions:
+      contents: read
+    uses: ./.github/workflows/assurance.yml # zizmor: ignore[self-repository] actionlint 1.7.12 can't read a `$/` reusable workflow call.
+    with:
+      campaigns: false
+  evidence:
+    name: Record candidate evidence
+    needs: [assurance]
+    runs-on: ubuntu-24.04
+    environment: candidate
+    timeout-minutes: 150
+    permissions:
+      contents: read
+      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_candidate config.
+    env:
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - name: Require the main branch
+        run: test "$GITHUB_REF" = refs/heads/main
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/toolchain
+        with:
+          dependencies: "false"
+      - name: Install the locked npm packages without the shared cache
+        run: npm ci --ignore-scripts
+      - name: Install the browsers for the national campaign
+        run: npm exec --no -- playwright install --with-deps chromium firefox webkit
+      - id: doppler
+        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
+          doppler-project: public-phonebook
+          doppler-config: ci_candidate
+          inject-env-vars: "false"
+      - name: Fetch the dataset and check every file
+        env:
+          DATASET: ${{ inputs.dataset }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
+        run: node tools/remote-data.ts --fetch "$DATASET" ".local/datasets/$DATASET"
+      - name: Seed the local D1 and R2 state from the dataset
+        env:
+          DATASET: ${{ inputs.dataset }}
+        run: node tools/local-data.ts ".local/datasets/$DATASET"
+      - name: Build the client and Worker for the national campaign
+        run: npm run build
+      - name: Run every candidate stage and record its evidence
+        env:
+          DATASET: ${{ inputs.dataset }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
+        run: node tools/test.ts --bundle ".local/datasets/$DATASET" --record
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: failure()
+        with:
+          name: candidate-evidence-failure
+          path: |
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+          retention-days: 7

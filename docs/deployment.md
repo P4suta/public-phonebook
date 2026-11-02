@@ -222,6 +222,45 @@ The control store keeps the journals and verification bundles for recovery.
 Provider provisioning, network delivery, and the truth of upstream records remain external trust boundaries.
 Read the [recovery decision](adr/recover-complete-worker-and-dataset-publications.md), [in-place verification decision](adr/verify-release-candidates-in-place-before-approval.md), and [verification contract](verification.md) for their checks and limits.
 
+### Release workflows
+
+Production publishes from GitHub Actions on `main`, and every job that holds a secret starts by refusing any other ref.
+
+| Workflow | Start | Effect |
+| --- | --- | --- |
+| `candidate.yml` | Manual, or called by `release.yml` | Runs `assurance.yml`, then every candidate stage on the national dataset, and records passing evidence |
+| `release.yml` | Manual, `dataset` and `checks` inputs | Admits evidence, builds and attests the Worker, stages it at 0%, checks it, waits for approval, and promotes it |
+| `recover.yml` | Manual, `withdraw` or `restore` | Withdraws a candidate that never took traffic, or restores the verified predecessor after approval |
+| `status.yml` | Manual | Reads the masked journal, the deployed versions, and the retention plan |
+| `pipeline-controls.yml` | Manual, `dataset` input | Runs the pipeline's refusals and the withdrawal drill |
+
+`release.yml` runs these jobs in order.
+1. `candidate` calls `candidate.yml`, unless `checks` is `reuse` because evidence for the same tree and dataset already exists.
+2. `evidence` requires passing evidence for every stage and reads the database digest from the stored manifest.
+3. `build` builds the Worker without any secret, attests a tarball of the build output, and records its build digest.
+4. `stage` verifies the attestation, prepares the D1 database and archives, and deploys the attested build at 0%.
+5. `verify` checks the candidate through the version override with a read-only token.
+6. `promote` waits for the `production` approval, moves traffic in one step, and checks the candidate without the override.
+7. `withdraw` removes the candidate when `verify` fails, because the read-only token leaves the withdrawal pending.
+
+Evidence counts when `candidate.yml` records it directly or inside `release.yml`, both on `main`.
+A called workflow reports its caller in `GITHUB_WORKFLOW_REF`, so the admission accepts exactly these two signers.
+The build job sits in the `candidate` environment only so that it can sign provenance, and it fetches no secret.
+The jobs that change the production Worker share the `publication-production` concurrency group and never cancel each other, and the R2 lease still serializes them.
+
+Each environment fetches its own Doppler config through OIDC, and the workflow policy refuses any other pairing.
+
+| Environment | Doppler config | Keys | Token scope |
+| --- | --- | --- | --- |
+| `candidate` | `ci_candidate` | `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Read and write `dial-control` |
+| `release-candidate` | `ci_release_candidate` | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Workers Editor for `dial-production`, D1 Edit, and R2 on `dial-control` and `dial-production-datasets` |
+| `observe` | `ci_observe` | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Worker metadata and D1 read, and R2 on `dial-control` for the journal and lease |
+| `production` | `ci_production` | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Workers Editor for `dial-production`, and R2 on `dial-control` |
+
+Every step that calls Cloudflare, R2, or Doppler waits for the owner, who creates the tokens, stores them in these configs, and sets `DOPPLER_IDENTITY_ID`.
+Run the workflows in this order once they exist: `status.yml`, `pipeline-controls.yml`, a `release.yml` run whose approval the owner rejects, and then the first approved release.
+After a rejected approval, the candidate stays at 0% until `recover.yml` withdraws it.
+
 ## Dependency updates
 
 Renovate merges minor and patch updates on its own once the required checks pass, except for the ones a publication depends on.
@@ -230,10 +269,9 @@ It covers cf, Miniflare, `@cloudflare/*`, TanStack Start with the router release
 It also covers the `node`, `just`, `doppler`, `rust`, and `xcodegen` tools and the GitHub Actions of the TestFlight workflow and the toolchain action.
 The Linux check image's mise moves with them, because `just check-linux` refuses a mise that differs from the toolchain action's.
 npm lock file maintenance waits in its own branch, because it moves the bundler and CSS tools that Vite resolves within ranges.
-Merge such an update only after `mise x -- just release-rehearse .local/phonebook` passes on its branch after the full local gate.
-That recipe runs `tools/release-rehearsal.ts`, which publishes a real subset and then the full data to staging.
+Merge such an update only after the owner reviews it, and run the withdrawal drill in `pipeline-controls.yml` on `main` before the next release.
+The drill stages the updated build at 0% in production, checks it, and withdraws it without moving traffic.
 When it changes the TestFlight workflow or its tools, also run `mise x -- just ios-archive`.
-The hosted rehearsal replaces the local one once `release.yml` lands, and each new deployment workflow's actions join the group then.
 Major updates already wait for the owner and need the same rehearsal.
 Vulnerability fixes still merge on their own, because the shared preset forces automerge for them.
 

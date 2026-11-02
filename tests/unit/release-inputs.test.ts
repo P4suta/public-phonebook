@@ -1,6 +1,10 @@
-import { resolve } from "node:path";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { fileControlStore } from "../../tools/control-store.ts";
 import {
+  exportOutputs,
   maskCandidate,
   parsePublishArguments,
   publicationAuthority,
@@ -16,9 +20,15 @@ import {
 } from "../../tools/release.ts";
 import type { ReleaseJournal } from "../../tools/release-lifecycle.ts";
 import {
+  candidateEvidenceAdmission,
   candidateSigner,
+  candidateStages,
+  controlsSigner,
+  evidenceSigners,
   type RunProvenance,
+  recordCandidateEvidence,
   releaseSigner,
+  requireCandidateEvidence,
 } from "../../tools/release-store.ts";
 
 const dataset = "a".repeat(64);
@@ -43,6 +53,7 @@ describe("publish arguments", () => {
         dataset,
         bundle: resolve(".local/datasets", dataset),
         release: "",
+        artifact: "",
       },
     );
     expect(
@@ -60,6 +71,7 @@ describe("publish arguments", () => {
       dataset,
       bundle: resolve("fixture"),
       release: "",
+      artifact: "",
     });
     for (const action of [
       "publish",
@@ -67,6 +79,7 @@ describe("publish arguments", () => {
       "--drill",
       "--adopt",
       "--check-admission",
+      "--check-evidence",
     ])
       expect(() =>
         parsePublishArguments(
@@ -111,6 +124,127 @@ describe("publish arguments", () => {
       [],
     ])
       expect(() => parsePublishArguments(args), args.join(" ")).toThrow();
+  });
+
+  it("stages only a prebuilt Worker named by its build digest", () => {
+    const artifact = "c".repeat(64);
+    for (const action of ["--stage", "--drill"])
+      expect(
+        parsePublishArguments([
+          "production",
+          action,
+          "--dataset",
+          dataset,
+          "--artifact",
+          artifact,
+        ]),
+      ).toMatchObject({ action, artifact });
+    for (const args of [
+      [
+        "production",
+        "--check-admission",
+        "--dataset",
+        dataset,
+        "--artifact",
+        artifact,
+      ],
+      [
+        "production",
+        "--check-evidence",
+        "--dataset",
+        dataset,
+        "--artifact",
+        artifact,
+      ],
+      ["production", "--withdraw", "--artifact", artifact],
+      ["production", "--stage", "--dataset", dataset, "--artifact", "short"],
+      [
+        "production",
+        "--stage",
+        "--dataset",
+        dataset,
+        "--artifact",
+        artifact,
+        "--artifact",
+        artifact,
+      ],
+    ])
+      expect(() => parsePublishArguments(args), args.join(" ")).toThrow();
+  });
+});
+
+describe("workflow outputs", () => {
+  it("appends the named outputs for the next job and writes nothing outside Actions", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "phonebook-outputs-"));
+    try {
+      const file = join(directory, "output");
+      await writeFile(file, "earlier=1\n");
+      await exportOutputs({ "release-id": release }, { GITHUB_OUTPUT: file });
+      expect(await readFile(file, "utf8")).toBe(
+        `earlier=1\nrelease-id=${release}\n`,
+      );
+      await exportOutputs({ "release-id": release }, {});
+      expect(await readFile(file, "utf8")).toBe(
+        `earlier=1\nrelease-id=${release}\n`,
+      );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("candidate evidence signers", () => {
+  it("admits evidence from the candidate workflow or the release workflow that calls it on main, and nothing else", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "phonebook-evidence-"));
+    try {
+      const store = fileControlStore(join(directory, "store"));
+      const tree = "d".repeat(40);
+      expect(evidenceSigners).toEqual([candidateSigner, releaseSigner]);
+      for (const [index, stage] of candidateStages.entries())
+        await recordCandidateEvidence(store, {
+          formatVersion: 1,
+          stage,
+          sourceTree: tree,
+          manifestSha256: dataset,
+          result: "passed",
+          provenance: {
+            ...releaseRun,
+            workflow: index % 2 ? candidateSigner : releaseSigner,
+          },
+        });
+      await expect(
+        requireCandidateEvidence(store, tree, dataset),
+      ).resolves.toBeUndefined();
+      expect(
+        (
+          await candidateEvidenceAdmission(store, tree, dataset, [
+            candidateSigner,
+          ])
+        ).map((admission) => admission.decision),
+      ).toEqual(
+        candidateStages.map((_, index) =>
+          index % 2 ? "admit" : "different-signer",
+        ),
+      );
+      const forked = "e".repeat(40);
+      await recordCandidateEvidence(store, {
+        formatVersion: 1,
+        stage: "check",
+        sourceTree: forked,
+        manifestSha256: dataset,
+        result: "passed",
+        provenance: {
+          ...releaseRun,
+          workflow:
+            "P4suta/public-phonebook/.github/workflows/release.yml@refs/heads/feature",
+        },
+      });
+      expect(
+        (await candidateEvidenceAdmission(store, forked, dataset))[0]?.decision,
+      ).toBe("different-signer");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });
 
@@ -202,6 +336,46 @@ describe("publication authority", () => {
           workflow,
         }),
       ).toThrow(releaseSigner);
+  });
+
+  it("lets the pipeline controls run only the withdrawal drill", () => {
+    const controlsRun: RunProvenance = {
+      ...releaseRun,
+      workflow: controlsSigner,
+    };
+    expect(controlsSigner).toBe(
+      "P4suta/public-phonebook/.github/workflows/pipeline-controls.yml@refs/heads/main",
+    );
+    expect(() =>
+      publicationAuthority("production", "--drill", controlsRun),
+    ).not.toThrow();
+    for (const action of [
+      "publish",
+      "--stage",
+      "--verify-candidate",
+      "--promote",
+      "--adopt",
+    ] as const)
+      expect(() =>
+        publicationAuthority("production", action, controlsRun),
+      ).toThrow(releaseSigner);
+    expect(() =>
+      publicationAuthority("production", "--drill", {
+        ...controlsRun,
+        workflow: controlsSigner.replace("refs/heads/main", "refs/heads/x"),
+      }),
+    ).toThrow(releaseSigner);
+    expect(
+      parsePublishArguments(["production", "--build-digest"]),
+    ).toMatchObject({ action: "--build-digest", dataset: "", artifact: "" });
+    expect(() =>
+      parsePublishArguments([
+        "production",
+        "--build-digest",
+        "--dataset",
+        dataset,
+      ]),
+    ).toThrow("takes no dataset");
   });
 });
 

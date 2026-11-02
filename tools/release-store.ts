@@ -90,6 +90,12 @@ export function provenanceSigner(provenance: RunProvenance): string {
 
 export const candidateSigner = `${releaseControl.repository}/${releaseControl.candidateWorkflow}@refs/heads/${releaseControl.releaseBranch}`;
 export const releaseSigner = `${releaseControl.repository}/.github/workflows/${releaseControl.releaseWorkflow}@refs/heads/${releaseControl.releaseBranch}`;
+const controlsWorkflow = "pipeline-controls.yml";
+export const controlsSigner = `${releaseControl.repository}/.github/workflows/${controlsWorkflow}@refs/heads/${releaseControl.releaseBranch}`;
+export const evidenceSigners: readonly string[] = [
+  candidateSigner,
+  releaseSigner,
+];
 
 const targetEntries = {
   releaseId: v.pipe(v.string(), v.uuid()),
@@ -462,7 +468,7 @@ export async function candidateEvidenceAdmission(
   store: ControlStore,
   expectedTree: string,
   expectedManifest: string,
-  expectedSigner: string = candidateSigner,
+  expectedSigners: readonly string[] = evidenceSigners,
 ): Promise<readonly StageAdmission[]> {
   const admissions: StageAdmission[] = [];
   for (const stage of candidateStages) {
@@ -480,6 +486,7 @@ export async function candidateEvidenceAdmission(
       parsed?.success && parsed.output.stage === stage ? parsed.output : null;
     if (parsed && !evidence)
       throw new Error(`Candidate evidence for ${stage} is malformed`);
+    const signer = evidence ? provenanceSigner(evidence.provenance) : "";
     admissions.push({
       stage,
       decision: evidenceAdmission(
@@ -488,8 +495,8 @@ export async function candidateEvidenceAdmission(
         expectedTree,
         evidence?.manifestSha256 ?? "",
         expectedManifest,
-        evidence ? provenanceSigner(evidence.provenance) : "",
-        expectedSigner,
+        signer,
+        expectedSigners.includes(signer) ? signer : (expectedSigners[0] ?? ""),
         evidence?.result === "passed",
       ),
     });
@@ -501,14 +508,14 @@ export async function requireCandidateEvidence(
   store: ControlStore,
   expectedTree: string,
   expectedManifest: string,
-  expectedSigner: string = candidateSigner,
+  expectedSigners: readonly string[] = evidenceSigners,
 ): Promise<void> {
   const refused = (
     await candidateEvidenceAdmission(
       store,
       expectedTree,
       expectedManifest,
-      expectedSigner,
+      expectedSigners,
     )
   ).filter((admission) => admission.decision !== "admit");
   if (refused.length)
