@@ -7,6 +7,7 @@ import { foundation } from "../../src/ui/foundations.ts";
 import { serviceInformation } from "../../src/ui/service-information.ts";
 import { auditDesign } from "./design-policy.ts";
 import { expect, test } from "./fixtures.ts";
+import { recordFullPage } from "./full-page-screenshot.ts";
 
 test.use({ video: "on" });
 
@@ -312,11 +313,13 @@ for (const width of [320, 390, 1440]) {
           });
         expect(lines, "The schema URL action should fit on one line").toBe(1);
       }
-      if (browserName !== "webkit")
-        await page.screenshot({
-          path: info.outputPath(`${name}-${width}.png`),
-          fullPage: name !== "data",
-        });
+      if (browserName !== "webkit") {
+        if (name === "data")
+          await page.screenshot({
+            path: info.outputPath(`${name}-${width}.png`),
+          });
+        else await recordFullPage(page, info, `${name}-${width}`);
+      }
       if (name === "home" || name === "results")
         await expect(page.getByRole("combobox"), name).toHaveCount(0);
     }

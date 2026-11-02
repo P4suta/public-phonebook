@@ -1,7 +1,80 @@
+import type { Locator } from "@playwright/test";
 import * as v from "valibot";
 import { SearchResponseSchema } from "../../src/core/models.ts";
 import { expect, test } from "./fixtures.ts";
 import { saveData } from "./search-sources.ts";
+
+const settleDelay = 120;
+const quietPeriod = 10_000;
+const loadedAt = new Date("2026-10-31T00:00:00Z");
+const typingFrom = new Date("2026-10-31T01:00:00Z");
+const committedText = "国立国会図書館";
+
+type CompositionStep =
+  | {
+      readonly type: "compositionstart" | "compositionend";
+      readonly text: string;
+    }
+  | {
+      readonly type: "input";
+      readonly text: string;
+      readonly isComposing: boolean;
+    };
+
+const provisionalSteps: readonly CompositionStep[] = [
+  { type: "compositionstart", text: "" },
+  { type: "input", text: "こくりつ", isComposing: true },
+  { type: "input", text: "国立こっかいとしょかん", isComposing: true },
+];
+
+/** Browsers commit a composition in one of two orders, and the page must search once either way. */
+const compositionCommits: readonly (readonly [
+  string,
+  readonly CompositionStep[],
+])[] = [
+  [
+    "the last input precedes compositionend, as in Chromium",
+    [
+      { type: "input", text: committedText, isComposing: true },
+      { type: "compositionend", text: committedText },
+    ],
+  ],
+  [
+    "compositionend precedes the last input, as in Firefox",
+    [
+      { type: "compositionend", text: committedText },
+      { type: "input", text: committedText, isComposing: false },
+    ],
+  ],
+];
+
+/**
+ * Dispatches each composition event with the field holding its text.
+ * Firefox's driver wraps `fill` text in a composition of its own, so the test owns every event instead.
+ */
+async function playComposition(
+  input: Locator,
+  steps: readonly CompositionStep[],
+): Promise<void> {
+  await input.evaluate((element: HTMLInputElement, events) => {
+    for (const step of events) {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )?.set?.call(element, step.text);
+      element.dispatchEvent(
+        step.type === "input"
+          ? new InputEvent("input", {
+              bubbles: true,
+              inputType: "insertCompositionText",
+              isComposing: step.isComposing,
+              data: step.text,
+            })
+          : new CompositionEvent(step.type, { bubbles: true, data: step.text }),
+      );
+    }
+  }, steps);
+}
 
 test("missing facilities and malformed searches have usable error pages", async ({
   page,
@@ -98,18 +171,36 @@ test("input entered before enhancement is preserved", async ({ page }) => {
   await expect(page.getByRole("searchbox")).toHaveValue("国立国会図書館");
 });
 
-test("IME composition is committed as one search", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
-  const input = page.getByRole("searchbox");
-  await input.dispatchEvent("compositionstart");
-  await input.fill("国立国会図書館");
-  await expect(page.locator("article")).toHaveCount(0);
-  await input.dispatchEvent("compositionend");
-  await expect(page.locator("article").first().getByRole("heading")).toHaveText(
-    "国立国会図書館",
-  );
-});
+for (const [order, commit] of compositionCommits)
+  test(`IME composition is committed as one search when ${order}`, async ({
+    page,
+  }) => {
+    const queries: string[] = [];
+    await page.route("**/api/contact-groups?**", async (route) => {
+      queries.push(new URL(route.request().url()).searchParams.get("q") ?? "");
+      await route.continue();
+    });
+    await saveData(page);
+    await page.clock.install({ time: loadedAt });
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
+    await page.clock.pauseAt(typingFrom);
+    const input = page.getByRole("searchbox");
+    await input.focus();
+    await playComposition(input, provisionalSteps);
+    await page.clock.runFor(quietPeriod);
+    expect(queries).toEqual([]);
+    await playComposition(input, commit);
+    await page.clock.runFor(settleDelay);
+    await expect.poll(() => [...queries]).toEqual([committedText]);
+    await page.clock.runFor(quietPeriod);
+    expect(queries).toEqual([committedText]);
+    // TanStack Query renders a settled response from a zero-delay timer, which a held clock never fires.
+    await page.clock.resume();
+    await expect(
+      page.locator("article").first().getByRole("heading"),
+    ).toHaveText(committedText);
+  });
 
 test("failed continuation preserves rows and can be retried", async ({
   page,
