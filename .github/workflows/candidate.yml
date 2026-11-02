@@ -81,6 +81,15 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
         run: node tools/test.ts --bundle ".local/datasets/$DATASET" --record
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: candidate-search-reports
+          path: |
+            .local/search-parity.json
+            .local/search-performance.json
+          if-no-files-found: ignore
+          retention-days: 90
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: failure()
         with:
           name: candidate-evidence-failure

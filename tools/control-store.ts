@@ -137,6 +137,12 @@ export const controlKeys = {
     stage: string,
   ): string =>
     `candidates/${v.parse(treeSchema, sourceTree)}/${v.parse(DigestSchema, manifestSha256)}/${v.parse(stageSchema, stage)}.json`,
+  observation: (
+    sourceTree: string,
+    manifestSha256: string,
+    name: string,
+  ): string =>
+    `observations/${v.parse(treeSchema, sourceTree)}/${v.parse(DigestSchema, manifestSha256)}/${v.parse(stageSchema, name)}.json`,
   journalHead: (environment: RemoteEnvironment): string =>
     `journals/${environment}/head.json`,
   journalHistory: (environment: RemoteEnvironment, sequence: number): string =>
@@ -160,6 +166,7 @@ export function writePolicy(key: string): WritePolicy {
       "collections/",
       "collection-cache/",
       "candidates/",
+      "observations/",
     ].some((prefix) => key.startsWith(prefix))
   )
     return "write-once";

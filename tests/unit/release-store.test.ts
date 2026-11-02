@@ -22,6 +22,7 @@ import {
   materializeVerificationDataset,
   type RunProvenance,
   recordCandidateEvidence,
+  recordCandidateObservation,
   releaseHistory,
   releaseLock,
   requireCandidateEvidence,
@@ -273,6 +274,47 @@ describe("candidate evidence", () => {
     ).rejects.toThrow("Different candidate evidence");
   });
 
+  it("refuses otherwise complete evidence without the national search parity stage", async () => {
+    for (const stage of candidateStages)
+      if (stage !== "parity")
+        await recordCandidateEvidence(store, evidence(stage));
+    expect(
+      (await candidateEvidenceAdmission(store, tree, manifest)).filter(
+        (admission) => admission.decision !== "admit",
+      ),
+    ).toEqual([{ stage: "parity", decision: "missing-stage" }]);
+    await expect(
+      requireCandidateEvidence(store, tree, manifest),
+    ).rejects.toThrow("parity missing-stage");
+    await recordCandidateEvidence(store, evidence("parity"));
+    await requireCandidateEvidence(store, tree, manifest);
+  });
+
+  it("keeps a performance observation beside the evidence without deciding admission", async () => {
+    const observation = {
+      formatVersion: 1 as const,
+      name: "search-performance" as const,
+      sourceTree: tree,
+      manifestSha256: manifest,
+      provenance: actions,
+      report: { profiles: [] },
+    };
+    expect(await recordCandidateObservation(store, observation)).toBe(
+      "created",
+    );
+    expect(
+      await recordCandidateObservation(store, {
+        ...observation,
+        report: { profiles: ["rerun"] },
+      }),
+    ).toBe("unchanged");
+    expect(
+      (await candidateEvidenceAdmission(store, tree, manifest)).every(
+        (admission) => admission.decision === "missing-stage",
+      ),
+    ).toBe(true);
+  });
+
   it("refuses a missing stage, a failed stage, a stale tree, a different manifest, and a different signer", async () => {
     await recordCandidateEvidence(store, evidence("check"));
     await store.write(
@@ -302,6 +344,7 @@ describe("candidate evidence", () => {
     expect(await candidateEvidenceAdmission(store, tree, manifest)).toEqual([
       { stage: "check", decision: "admit" },
       { stage: "data", decision: "failed-stage" },
+      { stage: "parity", decision: "missing-stage" },
       { stage: "phones", decision: "different-signer" },
       { stage: "prove", decision: "different-signer" },
       { stage: "e2e", decision: "stale-tree" },
@@ -309,7 +352,7 @@ describe("candidate evidence", () => {
     await expect(
       requireCandidateEvidence(store, tree, manifest),
     ).rejects.toThrow(
-      "data failed-stage, phones different-signer, prove different-signer, e2e stale-tree",
+      "data failed-stage, parity missing-stage, phones different-signer, prove different-signer, e2e stale-tree",
     );
     await store.write(
       controlKeys.candidate(tree, "7".repeat(64), "check"),
