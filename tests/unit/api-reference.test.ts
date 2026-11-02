@@ -1,6 +1,10 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 import {
+  DirectoryDiscoverySchema,
+  UnversionedDiscoverySchema,
+} from "../../src/core/api-contract.ts";
+import {
   codeExamples,
   operationSearchKey,
   pathValuesComplete,
@@ -25,17 +29,40 @@ const DocumentSchema = v.looseObject({
   paths: v.record(v.string(), v.record(v.string(), v.unknown())),
 });
 const contractBases = ["/api", "/api/v1"] as const;
-/** The discovery roots and the documents themselves are the only served routes the documents leave out. */
-const undocumentedRoutes: readonly string[] = contractBases.flatMap((base) => [
-  base,
-  `${base}/openapi.json`,
-]);
+/** A document can't describe itself, so the documents are the only served routes they leave out. */
+const undocumentedRoutes: readonly string[] = contractBases.map(
+  (base) => `${base}/openapi.json`,
+);
 const routeParameter = /:([^/]+)/gu;
+
+const DiscoveryOperationSchema = v.object({
+  get: v.object({
+    responses: v.object({
+      "200": v.object({
+        content: v.object({
+          "application/json": v.object({
+            schema: v.record(v.string(), v.unknown()),
+            example: v.unknown(),
+          }),
+        }),
+      }),
+    }),
+  }),
+});
 
 async function generatedDocument(base = "/api"): Promise<unknown> {
   const response = await api.request(`${base}/openapi.json`);
   expect(response.status).toBe(200);
   return response.json();
+}
+
+async function discoveryMedia(
+  base: (typeof contractBases)[number],
+): Promise<{ readonly schema: unknown; readonly example: unknown }> {
+  const document = v.parse(DocumentSchema, await generatedDocument(base));
+  return v.parse(DiscoveryOperationSchema, document.paths[base]).get.responses[
+    "200"
+  ].content["application/json"];
 }
 
 describe("the generated OpenAPI documents", () => {
@@ -54,6 +81,29 @@ describe("the generated OpenAPI documents", () => {
         .filter((path) => !undocumentedRoutes.includes(path)),
     );
     expect(documented.flat().sort()).toEqual([...served].sort());
+  });
+
+  it("describe each discovery body with a closed schema and an example it admits", async () => {
+    const schemas = {
+      "/api": UnversionedDiscoverySchema,
+      "/api/v1": DirectoryDiscoverySchema,
+    } as const;
+    for (const base of contractBases) {
+      const discovery = await discoveryMedia(base);
+      expect(discovery.schema, base).toMatchObject({
+        type: "object",
+        additionalProperties: false,
+      });
+      expect(v.is(schemas[base], discovery.example), base).toBe(true);
+    }
+  });
+
+  it("show the exact unversioned discovery body as its example", async () => {
+    const served = await api.request("/api");
+    expect(served.status).toBe(200);
+    const body: unknown = await served.json();
+    expect(v.is(UnversionedDiscoverySchema, body)).toBe(true);
+    expect((await discoveryMedia("/api")).example).toEqual(body);
   });
 });
 
