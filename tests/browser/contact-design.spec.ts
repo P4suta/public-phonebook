@@ -3,6 +3,7 @@ import * as v from "valibot";
 import { SearchResponseSchema } from "../../src/core/models.ts";
 import { foundation } from "../../src/ui/foundations.ts";
 import { expect, test } from "./fixtures.ts";
+import { saveData } from "./search-sources.ts";
 
 test.use({ video: "on", screenshot: "off" });
 
@@ -52,6 +53,7 @@ async function installResult(
   const result = v.parse(SearchResponseSchema, raw);
   const contact = result.data[0];
   if (!contact) throw new Error("Missing contact design fixture");
+  await saveData(page);
   await page.route("**/api/contact-groups?**", async (route) => {
     await route.fulfill({
       json: {
@@ -105,20 +107,18 @@ async function designIssues(
         const buttons = Array.from(
           card.querySelectorAll<HTMLButtonElement>("button"),
         );
-        const map = links.find((link) =>
-          link.href.includes("google.com/maps/search/"),
-        );
         const name = card.querySelector(":is(h2,h3) a[href]");
-        if (
-          map &&
-          (map.target !== "_blank" ||
-            !map.relList.contains("noopener") ||
-            !map.relList.contains("noreferrer") ||
-            !map.getAttribute("aria-label")?.includes("新しいタブ"))
-        )
+        if (links.some((link) => link.href.includes("google.com/maps/")))
           issues.push({
-            rule: "map-new-tab",
-            detail: "Maps must open a safe, announced new tab",
+            rule: "result-address",
+            detail:
+              "Result cards leave the address and its map to the detail page",
+          });
+        const region = name?.closest(":is(h2,h3)")?.nextElementSibling;
+        if (region?.tagName !== "P" || !region.textContent?.trim())
+          issues.push({
+            rule: "result-region",
+            detail: "The prefecture and municipality follow the facility name",
           });
         if (!name)
           issues.push({
@@ -261,26 +261,17 @@ async function designIssues(
             detail: "The number and call action must share their left edge",
           });
         if (
-          map &&
+          region &&
           name &&
           Math.abs(
-            map.getBoundingClientRect().left -
+            region.getBoundingClientRect().left -
               name.getBoundingClientRect().left,
           ) > 1
         )
           issues.push({
             rule: "column-alignment",
-            detail: "The facility and map target must share their left edge",
+            detail: "The facility and its region must share their left edge",
           });
-        if (innerWidth >= columnsAt && map && call && phones.length === 1) {
-          const bottom = map.getBoundingClientRect().bottom;
-          const callBottom = call.getBoundingClientRect().bottom;
-          if (Math.abs(bottom - callBottom) > 1)
-            issues.push({
-              rule: "footer-alignment",
-              detail: `Map ${bottom}, call ${callBottom}`,
-            });
-        }
       }
       if (document.documentElement.scrollWidth > innerWidth + 1)
         issues.push({
@@ -332,20 +323,20 @@ test("the contact design gate detects displaced actions and duplicate framed nav
     const style = document.createElement("style");
     style.nonce = nonce;
     style.textContent =
-      'article [data-contact-part="phones"] { align-self: start !important; } article :is(h2,h3) a { border: 1px solid black !important; } article a[href^="tel:"] { width: 50% !important; }';
+      'article [data-contact-part="phones"] { align-self: start !important; } article :is(h2,h3) a { border: 1px solid black !important; } article a[href^="tel:"] { width: 50% !important; } article :is(h2,h3) + p { margin-inline-start: 2rem !important; }';
     document.head.appendChild(style);
-    const map = document.querySelector('article a[href*="google.com/maps/"]');
-    map?.removeAttribute("target");
-    map?.removeAttribute("rel");
+    const map = document.createElement("a");
+    map.href = "https://www.google.com/maps/search/?api=1&query=planted";
+    map.textContent = "planted";
+    document.querySelector("article")?.appendChild(map);
   });
   const rules = (await designIssues(page)).map((issue) => issue.rule);
-  expect(rules).toContain("footer-alignment");
+  expect(rules).toContain("column-alignment");
   expect(rules).toContain("action-chrome");
   expect(rules).toContain("phone-column-width");
-  expect(rules).toContain("map-new-tab");
+  expect(rules).toContain("result-address");
   await page.locator('article a[href*="google.com/maps/"]').evaluate((map) => {
-    map.setAttribute("target", "_blank");
-    map.setAttribute("rel", "noopener noreferrer");
+    map.remove();
   });
 });
 

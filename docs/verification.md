@@ -9,7 +9,7 @@ Run `mise x -- just check`.
 It runs strict TypeScript checking, Biome, type-aware Oxlint, deterministic unit and property tests, and a complete client and Worker build.
 It also runs dependency auditing, a publishable-file secret scan, workflow checks, and built-browser checks.
 The browser check creates a separate local D1 and R2 fixture with three contacts and uses port 8790.
-It covers the design, contact, API reference, external-link, information, CSP, privacy, row page, search, search-trigger, and startup cases that need no national archive.
+It covers the design, contact, API reference, external-link, information, CSP, privacy, row page, local search, search, search-trigger, and startup cases that need no national archive.
 It requires no owner-specific service, credentials, or national archive.
 
 Before every push, run `mise x -- just check-linux` as well.
@@ -28,6 +28,7 @@ The `Checks` summary job is the required status check.
 A change-scope job lists the changed paths with Git and starts the formal and native assurance jobs only when their inputs change.
 `tools/change-scope.ts` declares those inputs, including the workflow, the shared toolchain action, `mise.toml`, and `justfile`.
 The formal job runs `just prove` and `just ios-prove`, and the native job runs `just ios-check` on the `xcode-27` runner.
+A failed or cancelled native job uploads `target/ios` with the [evidence of each failed UI scenario](ios.md) as a seven-day artifact.
 The manual `assurance` input starts both jobs for any change and adds the sanitizer and mutation campaigns.
 The national multi-browser campaign remains outside the per-change CI gate.
 The manual runner probe workflow reports the processor, memory, disk, Xcode versions, and simulators of the hosted runners.
@@ -55,8 +56,14 @@ Their 173-record fixture checks complete keyset traversal, combined filters, bou
 Those tests run the API in Node, which ignores a response's body encoding mode.
 A separate test bundles the API module into workerd and reads the raw HTTP response without decoding it.
 It requires the stored Brotli bytes of the search index with `Content-Encoding: br`, and fails when the runtime encodes the body again.
-The built-browser check covers the row page's redirect and update page, but it doesn't read the index body.
-The local preview server decodes a Worker's encoded body while it keeps the encoded length, so it can't deliver pre-encoded bytes intact.
+The built-browser checks serve the built Worker with `npm run preview`, which runs it in workerd behind workerd's own HTTPS socket.
+The Vite preview relayed each response through Node's fetch, which decoded the Brotli index but kept its encoded length, so the browser received a corrupted index.
+WebKit advertises Brotli only over HTTPS, so the server uses Miniflare's loopback certificate, and the browser contexts ignore its certificate errors.
+The server log then reports a failed TLS handshake for each rejected certificate check, which doesn't affect the run.
+The browser checks load the index in every engine, compare results before and after the switch, and fall back when the published digest doesn't match.
+After the index loads, they require no `/api/contact*` request and no request that carries the search term, and they search offline.
+They also check save-data skipping, the changed-snapshot reload, old URL redirects, and the absence of IndexedDB, Service Worker, and Cache Storage data.
+Worker unit tests check the loading progress, the replacement of a stale index, and the fallback after a failed replacement.
 Planted duplicate categories, foreign-category rows, repeated identities, false totals, and mixed snapshots must fail response validation.
 Runtime initialization has a safety deadline rather than a performance assertion.
 A timeout supplies no behavioral evidence.
@@ -232,12 +239,14 @@ Production rejects a receipt for another dataset, source tree, format, or incomp
 Dirty development checkouts can run the same checks but produce no publication receipt.
 The publisher separately checks the proof receipt and the active staging publication.
 The browser campaign uses built client and Worker output.
-It covers automatic search, Japanese composition, early input, dependent regions, exact-name ranking, call/map/detail/source actions, external-link confirmation, denied clipboard access, native no-JavaScript continuation, retries, changed snapshots, untrusted result text, local assets, nonce handling, HTTP contracts, and complete-download hashes.
+It covers automatic search, Japanese composition, early input, on-device search and its switch from server results, offline search, old URL redirects, exact-name ranking, call/map/detail/source actions, external-link confirmation, denied clipboard access, native no-JavaScript continuation, retries, changed snapshots, untrusted result text, local assets, nonce handling, HTTP contracts, and complete-download hashes.
 It also queries every prefecture and category against native D1.
 Browser failures retain screenshots, videos, traces, and structured diagnostics under `test-results`.
 Design cases retain native video even on success.
 WebKit uses native video instead of Playwright screenshots because its screenshot synchronizer injects a stylesheet that violates CSP.
 The console and CSP gates remain enabled, and no context bypasses CSP.
+WebKit reports a fetch that a navigation cancelled as an access-control failure, so the console gate ignores that report only for same-origin URLs, which can't fail access control.
+The page also stops an unfinished index load when it's hidden and starts it again when it's shown.
 The [native-select compatibility decision](adr/hashed-native-select-style-compatibility.md) records the search-page style-attribute hash and its positive and negative controls.
 The [interactive reference decision](adr/openapi-driven-interactive-reference.md) records the separate API-page style policy, dependency configuration, and rendering boundaries.
 Generated-reference tests compare the operation list with the live OpenAPI document, send successful and invalid requests, inspect native responses, search with the keyboard, and check failure recovery.

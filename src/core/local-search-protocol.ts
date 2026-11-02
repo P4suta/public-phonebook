@@ -5,6 +5,7 @@ import { SearchIndexHeaderSchema } from "./search-index.ts";
 
 const IndexPathSchema = v.pipe(v.string(), v.regex(/^\/(?![/\\])[^\\\s]*$/u));
 const RequestIdSchema = CountSchema;
+export const indexProgressSteps = 20;
 
 export const LocalSearchRequestSchema = v.variant("type", [
   v.strictObject({
@@ -59,6 +60,11 @@ export const LocalSearchReplySchema = v.variant("type", [
     categories,
     prefectures,
     municipalities,
+  }),
+  v.strictObject({
+    type: v.literal("progress"),
+    received: CountSchema,
+    total: CountSchema,
   }),
   v.strictObject({
     type: v.literal("unavailable"),

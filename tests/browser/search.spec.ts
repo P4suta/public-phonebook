@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { foundation } from "../../src/ui/foundations.ts";
 import { expect, test } from "./fixtures.ts";
+import { waitForLocalSearch } from "./search-sources.ts";
 
 const centerTolerance = 2;
 const edgeTolerance = 1;
@@ -18,7 +19,6 @@ async function initialLayout(page: Page): Promise<{
   readonly label: Box;
   readonly hint: Box;
   readonly field: Box;
-  readonly filters: Box;
   readonly padding: number;
   readonly scrollable: boolean;
 }> {
@@ -40,7 +40,6 @@ async function initialLayout(page: Page): Promise<{
     label: await box(page.locator('label[for="directory-search"]')),
     hint: await box(page.locator("#directory-search-hint")),
     field: await box(searchbox.locator("..")),
-    filters: await box(page.locator("[data-has-city]")),
     padding: await page
       .locator("main")
       .evaluate((main) => Number.parseFloat(getComputedStyle(main).paddingTop)),
@@ -64,7 +63,7 @@ for (const size of [
     await expect(page.locator("article")).toHaveCount(0);
     await expect(page.locator("header, footer")).toHaveCount(0);
     await expect(page.getByRole("search")).toHaveCount(1);
-    await expect(page.getByLabel("市区町村", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("combobox")).toHaveCount(0);
     const layout = await initialLayout(page);
     expect(layout.scrollable).toBe(false);
     expect(
@@ -88,13 +87,6 @@ for (const size of [
         layout.field.y -
           (layout.hint.y + layout.hint.height) -
           foundation.space["8"],
-      ),
-    ).toBeLessThan(edgeTolerance);
-    expect(
-      Math.abs(
-        layout.filters.y -
-          (layout.field.y + layout.field.height) -
-          foundation.space["24"],
       ),
     ).toBeLessThan(edgeTolerance);
     expect(layout.label.y).toBeGreaterThanOrEqual(
@@ -122,7 +114,6 @@ for (const size of [
       [layout.link, layout.label, foundation.space["48"]],
       [layout.label, layout.hint, foundation.space["8"]],
       [layout.hint, layout.field, foundation.space["8"]],
-      [layout.field, layout.filters, foundation.space["24"]],
     ] as const;
     for (const [above, below, gap] of order)
       expect(Math.abs(below.y - (above.y + above.height) - gap)).toBeLessThan(
@@ -130,7 +121,7 @@ for (const size of [
       );
     expect(
       await page.evaluate(() => document.documentElement.scrollHeight),
-    ).toBeGreaterThanOrEqual(layout.filters.y + layout.filters.height);
+    ).toBeGreaterThanOrEqual(layout.field.y + layout.field.height);
   });
 
 test("typing searches, exact names rank first, and contact actions work", async ({
@@ -148,8 +139,11 @@ test("typing searches, exact names rank first, and contact actions work", async 
     }),
   ).toHaveAttribute("href", "tel:+81335812331");
   await expect(
-    first.getByRole("link", { name: /の地図を開く（新しいタブ）$/u }),
-  ).toHaveAttribute("href", /google\.com\/maps\/search/);
+    first.getByText("東京都千代田区", { exact: true }),
+  ).toBeVisible();
+  await expect(first.getByRole("link", { name: /の地図を開く/u })).toHaveCount(
+    0,
+  );
   await first
     .getByRole("link", { name: "国立国会図書館の情報を見る", exact: true })
     .click();
@@ -159,6 +153,9 @@ test("typing searches, exact names rank first, and contact actions work", async 
   await expect(
     page.getByRole("link", { name: "電話帳に入れる" }),
   ).toHaveAttribute("href", /contact\.vcf$/);
+  await expect(
+    page.getByRole("link", { name: /の地図を開く（新しいタブ）$/u }),
+  ).toHaveAttribute("href", /google\.com\/maps\/search/);
   await page.getByRole("link", { name: "電話番号のもとの情報を見る" }).click();
   await expect(
     page.getByRole("link", { name: "もとの資料を開く" }),
@@ -166,28 +163,6 @@ test("typing searches, exact names rank first, and contact actions work", async 
   await page.getByRole("link", { name: "施設の情報にもどる" }).click();
   await page.getByRole("link", { name: "検索結果にもどる" }).click();
   await expect(page.getByRole("searchbox")).toHaveValue("国立国会図書館");
-});
-
-test("municipalities belong to the chosen prefecture and reset on change", async ({
-  page,
-}) => {
-  await page.goto("/");
-  await page.getByLabel("都道府県", { exact: true }).selectOption("13");
-  const cities = page.getByLabel("市区町村", { exact: true });
-  await expect(cities).toBeVisible();
-  const values = await cities
-    .locator("option")
-    .evaluateAll((options) =>
-      options.map((option) => option.getAttribute("value") ?? ""),
-    );
-  expect(values.every((value) => value === "" || value.startsWith("13"))).toBe(
-    true,
-  );
-  await cities.selectOption("13101");
-  await page.getByLabel("都道府県", { exact: true }).selectOption("14");
-  await expect(cities).toHaveValue("");
-  await page.getByLabel("都道府県", { exact: true }).selectOption("");
-  await expect(cities).toHaveCount(0);
 });
 
 for (const reducedMotion of ["no-preference", "reduce"] as const) {
@@ -238,28 +213,24 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
   });
 }
 
-test("clearing text keeps explicit filters until all conditions are empty", async ({
+test("a category continuation ends with a new term, and clearing the term returns to the initial screen", async ({
   page,
 }) => {
-  await page.goto("/?q=国立国会図書館&prefecture=13&category=library");
-  await page.getByRole("searchbox").fill("");
-  await expect(page.getByRole("searchbox")).toBeFocused();
-  await expect(page.getByLabel("都道府県", { exact: true })).toHaveValue("13");
-  await expect(
-    page.getByLabel("施設や窓口の種類", { exact: true }),
-  ).toHaveValue("library");
-  await expect(
-    page.getByRole("heading", { name: "検索結果", exact: true }),
-  ).toHaveCount(1);
-  await expect(
-    page.getByRole("heading", { name: "Public Phonebook", exact: true }),
-  ).toHaveCount(0);
-  await expect(page).not.toHaveURL(/q=/);
-  await page.getByLabel("都道府県", { exact: true }).selectOption("");
-  await expect(
-    page.getByRole("heading", { name: "検索結果", exact: true }),
-  ).toHaveCount(1);
-  await page.getByLabel("施設や窓口の種類", { exact: true }).selectOption("");
+  await page.goto("/?q=国立国会図書館&category=library");
+  await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
+  await waitForLocalSearch(page);
+  await expect(page).toHaveURL(/category=library/);
+  await expect(page.locator("[data-result-category]")).toHaveCount(1);
+  const input = page.getByRole("searchbox");
+  await input.fill("国立国会図書館関西館");
+  await expect(page).toHaveURL(
+    `/?q=${encodeURIComponent("国立国会図書館関西館")}`,
+  );
+  await expect(page.locator("article").first().getByRole("heading")).toHaveText(
+    "国立国会図書館関西館",
+  );
+  await input.fill("");
+  await expect(input).toBeFocused();
   await expect(page).toHaveURL("/");
   await expect(
     page.getByRole("heading", { name: "Public Phonebook", exact: true }),

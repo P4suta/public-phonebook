@@ -6,8 +6,8 @@ date: 2026-11-01
 
 ## Status
 
-Proposed.
-The website starts searching this index only when the browser search lands, and that change records the adoption.
+Accepted.
+The website searches this index in the browser, as [the browser search decision](search-in-the-browser-once-the-index-loads.md) records.
 
 ## Context
 

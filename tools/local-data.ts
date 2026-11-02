@@ -14,8 +14,8 @@ import { DatabaseSync } from "node:sqlite";
 import { Miniflare } from "miniflare";
 import { checkDataBundle } from "./check-data.ts";
 
-const developmentHost = "127.0.0.1";
-const developmentPort = 8787;
+export const developmentHost = "127.0.0.1";
+export const developmentPort = 8787;
 const commandArgumentOffset = 2;
 
 async function serverIsRunning(port: number): Promise<boolean> {
