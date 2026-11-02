@@ -29,6 +29,7 @@ Neither result proves the entire app.
 The proof gate rejects unsupported proof escapes and stale source or generated-model receipts.
 
 The fast project gate on every pull request includes strict TypeScript checks, behavioral tests, dependency checks, secret checks, and workflow checks.
+A pull request that changes a Rust input also runs the `tools/ios-check` formatting, Clippy, test, icon consistency, and RustSec checks.
 The release assurance set adds the build, Rust formatting, strict Clippy, Rust tests, icon consistency, built-browser checks, both proof commands, and the native checks.
 The manual Assurance workflow runs that set on hosted runners, and its `campaigns` input adds the sanitizer and mutation checks.
 The TestFlight workflow runs the native checks, the Lean proofs, and the sanitizer and mutation checks before every delivery.

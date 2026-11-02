@@ -17,6 +17,8 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+    outputs:
+      rust: ${{ steps.scope.outputs.rust }}
     env:
       # `mise x` would otherwise install every pinned tool, including Rust.
       MISE_AUTO_INSTALL: "false"
@@ -24,14 +26,43 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
+      - id: scope
+        name: Detect Rust inputs
+        env:
+          CHANGE_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "${CHANGE_BASE}"
+          changed="$(git diff --name-only "${CHANGE_BASE}" HEAD -- tools/ios-check tools/check-rust.ts mise.toml ':(glob)**/rust-toolchain*' .github/actions/toolchain .github/workflows/checks.yml)"
+          echo "Changed Rust inputs: ${changed:-none}"
+          if [[ -n ${changed} ]]; then rust=true; else rust=false; fi
+          echo "rust=${rust}" >>"${GITHUB_OUTPUT}"
       - uses: $/.github/actions/toolchain
         with:
           tools: node just biome actionlint zizmor gitleaks
       - run: mise x -- just check
+  rust:
+    name: Rust
+    needs: [verify]
+    if: needs.verify.outputs.rust == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      MISE_AUTO_INSTALL: "false"
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/toolchain
+        with:
+          tools: rust just node cargo:cargo-audit
+      - run: mise x -- just check-rust
   gate:
     name: Checks
     if: always()
-    needs: [verify]
+    needs: [verify, rust]
     runs-on: ubuntu-24.04
     timeout-minutes: 1
     permissions: {}
@@ -39,4 +70,8 @@ jobs:
       - name: Require successful verification
         env:
           VERIFY_RESULT: ${{ needs.verify.result }}
-        run: test "$VERIFY_RESULT" = success
+          RUST_REQUIRED: ${{ needs.verify.outputs.rust }}
+          RUST_RESULT: ${{ needs.rust.result }}
+        run: |
+          test "$VERIFY_RESULT" = success
+          test "$RUST_REQUIRED:$RUST_RESULT" = true:success || test "$RUST_REQUIRED:$RUST_RESULT" = false:skipped
