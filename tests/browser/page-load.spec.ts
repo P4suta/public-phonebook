@@ -1,6 +1,7 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 import * as v from "valibot";
 import { SearchResponseSchema } from "../../src/core/models.ts";
+import { siteIcons } from "../../src/ui/icon-catalog.ts";
 import { expect, test } from "./fixtures.ts";
 
 const redirectFree = 0;
@@ -41,16 +42,21 @@ test("every page declares the site icon, and the icon is served", async ({
   page,
   request,
 }) => {
+  const { favicon, vectorFavicon } = siteIcons;
   for (const path of ["/", "/about", await knownContactPath(request)]) {
     await page.goto(path);
-    await expect(page.locator('link[rel="icon"]'), path).toHaveAttribute(
+    await expect(page.locator('link[rel="icon"][sizes]'), path).toHaveAttribute(
       "href",
-      "/favicon.svg",
+      favicon.href,
     );
+    await expect(
+      page.locator(`link[rel="icon"][type="${vectorFavicon.type}"]`),
+      path,
+    ).toHaveAttribute("href", vectorFavicon.href);
   }
-  const icon = await request.get("/favicon.svg");
+  const icon = await request.get(vectorFavicon.href);
   expect(icon.status()).toBe(200);
-  expect(icon.headers()["content-type"]).toContain("image/svg+xml");
+  expect(icon.headers()["content-type"]).toContain(vectorFavicon.type);
   expect(await icon.text()).toContain("<svg");
 });
 

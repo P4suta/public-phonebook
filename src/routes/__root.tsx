@@ -7,9 +7,16 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { type ReactElement, type ReactNode, useEffect } from "react";
+import { environments } from "../core/environment.ts";
 import { ErrorPage } from "../ui/error-page.tsx";
 import { ExternalLinkConfirmation } from "../ui/external-link-dialog.tsx";
+import { siteIcons } from "../ui/icon-catalog.ts";
 import "../ui/styles.css.ts";
+
+const siteName = "Public Phonebook";
+const siteDescription = "施設や窓口の電話番号をさがせます。";
+const { favicon, vectorFavicon, appleTouchIcon, maskIcon, socialPreview } =
+  siteIcons;
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   {
@@ -18,10 +25,32 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         { charSet: "utf-8" },
         { name: "viewport", content: "width=device-width, initial-scale=1" },
         { name: "format-detection", content: "telephone=no" },
-        { title: "Public Phonebook" },
-        { name: "description", content: "施設や窓口の電話番号をさがせます。" },
+        { title: siteName },
+        { name: "description", content: siteDescription },
+        { property: "og:type", content: "website" },
+        { property: "og:title", content: siteName },
+        { property: "og:description", content: siteDescription },
+        {
+          property: "og:image",
+          content: new URL(socialPreview.href, environments.production.origin)
+            .href,
+        },
+        { property: "og:image:width", content: String(socialPreview.width) },
+        { property: "og:image:height", content: String(socialPreview.height) },
+        { property: "og:image:alt", content: siteName },
+        { name: "twitter:card", content: "summary_large_image" },
       ],
-      links: [{ rel: "icon", href: "/favicon.svg", type: "image/svg+xml" }],
+      links: [
+        { rel: "icon", href: favicon.href, sizes: favicon.sizes },
+        { rel: "icon", href: vectorFavicon.href, type: vectorFavicon.type },
+        {
+          rel: "apple-touch-icon",
+          href: appleTouchIcon.href,
+          sizes: appleTouchIcon.sizes,
+        },
+        { rel: "mask-icon", href: maskIcon.href, color: maskIcon.color },
+        { rel: "manifest", href: siteIcons.manifest.href },
+      ],
     }),
     shellComponent: Root,
     component: Outlet,

@@ -1,6 +1,8 @@
 import { test as base, expect, type Page } from "@playwright/test";
+import { iconSprite } from "../../src/ui/icon-catalog.ts";
 
 const accessControlFailure = /(\S+) due to access control checks\.$/u;
+const symbolExcerpt = 160;
 
 /**
  * WebKit reports a fetch that a navigation cancelled as an access-control failure, sometimes as a page error.
@@ -39,10 +41,28 @@ export async function externalLinkIssues(
       const name = link.getAttribute("aria-label") ?? link.textContent ?? "";
       if (!name.includes("新しいタブ"))
         issues.push(`new-tab-announcement: ${link.href}`);
-      if (!link.querySelector("svg.lucide-external-link"))
+      if (link.querySelectorAll('svg[data-icon="external-link"]').length !== 1)
         issues.push(`new-tab-icon: ${link.href}`);
       return issues;
     }),
+  );
+}
+
+/** Lists rendered symbols that don't draw exactly one named master from the sprite; the third-party API reference draws its own. */
+export async function symbolIssues(page: Page): Promise<readonly string[]> {
+  return page.locator("svg").evaluateAll(
+    (symbols, { sprite, excerpt }) =>
+      symbols.flatMap((symbol) => {
+        const name = symbol.getAttribute("data-icon");
+        if (!name && symbol.closest("[data-api-reference]")) return [];
+        const use = symbol.querySelector(":scope > use");
+        return name &&
+          symbol.childElementCount === 1 &&
+          use?.getAttribute("href") === `${sprite}#${name}`
+          ? []
+          : [`symbol: ${symbol.outerHTML.slice(0, excerpt)}`];
+      }),
+    { sprite: iconSprite, excerpt: symbolExcerpt },
   );
 }
 
@@ -113,6 +133,10 @@ export const test = base.extend<{
         expect(
           await externalScriptIssues(page),
           "Scripts must come from the site's own origin",
+        ).toEqual([]);
+        expect(
+          await symbolIssues(page),
+          "Every rendered symbol must draw a named master from the sprite",
         ).toEqual([]);
       }
       await info.attach("browser-errors", {

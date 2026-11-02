@@ -75,8 +75,9 @@ The search field has a visible label and a persistent hint above it, with no pla
 The website uses typed Vanilla Extract styles and the generic sans-serif family, so text follows the reader's operating system and browser font settings without a font download.
 The [Digital Agency design system](https://design.digital.go.jp/dads/foundations/typography/) states that its Noto Sans JP choice doesn't restrict system fonts and that information must not depend on the font.
 Figma uses Noto Sans JP as the stand-in for the Android system font, because Figma can't render each reader's font.
-Lucide supplies distinct category and action icons, with the owned tooth asset retained separately.
-All 65 defined categories have different icon geometry.
+The website and the iPhone app draw category and action icons from the same [Figma masters](icons.md).
+The 39 categories with a master have different icon geometry.
+The other 26 categories share the `file` icon on both clients until their masters exist.
 The website offers only categories present in the active publication.
 Every size derives from the parameters in `src/ui/foundations.ts`.
 The parameters are a 4-pixel grid, a 16-pixel body size, and a line-height ratio of 1.5.

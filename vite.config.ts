@@ -44,7 +44,6 @@ const configuration = defineConfig({
       "@tanstack/react-query",
       "react",
       "react-dom/client",
-      "lucide-react",
       "valibot",
     ],
   },

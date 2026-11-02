@@ -14,19 +14,53 @@ The product icons keep their [Lucide and Feather notices](../design/licenses/Luc
 The custom brand mark is separate from those third-party glyphs.
 
 Run `mise x -- just icons` after changing a checked-in vector.
-Run `mise x -- just icons-check` to reject changed source digests, unsupported SVG content, missing mappings, or stale derived files.
+Run `mise x -- just icons-check` to reject changed source digests, unsupported SVG content, missing mappings, or stale and unexpected derived files.
 Import a complete Figma export with `mise x -- cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- icons --import PATH`.
 An import contains `format`, `fileKey`, `reviewNode`, `assets`, `categories`, and `aliases`.
 Every asset carries `id`, `name`, `kind`, `width`, `height`, and `svg`.
 Inspect the Figma source and actual-size previews before replacing the import.
+
+## Native outputs
 
 The generator produces the native app icon appearances, category image sets, and category catalog.
 The primary app icon uses opaque red, green, and blue channels.
 The dark appearance retains its intended transparency.
 Unit tests decode generated images independently to check their dimensions, color type, and depth.
 
-Native category mappings cover the 39 catalog categories.
+Native category mappings cover 39 of the 65 catalog categories.
+The app shows the `file` icon for the other categories.
 `ios-generate` generates native resource images.
 The native build verifies ignored image sets.
 `icons-check` includes the tracked native AppIcon assets.
 These checks establish asset consistency and packaging.
+
+## Web outputs
+
+The same command writes the website's assets from the same masters.
+
+| Output | Master | Use |
+| --- | --- | --- |
+| `public/icons/sprite.svg` | Every product icon | One `<symbol>` per icon, painted with `currentColor` |
+| `public/icons/NAME.svg` | Each product icon | The unchanged Figma export |
+| `public/icons/LICENSE.txt` | `design/licenses/Lucide.txt` | The Lucide and Feather notices beside the glyphs |
+| `src/ui/icon-catalog.ts` | `design/icons.json` | Typed icon names, category mappings, and head declarations |
+| `public/favicon.ico` | `favicon-16`, `favicon-32` | Windows icon file with 32-bit PNG images |
+| `public/favicon.svg` | `favicon-32`, `favicon-dark-32` | Vector favicon that follows the light or dark color scheme |
+| `public/apple-touch-icon.png` | `app-icon-default` | Apple home-screen icon, 180 pixels |
+| `public/app-icon-SIZE.png` | `app-icon-default` | Installation icons, 192 and 512 pixels |
+| `public/app-icon-maskable-SIZE.png` | `app-icon-default` | Maskable installation icons, 192 and 512 pixels |
+| `public/mask-icon.svg` | `mark-ink` | Safari pinned-tab icon |
+| `public/social-preview.png` | `social-preview` | Open Graph image, 1200 by 630 pixels |
+| `public/manifest.webmanifest` | The installation icons | Install manifest |
+
+`src/ui/icons.tsx` draws every symbol from the sprite, so each icon takes the text color of its control.
+The website resolves a category's icon from the same mappings as the app, including the `file` fallback.
+Unit tests compare the web mappings with `IconCatalog.swift` and with the catalog's intended icon names.
+They also list the 26 categories that still need a master.
+
+Rasters other than the dark native appearance must be opaque.
+Every pixel of a maskable icon outside the central circle with 40% of the icon's width as its radius must be paper white.
+Unit tests read the Windows icon directory by hand and decode each embedded PNG.
+A browser check reads the directory again and decodes each image with the browser's own decoder.
+It also confirms that the server returns each declared icon, the manifest, and the sharing image at its declared size.
+Every browser test refuses a symbol that doesn't come from the sprite and an external link without exactly one new-tab icon.

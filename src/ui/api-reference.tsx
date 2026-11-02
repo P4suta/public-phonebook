@@ -1,5 +1,4 @@
 import { ApiReferenceReact } from "@scalar/api-reference-react";
-import { ExternalLink } from "lucide-react";
 import {
   type ComponentProps,
   type ReactElement,
@@ -7,6 +6,7 @@ import {
   useRef,
 } from "react";
 import "@scalar/api-reference-react/style.css";
+import { Icon } from "./icons.tsx";
 import { enhanceReference } from "./reference-accessibility.ts";
 
 export default function ApiReference({
@@ -38,7 +38,7 @@ export default function ApiReference({
           "外部のページ";
         if (!label.includes("新しいタブ"))
           link.setAttribute("aria-label", `${label}（新しいタブ）`);
-        if (!link.querySelector("svg.lucide-external-link"))
+        if (!link.querySelector('svg[data-icon="external-link"]'))
           link.appendChild(icon.cloneNode(true));
       }
     }
@@ -315,7 +315,7 @@ export default function ApiReference({
   return (
     <>
       <span ref={externalIcon} hidden>
-        <ExternalLink size={18} aria-hidden="true" />
+        <Icon name="external-link" />
       </span>
       <ApiReferenceReact configuration={configuration} />
     </>

@@ -71,7 +71,7 @@ export default {
       : "'unsafe-hashes' 'sha256-3oFxofzq3N//6J8H86e9ul4WT2OkJrtonB66gn/TLJw='";
     result.headers.set(
       "Content-Security-Policy",
-      `default-src 'none'; script-src 'self' 'nonce-${nonce}'; style-src ${styleSources}; style-src-attr ${styleAttributes}; img-src 'self' data:; connect-src 'self'; worker-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'`,
+      `default-src 'none'; script-src 'self' 'nonce-${nonce}'; style-src ${styleSources}; style-src-attr ${styleAttributes}; img-src 'self' data:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'`,
     );
     result.headers.set("X-Content-Type-Options", "nosniff");
     result.headers.set("Referrer-Policy", "no-referrer");
