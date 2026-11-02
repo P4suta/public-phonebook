@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import * as v from "valibot";
+import { localBundle } from "../../tools/local-bundle.ts";
 
 test("the national category preview has exact counts and bounded payloads for every matching kind", async ({
   request,
@@ -62,7 +64,7 @@ test("the native national catalog and every region and category are searchable",
   const catalogBody: unknown = await (await request.get("/api/catalog")).json();
   const catalog = v.parse(CatalogSchema, catalogBody);
   const localValue: unknown = JSON.parse(
-    await readFile(".local/phonebook/catalog.json", "utf8"),
+    await readFile(join(localBundle(), "catalog.json"), "utf8"),
   );
   const local = v.parse(CatalogSchema, localValue);
   expect(catalog).toEqual(local);

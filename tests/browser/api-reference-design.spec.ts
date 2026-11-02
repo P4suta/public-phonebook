@@ -13,6 +13,7 @@ import {
 } from "../../src/ui/api-reference-copy.ts";
 import { auditDesign } from "./design-policy.ts";
 import { expect, test } from "./fixtures.ts";
+import { knownContact } from "./known-contact.ts";
 
 test.use({ video: "on", screenshot: "off" });
 
@@ -257,6 +258,7 @@ test("the request form works without JavaScript through a normal submission", as
   );
   const [archive] = datasets.files;
   if (!archive) throw new Error("The dataset fixture is missing");
+  const known = await knownContact(request);
   const context = await browser.newContext({
     javaScriptEnabled: false,
     baseURL,
@@ -299,14 +301,19 @@ test("the request form works without JavaScript through a normal submission", as
     );
 
     const contact = section(page, "getContact");
-    await contact.getByLabel(/^id（/u).fill("fixture:0");
+    await contact.getByLabel(/^id（/u).fill(known.id);
     await submitButton(contact, "/api/contacts/{id}").click();
-    await expect(page).toHaveURL(/operation=getContact&id=fixture%3A0#/u);
+    await expect(page).toHaveURL(
+      (url) =>
+        url.searchParams.get("operation") === "getContact" &&
+        url.searchParams.get("id") === known.id &&
+        url.hash === "#getContact-response",
+    );
     await expect(
       page.locator("#getContact-response").getByRole("status"),
     ).toHaveText(referenceCopy.attempt.status(200));
     await expect(page.locator("#getContact-response")).toContainText(
-      `"id": "fixture:0"`,
+      `"id": "${known.id}"`,
     );
 
     await page.goto("/developers?operation=getContact&id=..");

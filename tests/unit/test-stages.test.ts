@@ -3,9 +3,11 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
+import { localBundle, localBundleVariable } from "../../tools/local-bundle.ts";
 import { candidateSigner, candidateStages } from "../../tools/release-store.ts";
 import {
   checkStageScripts,
+  e2eEnvironment,
   observePerformance,
   parityCommand,
   parseTestArguments,
@@ -75,6 +77,17 @@ describe("test stages", () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
+  });
+
+  it("tells the e2e checks which bundle the local state serves", () => {
+    expect(e2eEnvironment("/data/bundle", { PATH: "/bin" })).toEqual({
+      PATH: "/bin",
+      [localBundleVariable]: "/data/bundle",
+    });
+    expect(localBundle({})).toBe(resolve(".local/phonebook"));
+    expect(localBundle({ [localBundleVariable]: "/data/bundle" })).toBe(
+      "/data/bundle",
+    );
   });
 
   it("keeps the build checks in the candidate check stage", async () => {

@@ -4,6 +4,7 @@ import { uiCopy } from "../../src/ui/copy.ts";
 import { serviceInformation } from "../../src/ui/service-information.ts";
 import { auditDesign } from "./design-policy.ts";
 import { expect, test } from "./fixtures.ts";
+import { knownContact } from "./known-contact.ts";
 
 test("the initial screen gives a complete instruction and one project-information action", async ({
   page,
@@ -62,8 +63,8 @@ test("the initial screen gives a complete instruction and one project-informatio
   await expect(page.getByRole("searchbox")).toHaveValue("");
 });
 
-test("each page action leads with its own icon", async ({ page }) => {
-  const contact = `/contacts/${encodeURIComponent("fixture:0")}`;
+test("each page action leads with its own icon", async ({ page, request }) => {
+  const contact = `/contacts/${encodeURIComponent((await knownContact(request)).id)}`;
   const actions = [
     ["/about", "データについてくわしく知る", "database"],
     ["/about", "APIの使い方を見る", "code"],
