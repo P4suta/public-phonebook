@@ -26,7 +26,15 @@ It decodes the Brotli stream with the system Compression framework and validates
 It saves the rows in a new SQLite generation with a file of normalized names and a file of row categories, and activates the generation atomically.
 A failed or cancelled import keeps the existing generation, and the current and previous generations remain readable.
 The app saves over Wi-Fi and cellular networks, shows only the saved percentage, and updates about once a month.
-Snapshot deltas in #55 are the planned way to reduce the monthly transfer.
+
+An update first looks for a snapshot delta when the discovery document links `datasetDeltas`.
+The app reads that listing only when it already saved a directory, and downloads only the delta that starts from the saved snapshot.
+It checks the delta's listed length and SHA-256, then rebuilds the new archive in a temporary file.
+Copied rows come from the saved SQLite rows in archive order, and their dictionary indices pass through the delta's maps.
+The app hashes the rebuilt archive while writing it and requires the row count, length, and SHA-256 in the delta header.
+The rebuilt archive then passes every check of a complete download before its generation can activate.
+After any delta failure, the app keeps the saved generation and downloads the complete `directory.tsv.br`.
+A cancelled update keeps the saved generation and downloads nothing more.
 
 Search runs on the device and sends nothing.
 The search field matches facility names and complete Japanese telephone numbers, with the website's normalization and exact, prefix, and substring ranking.
@@ -35,7 +43,9 @@ Result cards show the name, the prefecture and municipality, and each telephone 
 The about screens, privacy notes, data sources, and licenses are part of the app, and only facility, map, and source pages open in the browser after a confirmation.
 
 The actual Hono handlers produce the shared provider corpus with the discovery document, the dataset listing, and the archive.
+The corpus also holds the fixture's updated revision with its delta listing, its delta from the baseline, and its complete archive.
 Swift tests import that corpus through the real synchronization path.
+They rebuild the updated archive from the saved baseline and compare it byte for byte with the archive the provider wrote.
 Run `mise x -- node tools/native-fixture.ts --write-corpus` only when intentionally updating the provider and consumer together.
 The TypeScript unit tests regenerate the responses and reject a stale corpus.
 Set `PHONEBOOK_FIXTURE_CONTACTS` and `PHONEBOOK_FIXTURE_CATALOG` to a production `contacts.jsonl.gz` and catalog to serve a real-data archive from the fixture.

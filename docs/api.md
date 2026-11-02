@@ -122,6 +122,7 @@ The archive omits contact and source-record IDs, which remain in JSONL.
 A delta rebuilds the current decoded `directory.tsv.br` from the decoded archive of an earlier snapshot, so an offline client can skip the complete download.
 `GET /api/dataset-deltas` lists the deltas to the current snapshot, and `/api/datasets` doesn't list them.
 The versioned `GET /api/v1/dataset-deltas?snapshot=…` takes the same snapshot pin as the other versioned resources and returns 409 after a change.
+Each discovery document links the listing as `datasetDeltas`, and the `/api/v1` link carries the pin.
 The response holds the current `snapshot`, the `archiveSha256` of the `directory.tsv.br` that every delta rebuilds, and a `deltas` array that may be empty.
 Each entry names its `base` snapshot, the `baseArchiveSha256` of that snapshot's `directory.tsv.br`, its `file` and `url`, and the `bytes` and `sha256` of its Brotli bytes.
 It also gives the `uncompressedBytes` and `uncompressedSha256` of the decoded delta, so a client can bound its decoder.

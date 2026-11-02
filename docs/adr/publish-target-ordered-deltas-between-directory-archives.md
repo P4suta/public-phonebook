@@ -6,9 +6,9 @@ date: 2026-11-02
 
 ## Status
 
-Proposed.
-The server publishes, lists, and checks deltas now.
-The iPhone app applies them in a follow-up change for #55, and that change records the adoption.
+Accepted.
+The server publishes, lists, and checks deltas.
+The iPhone app applies them since #95, and downloads the complete archive after any delta failure.
 
 ## Context
 
@@ -53,4 +53,6 @@ A bad provenance choice can only add literal rows, because the target digest dec
 The data check can't read copied rows without the base, so preparation's own application stays the only check of copied content.
 The ready manifest lists the deltas, so the dataset digest covers them, and old manifests without deltas still parse.
 The hosted release can't produce deltas until `release.yml` fetches the retained bundles before preparation.
-The discovery document gains its delta link with the app change, because the shared contract corpus lives under `ios/`.
+The discovery documents link the listing as `datasetDeltas`, and the shared contract corpus holds a fixture delta that both appliers rebuild exactly.
+The app doesn't keep the decoded digest of its saved archive, so a base whose rows differ only fails at the target digest.
+Lean proves the app's admission order and copy range guard, bound to the exact Swift source.

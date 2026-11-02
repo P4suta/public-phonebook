@@ -1,6 +1,8 @@
 import Compression
+import CryptoKit
 import Foundation
 import PhonebookCore
+import Synchronization
 import Testing
 
 @testable import PhonebookKit
@@ -118,10 +120,22 @@ func publish(
   return try await store.publish(at: Date())
 }
 
-func discoveryFixture(snapshot: String) -> Data {
-  Data(
+func discoveryFixture(snapshot: String, deltas: Bool = false) -> Data {
+  let link = deltas ? ",\"datasetDeltas\":\"/api/v1/dataset-deltas?snapshot=\(snapshot)\"" : ""
+  return Data(
     """
     {"version":"1","snapshot":"\(snapshot)","generatedAt":"2026-10-30T00:00:00Z",\
-    "datasets":"/api/v1/datasets?snapshot=\(snapshot)"}
+    "datasets":"/api/v1/datasets?snapshot=\(snapshot)"\(link)}
     """.utf8)
+}
+
+func sha256Hex(_ data: Data) -> String {
+  SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+}
+
+/// The request targets that a test server received.
+final class RequestLog: Sendable {
+  private let paths = Mutex<[String]>([])
+  func record(_ path: String) { paths.withLock { $0.append(path) } }
+  var received: Set<String> { paths.withLock { Set($0) } }
 }

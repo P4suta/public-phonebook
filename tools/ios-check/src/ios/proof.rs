@@ -4,7 +4,7 @@ use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fmt::Write as _, fs, path::Path, process::Command};
 
-const THEOREMS: [&str; 11] = [
+const THEOREMS: [&str; 21] = [
     "activeAbsorbsEveryEvent",
     "activeSurvivesEveryFiniteTrace",
     "uncertainAbortRetainsData",
@@ -16,9 +16,37 @@ const THEOREMS: [&str; 11] = [
     "admittedBytesStayWithinLimit",
     "admittedAdditionCannotOverflowInt64",
     "subtractionCannotOverflowInt64",
+    "deltaAppliesOnlyWhenEveryCheckPasses",
+    "mismatchedBaseRejectsFirst",
+    "malformedDeltaRejectsBeforeCounts",
+    "rowCountPrecedesLengthAndDigest",
+    "lengthPrecedesDigest",
+    "digestDecidesMatchingCounts",
+    "copyAdmissionMatchesTheProviderGuard",
+    "admittedCopyReadsOnlyBaseRows",
+    "copyGuardSubtractionCannotOverflowInt64",
+    "admittedCopyEndCannotOverflowInt64",
 ];
 const RECEIVE_SOURCE: &str =
     include_str!("../../../../ios/Sources/PhonebookCore/ReceiveBudget.swift");
+const DELTA_SOURCE: &str =
+    include_str!("../../../../ios/Sources/PhonebookCore/DeltaAdmission.swift");
+/// The Swift delta decision that `verification/ios/DeltaAdmission.lean` models, without whitespace.
+const DELTA_REFINEMENT: &str = "publicenumDeltaAdmission:String,CaseIterable,Sendable{caseapply,baseMismatch,malformed,countMismatch,lengthMismatch,digestMismatchpublicstaticfuncdecide(baseMatches:Bool,wellFormed:Bool,rows:Int,expectedRows:Int,bytes:Int,expectedBytes:Int,digestMatches:Bool)->Self{if!baseMatches{return.baseMismatch}if!wellFormed{return.malformed}ifrows!=expectedRows{return.countMismatch}ifbytes!=expectedBytes{return.lengthMismatch}if!digestMatches{return.digestMismatch}return.apply}publicstaticfuncadmitsCopy(start:Int,count:Int,baseRows:Int)->Bool{start>=0&&count>=1&&count<=baseRows&&start<=baseRows-count}}";
+const PROOF_MODULES: [&str; 3] = ["Publication", "ReceiveBudget", "DeltaAdmission"];
+/// Each false claim must fail at its proof on line 2, which shows that the kernel checks that model.
+const FALSE_CLAIMS: [(&str, &str, &str); 2] = [
+    (
+        "FalseClaim",
+        "import PublicationModel\nexample : Phonebook.step .active .abort = .discarded := by rfl\n",
+        "false active-deletion claim",
+    ),
+    (
+        "FalseDeltaClaim",
+        "import DeltaAdmission\nexample : Phonebook.decideDelta true true 1 1 1 1 false = .apply := by rfl\n",
+        "false digest-mismatch admission",
+    ),
+];
 const IDENTIFIER_LIMIT: usize = 32;
 const PUBLICATION_STATES: usize = 5;
 const PUBLICATION_EVENTS: usize = 5;
@@ -93,6 +121,10 @@ fn model(contract: &Value) -> Result<String> {
     Ok(output)
 }
 
+fn whitespace_free(source: &str) -> String {
+    source.split_whitespace().collect()
+}
+
 fn axioms_checked(log: &str) -> bool {
     let lines = log
         .lines()
@@ -149,7 +181,7 @@ pub fn run(root: &Path) -> Result<()> {
     }
     let sources = source_hashes(root)?;
     let receive = fs::read_to_string(root.join("ios/Sources/PhonebookCore/ReceiveBudget.swift"))?;
-    let normalize = |source: &str| source.split_whitespace().collect::<String>();
+    let normalize = whitespace_free;
     ensure!(
         normalize(&receive) == normalize(RECEIVE_SOURCE),
         "Receive model refinement changed; reassess its signed arithmetic semantics"
@@ -159,11 +191,16 @@ pub fn run(root: &Path) -> Result<()> {
             == "publicenumReceiveBudget{publicstaticfuncadmits(used:Int,incoming:Int,limit:Int)->Bool{used>=0&&incoming>=0&&limit>=used&&incoming<=limit-used}}",
         "The arithmetic proof covers a different implementation"
     );
+    let delta = fs::read_to_string(root.join("ios/Sources/PhonebookCore/DeltaAdmission.swift"))?;
+    ensure!(
+        normalize(&delta) == normalize(DELTA_SOURCE) && normalize(&delta) == DELTA_REFINEMENT,
+        "The delta admission proof covers a different implementation"
+    );
     let contract: Value = serde_json::from_slice(&fs::read(
         root.join("ios/Tests/PhonebookCoreTests/PublicationContract.json"),
     )?)?;
     fs::write(directory.join("PublicationModel.lean"), model(&contract)?)?;
-    for module in ["Publication", "ReceiveBudget"] {
+    for module in PROOF_MODULES {
         let contents = fs::read_to_string(root.join(format!("verification/ios/{module}.lean")))?;
         ensure!(
             !contents
@@ -214,7 +251,7 @@ pub fn run(root: &Path) -> Result<()> {
         "Unexpected Lean version"
     );
     let mut proofs = String::new();
-    for module in ["PublicationModel", "Publication", "ReceiveBudget"] {
+    for module in std::iter::once("PublicationModel").chain(PROOF_MODULES) {
         let result = logged(
             root,
             &format!("lean-{module}"),
@@ -234,33 +271,37 @@ pub fn run(root: &Path) -> Result<()> {
         axioms_checked(&proofs),
         "The expected theorem inventory or axiom review is incomplete"
     );
-    fs::write(
-        directory.join("FalseClaim.lean"),
-        "import PublicationModel\nexample : Phonebook.step .active .abort = .discarded := by rfl\n",
-    )?;
-    let negative = lean(root, &image, relative, "FalseClaim").output()?;
-    let negative_log = format!(
-        "{}{}",
-        String::from_utf8_lossy(&negative.stdout),
-        String::from_utf8_lossy(&negative.stderr)
-    );
-    fs::write(root.join("target/ios/lean-negative.log"), &negative_log)?;
-    ensure!(
-        !negative.status.success()
-            && negative_log.contains("FalseClaim.lean:2:")
-            && negative_log.contains("rfl")
-            && negative_log.contains("error:"),
-        "The false active-deletion claim did not fail at its proof"
-    );
+    for (module, source, claim) in FALSE_CLAIMS {
+        fs::write(directory.join(format!("{module}.lean")), source)?;
+        let negative = lean(root, &image, relative, module).output()?;
+        let negative_log = format!(
+            "{}{}",
+            String::from_utf8_lossy(&negative.stdout),
+            String::from_utf8_lossy(&negative.stderr)
+        );
+        fs::write(
+            root.join(format!("target/ios/lean-negative-{module}.log")),
+            &negative_log,
+        )?;
+        ensure!(
+            !negative.status.success()
+                && negative_log.contains(&format!("{module}.lean:2:"))
+                && negative_log.contains("rfl")
+                && negative_log.contains("error:"),
+            "The {claim} did not fail at its proof"
+        );
+    }
     require_current_sources(root, &sources)?;
     fs::write(
         receipt,
         serde_json::to_vec_pretty(
-            &json!({"result":"passed", "lean":"4.34.1", "image":image, "theorems":THEOREMS, "proof_bundle":relative, "kernel_replay":"fresh for all three modules", "negative_control":"false active-deletion theorem rejected", "refinement":"native exhaustive 25-transition check required by ios-check; exact guarded Int64 arithmetic expression", "source_sha256":source_records(&sources)}),
+            &json!({"result":"passed", "lean":"4.34.1", "image":image, "theorems":THEOREMS, "proof_bundle":relative, "kernel_replay":"fresh for all four modules", "negative_controls":FALSE_CLAIMS.map(|(_, _, claim)| format!("{claim} rejected")), "refinement":"native exhaustive 25-transition check required by ios-check; exact guarded Int64 arithmetic expression; exact delta admission and copy guard source", "source_sha256":source_records(&sources)}),
         )?,
     )?;
     println!(
-        "PASS: 11 Lean theorems, fresh kernel replay, false-claim rejection, source-bound receipt"
+        "PASS: {} Lean theorems, fresh kernel replay, {} false-claim rejections, source-bound receipt",
+        THEOREMS.len(),
+        FALSE_CLAIMS.len()
     );
     Ok(())
 }
@@ -289,5 +330,14 @@ mod tests {
             "'Phonebook.activeNeverPermitsDiscard' depends on axioms: [forged]"
         ));
         Ok(())
+    }
+
+    #[test]
+    fn the_delta_proof_names_the_compiled_swift_decision() {
+        assert_eq!(whitespace_free(DELTA_SOURCE), DELTA_REFINEMENT);
+        assert_ne!(
+            whitespace_free(&DELTA_SOURCE.replace("count >= 1", "count >= 0")),
+            DELTA_REFINEMENT
+        );
     }
 }

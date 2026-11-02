@@ -7,7 +7,10 @@ import { Miniflare } from "miniflare";
 import * as v from "valibot";
 import { DirectoryDiscoverySchema } from "../src/core/api-contract.ts";
 import { categoryDefinitions, prefectureNames } from "../src/core/catalog.ts";
-import { PreparedDatasetManifestSchema } from "../src/core/dataset-storage.ts";
+import {
+  type DirectoryDeltaArtifact,
+  PreparedDatasetManifestSchema,
+} from "../src/core/dataset-storage.ts";
 import {
   type DirectoryArchiveSource,
   directoryArchiveEncoder,
@@ -15,9 +18,16 @@ import {
   encodeDirectoryArchive,
 } from "../src/core/directory-archive.ts";
 import {
+  applyDirectoryDelta,
+  directoryDeltaFile,
+  encodeDirectoryDelta,
+} from "../src/core/directory-delta.ts";
+import {
   type Catalog,
   CatalogSchema,
+  type Contact,
   ContactSchema,
+  type Source,
   SourceSchema,
 } from "../src/core/models.ts";
 import { nameTokens, normalizeName } from "../src/core/search.ts";
@@ -29,6 +39,7 @@ import {
 import { contactVCard } from "../src/core/vcard.ts";
 import { api, type DirectoryApiBindings } from "../src/server/api.ts";
 import { databaseSchema } from "./database-schema.ts";
+import { requireDirectoryText, sha256Digest } from "./directory-delta.ts";
 import { compressSearchIndex } from "./search-index.ts";
 import { compressDirectoryArchive, contactRowNumbers } from "./snapshot.ts";
 
@@ -60,6 +71,7 @@ const contactLicenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/";
 const categoryLicenseUrl = "https://example.com/license";
 const sourceArtifactUrl = "https://example.com/providers.xlsx";
 const sourceIndexUrl = "https://example.com/provider-list";
+const fixtureGeneratedAt = "2026-10-29T00:00:00Z";
 
 function prefectureCode(index: number): string {
   return String(index + 1).padStart(prefectureCodeDigits, "0");
@@ -110,8 +122,205 @@ async function readRealDirectory(
   };
 }
 
+export type FixtureRevision = "baseline" | "updated";
+
+/** Builds the synthetic contacts of a revision, where `updated` renames the first contact. */
+function fixtureContacts(revision: FixtureRevision): Contact[] {
+  const contacts = prefectureNames.flatMap((_name, index) =>
+    fixtureCategories.map((category) => {
+      const code = prefectureCode(index);
+      const special = code === "13" && category === "dental";
+      return v.parse(ContactSchema, {
+        id: `${code}:${category}`,
+        sourceRecordId: code,
+        prefectureCode: code,
+        municipalityCode: `${code}001`,
+        category,
+        name:
+          code === "13" && category === "library"
+            ? "公開図書館"
+            : special
+              ? "試験歯科 <script> & Test, clinic"
+              : `Test facility <script> ${category}`,
+        address: special
+          ? "Test, address; Suite 2\\東"
+          : "Test address; floor 1",
+        phones: [
+          { display: "03-0000-0000", e164: "+81300000000" },
+          ...(special
+            ? [{ display: "090-1234-5678", e164: "+819012345678" }]
+            : []),
+        ],
+        website:
+          code === "13" && category === "medical" ? officialSiteUrl : null,
+        sourceId: "test",
+        sourceUrls: contactSourceUrls,
+        license: "CC0-1.0",
+        licenseUrl: contactLicenseUrl,
+        dataAsOf: "2026-10-01",
+        retrievedAt: fixtureGeneratedAt,
+        phoneConfirmed: false,
+        phoneConfirmationUrl: null,
+      });
+    }),
+  );
+  const library = contacts.find((contact) => contact.id === "01:library");
+  if (!library) throw new Error("Missing regional fixture");
+  contacts.push(
+    ...Array.from({ length: indexedLibraryCount }, (_, index) => ({
+      ...library,
+      id: `01:library:${String(index).padStart(indexedLibraryDigits, "0")}`,
+      sourceRecordId: `branch:${index}`,
+      name: `Index facility ${String(index).padStart(indexedLibraryDigits, "0")}`,
+    })),
+  );
+  if (revision === "updated") {
+    const first = contacts[0];
+    if (!first) throw new Error("Missing baseline fixture");
+    contacts[0] = { ...first, name: "Updated public directory record" };
+  }
+  return contacts;
+}
+
+function fixtureCatalog(
+  contacts: readonly Contact[],
+  snapshot: string,
+): Catalog {
+  return v.parse(CatalogSchema, {
+    snapshot,
+    generatedAt: fixtureGeneratedAt,
+    contacts: contacts.length,
+    phones: fixturePhoneCount,
+    sourceCount: 1,
+    categories: categoryDefinitions.map((category) => ({
+      id: category.id,
+      label: category.label,
+      contacts: contacts.filter((contact) => contact.category === category.id)
+        .length,
+      publisher: "Test publisher",
+      license: "CC0-1.0",
+      licenseUrl: categoryLicenseUrl,
+    })),
+    prefectures: prefectureNames.map((_name, index) => ({
+      code: prefectureCode(index),
+      name: `Test prefecture ${index + 1}`,
+      contacts:
+        fixtureCategories.length + (index === 0 ? indexedLibraryCount : 0),
+    })),
+    municipalities: prefectureNames.map((_name, index) => ({
+      code: `${prefectureCode(index)}001`,
+      name: `Test city ${index + 1}`,
+      prefectureCode: prefectureCode(index),
+    })),
+  });
+}
+
+function fixtureSource(contacts: readonly Contact[]): Source {
+  return v.parse(SourceSchema, {
+    id: "test",
+    url: sourceArtifactUrl,
+    sha256: "a".repeat(sha256HexLength),
+    indexUrl: sourceIndexUrl,
+    indexSha256: "b".repeat(sha256HexLength),
+    licenseUrl: null,
+    licenseSha256: null,
+    dataAsOf: "2026-10-01",
+    retrievedAt: fixtureGeneratedAt,
+    artifacts: [
+      {
+        url: sourceArtifactUrl,
+        sha256: "a".repeat(sha256HexLength),
+        retrievedAt: fixtureGeneratedAt,
+      },
+    ],
+    rows: contacts.length,
+    accepted: contacts.length,
+    missingPhone: 0,
+    invalid: 0,
+    duplicate: 0,
+    issues: {},
+  });
+}
+
+function sha256Hex(data: string | Uint8Array): string {
+  return createHash("sha256").update(data).digest("hex");
+}
+
+/** One synthetic revision with its snapshot identity and decoded native archive. */
+interface SyntheticRevision {
+  readonly contacts: readonly Contact[];
+  readonly jsonl: string;
+  readonly snapshot: string;
+  readonly catalog: Catalog;
+  readonly source: Source;
+  readonly archiveText: string;
+}
+
+function syntheticRevision(revision: FixtureRevision): SyntheticRevision {
+  const contacts = fixtureContacts(revision);
+  const jsonl = contacts
+    .map((contact) => `${JSON.stringify(contact)}\n`)
+    .join("");
+  const snapshot = sha256Hex(jsonl);
+  const catalog = fixtureCatalog(contacts, snapshot);
+  const source = fixtureSource(contacts);
+  const archiveText = encodeDirectoryArchive(contacts, {
+    snapshot,
+    catalog,
+    sources: [source],
+  });
+  return { contacts, jsonl, snapshot, catalog, source, archiveText };
+}
+
+/** Encodes the delta between two revisions and requires that it rebuilds the target text exactly. */
+function syntheticDelta(
+  base: SyntheticRevision,
+  target: SyntheticRevision,
+  targetArchive: Uint8Array,
+): { readonly artifact: DirectoryDeltaArtifact; readonly bytes: Uint8Array } {
+  const baseArchive = compressDirectoryArchive(base.archiveText);
+  const identity = (
+    text: string,
+    archive: Uint8Array,
+  ): { archiveSha256: string; sha256: string; bytes: number } => {
+    const decoded = new TextEncoder().encode(text);
+    return {
+      archiveSha256: sha256Hex(archive),
+      sha256: sha256Hex(decoded),
+      bytes: decoded.byteLength,
+    };
+  };
+  const text = encodeDirectoryDelta(
+    requireDirectoryText(base.archiveText),
+    requireDirectoryText(target.archiveText),
+    {
+      base: identity(base.archiveText, baseArchive),
+      target: identity(target.archiveText, targetArchive),
+    },
+  );
+  const applied = applyDirectoryDelta(base.archiveText, text, sha256Digest);
+  if (applied.admission !== "apply" || applied.text !== target.archiveText)
+    throw new Error(
+      `The fixture delta didn't rebuild its target: ${applied.admission}`,
+    );
+  const bytes = compressDirectoryArchive(text);
+  const decoded = new TextEncoder().encode(text);
+  return {
+    bytes,
+    artifact: {
+      file: directoryDeltaFile(base.snapshot),
+      base: base.snapshot,
+      baseArchiveSha256: sha256Hex(baseArchive),
+      sha256: sha256Hex(bytes),
+      bytes: bytes.byteLength,
+      uncompressedSha256: sha256Hex(decoded),
+      uncompressedBytes: decoded.byteLength,
+    },
+  };
+}
+
 export async function directoryFixture(
-  options: { readonly revision: "baseline" | "updated" } = {
+  options: { readonly revision: FixtureRevision } = {
     revision: "baseline",
   },
 ): Promise<{
@@ -149,63 +358,8 @@ export async function directoryFixture(
   try {
     const DB = await runtime.getD1Database("DB");
     const bucket = await runtime.getR2Bucket("DATASETS");
-    const contacts = prefectureNames.flatMap((_name, index) =>
-      fixtureCategories.map((category) => {
-        const code = prefectureCode(index);
-        const special = code === "13" && category === "dental";
-        return v.parse(ContactSchema, {
-          id: `${code}:${category}`,
-          sourceRecordId: code,
-          prefectureCode: code,
-          municipalityCode: `${code}001`,
-          category,
-          name:
-            code === "13" && category === "library"
-              ? "公開図書館"
-              : special
-                ? "試験歯科 <script> & Test, clinic"
-                : `Test facility <script> ${category}`,
-          address: special
-            ? "Test, address; Suite 2\\東"
-            : "Test address; floor 1",
-          phones: [
-            { display: "03-0000-0000", e164: "+81300000000" },
-            ...(special
-              ? [{ display: "090-1234-5678", e164: "+819012345678" }]
-              : []),
-          ],
-          website:
-            code === "13" && category === "medical" ? officialSiteUrl : null,
-          sourceId: "test",
-          sourceUrls: contactSourceUrls,
-          license: "CC0-1.0",
-          licenseUrl: contactLicenseUrl,
-          dataAsOf: "2026-10-01",
-          retrievedAt: "2026-10-29T00:00:00Z",
-          phoneConfirmed: false,
-          phoneConfirmationUrl: null,
-        });
-      }),
-    );
-    const library = contacts.find((contact) => contact.id === "01:library");
-    if (!library) throw new Error("Missing regional fixture");
-    contacts.push(
-      ...Array.from({ length: indexedLibraryCount }, (_, index) => ({
-        ...library,
-        id: `01:library:${String(index).padStart(indexedLibraryDigits, "0")}`,
-        sourceRecordId: `branch:${index}`,
-        name: `Index facility ${String(index).padStart(indexedLibraryDigits, "0")}`,
-      })),
-    );
-    if (options.revision === "updated") {
-      const first = contacts[0];
-      if (!first) throw new Error("Missing baseline fixture");
-      contacts[0] = { ...first, name: "Updated public directory record" };
-    }
-    const jsonl = contacts
-      .map((contact) => `${JSON.stringify(contact)}\n`)
-      .join("");
-    const snapshot = createHash("sha256").update(jsonl).digest("hex");
+    const synthetic = syntheticRevision(options.revision);
+    const { contacts, jsonl, snapshot, catalog, source } = synthetic;
     await DB.batch(
       databaseSchema
         .split(";")
@@ -242,57 +396,6 @@ export async function directoryFixture(
         ).bind(rowid, nameTokens(normalizeName(contact.name)).join(" ")),
       ]);
     }
-    const catalog = v.parse(CatalogSchema, {
-      snapshot,
-      generatedAt: "2026-10-29T00:00:00Z",
-      contacts: contacts.length,
-      phones: fixturePhoneCount,
-      sourceCount: 1,
-      categories: categoryDefinitions.map((category) => ({
-        id: category.id,
-        label: category.label,
-        contacts: contacts.filter((contact) => contact.category === category.id)
-          .length,
-        publisher: "Test publisher",
-        license: "CC0-1.0",
-        licenseUrl: categoryLicenseUrl,
-      })),
-      prefectures: prefectureNames.map((_name, index) => ({
-        code: prefectureCode(index),
-        name: `Test prefecture ${index + 1}`,
-        contacts:
-          fixtureCategories.length + (index === 0 ? indexedLibraryCount : 0),
-      })),
-      municipalities: prefectureNames.map((_name, index) => ({
-        code: `${prefectureCode(index)}001`,
-        name: `Test city ${index + 1}`,
-        prefectureCode: prefectureCode(index),
-      })),
-    });
-    const source = v.parse(SourceSchema, {
-      id: "test",
-      url: sourceArtifactUrl,
-      sha256: "a".repeat(sha256HexLength),
-      indexUrl: sourceIndexUrl,
-      indexSha256: "b".repeat(sha256HexLength),
-      licenseUrl: null,
-      licenseSha256: null,
-      dataAsOf: "2026-10-01",
-      retrievedAt: catalog.generatedAt,
-      artifacts: [
-        {
-          url: sourceArtifactUrl,
-          sha256: "a".repeat(sha256HexLength),
-          retrievedAt: catalog.generatedAt,
-        },
-      ],
-      rows: contacts.length,
-      accepted: contacts.length,
-      missingPhone: 0,
-      invalid: 0,
-      duplicate: 0,
-      issues: {},
-    });
     const real = await readRealDirectory(snapshot);
     const published = real?.catalog ?? catalog;
     await DB.batch([
@@ -305,23 +408,15 @@ export async function directoryFixture(
       ),
     ]);
     const files = [];
+    const archive =
+      real?.archive ?? compressDirectoryArchive(synthetic.archiveText);
     for (const [file, bytes] of [
       ["contacts.jsonl.gz", portableGzip(jsonl)],
       ["contacts.csv.gz", portableGzip("fixture\n")],
       ["contacts.vcf.gz", portableGzip(contacts.map(contactVCard).join(""))],
-      [
-        directoryArchiveFile,
-        real?.archive ??
-          compressDirectoryArchive(
-            encodeDirectoryArchive(contacts, {
-              snapshot,
-              catalog,
-              sources: [source],
-            }),
-          ),
-      ],
+      [directoryArchiveFile, archive],
     ] as const) {
-      const sha256 = createHash("sha256").update(bytes).digest("hex");
+      const sha256 = sha256Hex(bytes);
       await bucket.put(`${snapshot}/${sha256}/${file}`, bytes);
       files.push({
         file,
@@ -329,6 +424,19 @@ export async function directoryFixture(
         bytes: bytes.length,
         url: `/api/datasets/${snapshot}/${sha256}/${file}`,
       });
+    }
+    const deltas: DirectoryDeltaArtifact[] = [];
+    if (!real && options.revision === "updated") {
+      const delta = syntheticDelta(
+        syntheticRevision("baseline"),
+        synthetic,
+        archive,
+      );
+      await bucket.put(
+        `${snapshot}/${delta.artifact.sha256}/${delta.artifact.file}`,
+        delta.bytes,
+      );
+      deltas.push(delta.artifact);
     }
     const searchIndex = encodeSearchIndex(
       contacts
@@ -365,6 +473,7 @@ export async function directoryFixture(
           .digest("hex"),
         uncompressedBytes: searchIndex.byteLength,
       },
+      deltas,
     });
     await bucket.put(`${snapshot}/manifest.json`, JSON.stringify(manifest));
     const bindings: DirectoryApiBindings = {

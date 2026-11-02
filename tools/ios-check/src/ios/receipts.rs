@@ -1,6 +1,5 @@
 use anyhow::{Context, Result, bail, ensure};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs, path::Path};
 
 pub(super) const NATIVE_RECEIPTS: [&str; 4] = [
@@ -57,7 +56,7 @@ pub(super) fn require(root: &Path, sources: &BTreeMap<String, String>) -> Result
         let receipt: Value =
             serde_json::from_slice(&bytes).with_context(|| format!("{name} isn't JSON"))?;
         admit(name, &receipt, sources)?;
-        admitted.push(json!({"receipt":name,"sha256":format!("{:x}", Sha256::digest(&bytes))}));
+        admitted.push(json!({"receipt":name,"sha256":crate::sha256_hex(&bytes)}));
     }
     Ok(admitted)
 }

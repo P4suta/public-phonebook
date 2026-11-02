@@ -7,8 +7,8 @@ public enum TraceContext {
 
 public struct TraceEvent: Codable, Equatable, Sendable {
   public enum Phase: String, Codable, Sendable {
-    case request, discovery, catalog, download, decode, stage, activation, cleanup, notification,
-      schedule
+    case request, discovery, catalog, download, delta, decode, stage, activation, cleanup,
+      notification, schedule
   }
   public enum Outcome: String, Codable, Sendable {
     case started, completed, cancelled, rejected, deferred
