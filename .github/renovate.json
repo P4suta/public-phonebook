@@ -35,6 +35,55 @@
         "https://ports.ubuntu.com/ubuntu-ports?suite=noble-updates&components=main,universe&binaryArch=arm64",
         "https://ports.ubuntu.com/ubuntu-ports?suite=noble-security&components=main,universe&binaryArch=arm64"
       ]
+    },
+    {
+      "description": "Updates that change the deployed Worker, its build, or a release path wait in one branch for a release rehearsal.",
+      "matchManagers": ["npm", "mise", "github-actions", "dockerfile"],
+      "matchDepNames": [
+        "cf",
+        "miniflare",
+        "@cloudflare/**",
+        "@tanstack/react-start",
+        "@tanstack/react-router",
+        "vite",
+        "@vitejs/plugin-react",
+        "@vanilla-extract/**",
+        "postcss",
+        "aws4fetch",
+        "node",
+        "just",
+        "doppler",
+        "rust",
+        "xcodegen",
+        "actions/checkout",
+        "actions/cache",
+        "actions/upload-artifact",
+        "actions/download-artifact",
+        "jdx/mise-action",
+        "jdx/mise",
+        "docker.io/jdxcode/mise",
+        "dopplerhq/secrets-fetch-action"
+      ],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
+      "groupName": "deployment dependencies",
+      "groupSlug": "deployment-dependencies",
+      "automerge": false,
+      "addLabels": ["release-rehearsal"],
+      "prBodyNotes": [
+        "> [!IMPORTANT]\n> This update changes the deployed Worker, its build, or a release path, so it doesn't merge on its own.\n> Merge it only after `mise x -- just release-rehearse .local/phonebook` passes on this branch after the full local gate.\n> When it changes the TestFlight workflow or its tools, also run `mise x -- just ios-archive`.\n> The hosted rehearsal replaces the local one once `release.yml` lands."
+      ]
+    },
+    {
+      "description": "npm lock file maintenance moves the bundler and CSS tools that Vite resolves within ranges, so it waits in its own branch for the same rehearsal.",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "branchTopic": "npm-lock-file-maintenance",
+      "commitMessageExtra": "for npm packages",
+      "automerge": false,
+      "addLabels": ["release-rehearsal"],
+      "prBodyNotes": [
+        "> [!IMPORTANT]\n> This refresh can rebuild the Worker with different bundler and CSS tool releases, so it doesn't merge on its own.\n> Merge it only after `mise x -- just release-rehearse .local/phonebook` passes on this branch after the full local gate.\n> The hosted rehearsal replaces the local one once `release.yml` lands."
+      ]
     }
   ]
 }
