@@ -781,12 +781,12 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
       tags: ["Contacts"],
       summary: "Download a bounded page of filtered contacts as vCards",
       description:
-        "The same search filters and limit apply. Follow the Link response header to continue. Each page contains at most 100 contacts from the pinned snapshot.",
+        "Returns, as vCard text, the contacts that searchContacts returns for the same parameters. A page holds at most 100 contacts. Follow the Link response header until it's absent. The cursor in that link is bound to the query, limit, and dataset snapshot. Parameters must occur once; unknown parameters are rejected.",
       parameters: searchParameters,
       responses: {
         [httpStatus.ok]: {
           description:
-            "A filtered vCard page with snapshot identity and optional continuation",
+            "One vCard 3.0 per contact on the page, UTF-8, CRLF, 75-byte folded lines",
           content: { "text/vcard": { schema: { type: "string" } } },
         },
         ...failureResponses,
@@ -1052,6 +1052,8 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
   api.get(
     `${base}/openapi.json`,
     openAPIRouteHandler(api, {
+      // The default drops documented paths such as /contacts.vcf as static files.
+      excludeStaticFile: false,
       documentation: {
         info: {
           title: "Public Phonebook API",

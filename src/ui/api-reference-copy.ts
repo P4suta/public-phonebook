@@ -40,6 +40,8 @@ const summaries: Readonly<Record<string, string>> = {
   searchContactGroups: "施設の種類ごとに、当てはまる施設を少しずつ見る",
   getContact: "施設の情報と、もとの情報を取得する",
   downloadContact: "1つの施設のvCardをダウンロードする",
+  downloadFilteredContacts:
+    "条件に当てはまる施設のvCardを、ページごとにダウンロードする",
   listSources: "もとのデータと、取りこんだ結果の一覧を取得する",
   getSource: "もとのデータのハッシュと、取りこんだ件数を取得する",
   getDatasetManifest: "データセット全体のURL、バイト数、SHA-256を取得する",
