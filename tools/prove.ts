@@ -9,7 +9,7 @@ import { fileDigest } from "./snapshot.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 39;
+const verifiedUnitCount = 40;
 const declaredPostconditionCount = 80;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
