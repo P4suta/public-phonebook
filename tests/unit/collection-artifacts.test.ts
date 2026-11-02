@@ -154,7 +154,9 @@ describe("source artifact integrity", () => {
     ]);
     const offline = new ArtifactStore(root, { offline: true });
     for (const artifact of fetched) await offline.get(artifact.url);
-    expect(await offline.artifacts()).toEqual(listed);
+    expect(JSON.stringify(await offline.artifacts())).toBe(
+      JSON.stringify(listed),
+    );
   });
   it("rejects untrusted protocol changes, oversized responses and uncached 304 responses", async () => {
     const root = await cache();
