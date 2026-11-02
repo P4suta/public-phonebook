@@ -4,8 +4,8 @@ import { saveData } from "./search-sources.ts";
 const bytesPerKibibyte = 1024;
 // The search page's own scripts, before the search index or its Worker loads.
 const scriptBudget = {
-  transferred: 260 * bytesPerKibibyte,
-  decoded: 900 * bytesPerKibibyte,
+  transferred: 232 * bytesPerKibibyte,
+  decoded: 736 * bytesPerKibibyte,
 } as const;
 
 test("the search page loads its scripts within the budget before the index", async ({

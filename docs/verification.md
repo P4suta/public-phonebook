@@ -236,8 +236,10 @@ The audit requires zero unparseable spellings, source/canonical disagreements, f
 The release gate checks the build and the device search with these entry points, which the candidate workflow can call.
 Run `mise x -- node tools/build-budget.ts` after a build.
 It requires the gzip size of the Worker's modules to stay under 1 MiB, well below Cloudflare's compressed upload limit, so an accidental bundle fails here first.
-It also requires exactly one search Worker script of at most 40 KiB.
-The national browser campaign keeps the search page's own scripts within 260 KiB transferred and 900 KiB decoded before the index loads.
+It also requires exactly one search Worker script of at most 34 KiB.
+The national browser campaign keeps the search page's own scripts within 232 KiB transferred and 736 KiB decoded before the index loads.
+On November 2, 2026, the Worker's modules measured 463,097 bytes compressed, the search Worker script 27,152 bytes, and the search page's scripts 185,459 bytes transferred and 589,343 bytes decoded.
+The script limits sit about a quarter above those sizes.
 
 Run `mise x -- node tools/search-parity.ts BUNDLE` after `mise x -- just data-local BUNDLE` seeds the same bundle.
 It loads the bundle's index through the service that the browser Worker runs, with its admission checks.

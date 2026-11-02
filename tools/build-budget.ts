@@ -12,7 +12,7 @@ const searchWorkerChunk = /^local-search-worker-[\w-]+\.js$/u;
  */
 export const buildBudgets = {
   workerCompressedBytes: 1024 * bytesPerKibibyte,
-  searchWorkerBytes: 40 * bytesPerKibibyte,
+  searchWorkerBytes: 34 * bytesPerKibibyte,
 } as const;
 
 const budgetNames = ["workerCompressedBytes", "searchWorkerBytes"] as const;
