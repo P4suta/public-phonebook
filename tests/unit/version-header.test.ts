@@ -105,10 +105,8 @@ describe("Worker version header", () => {
     expect(response.headers.has(versionHeader)).toBe(false);
   });
 
-  it("wraps the Worker entry outside the staging access check", async () => {
+  it("wraps the whole Worker entry, so assets and errors carry the version", async () => {
     const source = await readFile("src/server.ts", "utf8");
-    expect(source).toMatch(
-      /fetch: withVersionHeader\(\s*withStagingAccess\(async function fetch\(/u,
-    );
+    expect(source).toMatch(/fetch: withVersionHeader\(async function fetch\(/u);
   });
 });

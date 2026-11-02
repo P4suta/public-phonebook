@@ -16,26 +16,52 @@ export function importDecision(
   return "conflict";
 }
 
-export function canPromote(
-  candidate: string,
-  checkedCandidate: string,
-  snapshot: string,
-  checkedSnapshot: string,
-  stagingPassed: boolean,
-  database: string,
-  checkedDatabase: string,
-  manifest: string,
-  checkedManifest: string,
-): boolean {
+export type PromotionAdmission =
+  | "promote"
+  | "unverified"
+  | "current-changed"
+  | "candidate-missing"
+  | "different-version";
+
+export function promotionAdmission(
+  verified: boolean,
+  verifiedVersion: string,
+  candidatePresent: boolean,
+  deployedCandidate: string,
+  previousVersion: string,
+  currentVersion: string,
+): PromotionAdmission {
   //@ verify
-  //@ ensures \result === (stagingPassed && candidate === checkedCandidate && snapshot === checkedSnapshot && database === checkedDatabase && manifest === checkedManifest)
-  return (
-    stagingPassed &&
-    candidate === checkedCandidate &&
-    snapshot === checkedSnapshot &&
-    database === checkedDatabase &&
-    manifest === checkedManifest
-  );
+  //@ ensures (\result === "unverified") === !verified
+  //@ ensures (\result === "current-changed") === (verified && currentVersion !== previousVersion)
+  //@ ensures (\result === "candidate-missing") === (verified && currentVersion === previousVersion && !candidatePresent)
+  //@ ensures (\result === "different-version") === (verified && currentVersion === previousVersion && candidatePresent && deployedCandidate !== verifiedVersion)
+  //@ ensures (\result === "promote") === (verified && currentVersion === previousVersion && candidatePresent && deployedCandidate === verifiedVersion)
+  if (!verified) return "unverified";
+  if (currentVersion !== previousVersion) return "current-changed";
+  if (!candidatePresent) return "candidate-missing";
+  if (deployedCandidate !== verifiedVersion) return "different-version";
+  return "promote";
+}
+
+export type WithdrawalDecision =
+  | "remove-candidate"
+  | "already-withdrawn"
+  | "refuse";
+
+export function withdrawalDecision(
+  beforeTraffic: boolean,
+  currentIsPrevious: boolean,
+  candidatePresent: boolean,
+  candidateOwned: boolean,
+): WithdrawalDecision {
+  //@ verify
+  //@ ensures (\result === "remove-candidate") === (beforeTraffic && currentIsPrevious && candidatePresent && candidateOwned)
+  //@ ensures (\result === "already-withdrawn") === (beforeTraffic && currentIsPrevious && !candidatePresent)
+  //@ ensures (\result === "refuse") === (!beforeTraffic || !currentIsPrevious || (candidatePresent && !candidateOwned))
+  if (!beforeTraffic || !currentIsPrevious) return "refuse";
+  if (!candidatePresent) return "already-withdrawn";
+  return candidateOwned ? "remove-candidate" : "refuse";
 }
 
 export type RecoveryDecision =
@@ -134,15 +160,4 @@ export function evidenceAdmission(
   if (signer !== expectedSigner) return "different-signer";
   if (!passed) return "failed-stage";
   return "admit";
-}
-
-export function bootstrapAdmission(
-  previousPresent: boolean,
-  terminal: boolean,
-  owned: boolean,
-  versionMatches: boolean,
-): boolean {
-  //@ verify
-  //@ ensures \result === (!previousPresent && !terminal && owned && versionMatches)
-  return !previousPresent && !terminal && owned && versionMatches;
 }

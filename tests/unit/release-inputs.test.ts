@@ -1,8 +1,11 @@
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  maskCandidate,
   parsePublishArguments,
   publicationAuthority,
+  publicDeployment,
+  publicJournal,
 } from "../../tools/publish.ts";
 import {
   dispatchArguments,
@@ -11,6 +14,7 @@ import {
   runListArguments,
   watchArguments,
 } from "../../tools/release.ts";
+import type { ReleaseJournal } from "../../tools/release-lifecycle.ts";
 import {
   candidateSigner,
   type RunProvenance,
@@ -18,6 +22,8 @@ import {
 } from "../../tools/release-store.ts";
 
 const dataset = "a".repeat(64);
+const release = "11111111-1111-4111-8111-111111111111";
+const candidateVersion = "22222222-2222-4222-8222-222222222222";
 const releaseRun: RunProvenance = {
   kind: "github-actions",
   repository: "P4suta/public-phonebook",
@@ -36,11 +42,12 @@ describe("publish arguments", () => {
         action: "publish",
         dataset,
         bundle: resolve(".local/datasets", dataset),
+        release: "",
       },
     );
     expect(
       parsePublishArguments([
-        "staging",
+        "production",
         "--check-admission",
         "--dataset",
         dataset,
@@ -48,61 +55,129 @@ describe("publish arguments", () => {
         "fixture",
       ]),
     ).toEqual({
-      environment: "staging",
+      environment: "production",
       action: "--check-admission",
       dataset,
       bundle: resolve("fixture"),
+      release: "",
     });
     for (const action of [
       "publish",
-      "--bootstrap",
+      "--stage",
+      "--drill",
       "--adopt",
-      "--rehearse-recovery",
       "--check-admission",
     ])
       expect(() =>
         parsePublishArguments(
-          action === "publish" ? ["staging"] : ["staging", action],
+          action === "publish" ? ["production"] : ["production", action],
         ),
       ).toThrow("explicit --dataset");
   });
 
-  it("keeps recovery and status free of dataset inputs and rejects unknown or repeated flags", () => {
-    expect(parsePublishArguments(["production", "--recover"])).toMatchObject({
-      action: "--recover",
-      dataset: "",
-      bundle: "",
-    });
-    expect(parsePublishArguments(["staging", "--status"]).action).toBe(
-      "--status",
+  it("binds promotion to the approved release and keeps the other steps free of dataset inputs", () => {
+    expect(
+      parsePublishArguments(["production", "--promote", "--release", release]),
+    ).toMatchObject({ action: "--promote", release, dataset: "" });
+    expect(() => parsePublishArguments(["production", "--promote"])).toThrow(
+      "approved --release",
     );
+    for (const action of [
+      "--verify-candidate",
+      "--withdraw",
+      "--recover",
+      "--status",
+    ])
+      expect(parsePublishArguments(["production", action])).toMatchObject({
+        action,
+        dataset: "",
+        bundle: "",
+        release: "",
+      });
     for (const args of [
       ["production", "--recover", "--dataset", dataset],
+      ["production", "--withdraw", "--release", release],
+      ["production", "--promote", "--release", "not-a-release"],
+      ["production", "--promote", "--release", release, "--release", release],
       ["development", "--dataset", dataset],
-      ["staging", "--dataset", "short"],
-      ["staging", "--dataset", dataset, "--dataset", dataset],
-      ["staging", "--recover", "--status"],
-      ["staging", "--bundle", "fixture"],
-      ["staging", ".local/phonebook"],
+      ["staging", "--dataset", dataset],
+      ["production", "--bootstrap", "--dataset", dataset],
+      ["production", "--rehearse-recovery", "--dataset", dataset],
+      ["production", "--dataset", "short"],
+      ["production", "--dataset", dataset, "--dataset", dataset],
+      ["production", "--recover", "--status"],
+      ["production", "--bundle", "fixture"],
+      ["production", ".local/phonebook"],
       [],
     ])
       expect(() => parsePublishArguments(args), args.join(" ")).toThrow();
   });
 });
 
+describe("candidate masking", () => {
+  const journal: ReleaseJournal = {
+    phase: "candidate-verified",
+    candidate: {
+      releaseId: release,
+      versionId: candidateVersion,
+      sourceTree: "c".repeat(40),
+      snapshot: "1".repeat(64),
+      databaseSha256: "2".repeat(64),
+      databaseId: "33333333-3333-4333-8333-333333333333",
+      manifestSha256: dataset,
+      artifactSha256: "4".repeat(64),
+      manifestBinding: "digest",
+    },
+    previous: null,
+  };
+
+  it("masks the version of a candidate that never took traffic in Actions logs and status output", () => {
+    const lines: string[] = [];
+    maskCandidate(journal, releaseRun, (line) => lines.push(line));
+    maskCandidate(journal, { kind: "local" }, (line) => lines.push(line));
+    maskCandidate({ ...journal, phase: "verified" }, releaseRun, (line) =>
+      lines.push(line),
+    );
+    expect(lines).toEqual([`::add-mask::${candidateVersion}`]);
+    for (const phase of [
+      "staged",
+      "candidate-verified",
+      "withdrawing",
+      "withdrawn",
+    ] as const)
+      expect(
+        JSON.stringify(publicJournal({ ...journal, phase })),
+        phase,
+      ).not.toContain(candidateVersion);
+    expect(
+      publicJournal({ ...journal, phase: "verified" })?.candidate.versionId,
+    ).toBe(candidateVersion);
+    expect(
+      JSON.stringify(
+        publicDeployment({
+          current: { versionId: release, releaseId: release },
+          candidate: { versionId: candidateVersion, releaseId: release },
+        }),
+      ),
+    ).not.toContain(candidateVersion);
+  });
+});
+
 describe("publication authority", () => {
-  it("refuses local production publication while keeping local recovery, status, and admission checks", () => {
+  it("refuses local production publication while keeping local withdrawal, recovery, status, and admission checks", () => {
     for (const action of [
       "publish",
-      "--bootstrap",
+      "--stage",
+      "--verify-candidate",
+      "--promote",
+      "--drill",
       "--adopt",
-      "--rehearse-recovery",
-      "--resume-bootstrap",
     ] as const)
       expect(() =>
         publicationAuthority("production", action, { kind: "local" }),
       ).toThrow("only from the release workflow");
     for (const action of [
+      "--withdraw",
       "--recover",
       "--status",
       "--check-admission",
@@ -110,9 +185,6 @@ describe("publication authority", () => {
       expect(() =>
         publicationAuthority("production", action, { kind: "local" }),
       ).not.toThrow();
-    expect(() =>
-      publicationAuthority("staging", "publish", { kind: "local" }),
-    ).not.toThrow();
   });
 
   it("accepts production only from the release workflow on main", () => {

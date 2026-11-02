@@ -62,7 +62,7 @@ let store: ControlStore;
 beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), "phonebook-journal-"));
   store = fileControlStore(join(directory, "store"), {
-    lockedPrefixes: ["journals/staging/history/", "evidence/"],
+    lockedPrefixes: ["journals/production/history/", "evidence/"],
   });
 });
 afterEach(async () => {
@@ -91,35 +91,35 @@ describe("run provenance", () => {
 
 describe("journal format 2", () => {
   it("drops the bundle path and records the sequence, environment, and provenance", async () => {
-    expect(await loadRelease(store, "staging")).toBeNull();
-    const head = await saveRelease(store, "staging", journal, actions, null);
+    expect(await loadRelease(store, "production")).toBeNull();
+    const head = await saveRelease(store, "production", journal, actions, null);
     expect(head.record).toEqual({
       formatVersion: 2,
-      environment: "staging",
+      environment: "production",
       sequence: 1,
       ...journal,
       provenance: actions,
     });
-    const loaded = await loadRelease(store, "staging");
+    const loaded = await loadRelease(store, "production");
     expect(loaded?.journal).toEqual(journal);
     expect(loaded?.etag).toBe(head.etag);
     expect(JSON.stringify(loaded?.record)).not.toContain("bundle");
   });
 
   it("replaces the head conditionally and appends one history record per save", async () => {
-    const writer = journalWriter(store, "staging", { kind: "local" }, null);
+    const writer = journalWriter(store, "production", { kind: "local" }, null);
     await writer.save({ ...journal, phase: "preparing" });
     await writer.save({ ...journal, phase: "checking" });
     await writer.save(journal);
     expect(writer.current()?.record.sequence).toBe(3);
     expect(
-      (await releaseHistory(store, "staging")).map((entry) => entry.phase),
+      (await releaseHistory(store, "production")).map((entry) => entry.phase),
     ).toEqual(["preparing", "checking", "verified"]);
-    const stale = await loadRelease(store, "staging");
+    const stale = await loadRelease(store, "production");
     if (!stale) throw new Error("Missing head");
-    await saveRelease(store, "staging", journal, actions, stale);
+    await saveRelease(store, "production", journal, actions, stale);
     await expect(
-      saveRelease(store, "staging", journal, actions, stale),
+      saveRelease(store, "production", journal, actions, stale),
     ).rejects.toMatchObject({ status: 412 });
   });
 
@@ -139,11 +139,11 @@ describe("journal format 2", () => {
   });
 
   it("rejects corrupt, foreign, unsupported, and success-shaped incomplete heads", async () => {
-    const key = controlKeys.journalHead("staging");
-    const valid = journalRecord("staging", 1, journal, actions);
+    const key = controlKeys.journalHead("production");
+    const valid = journalRecord("production", 1, journal, actions);
     for (const value of [
       { ...valid, formatVersion: 1 },
-      { ...valid, environment: "production" },
+      { ...valid, environment: "staging" },
       { ...valid, candidate: { ...valid.candidate, versionId: "" } },
       { ...valid, phase: "recovered" },
       { ...valid, candidate: { ...valid.candidate, bundle: "/absolute" } },
@@ -151,7 +151,7 @@ describe("journal format 2", () => {
     ]) {
       await rm(join(directory, "store"), { recursive: true, force: true });
       await store.write(key, encodeRecord(value), { kind: "create" });
-      await expect(loadRelease(store, "staging")).rejects.toThrow();
+      await expect(loadRelease(store, "production")).rejects.toThrow();
     }
   });
 });

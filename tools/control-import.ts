@@ -25,16 +25,13 @@ import { fileDigest } from "./snapshot.ts";
 
 const commandArgumentOffset = 2;
 const maximumArguments = 2;
-const environmentNames: readonly RemoteEnvironment[] = [
-  "staging",
-  "production",
-];
-const journalName = /^(staging|production)-(journal|[0-9a-f-]{36})\.json$/u;
+const environmentNames: readonly RemoteEnvironment[] = ["production"];
+const journalName = /^(production)-(journal|[0-9a-f-]{36})\.json$/u;
+const retiredJournalName = /^staging-(journal|[0-9a-f-]{36})\.json$/u;
 const databaseFile = "directory.sqlite";
 const receiptSources = [
   { source: "test-receipt.json", scope: "imported/test-receipt" },
   { source: "proof-receipt.json", scope: "imported/proof-receipt" },
-  { source: "remote-data/staging.json", scope: "imported/remote-data-staging" },
   {
     source: "remote-data/production.json",
     scope: "imported/remote-data-production",
@@ -156,7 +153,9 @@ export async function planControlImport(
     if (!match) {
       skipped.push({
         source: relative(root, path),
-        reason: "not a format 1 publication journal",
+        reason: retiredJournalName.test(name)
+          ? "a journal of the retired staging environment"
+          : "not a format 1 publication journal",
       });
       continue;
     }

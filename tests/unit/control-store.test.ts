@@ -47,16 +47,16 @@ describe("control keys", () => {
       [controlKeys.collection(digest, "report.json")]: "write-once",
       [controlKeys.collectionCache(digest)]: "write-once",
       [controlKeys.candidate(tree, digest, "check")]: "write-once",
-      [controlKeys.journalHead("staging")]: "conditional",
+      [controlKeys.journalHead("production")]: "conditional",
       [controlKeys.lease("production")]: "conditional",
-      [controlKeys.journalHistory("staging", 1)]: "append-only",
+      [controlKeys.journalHistory("production", 1)]: "append-only",
       [controlKeys.evidence("imported", digest)]: "append-only",
     };
     for (const [key, policy] of Object.entries(policies))
       expect(writePolicy(key), key).toBe(policy);
     for (const unsafe of [
       "../outside",
-      "blobs/../journals/staging/head.json",
+      "blobs/../journals/production/head.json",
       "blobs/sha256/UPPER",
       "unknown/key",
       "single",
@@ -64,14 +64,14 @@ describe("control keys", () => {
       expect(() => writePolicy(unsafe), unsafe).toThrow();
     expect(() => controlKeys.blob("short")).toThrow();
     expect(() => controlKeys.candidate("tree", digest, "e2e")).toThrow();
-    expect(() => controlKeys.journalHistory("staging", 0)).toThrow();
+    expect(() => controlKeys.journalHistory("production", 0)).toThrow();
   });
 });
 
 describe("file control store", () => {
   it("creates once, replaces only the current entity tag, and answers 412 otherwise", async () => {
     const store = fileControlStore(directory);
-    const key = controlKeys.journalHead("staging");
+    const key = controlKeys.journalHead("production");
     expect((await store.read(key)).object).toBeNull();
     expect(await store.head(key)).toBeNull();
     await expect(
@@ -104,7 +104,7 @@ describe("file control store", () => {
     ).rejects.toThrow("Unsupported control key");
     for (const key of [
       controlKeys.blob(digest),
-      controlKeys.journalHistory("staging", 1),
+      controlKeys.journalHistory("production", 1),
     ]) {
       const written = await store.write(key, bytes("x"), { kind: "create" });
       await expect(
@@ -115,9 +115,9 @@ describe("file control store", () => {
 
   it("answers 409 for an existing object under a locked prefix before evaluating conditions", async () => {
     const store = fileControlStore(directory, {
-      lockedPrefixes: ["journals/staging/history/", "evidence/"],
+      lockedPrefixes: ["journals/production/history/", "evidence/"],
     });
-    const key = controlKeys.journalHistory("staging", 1);
+    const key = controlKeys.journalHistory("production", 1);
     await store.write(key, bytes("x"), { kind: "create" });
     await expect(
       store.write(key, bytes("x"), { kind: "create" }),
@@ -131,7 +131,7 @@ describe("file control store", () => {
   it("reports its injected clock as the observed server time", async () => {
     const clock = new Date("2030-01-02T03:04:05.000Z");
     const store = fileControlStore(directory, { now: () => clock });
-    const key = controlKeys.lease("staging");
+    const key = controlKeys.lease("production");
     expect((await store.read(key)).observedAt).toEqual(clock);
     expect(
       (await store.write(key, bytes("x"), { kind: "create" })).observedAt,
@@ -299,11 +299,11 @@ describe("R2 control store", () => {
     );
     try {
       const store = r2(server.endpoint);
-      const found = await store.read(controlKeys.journalHead("staging"));
+      const found = await store.read(controlKeys.journalHead("production"));
       expect(found.observedAt).toEqual(new Date(serverDate));
       expect(new TextDecoder().decode(found.object?.body)).toBe("journal");
       expect(found.object?.etag).toBe('"tag"');
-      const missing = await store.read(controlKeys.lease("staging"));
+      const missing = await store.read(controlKeys.lease("production"));
       expect(missing).toEqual({
         observedAt: new Date(serverDate),
         object: null,

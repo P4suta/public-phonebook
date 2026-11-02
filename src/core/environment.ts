@@ -3,11 +3,7 @@ import { DigestSchema } from "./models.ts";
 
 const databaseDigestWidth = 32;
 
-export const EnvironmentSchema = v.picklist([
-  "development",
-  "staging",
-  "production",
-]);
+export const EnvironmentSchema = v.picklist(["development", "production"]);
 export type Environment = v.InferOutput<typeof EnvironmentSchema>;
 
 export const environments = {
@@ -17,13 +13,6 @@ export const environments = {
     database: "dial-development-directory",
     bucket: "dial-development-datasets",
     domains: [],
-  },
-  staging: {
-    worker: "dial-staging",
-    origin: "https://staging.dial.page",
-    database: "dial-staging-directory",
-    bucket: "dial-staging-datasets",
-    domains: ["staging.dial.page"],
   },
   production: {
     worker: "dial-production",

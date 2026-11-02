@@ -18,7 +18,7 @@ import { environments, releaseControl } from "../src/core/environment.ts";
 import { httpStatus } from "../src/core/http-status.ts";
 import { DigestSchema } from "../src/core/models.ts";
 
-export type RemoteEnvironment = "staging" | "production";
+export type RemoteEnvironment = "production";
 export type WriteCondition =
   | { readonly kind: "create" }
   | { readonly kind: "replace"; readonly etag: string };
@@ -355,11 +355,7 @@ export interface R2StoreOptions {
 }
 
 function allowedBuckets(): ReadonlySet<string> {
-  return new Set([
-    releaseControl.bucket,
-    environments.staging.bucket,
-    environments.production.bucket,
-  ]);
+  return new Set([releaseControl.bucket, environments.production.bucket]);
 }
 
 function serverTime(response: Response): Date {

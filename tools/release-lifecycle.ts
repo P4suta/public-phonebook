@@ -1,6 +1,8 @@
 import {
-  bootstrapAdmission,
+  type PromotionAdmission,
+  promotionAdmission,
   recoveryDecision,
+  withdrawalDecision,
 } from "../src/core/publication-policy.ts";
 
 export interface ReleaseTarget {
@@ -14,13 +16,19 @@ export interface ReleaseTarget {
   readonly artifactSha256: string | null;
   readonly manifestBinding: "snapshot" | "digest";
 }
-export type ReleasePhase =
-  | "preparing"
-  | "activating"
-  | "checking"
-  | "recovering"
-  | "verified"
-  | "recovered";
+export const releasePhases = [
+  "preparing",
+  "staged",
+  "candidate-verified",
+  "withdrawing",
+  "withdrawn",
+  "activating",
+  "checking",
+  "recovering",
+  "verified",
+  "recovered",
+] as const;
+export type ReleasePhase = (typeof releasePhases)[number];
 export interface ReleaseJournal {
   readonly phase: ReleasePhase;
   readonly candidate: ReleaseTarget;
@@ -30,30 +38,222 @@ export interface ActiveVersion {
   readonly versionId: string;
   readonly releaseId: string;
 }
+export interface DeployedVersions {
+  readonly current: ActiveVersion;
+  readonly candidate: ActiveVersion | null;
+}
+export type VersionEvidence = "required" | "optional";
 export interface ReleasePorts {
   save(journal: ReleaseJournal): Promise<void>;
+  deployed(): Promise<DeployedVersions>;
   prepare(candidate: ReleaseTarget): Promise<void>;
-  active(): Promise<ActiveVersion>;
+  stage(candidate: ReleaseTarget, current: ReleaseTarget): Promise<void>;
+  withdraw(current: ReleaseTarget): Promise<void>;
   activate(candidate: ReleaseTarget): Promise<void>;
   restore(previous: ReleaseTarget): Promise<void>;
-  verify(target: ReleaseTarget): Promise<void>;
+  verifyCandidate(candidate: ReleaseTarget): Promise<void>;
+  verify(target: ReleaseTarget, evidence: VersionEvidence): Promise<void>;
+}
+
+const preTrafficPhases: ReadonlySet<ReleasePhase> = new Set([
+  "preparing",
+  "staged",
+  "candidate-verified",
+  "withdrawing",
+  "withdrawn",
+]);
+const terminalPhases: ReadonlySet<ReleasePhase> = new Set([
+  "verified",
+  "recovered",
+  "withdrawn",
+]);
+
+export function beforeTraffic(phase: ReleasePhase): boolean {
+  return preTrafficPhases.has(phase);
+}
+
+export function isTerminal(phase: ReleasePhase): boolean {
+  return terminalPhases.has(phase);
+}
+
+export class CandidateWithdrawn extends Error {
+  readonly journal: ReleaseJournal;
+  constructor(journal: ReleaseJournal, cause: unknown) {
+    super("The candidate failed before approval and was withdrawn", { cause });
+    this.name = "CandidateWithdrawn";
+    this.journal = journal;
+  }
+}
+
+export class PromotionRefused extends Error {
+  readonly admission: Exclude<PromotionAdmission, "promote">;
+  constructor(admission: Exclude<PromotionAdmission, "promote">) {
+    super(`Promotion was refused: ${admission}`);
+    this.name = "PromotionRefused";
+    this.admission = admission;
+  }
+}
+
+export class InjectedProbeFailure extends Error {
+  constructor() {
+    super("The withdrawal drill injected a candidate probe failure");
+    this.name = "InjectedProbeFailure";
+  }
+}
+
+export function verifiedPredecessor(
+  journal: ReleaseJournal | null,
+): ReleaseTarget | null {
+  if (!journal) return null;
+  if (journal.phase === "verified") return journal.candidate;
+  if (journal.phase === "recovered" || journal.phase === "withdrawn")
+    return journal.previous;
+  if (journal.phase === "candidate-verified")
+    throw new Error(
+      "A verified candidate awaits approval; promote or withdraw it before another deployment",
+    );
+  throw new Error("An incomplete publication requires recovery");
 }
 
 async function requireActive(
   target: ReleaseTarget,
   ports: ReleasePorts,
 ): Promise<void> {
-  if ((await ports.active()).versionId !== target.versionId)
+  if ((await ports.deployed()).current.versionId !== target.versionId)
     throw new Error("The active Worker changed during publication");
+}
+
+async function requireStaged(
+  journal: ReleaseJournal,
+  ports: ReleasePorts,
+): Promise<void> {
+  const deployed = await ports.deployed();
+  if (
+    deployed.current.versionId !== journal.previous?.versionId ||
+    deployed.candidate?.versionId !== journal.candidate.versionId
+  )
+    throw new Error("The deployment changed while the candidate was checked");
+}
+
+export async function withdrawCandidate(
+  journal: ReleaseJournal,
+  ports: ReleasePorts,
+): Promise<ReleaseJournal> {
+  const deployed = await ports.deployed();
+  const decision = withdrawalDecision(
+    beforeTraffic(journal.phase) && journal.previous !== null,
+    deployed.current.versionId === journal.previous?.versionId,
+    deployed.candidate !== null,
+    deployed.candidate?.releaseId === journal.candidate.releaseId,
+  );
+  if (decision === "refuse" || !journal.previous)
+    throw new Error(
+      "Withdrawal requires a candidate that never took traffic, its verified predecessor serving, and no foreign candidate",
+    );
+  if (journal.phase === "withdrawn" && decision === "already-withdrawn")
+    return journal;
+  const pending: ReleaseJournal = { ...journal, phase: "withdrawing" };
+  await ports.save(pending);
+  if (decision === "remove-candidate") await ports.withdraw(journal.previous);
+  const after = await ports.deployed();
+  if (
+    after.current.versionId !== journal.previous.versionId ||
+    after.candidate !== null
+  )
+    throw new Error("The deployment still holds a candidate after withdrawal");
+  const result: ReleaseJournal = { ...pending, phase: "withdrawn" };
+  await ports.save(result);
+  return result;
+}
+
+async function withdrawAfter(
+  primary: unknown,
+  journal: ReleaseJournal,
+  ports: ReleasePorts,
+): Promise<Error> {
+  try {
+    return new CandidateWithdrawn(
+      await withdrawCandidate(journal, ports),
+      primary,
+    );
+  } catch (withdrawal) {
+    return new AggregateError(
+      [primary, withdrawal],
+      "The candidate failed before approval; its withdrawal remains pending",
+    );
+  }
+}
+
+export async function stageCandidate(
+  candidate: ReleaseTarget,
+  previous: ReleaseTarget,
+  ports: ReleasePorts,
+): Promise<ReleaseJournal> {
+  const before = await ports.deployed();
+  if (before.current.versionId !== previous.versionId)
+    throw new Error("The serving Worker isn't the verified predecessor");
+  if (before.candidate)
+    throw new Error(
+      "A candidate is already deployed at 0%; promote or withdraw it first",
+    );
+  let journal: ReleaseJournal = { candidate, previous, phase: "preparing" };
+  await ports.save(journal);
+  try {
+    await ports.prepare(candidate);
+    await ports.stage(candidate, previous);
+    const deployed = await ports.deployed();
+    const staged = deployed.candidate;
+    if (
+      deployed.current.versionId !== previous.versionId ||
+      !staged ||
+      staged.releaseId !== candidate.releaseId
+    )
+      throw new Error(
+        "The deployment doesn't hold this candidate at 0% beside the verified predecessor",
+      );
+    journal = {
+      ...journal,
+      candidate: { ...candidate, versionId: staged.versionId },
+      phase: "staged",
+    };
+    await ports.save(journal);
+    return journal;
+  } catch (primary) {
+    throw await withdrawAfter(primary, journal, ports);
+  }
+}
+
+export async function verifyStagedCandidate(
+  journal: ReleaseJournal,
+  ports: ReleasePorts,
+): Promise<ReleaseJournal> {
+  if (journal.phase !== "staged")
+    throw new Error("Only a staged candidate can be checked at 0%");
+  try {
+    await requireStaged(journal, ports);
+    await ports.verifyCandidate(journal.candidate);
+    await requireStaged(journal, ports);
+    const verified: ReleaseJournal = {
+      ...journal,
+      phase: "candidate-verified",
+    };
+    await ports.save(verified);
+    return verified;
+  } catch (primary) {
+    throw await withdrawAfter(primary, journal, ports);
+  }
 }
 
 export async function recoverRelease(
   journal: ReleaseJournal,
   ports: ReleasePorts,
 ): Promise<ReleaseJournal> {
+  if (beforeTraffic(journal.phase))
+    throw new Error("A candidate that never took traffic is withdrawn");
   const pending: ReleaseJournal = { ...journal, phase: "recovering" };
   await ports.save(pending);
-  const active = await ports.active();
+  const deployed = await ports.deployed();
+  const active = deployed.current;
   const decision = recoveryDecision(
     journal.previous !== null,
     active.versionId === journal.previous?.versionId,
@@ -66,76 +266,48 @@ export async function recoverRelease(
       "Recovery requires the verified predecessor and an owned active version",
     );
   if (decision === "restore-previous") await ports.restore(journal.previous);
+  else if (deployed.candidate?.releaseId === journal.candidate.releaseId)
+    await ports.withdraw(journal.previous);
   await requireActive(journal.previous, ports);
-  await ports.verify(journal.previous);
+  await ports.verify(journal.previous, "optional");
   await requireActive(journal.previous, ports);
   const result: ReleaseJournal = { ...pending, phase: "recovered" };
   await ports.save(result);
   return result;
 }
 
-export function ownsUnverifiedBootstrap(
-  journal: ReleaseJournal,
-  active: ActiveVersion,
-): boolean {
-  return bootstrapAdmission(
-    journal.previous !== null,
-    journal.phase === "verified" || journal.phase === "recovered",
-    active.releaseId === journal.candidate.releaseId,
-    journal.candidate.versionId === "" ||
-      active.versionId === journal.candidate.versionId,
-  );
-}
-
-export async function resumeBootstrap(
+export async function recoverPublication(
   journal: ReleaseJournal,
   ports: ReleasePorts,
 ): Promise<ReleaseJournal> {
-  const active = await ports.active();
-  if (!ownsUnverifiedBootstrap(journal, active))
+  if (journal.phase === "candidate-verified")
     throw new Error(
-      "Only the owned active initial staging candidate can resume verification",
+      "A verified candidate awaits approval; withdraw it explicitly instead",
     );
-  const checking: ReleaseJournal = {
-    ...journal,
-    candidate: { ...journal.candidate, versionId: active.versionId },
-    phase: "checking",
-  };
-  await ports.save(checking);
-  await ports.verify(checking.candidate);
-  await requireActive(checking.candidate, ports);
-  const verified: ReleaseJournal = { ...checking, phase: "verified" };
-  await ports.save(verified);
-  return verified;
+  return beforeTraffic(journal.phase)
+    ? withdrawCandidate(journal, ports)
+    : recoverRelease(journal, ports);
 }
 
 export async function runRelease(
-  candidate: ReleaseTarget,
-  previous: ReleaseTarget | null,
+  verifiedCandidate: ReleaseJournal,
   ports: ReleasePorts,
-  bootstrap = false,
 ): Promise<ReleaseJournal> {
-  if (!previous && !bootstrap)
-    throw new Error("Publication requires a verified predecessor");
-  let journal: ReleaseJournal = { candidate, previous, phase: "preparing" };
+  if (
+    verifiedCandidate.phase !== "candidate-verified" ||
+    !verifiedCandidate.previous
+  )
+    throw new Error(
+      "Only a candidate verified at 0% beside its verified predecessor can take traffic",
+    );
+  let journal: ReleaseJournal = { ...verifiedCandidate, phase: "activating" };
   await ports.save(journal);
   try {
-    if (previous) await requireActive(previous, ports);
-    await ports.prepare(candidate);
-    if (previous) await requireActive(previous, ports);
-    journal = { ...journal, phase: "activating" };
+    await ports.activate(journal.candidate);
+    await requireActive(journal.candidate, ports);
+    journal = { ...journal, phase: "checking" };
     await ports.save(journal);
-    await ports.activate(candidate);
-    const active = await ports.active();
-    if (active.releaseId !== candidate.releaseId)
-      throw new Error("The deployment does not belong to this candidate");
-    journal = {
-      ...journal,
-      candidate: { ...candidate, versionId: active.versionId },
-      phase: "checking",
-    };
-    await ports.save(journal);
-    await ports.verify(journal.candidate);
+    await ports.verify(journal.candidate, "required");
     await requireActive(journal.candidate, ports);
     const result: ReleaseJournal = { ...journal, phase: "verified" };
     await ports.save(result);
@@ -154,4 +326,63 @@ export async function runRelease(
       { cause: primary },
     );
   }
+}
+
+export async function promoteCandidate(
+  journal: ReleaseJournal,
+  approvedRelease: string,
+  ports: ReleasePorts,
+): Promise<ReleaseJournal> {
+  if (journal.candidate.releaseId !== approvedRelease)
+    throw new Error("The approval names a release other than the candidate");
+  const deployed = await ports.deployed();
+  const admission = promotionAdmission(
+    journal.phase === "candidate-verified",
+    journal.candidate.versionId,
+    deployed.candidate !== null,
+    deployed.candidate?.versionId ?? "",
+    journal.previous?.versionId ?? "",
+    deployed.current.versionId,
+  );
+  if (admission !== "promote") throw new PromotionRefused(admission);
+  return runRelease(journal, ports);
+}
+
+export async function drillWithdrawal(
+  candidate: ReleaseTarget,
+  previous: ReleaseTarget,
+  ports: ReleasePorts,
+): Promise<ReleaseJournal> {
+  const staged = await stageCandidate(candidate, previous, ports);
+  const failing: ReleasePorts = {
+    ...ports,
+    async verifyCandidate(target): Promise<void> {
+      await ports.verifyCandidate(target);
+      throw new InjectedProbeFailure();
+    },
+  };
+  let unexpected: ReleaseJournal;
+  try {
+    unexpected = await verifyStagedCandidate(staged, failing);
+  } catch (error) {
+    if (
+      !(error instanceof CandidateWithdrawn) ||
+      !(error.cause instanceof InjectedProbeFailure)
+    )
+      throw error;
+    const deployed = await ports.deployed();
+    if (
+      error.journal.phase !== "withdrawn" ||
+      deployed.current.versionId !== previous.versionId ||
+      deployed.candidate !== null ||
+      verifiedPredecessor(error.journal)?.versionId !== previous.versionId
+    )
+      throw new Error(
+        "The drill changed the serving version or the verified predecessor",
+        { cause: error },
+      );
+    return error.journal;
+  }
+  await withdrawCandidate(unexpected, ports);
+  throw new Error("The drill didn't observe its injected probe failure");
 }

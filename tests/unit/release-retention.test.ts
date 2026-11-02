@@ -91,6 +91,35 @@ describe("publication retention", () => {
     ).toBe(false);
     expect(() => databaseRetention([verified], verified, "foreign")).toThrow();
   });
+  it("retires the data of a withdrawn candidate but protects one that awaits approval", () => {
+    const serving: ReleaseJournal = {
+      phase: "verified",
+      candidate: target("a"),
+      previous: target("prior"),
+    };
+    const withdrawn: ReleaseJournal = {
+      phase: "withdrawn",
+      candidate: target("withdrawn"),
+      previous: target("a"),
+    };
+    const waiting: ReleaseJournal = {
+      phase: "candidate-verified",
+      candidate: target("waiting"),
+      previous: target("a"),
+    };
+    const plan = databaseRetention([serving, withdrawn, waiting], waiting, "a");
+    expect(
+      plan
+        .filter((resource) => resource.retireable)
+        .map((resource) => resource.databaseId),
+    ).toEqual(["withdrawn"]);
+    expect(
+      plan.find((resource) => resource.databaseId === "waiting")?.pending,
+    ).toBe(true);
+    expect(
+      plan.find((resource) => resource.databaseId === "prior")?.rollback,
+    ).toBe(true);
+  });
   it("refuses conflicting ownership and never retires an adopted baseline", () => {
     const latest: ReleaseJournal = {
       phase: "verified",

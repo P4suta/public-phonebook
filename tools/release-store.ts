@@ -16,7 +16,12 @@ import {
   sha256Hex,
   writeOnce,
 } from "./control-store.ts";
-import type { ReleaseJournal, ReleaseTarget } from "./release-lifecycle.ts";
+import {
+  type ReleaseJournal,
+  type ReleasePhase,
+  type ReleaseTarget,
+  releasePhases,
+} from "./release-lifecycle.ts";
 
 export type { RemoteEnvironment } from "./control-store.ts";
 
@@ -28,15 +33,27 @@ const leaseUpdateMs = 10000;
 const legacyJournalFormat = 1;
 const journalFormat = 2;
 const evidenceFormat = 1;
-const phases = [
+const legacyPhases = [
   "preparing",
   "activating",
   "checking",
   "recovering",
   "verified",
   "recovered",
-] as const;
-export const RemoteEnvironmentSchema = v.picklist(["staging", "production"]);
+] as const satisfies readonly ReleasePhase[];
+const versionedPhases: ReadonlySet<ReleasePhase> = new Set([
+  "staged",
+  "candidate-verified",
+  "verified",
+]);
+const predecessorPhases: ReadonlySet<ReleasePhase> = new Set([
+  "staged",
+  "candidate-verified",
+  "withdrawing",
+  "withdrawn",
+  "recovered",
+]);
+export const RemoteEnvironmentSchema = v.picklist(["production"]);
 
 export const RunProvenanceSchema = v.variant("kind", [
   v.strictObject({
@@ -96,13 +113,14 @@ function boundTarget(target: {
   );
 }
 function consistentJournal(journal: {
-  readonly phase: (typeof phases)[number];
+  readonly phase: ReleasePhase;
   readonly candidate: { readonly versionId: string };
   readonly previous: { readonly versionId: string } | null;
 }): boolean {
   return (
-    (journal.phase !== "verified" || journal.candidate.versionId !== "") &&
-    (journal.phase !== "recovered" || journal.previous !== null) &&
+    (!versionedPhases.has(journal.phase) ||
+      journal.candidate.versionId !== "") &&
+    (!predecessorPhases.has(journal.phase) || journal.previous !== null) &&
     (!journal.previous || journal.previous.versionId !== "")
   );
 }
@@ -115,7 +133,7 @@ export const JournalRecordSchema = v.pipe(
     formatVersion: v.literal(journalFormat),
     environment: RemoteEnvironmentSchema,
     sequence: SequenceSchema,
-    phase: v.picklist(phases),
+    phase: v.picklist(releasePhases),
     candidate: ReleaseTargetSchema,
     previous: v.nullable(ReleaseTargetSchema),
     provenance: RunProvenanceSchema,
@@ -131,7 +149,7 @@ const LegacyTargetSchema = v.pipe(
 export const LegacyJournalSchema = v.pipe(
   v.strictObject({
     formatVersion: v.literal(legacyJournalFormat),
-    phase: v.picklist(phases),
+    phase: v.picklist(legacyPhases),
     candidate: LegacyTargetSchema,
     previous: v.nullable(LegacyTargetSchema),
   }),

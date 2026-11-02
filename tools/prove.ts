@@ -14,8 +14,8 @@ const declaredPostconditionCount = 80;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
-const releaseControlVerifiedUnits = 3;
-const releaseControlPostconditions = 11;
+const releaseControlVerifiedUnits = 2;
+const releaseControlPostconditions = 16;
 const provenUnitCount = verifiedUnitCount + releaseControlVerifiedUnits;
 const provenPostconditionCount =
   declaredPostconditionCount + releaseControlPostconditions;
@@ -33,17 +33,16 @@ const expected = [
   "copyMethod",
   "stripReferenceStyle",
   "importDecision",
-  "canPromote",
+  "promotionAdmission",
   "schoolEvidence",
   "singleCandidate",
   "sourceRowsAccounted",
-  "stagingAdmission",
+  "withdrawalDecision",
   "recoveryDecision",
   "leaseAdmission",
   "evidenceAdmission",
   "canRetireResource",
   "retainsCoverage",
-  "bootstrapAdmission",
   "snapshotAdmission",
   "nameRankAt",
   "groupPrecedes",
@@ -78,7 +77,6 @@ const boundFiles = [
   "tools/publication-coverage.ts",
   "tests/unit/verification-receipt.test.ts",
   "tests/unit/publication-coverage.test.ts",
-  "tests/unit/access-configuration.test.ts",
   "src/core/dataset-storage.ts",
   "tools/release-lifecycle.ts",
   "tools/release-provider.ts",
@@ -97,18 +95,16 @@ const boundFiles = [
   "tests/unit/version-header.test.ts",
   "tools/release-retention.ts",
   "tools/release.ts",
-  "tools/release-rehearsal.ts",
+  "tools/worker-settings.ts",
+  "tools/probe-budget.ts",
   "tests/unit/release-lifecycle.test.ts",
   "tests/unit/release-retention.test.ts",
   "tests/unit/release-store.test.ts",
+  "tests/unit/withdrawal-drill.test.ts",
+  "tests/unit/worker-settings.test.ts",
+  "tests/unit/probe-budget.test.ts",
   "tests/unit/api.test.ts",
-  "src/core/staging-access-policy.ts",
-  "src/server/staging-access.ts",
-  "tools/staging-access.ts",
-  "tools/staging-probes.ts",
   "tools/public-request.ts",
-  "tests/unit/staging-access.test.ts",
-  "tests/unit/access-jwt.test.ts",
   "tests/unit/public-request.test.ts",
   "tests/public/fixtures.ts",
   "tests/public/tsconfig.json",
@@ -219,7 +215,6 @@ interface ProofSourceBinding {
   readonly sha256: string;
 }
 const proofSources = [
-  "src/core/staging-access-policy.ts",
   "src/core/collection-policy.ts",
   "src/core/search-policy.ts",
   "src/core/search-trigger-policy.ts",
@@ -558,14 +553,24 @@ async function main(): Promise<void> {
         to: 'if (current !== "") return "start";',
       },
       {
-        name: "promotion-identity",
-        from: "    candidate === checkedCandidate &&",
-        to: "    candidate !== checkedCandidate &&",
+        name: "promotion-verified",
+        from: '  if (!verified) return "unverified";\n',
+        to: "",
       },
       {
-        name: "promotion-manifest",
-        from: "    manifest === checkedManifest\n",
-        to: "    true\n",
+        name: "promotion-current",
+        from: '  if (currentVersion !== previousVersion) return "current-changed";\n',
+        to: "",
+      },
+      {
+        name: "promotion-version",
+        from: '  if (deployedCandidate !== verifiedVersion) return "different-version";\n',
+        to: "",
+      },
+      {
+        name: "withdrawal-ownership",
+        from: 'return candidateOwned ? "remove-candidate" : "refuse";',
+        to: 'return "remove-candidate";',
       },
       {
         name: "recovery-ownership",
@@ -581,11 +586,6 @@ async function main(): Promise<void> {
         name: "coverage-retention",
         from: "return candidate * coverageScale >= previous * coverageRetained;",
         to: "return candidate * coverageScale >= previous * (coverageRetained - 1);",
-      },
-      {
-        name: "bootstrap-ownership",
-        from: "return !previousPresent && !terminal && owned && versionMatches;",
-        to: "return !previousPresent && !terminal && versionMatches;",
       },
       {
         name: "lease-expiry",
@@ -621,31 +621,6 @@ async function main(): Promise<void> {
           `The ${control.name} negative control was inconclusive: ${rejected.output}`,
         );
     }
-    const accessSource = await readFile(
-      `${proofRoot}/src/core/staging-access-policy.ts`,
-      "utf8",
-    );
-    const brokenAccess = accessSource.replace(
-      "!staging || (configured && canonicalOrigin && verified && identityAllowed)\n",
-      "!staging || (configured && canonicalOrigin && verified)\n",
-    );
-    if (accessSource === brokenAccess)
-      throw new Error(
-        "The access control negative control did not mutate the implementation",
-      );
-    await writeFile(
-      `${proofRoot}/proof/negative/staging-access-policy.ts`,
-      brokenAccess,
-    );
-    await generateModel("proof/negative/staging-access-policy.ts");
-    const rejectedAccess = await verifyModel(image, [
-      `${proofRoot}/proof/generated/proof/negative/staging-access-policy.dfy`,
-    ]);
-    if (
-      rejectedAccess.code === 0 ||
-      !/could not be proved|could not prove/u.test(rejectedAccess.output)
-    )
-      throw new Error("The access control negative control was inconclusive");
     const collectionSource = await readFile(
       `${proofRoot}/src/core/collection-policy.ts`,
       "utf8",
@@ -870,7 +845,7 @@ async function main(): Promise<void> {
           semantics:
             "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
           negativeControl:
-            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a substring ranked at the second position, a reflexive result order, a loading index searched on the device, a 31-row continuation, an index admitted without its digest, an off-by-one row range, a snapshot-blind row locator, a delta budget of the whole archive, an off-by-one copy range, and a delta admitted without its digest rejected",
+            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, retained reference opacity, conflicting import identities, promotion of an unverified, displaced, or different candidate, withdrawal of a foreign candidate, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a substring ranked at the second position, a reflexive result order, a loading index searched on the device, a 31-row continuation, an index admitted without its digest, an off-by-one row range, a snapshot-blind row locator, a delta budget of the whole archive, an off-by-one copy range, and a delta admitted without its digest rejected",
           result: "verified",
         },
         null,

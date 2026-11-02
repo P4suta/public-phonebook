@@ -186,7 +186,7 @@ describe("publication lease", () => {
   it("stops trusting a lease it couldn't renew before the margin", async () => {
     const lease = await acquireLease(
       store,
-      "staging",
+      "production",
       { kind: "local" },
       {
         scheduler: new ManualScheduler(),
@@ -203,7 +203,7 @@ describe("publication lease", () => {
     await expect(
       withLease(
         store,
-        "staging",
+        "production",
         { kind: "local" },
         async () => {
           throw new Error("task failed");
@@ -213,7 +213,7 @@ describe("publication lease", () => {
     ).rejects.toThrow("task failed");
     await acquireLease(
       store,
-      "staging",
+      "production",
       { kind: "local" },
       {
         scheduler: new ManualScheduler(),

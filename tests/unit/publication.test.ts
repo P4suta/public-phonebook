@@ -4,8 +4,9 @@ import * as v from "valibot";
 import { expect, it } from "vitest";
 import { databaseResourceName } from "../../src/core/environment.ts";
 import {
-  canPromote,
   importDecision,
+  promotionAdmission,
+  withdrawalDecision,
 } from "../../src/core/publication-policy.ts";
 import type { SqlPort } from "../../tools/remote-statements.ts";
 import { insertStatements } from "../../tools/remote-statements.ts";
@@ -16,9 +17,6 @@ it("isolates remote database publications and rejects unbound deployment identit
   expect(databaseResourceName("development")).toBe(
     "dial-development-directory",
   );
-  expect(databaseResourceName("staging", identity)).toBe(
-    `dial-staging-directory-${"a".repeat(32)}`,
-  );
   expect(databaseResourceName("production", identity)).toBe(
     `dial-production-directory-${"a".repeat(32)}`,
   );
@@ -26,7 +24,7 @@ it("isolates remote database publications and rejects unbound deployment identit
     databaseResourceName("production", "b".repeat(64)),
   );
   expect(() => databaseResourceName("production")).toThrow();
-  expect(() => databaseResourceName("staging", "../../unbound")).toThrow();
+  expect(() => databaseResourceName("production", "../../unbound")).toThrow();
 });
 
 it("starts only an empty import and resumes only the same publication", () => {
@@ -35,85 +33,53 @@ it("starts only an empty import and resumes only the same publication", () => {
   expect(importDecision("different", "publication")).toBe("conflict");
 });
 
-it("requires a checked staging candidate with the same commit and dataset", () => {
+it("promotes only the verified candidate that is still deployed beside the unchanged current version", () => {
   expect(
-    canPromote(
-      "commit",
-      "commit",
-      "snapshot",
-      "snapshot",
-      true,
-      "database",
-      "database",
-      "manifest",
-      "manifest",
-    ),
-  ).toBe(true);
+    promotionAdmission(true, "candidate", true, "candidate", "prior", "prior"),
+  ).toBe("promote");
   expect(
-    canPromote(
-      "changed",
-      "commit",
-      "snapshot",
-      "snapshot",
-      true,
-      "database",
-      "database",
-      "manifest",
-      "manifest",
-    ),
-  ).toBe(false);
+    promotionAdmission(false, "candidate", true, "candidate", "prior", "prior"),
+  ).toBe("unverified");
   expect(
-    canPromote(
-      "commit",
-      "commit",
-      "changed",
-      "snapshot",
-      true,
-      "database",
-      "database",
-      "manifest",
-      "manifest",
-    ),
-  ).toBe(false);
+    promotionAdmission(true, "candidate", true, "candidate", "prior", "other"),
+  ).toBe("current-changed");
   expect(
-    canPromote(
-      "commit",
-      "commit",
-      "snapshot",
-      "snapshot",
-      false,
-      "database",
-      "database",
-      "manifest",
-      "manifest",
-    ),
-  ).toBe(false);
+    promotionAdmission(true, "candidate", false, "", "prior", "prior"),
+  ).toBe("candidate-missing");
   expect(
-    canPromote(
-      "commit",
-      "commit",
-      "snapshot",
-      "snapshot",
-      true,
-      "changed",
-      "database",
-      "manifest",
-      "manifest",
-    ),
-  ).toBe(false);
-  expect(
-    canPromote(
-      "commit",
-      "commit",
-      "snapshot",
-      "snapshot",
-      true,
-      "database",
-      "database",
-      "changed",
-      "manifest",
-    ),
-  ).toBe(false);
+    promotionAdmission(true, "candidate", true, "other", "prior", "prior"),
+  ).toBe("different-version");
+});
+
+it("withdraws only an owned candidate that never took traffic while the predecessor serves", () => {
+  for (const beforeTraffic of [false, true])
+    for (const currentIsPrevious of [false, true])
+      for (const present of [false, true])
+        for (const owned of [false, true]) {
+          const decision = withdrawalDecision(
+            beforeTraffic,
+            currentIsPrevious,
+            present,
+            owned,
+          );
+          const expected =
+            !beforeTraffic || !currentIsPrevious
+              ? "refuse"
+              : !present
+                ? "already-withdrawn"
+                : owned
+                  ? "remove-candidate"
+                  : "refuse";
+          expect(
+            decision,
+            JSON.stringify({
+              beforeTraffic,
+              currentIsPrevious,
+              present,
+              owned,
+            }),
+          ).toBe(expected);
+        }
 });
 
 it("binds values without changing quotes, newlines, Unicode, empty text, or null", () => {

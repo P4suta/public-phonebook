@@ -6,9 +6,10 @@ date: 2026-10-30
 
 ## Status
 
-Proposed.
-Implemented as the publication gate.
-This extends the deployment boundary in [native Cloudflare services](native-cloudflare-typescript-services.md).
+Superseded by [verify release candidates in place before approval](verify-release-candidates-in-place-before-approval.md).
+Production now checks the candidate version itself at 0%, so `canPromote` and the staging identity check are gone.
+The immutable D1 imports, the clean committed source, and the tree identity of candidate evidence still apply.
+This extended the deployment boundary in [native Cloudflare services](native-cloudflare-typescript-services.md).
 
 ## Context
 
