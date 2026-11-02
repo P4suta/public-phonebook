@@ -15,7 +15,7 @@ const defaultCooldownMs = 60000;
 const millisecondsPerSecond = 1000;
 const collectorAgent = "PublicPhonebookCollector (+https://www.dial.page/data)";
 
-const ArtifactSchema = v.strictObject({
+export const ArtifactSchema = v.strictObject({
   url: PublicUrlSchema,
   resolvedUrl: PublicUrlSchema,
   sha256: DigestSchema,
@@ -84,6 +84,17 @@ export class ArtifactStore {
     )
       throw new Error(`Source cache integrity failure: ${checked.url}`);
     return bytes;
+  }
+
+  async artifacts(): Promise<readonly SourceArtifact[]> {
+    const settled = await Promise.allSettled(this.pending.values());
+    return settled
+      .flatMap((result) =>
+        result.status === "fulfilled" ? [result.value] : [],
+      )
+      .sort((first, second) =>
+        first.url < second.url ? -1 : first.url === second.url ? 0 : 1,
+      );
   }
 
   async get(value: string): Promise<SourceArtifact> {

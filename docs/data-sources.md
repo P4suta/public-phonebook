@@ -77,6 +77,12 @@ Run `mise x -- just data-replay .local/collection/replayed` to reproduce contact
 Use `mise x -- just data-discover .local/collection/candidates.json` to discover additional licensed candidates for review.
 Discovery does not add unreviewed files directly to a publication.
 
+A collection writes `contacts.jsonl`, `sources.json`, `artifacts.json`, and `collection-report.json`.
+`artifacts.json` lists every source artifact the run read, in URL order, with its digest and retrieval metadata.
+The report lists plans, conflicts, failures, and coverage in a fixed order, whichever order the sources finished in.
+It also records the digest and size of the other three files, so its own digest identifies the complete output.
+`mise x -- node tools/collection-store.ts compare .local/collection/current .local/collection/replayed` requires a replay to match its collection byte for byte.
+
 Source artifacts have SHA-256 identities, byte limits, timeouts, conditional requests, and per-origin request spacing.
 A rate-limited origin stops receiving new requests during its cooldown.
 Each accepted school has a unique compatible active MEXT code, a matching name, and either a matching postal code, address, or exact qualified identity.
@@ -97,3 +103,50 @@ Preparation normalizes addresses in the API and all three downloadable formats.
 It removes recognized postal prefixes and map annotations, normalizes full-width ASCII and numeric separators, and converts bounded block numerals.
 Named places such as 一番町 and 一条通, compatibility kanji, building names, and useful building annotations are preserved.
 Only populated categories appear in the prepared catalog.
+
+## Collection in GitHub Actions
+
+The `Collect` workflow in `.github/workflows/collect.yml` repeats the collection on a hosted runner.
+The owner starts it by hand on `main`, it has no schedule, and it stops on any other branch.
+
+1. The `collect` job runs `just data-collect` and `just data-replay`, and it requires the replay to match the collection byte for byte.
+   It holds no credentials, because it parses publisher files with the PDF, workbook, and HTML readers.
+   It hands the collection and its source cache to the next job as an artifact that expires after one day.
+2. The `store` job runs in the `data` environment and fetches the Doppler `ci_data` config through GitHub OIDC.
+   It downloads the base database that `sources/base-dataset.json` pins and refuses one whose manifest, size, or digest differs from the pin.
+3. It prepares the publication from that base and the collection with `just data-prepare`.
+   Then it runs `just data-check` and `just phone-quality` on the complete publication.
+4. Only after those checks pass, it writes to the private `dial-control` bucket under write-once keys.
+   It refuses a collection file that differs from the report and a source byte that differs from its digest.
+   It also refuses a publication whose source database isn't the pinned base.
+   The publication must hold as many contacts as the base and the collection together.
+
+| Key | Contents |
+| --- | --- |
+| `collection-cache/DIGEST` | The bytes of each source artifact |
+| `collections/REPORT/` | `collection-report.json`, `contacts.jsonl`, `sources.json`, `artifacts.json`, and `dataset.json` |
+| `blobs/sha256/DIGEST` and `datasets/MANIFEST/` | The prepared database, archives, ready manifest, and catalog |
+
+`REPORT` is the digest of `collection-report.json`, and `dataset.json` names the base manifest, the base database, and the prepared manifest.
+The job writes the publication last, so a stored manifest means that every other object is present.
+Storing the same collection again changes nothing.
+`artifacts.json` and the cached bytes are enough to rebuild the source cache and replay the collection offline.
+The store step prints the report digest and the manifest digest that a release names.
+
+The base is the retained publication `d5d630…`, whose database `03a3424b…` holds 650,933 contacts.
+The pin names its manifest digest, its database digest and size, and the database's `blobs/sha256/` key in `dial-control`.
+Change the pin only together with a reviewed base in `dial-control`.
+
+### Owner setup
+
+1. Import the retained records with `just control-import` as the [deployment guide](deployment.md#control-store) describes, so that `dial-control` holds the pinned base.
+2. Create an R2 API token that reads and writes only the `dial-control` bucket.
+3. Fill `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` in the Doppler `ci_data` config.
+4. Create a Doppler service account with read access to that config only.
+   Give it a GitHub OIDC identity for the subject `repo:P4suta@42543015/public-phonebook@1438449191:environment:data`.
+5. Store the identity's ID as the `DOPPLER_IDENTITY_ID` variable of the GitHub `data` environment.
+6. Start the workflow with `gh workflow run collect.yml --ref main`, or from the Actions page.
+
+The first run also measures whether the publishers answer a runner outside Japan.
+A failed collection keeps both reports as an artifact for seven days and writes nothing to `dial-control`.
+If publishers refuse the hosted runners, keep collecting locally with `just data-collect`.

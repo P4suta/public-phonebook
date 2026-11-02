@@ -121,6 +121,41 @@ describe("source artifact integrity", () => {
     ).resolves.toMatchObject({ bytes: 4 });
     expect(request).toHaveBeenCalledTimes(2);
   });
+  it("lists every retrieved artifact once in URL order and leaves out failed retrievals", async () => {
+    const root = await cache();
+    const store = new ArtifactStore(root, {
+      request: async (url): Promise<Response> => {
+        const href =
+          typeof url === "string"
+            ? url
+            : url instanceof URL
+              ? url.href
+              : url.url;
+        return href.includes("missing")
+          ? new Response(null, { status: 404 })
+          : new Response(href);
+      },
+      minimumIntervalMs: 0,
+      clock: (): string => "2026-11-02T00:00:00Z",
+    });
+    const urls = [
+      "https://example.go.jp/z.csv",
+      "https://example.go.jp/a.csv",
+      "https://example.go.jp/z.csv",
+    ];
+    const fetched = await Promise.all(urls.map((url) => store.get(url)));
+    await expect(
+      store.get("https://example.go.jp/missing.csv"),
+    ).rejects.toThrow("HTTP 404");
+    const listed = await store.artifacts();
+    expect(listed.map((artifact) => artifact.url)).toEqual([
+      "https://example.go.jp/a.csv",
+      "https://example.go.jp/z.csv",
+    ]);
+    const offline = new ArtifactStore(root, { offline: true });
+    for (const artifact of fetched) await offline.get(artifact.url);
+    expect(await offline.artifacts()).toEqual(listed);
+  });
   it("rejects untrusted protocol changes, oversized responses and uncached 304 responses", async () => {
     const root = await cache();
     await expect(
