@@ -472,6 +472,13 @@ export const srOnly = style({
   whiteSpace: "nowrap",
   border: 0,
 });
+/** Keeps the symbol definitions rendered, so references inside them still resolve, without taking up space. */
+export const iconSprite = style({
+  position: "absolute",
+  width: 0,
+  height: 0,
+  overflow: "hidden",
+});
 export const status = style({
   ...typography("meta"),
   overflowWrap: "anywhere",

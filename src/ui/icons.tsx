@@ -5,11 +5,30 @@ import {
   categoryFallbackIcon,
   categoryIcons,
   type IconName,
-  iconSprite,
+  iconIdPrefix,
+  iconSymbols,
 } from "./icon-catalog.ts";
 
 const mappedCategoryIcons: Readonly<Partial<Record<Category, IconName>>> =
   categoryIcons;
+
+/** Defines every symbol once in the document, so icons need no request and keep working offline. */
+export function IconSprite({
+  className,
+}: {
+  readonly className: string;
+}): ReactElement {
+  return (
+    <svg
+      className={className}
+      width={0}
+      height={0}
+      aria-hidden="true"
+      data-icon-sprite=""
+      dangerouslySetInnerHTML={{ __html: iconSymbols }}
+    />
+  );
+}
 
 /** Draws a Figma master from the sprite in the surrounding text color. */
 export function Icon({
@@ -29,7 +48,7 @@ export function Icon({
       aria-hidden="true"
       data-icon={name}
     >
-      <use href={`${iconSprite}#${name}`} />
+      <use href={`#${iconIdPrefix}${name}`} />
     </svg>
   );
 }

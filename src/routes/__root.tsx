@@ -11,7 +11,8 @@ import { environments } from "../core/environment.ts";
 import { ErrorPage } from "../ui/error-page.tsx";
 import { ExternalLinkConfirmation } from "../ui/external-link-dialog.tsx";
 import { siteIcons } from "../ui/icon-catalog.ts";
-import "../ui/styles.css.ts";
+import { IconSprite } from "../ui/icons.tsx";
+import { iconSprite } from "../ui/styles.css.ts";
 
 const siteName = "Public Phonebook";
 const siteDescription = "施設や窓口の電話番号をさがせます。";
@@ -71,6 +72,7 @@ function Root({ children }: { readonly children: ReactNode }): ReactElement {
         <HeadContent />
       </head>
       <body>
+        <IconSprite className={iconSprite} />
         <a href="#main" className="skip-link">
           本文へ進む
         </a>

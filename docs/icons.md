@@ -40,20 +40,21 @@ The same command writes the website's assets from the same masters.
 
 | Output | Master | Use |
 | --- | --- | --- |
-| `public/icons/sprite.svg` | Every product icon | One `<symbol>` per icon, painted with `currentColor` |
+| `src/ui/icon-catalog.ts` | Every product icon and `design/icons.json` | Typed icon names, the sprite's symbols, category mappings, and head declarations |
 | `public/icons/NAME.svg` | Each product icon | The unchanged Figma export |
 | `public/icons/LICENSE.txt` | `design/licenses/Lucide.txt` | The Lucide and Feather notices beside the glyphs |
-| `src/ui/icon-catalog.ts` | `design/icons.json` | Typed icon names, category mappings, and head declarations |
-| `public/favicon.ico` | `favicon-16`, `favicon-32` | Windows icon file with 32-bit PNG images |
+| `public/favicon.ico` | `favicon-16`, `favicon-32` | Windows icon file with 32-bit Portable Network Graphics (PNG) images |
 | `public/favicon.svg` | `favicon-32`, `favicon-dark-32` | Vector favicon that follows the light or dark color scheme |
-| `public/apple-touch-icon.png` | `app-icon-default` | Apple home-screen icon, 180 pixels |
-| `public/app-icon-SIZE.png` | `app-icon-default` | Installation icons, 192 and 512 pixels |
-| `public/app-icon-maskable-SIZE.png` | `app-icon-default` | Maskable installation icons, 192 and 512 pixels |
+| `public/apple-touch-icon.png` | `app-icon-default` | Apple home-screen icon at 180 pixels |
+| `public/app-icon-SIZE.png` | `app-icon-default` | Installation icons at 192 and 512 pixels |
+| `public/app-icon-maskable-SIZE.png` | `app-icon-default` | Maskable installation icons at 192 and 512 pixels |
 | `public/mask-icon.svg` | `mark-ink` | Safari pinned-tab icon |
-| `public/social-preview.png` | `social-preview` | Open Graph image, 1200 by 630 pixels |
+| `public/social-preview.png` | `social-preview` | Open Graph image at 1200 by 630 pixels |
 | `public/manifest.webmanifest` | The installation icons | Install manifest |
 
-`src/ui/icons.tsx` draws every symbol from the sprite, so each icon takes the text color of its control.
+The sprite has one `<symbol>` per product icon, painted with `currentColor`.
+Every page defines it once at the start of the document, so an icon needs no request and still draws offline.
+`src/ui/icons.tsx` draws every symbol from that sprite, so each icon takes the text color of its control.
 The website resolves a category's icon from the same mappings as the app, including the `file` fallback.
 Unit tests compare the web mappings with `IconCatalog.swift` and with the catalog's intended icon names.
 They also list the 26 categories that still need a master.

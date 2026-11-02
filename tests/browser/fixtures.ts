@@ -1,5 +1,5 @@
 import { test as base, expect, type Page } from "@playwright/test";
-import { iconSprite } from "../../src/ui/icon-catalog.ts";
+import { iconIdPrefix } from "../../src/ui/icon-catalog.ts";
 
 const accessControlFailure = /(\S+) due to access control checks\.$/u;
 const symbolExcerpt = 160;
@@ -48,21 +48,27 @@ export async function externalLinkIssues(
   );
 }
 
-/** Lists rendered symbols that don't draw exactly one named master from the sprite; the third-party API reference draws its own. */
+/** Lists rendered symbols that don't draw a named master from the document's one sprite; the third-party API reference draws its own. */
 export async function symbolIssues(page: Page): Promise<readonly string[]> {
   return page.locator("svg").evaluateAll(
-    (symbols, { sprite, excerpt }) =>
-      symbols.flatMap((symbol) => {
+    (symbols, { prefix, excerpt }) => {
+      const sprites = document.querySelectorAll("svg[data-icon-sprite]");
+      return symbols.flatMap((symbol) => {
+        if (symbol.hasAttribute("data-icon-sprite"))
+          return sprites.length === 1 ? [] : ["sprite: not exactly one"];
         const name = symbol.getAttribute("data-icon");
         if (!name && symbol.closest("[data-api-reference]")) return [];
+        const target = `${prefix}${name ?? ""}`;
         const use = symbol.querySelector(":scope > use");
         return name &&
           symbol.childElementCount === 1 &&
-          use?.getAttribute("href") === `${sprite}#${name}`
+          use?.getAttribute("href") === `#${target}` &&
+          sprites[0]?.querySelector(`:scope > symbol[id="${target}"]`)
           ? []
           : [`symbol: ${symbol.outerHTML.slice(0, excerpt)}`];
-      }),
-    { sprite: iconSprite, excerpt: symbolExcerpt },
+      });
+    },
+    { prefix: iconIdPrefix, excerpt: symbolExcerpt },
   );
 }
 

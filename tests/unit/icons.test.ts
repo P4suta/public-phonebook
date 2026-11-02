@@ -8,8 +8,9 @@ import { foundation } from "../../src/ui/foundations.ts";
 import {
   categoryFallbackIcon,
   categoryIcons,
+  iconIdPrefix,
   iconNames,
-  iconSprite,
+  iconSymbols,
 } from "../../src/ui/icon-catalog.ts";
 import { CategoryIcon, categoryIcon, Icon } from "../../src/ui/icons.tsx";
 
@@ -54,7 +55,7 @@ function hasMaster(category: string): boolean {
 
 it("draws a symbol from the sprite and names it on the element", () => {
   expect(renderToStaticMarkup(createElement(Icon, { name: "phone" }))).toBe(
-    `<svg width="${actionIconSize}" height="${actionIconSize}" aria-hidden="true" data-icon="phone"><use href="${iconSprite}#phone"></use></svg>`,
+    `<svg width="${actionIconSize}" height="${actionIconSize}" aria-hidden="true" data-icon="phone"><use href="#${iconIdPrefix}phone"></use></svg>`,
   );
 });
 
@@ -67,7 +68,7 @@ it("draws every category from the sprite at the category icon size", () => {
         createElement(CategoryIcon, { category: category.id }),
       ),
     ).toBe(
-      `<svg width="${categoryIconSize}" height="${categoryIconSize}" aria-hidden="true" data-icon="${name}"><use href="${iconSprite}#${name}"></use></svg>`,
+      `<svg width="${categoryIconSize}" height="${categoryIconSize}" aria-hidden="true" data-icon="${name}"><use href="#${iconIdPrefix}${name}"></use></svg>`,
     );
   }
 });
@@ -116,12 +117,25 @@ it("keeps mapped categories distinct and names each category still waiting for a
       expect(categoryIcon(category.id)).toBe(categoryFallbackIcon);
 });
 
-it("serves one symbol per icon name, painted only with the surrounding text color", async () => {
-  const sprite = await readFile(join("public", iconSprite), "utf8");
+it("defines one symbol per icon name, painted only with the surrounding text color", () => {
   expect(
-    [...sprite.matchAll(/<symbol id="([\w-]+)"/gu)].map((match) => match[1]),
-  ).toEqual([...iconNames]);
-  expect([...sprite.matchAll(/(?:fill|stroke)="([^"]*)"/gu)].length).toBe(
-    [...sprite.matchAll(/(?:fill|stroke)="(?:none|currentColor)"/gu)].length,
+    [...iconSymbols.matchAll(/<symbol id="([\w-]+)"/gu)].map(
+      (match) => match[1],
+    ),
+  ).toEqual(iconNames.map((name) => `${iconIdPrefix}${name}`));
+  expect([...iconSymbols.matchAll(/(?:fill|stroke)="([^"]*)"/gu)].length).toBe(
+    [...iconSymbols.matchAll(/(?:fill|stroke)="(?:none|currentColor)"/gu)]
+      .length,
+  );
+});
+
+it("keeps the unchanged Figma export of each icon beside its notices", async () => {
+  for (const name of iconNames)
+    expect(
+      await readFile(join("public/icons", `${name}.svg`), "utf8"),
+      name,
+    ).toBe(await readFile(join("design/icons", `${name}.svg`), "utf8"));
+  expect(await readFile("public/icons/LICENSE.txt", "utf8")).toBe(
+    await readFile("design/licenses/Lucide.txt", "utf8"),
   );
 });
