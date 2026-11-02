@@ -5,7 +5,7 @@ import { iconNames } from "../../src/ui/icon-catalog.ts";
 /**
  * Finds every icon a route can draw by walking the declarations its `Route` reaches.
  * The sprite is only drawn through `<Icon name>`, so the walk resolves each value that reaches that prop or an `icon` prop.
- * It accepts literals, conditionals of them, and props that a component only used as a JSX tag forwards.
+ * It accepts literals, conditionals of them, and the `icon` prop that a component used only as a JSX tag forwards.
  * It reports category icons and `.icon` reads as sites for the caller to resolve, and reports anything else as a problem.
  * The lint configuration forbids type assertions and unchecked `any` values, so an icon name can't enter through either.
  */
@@ -627,11 +627,12 @@ class RouteWalk {
     }
   }
 
-  /** Accepts a name that a top-level component destructures from its props, so its JSX call sites supply the icon. */
+  /** Accepts the `icon` prop of a top-level component, because the walk classifies every `icon` attribute that supplies it. */
   #forward(identifier: Node, context: Context, at: string): void {
     const name = nameOf(identifier) ?? "";
     for (const scope of context.scopes.toReversed()) {
       if (
+        name === "icon" &&
         scope.props.has(name) &&
         !scope.bindings.has(name) &&
         scope.topLevel
@@ -644,7 +645,7 @@ class RouteWalk {
       if (scope.props.has(name) || scope.bindings.has(name)) break;
     }
     this.#problems.push(
-      `${at} passes ${name}, which isn't a prop of a top-level component`,
+      `${at} passes ${name}, which isn't the icon prop of a top-level component`,
     );
   }
 

@@ -187,6 +187,12 @@ describe("the icon walk", () => {
       "names IconName",
     ],
     [
+      "a forwarded prop with another name",
+      `function Wrapper({ glyph }: { readonly glyph: IconName }) { return <Icon name={glyph} />; }
+       function Page() { return <Wrapper glyph="send" />; }`,
+      "passes glyph",
+    ],
+    [
       "a symbol drawn outside Icon",
       `function Page() { return <svg><use href="#icon-send" /></svg>; }`,
       "only Icon may draw a sprite symbol",
