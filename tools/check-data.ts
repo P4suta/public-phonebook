@@ -29,6 +29,7 @@ import {
 import { decodeUtf8, requireDirectoryText } from "./directory-delta.ts";
 import { checkRowOrder, readSearchIndex } from "./search-index.ts";
 import { fileDigest } from "./snapshot.ts";
+import { type ArchiveForms, checkTelephoneParity } from "./telephone-parity.ts";
 
 const commandArgumentOffset = 2;
 
@@ -88,7 +89,7 @@ async function checkDirectoryDeltas(
 
 export async function checkDataBundle(
   directory: string,
-  addressPolicy: "canonical" | "retained" = "canonical",
+  forms: ArchiveForms = "canonical",
 ): Promise<PreparedDatasetManifest> {
   const decoded: unknown = JSON.parse(
     await readFile(join(directory, "manifest.ready.json"), "utf8"),
@@ -144,7 +145,7 @@ export async function checkDataBundle(
       const value: unknown = JSON.parse(v.parse(v.string(), row.payload));
       const contact = v.parse(ContactSchema, value);
       if (
-        addressPolicy === "canonical" &&
+        forms === "canonical" &&
         normalizeAddress(contact.address) !== contact.address
       )
         throw new Error(`Noncanonical address: ${contact.id}`);
@@ -240,6 +241,7 @@ export async function checkDataBundle(
       archiveHash.digest("hex") !== manifest.snapshot
     )
       throw new Error("JSONL archive differs from its directory");
+    await checkTelephoneParity(directory, forms);
     const expectedArchive = new TextEncoder().encode(
       archive.finish({
         snapshot: manifest.snapshot,
@@ -301,7 +303,7 @@ export async function checkDataBundle(
         snapshot: manifest.snapshot,
         searchIndexBytes: manifest.searchIndex.bytes,
         integrity: integrity.integrity_check,
-        addressPolicy,
+        forms,
       }),
     );
     return manifest;

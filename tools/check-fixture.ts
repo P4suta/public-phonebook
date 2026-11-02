@@ -26,6 +26,7 @@ import { compressSearchIndex, readSearchIndex } from "./search-index.ts";
 import {
   compressDirectoryArchive,
   contactCsv,
+  contactCsvHeader,
   contactRowNumbers,
   fileDigest,
 } from "./snapshot.ts";
@@ -175,7 +176,10 @@ export async function prepareCheckFixture(): Promise<void> {
   const files = [];
   for (const [file, bytes] of [
     ["contacts.jsonl.gz", gzipSync(jsonl)],
-    ["contacts.csv.gz", gzipSync(contacts.map(contactCsv).join(""))],
+    [
+      "contacts.csv.gz",
+      gzipSync(`${contactCsvHeader}${contacts.map(contactCsv).join("")}`),
+    ],
     ["contacts.vcf.gz", gzipSync(contacts.map(contactVCard).join(""))],
     [
       directoryArchiveFile,

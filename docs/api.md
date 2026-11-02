@@ -76,8 +76,12 @@ The URL includes both the contact snapshot and the archive digest, so a changed 
 Validate the downloaded byte length and SHA-256 before processing it.
 Downloads contain the complete directory and do not depend on the search page size.
 Source-specific reuse terms remain attached to every record.
-CSV cells beginning with spreadsheet formula characters receive a leading apostrophe.
-CSV generation uses the pinned `csv-stringify` serializer with quoting, CRLF records, and its formula-escaping option.
+CSV records carry the columns `id`, `name`, `category`, `prefecture_code`, `municipality_code`, `address`, `phone_numbers`, `website`, `source_id`, `source_url`, `license`, `license_url`, and `data_as_of`.
+A `phone_numbers` cell holds the contact's E.164 numbers unescaped and separated by semicolons, the same values as `e164` in JSONL and `TEL` in vCard.
+Validation admits only `+81` and digits in each number, so the cell can't call a function, reference a cell, or run a command.
+A spreadsheet may still read that cell as a number, so import the column as text to keep the plus sign.
+Every other cell that begins with `=`, `+`, `-`, `@`, a tab, a carriage return, or a full-width `＝`, `＋`, `－`, or `＠` receives a leading apostrophe.
+That guard covers the characters of the formula-escaping option in the pinned `csv-stringify` serializer, which writes quoted fields and CRLF records.
 JSONL retains the canonical structured values.
 vCard text is escaped and folded at 75 UTF-8 bytes without splitting code points.
 
