@@ -6,7 +6,11 @@ import { describe, expect, it } from "vitest";
 import { candidateSigner, candidateStages } from "../../tools/release-store.ts";
 import {
   checkStageScripts,
+  observePerformance,
+  parityCommand,
   parseTestArguments,
+  performanceCommand,
+  performanceReport,
   recordingAuthority,
   stageRunner,
 } from "../../tools/test.ts";
@@ -51,6 +55,26 @@ describe("test stages", () => {
     expect(Object.keys(stageRunner("fixture")).sort()).toEqual(
       [...candidateStages].sort(),
     );
+  });
+
+  it("compares national search parity on the candidate's bundle and observes performance without a verdict", async () => {
+    expect(candidateStages).toContain("parity");
+    expect(parityCommand("/data/bundle")).toEqual([
+      "tools/search-parity.ts",
+      "/data/bundle",
+    ]);
+    expect(performanceCommand("/data/bundle")).toEqual([
+      "tools/search-performance.ts",
+      "/data/bundle",
+      "--output",
+      performanceReport,
+    ]);
+    const directory = await mkdtemp(join(tmpdir(), "phonebook-observation-"));
+    try {
+      expect(await observePerformance(join(directory, "missing"))).toBeNull();
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it("keeps the build checks in the candidate check stage", async () => {

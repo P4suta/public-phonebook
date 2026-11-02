@@ -404,6 +404,7 @@ export async function materializeVerificationDataset(
 export const candidateStages = [
   "check",
   "data",
+  "parity",
   "phones",
   "prove",
   "e2e",
@@ -456,6 +457,38 @@ export async function recordCandidateEvidence(
     throw new Error(`Different candidate evidence already exists: ${key}`, {
       cause: error,
     });
+  }
+}
+
+export const CandidateObservationSchema = v.strictObject({
+  formatVersion: v.literal(evidenceFormat),
+  name: v.literal("search-performance"),
+  sourceTree,
+  manifestSha256: DigestSchema,
+  provenance: RunProvenanceSchema,
+  report: v.record(v.string(), v.unknown()),
+});
+export type CandidateObservation = v.InferOutput<
+  typeof CandidateObservationSchema
+>;
+
+/** Keeps a measurement beside the candidate evidence; admission never reads it, so it records without deciding. */
+export async function recordCandidateObservation(
+  store: ControlStore,
+  observation: CandidateObservation,
+): Promise<"created" | "unchanged"> {
+  const record = v.parse(CandidateObservationSchema, observation);
+  const key = controlKeys.observation(
+    record.sourceTree,
+    record.manifestSha256,
+    record.name,
+  );
+  try {
+    await store.write(key, encodeRecord(record), { kind: "create" });
+    return "created";
+  } catch (error) {
+    if (!isConflict(error)) throw error;
+    return "unchanged";
   }
 }
 

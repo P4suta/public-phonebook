@@ -38,6 +38,9 @@ describe("control keys", () => {
     expect(controlKeys.candidate(tree, digest, "e2e")).toBe(
       `candidates/${tree}/${digest}/e2e.json`,
     );
+    expect(controlKeys.observation(tree, digest, "search-performance")).toBe(
+      `observations/${tree}/${digest}/search-performance.json`,
+    );
     expect(controlKeys.journalHistory("production", 7)).toBe(
       "journals/production/history/000000000007.json",
     );
@@ -47,6 +50,8 @@ describe("control keys", () => {
       [controlKeys.collection(digest, "report.json")]: "write-once",
       [controlKeys.collectionCache(digest)]: "write-once",
       [controlKeys.candidate(tree, digest, "check")]: "write-once",
+      [controlKeys.observation(tree, digest, "search-performance")]:
+        "write-once",
       [controlKeys.journalHead("production")]: "conditional",
       [controlKeys.lease("production")]: "conditional",
       [controlKeys.journalHistory("production", 1)]: "append-only",

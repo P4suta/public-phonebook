@@ -296,7 +296,7 @@ Its audit found 160 relations outside the pinned full metadata's recognized patt
 They require source investigation and are preserved without speculative digit repairs.
 The audit requires zero unparseable spellings, source/canonical disagreements, formatting round-trip disagreements, and duplicate numbers within a contact.
 
-The release gate checks the build and the device search with these entry points, which the candidate workflow can call.
+The release gate checks the build and the device search with these entry points, and the candidate stages below call them.
 Run `mise x -- node tools/build-budget.ts` after a build.
 It requires the gzip size of the Worker's modules to stay under 1 MiB, well below Cloudflare's compressed upload limit, so an accidental bundle fails here first.
 It also requires exactly one search Worker script of at most 34 KiB.
@@ -328,8 +328,15 @@ The command invalidates its preceding test receipt before execution and records 
 Production rejects a receipt for another dataset, source tree, format, or incomplete result.
 Dirty development checkouts can run the same checks but produce no publication receipt.
 Production admits a candidate on candidate evidence from `candidate.yml` rather than on a local receipt.
-The `check` stage runs the build checks after the fast gate.
-The browser campaign uses the built client and Worker output from that stage.
+The candidate stages run in this order: `check`, `data`, `parity`, `phones`, `prove`, and `e2e`.
+Production requires passing evidence for every stage, so evidence without `parity` is refused as a missing stage.
+The `check` stage runs the build checks after the fast gate, and then the build budget.
+The `parity` stage runs the search parity comparison on the candidate's dataset, which the workflow seeds into the local D1 first.
+The `e2e` stage runs the national browser campaign in Chromium, Firefox, WebKit, and the mobile WebKit profile, including the script budget in `budget.spec.ts`.
+After a complete run, the command records the search performance as an observation beside the candidate evidence.
+Admission never reads the observation, a failed measurement only logs why it recorded nothing, and a rerun keeps the first observation.
+The workflow keeps both search reports as artifacts for 90 days.
+The browser campaign uses the built client and Worker output from the `check` stage.
 It covers automatic search, Japanese composition, early input, on-device search and its switch from server results, offline search, old URL redirects, exact-name ranking, call/map/detail/source actions, external-link confirmation, denied clipboard access, native no-JavaScript continuation, retries, changed snapshots, untrusted result text, local assets, nonce handling, HTTP contracts, and complete-download hashes.
 It also queries every prefecture and category against native D1.
 Browser failures retain screenshots, videos, traces, and structured diagnostics under `test-results`.
