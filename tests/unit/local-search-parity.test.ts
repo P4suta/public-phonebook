@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import { Miniflare } from "miniflare";
+import { Miniflare, type Response as WorkerResponse } from "miniflare";
 import * as v from "valibot";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -23,45 +23,22 @@ import {
   type SearchResponse,
   SearchResponseSchema,
 } from "../../src/core/models.ts";
-import { nameTokens, normalizeName } from "../../src/core/search.ts";
+import { normalizeName } from "../../src/core/search.ts";
 import {
   compareRowOrder,
   decodeSearchIndex,
   type SearchIndex,
 } from "../../src/core/search-index.ts";
-import { api, type DirectoryApiBindings } from "../../src/server/api.ts";
 import { checkFixtureContacts } from "../../tools/check-fixture.ts";
 import { databaseSchema } from "../../tools/database-schema.ts";
+import { contactSeedStatements } from "../../tools/directory-fixture.ts";
+import type { SqlStatement } from "../../tools/remote-statements.ts";
 import { readSearchIndex } from "../../tools/search-index.ts";
 import { contactRowNumbers } from "../../tools/snapshot.ts";
+import { apiWorkerEntry, bundledApi } from "./workerd-fixture.ts";
 
 const snapshot = "c".repeat(64);
 const origin = "https://example.org";
-const runtime = new Miniflare({
-  cf: false,
-  telemetry: { enabled: false },
-  enableDevRegistry: false,
-  unsafeEnableSharedStorage: false,
-  workers: [
-    {
-      config: {
-        name: "local-search-parity",
-        compatibilityDate: "2026-10-23",
-        manifest: {
-          mainModule: "parity.js",
-          modules: {
-            "parity.js": {
-              type: "esm",
-              contents:
-                "export default { fetch() { return new Response('parity'); } }",
-            },
-          },
-        },
-        env: { DB: { type: "d1", id: "local-search-parity" } },
-      },
-    },
-  ],
-});
 
 const names = [
   "図書館",
@@ -161,79 +138,70 @@ const catalog: Catalog = v.parse(CatalogSchema, {
   municipalities: [],
 });
 
-interface Statement {
-  readonly sql: string;
-  readonly values: readonly (string | number | null)[];
-}
-
-function statements(): Statement[] {
-  const rows = contactRowNumbers(contacts);
+function statements(): SqlStatement[] {
   return [
-    ...contacts.flatMap((item): Statement[] => {
-      const rowid = rows.get(item.id);
-      if (rowid === undefined) throw new Error("Missing parity row number");
-      return [
-        {
-          sql: "INSERT INTO contacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          values: [
-            rowid,
-            item.id,
-            item.name,
-            normalizeName(item.name),
-            item.prefectureCode,
-            item.municipalityCode,
-            item.category,
-            item.sourceId,
-            JSON.stringify(item),
-          ],
-        },
-        ...item.phones.map((phone) => ({
-          sql: "INSERT INTO phones VALUES (?, ?)",
-          values: [phone.e164, rowid],
-        })),
-        {
-          sql: "INSERT INTO contact_search(rowid, terms) VALUES (?, ?)",
-          values: [rowid, nameTokens(normalizeName(item.name)).join(" ")],
-        },
-      ];
-    }),
+    ...contactSeedStatements(contacts, contactRowNumbers(contacts)),
     {
       sql: "INSERT INTO metadata VALUES ('catalog', ?)",
-      values: [JSON.stringify(catalog)],
+      params: [JSON.stringify(catalog)],
     },
   ];
 }
 
-let bindings: DirectoryApiBindings;
+let runtime: Miniflare | undefined;
 let index: SearchIndex;
 
 beforeAll(async () => {
+  runtime = new Miniflare({
+    cf: false,
+    telemetry: { enabled: false },
+    enableDevRegistry: false,
+    unsafeEnableSharedStorage: false,
+    workers: [
+      {
+        config: {
+          name: "local-search-parity",
+          compatibilityDate: "2026-10-23",
+          compatibilityFlags: ["nodejs_compat"],
+          manifest: {
+            mainModule: "worker.js",
+            modules: {
+              "worker.js": { type: "esm", contents: apiWorkerEntry },
+              "api.js": { type: "esm", contents: await bundledApi() },
+            },
+          },
+          env: {
+            DB: { type: "d1", id: "local-search-parity" },
+            DATASETS: { type: "r2", name: "local-search-parity" },
+            APP_ENV: { type: "text", value: "development" },
+            PUBLIC_ORIGIN: { type: "text", value: "http://localhost:8787" },
+          },
+        },
+      },
+    ],
+  });
   const DB = await runtime.getD1Database("DB");
-  bindings = {
-    DB,
-    DATASETS: { get: async (): Promise<null> => null },
-    APP_ENV: "development",
-    PUBLIC_ORIGIN: "http://localhost:8787",
-  };
   await DB.exec(databaseSchema.replaceAll("\n", " "));
   await DB.batch(
-    statements().map((item) => DB.prepare(item.sql).bind(...item.values)),
+    statements().map((item) => DB.prepare(item.sql).bind(...item.params)),
   );
   const local = new DatabaseSync(":memory:");
   try {
     local.exec(databaseSchema);
     for (const item of statements())
-      local.prepare(item.sql).run(...item.values);
+      local.prepare(item.sql).run(...item.params);
     index = decodeSearchIndex(readSearchIndex(local, { snapshot, catalog }));
   } finally {
     local.close();
   }
 });
 
-afterAll(async () => runtime.dispose());
+afterAll(async () => runtime?.dispose());
 
-async function request(path: string): Promise<Response> {
-  return api.fetch(new Request(`${origin}${path}`), bindings);
+/** Asks workerd for the whole response, so each request crosses from Node once. */
+async function request(path: string): Promise<WorkerResponse> {
+  if (!runtime) throw new Error("The workerd runtime isn't ready");
+  return runtime.dispatchFetch(`${origin}${path}`);
 }
 
 async function json(path: string): Promise<unknown> {

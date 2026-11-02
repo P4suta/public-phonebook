@@ -3,7 +3,6 @@ import { get } from "node:http";
 import { brotliDecompressSync } from "node:zlib";
 import { Miniflare } from "miniflare";
 import * as v from "valibot";
-import { build } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   categoryDefinitions,
@@ -30,14 +29,13 @@ import {
 import { databaseSchema } from "../../tools/database-schema.ts";
 import { compressSearchIndex } from "../../tools/search-index.ts";
 import { contactRowNumbers } from "../../tools/snapshot.ts";
+import { apiWorkerEntry, bundledApi } from "./workerd-fixture.ts";
 
 const fixtureOrigin = "http://localhost:8787";
 const prefectureCodeWidth = 2;
 const fixturePrefecture = "13";
 const digestLength = 64;
 const fixtureNames = ["図書館", "市役所", "公民館", "体育館", "美術館"];
-const workerEntry =
-  "import { api } from './api.js'; export default { fetch: (request, env, context) => api.fetch(request, env, context) };";
 
 interface RawResponse {
   readonly status: number;
@@ -63,28 +61,6 @@ function concatenate(chunks: readonly Uint8Array[]): Uint8Array {
 
 function text(bytes: Uint8Array): string {
   return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-}
-
-/** Bundles the actual API module for workerd, so the runtime and not Node handles its responses. */
-async function bundledApi(): Promise<string> {
-  const output = await build({
-    configFile: false,
-    logLevel: "warn",
-    ssr: { target: "webworker", noExternal: true },
-    resolve: { conditions: ["workerd", "worker", "browser", "import"] },
-    build: {
-      write: false,
-      ssr: "src/server/api.ts",
-      minify: false,
-      rollupOptions: { output: { format: "es", codeSplitting: false } },
-    },
-  });
-  for (const result of Array.isArray(output) ? output : [output])
-    if ("output" in result)
-      for (const chunk of result.output)
-        if (chunk.type === "chunk" && chunk.exports.includes("api"))
-          return chunk.code;
-  throw new Error("The API bundle has no entry chunk");
 }
 
 const contacts: Contact[] = fixtureNames.map((name, position) =>
@@ -197,7 +173,7 @@ beforeAll(async () => {
           manifest: {
             mainModule: "worker.js",
             modules: {
-              "worker.js": { type: "esm", contents: workerEntry },
+              "worker.js": { type: "esm", contents: apiWorkerEntry },
               "api.js": { type: "esm", contents: await bundledApi() },
             },
           },

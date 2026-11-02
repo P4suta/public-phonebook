@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { brotliCompressSync } from "node:zlib";
 import { SQLiteAsyncDialect } from "drizzle-orm/sqlite-core";
-import { Miniflare } from "miniflare";
+import { Miniflare, type Response as WorkerResponse } from "miniflare";
 import * as v from "valibot";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
@@ -29,7 +29,6 @@ import {
 import { checkPageChain } from "../../src/core/page-chain.ts";
 import {
   encodeCursor,
-  nameTokens,
   normalizeName,
   parseSearch,
   searchKey,
@@ -44,6 +43,8 @@ import {
 import type { DatasetObject } from "../../src/server/datasets.ts";
 import type { SearchCache } from "../../src/server/search-cache.ts";
 import { databaseSchema } from "../../tools/database-schema.ts";
+import { contactSeedStatements } from "../../tools/directory-fixture.ts";
+import { apiWorkerEntry, bundledApi } from "./workerd-fixture.ts";
 
 const runtime = new Miniflare({
   cf: false,
@@ -55,20 +56,20 @@ const runtime = new Miniflare({
       config: {
         name: "fixture",
         compatibilityDate: "2026-10-23",
+        compatibilityFlags: ["nodejs_compat"],
         manifest: {
-          mainModule: "fixture.js",
+          mainModule: "worker.js",
           modules: {
-            "fixture.js": {
-              type: "esm",
-              contents:
-                "export default { fetch() { return new Response('fixture'); } }",
-            },
+            "worker.js": { type: "esm", contents: apiWorkerEntry },
+            "api.js": { type: "esm", contents: await bundledApi() },
           },
         },
         env: {
           DB: { type: "d1", id: "fixture" },
           EMPTY: { type: "d1", id: "empty" },
           DATASETS: { type: "r2", name: "fixture" },
+          APP_ENV: { type: "text", value: "development" },
+          PUBLIC_ORIGIN: { type: "text", value: "http://localhost:8787" },
         },
       },
     },
@@ -170,28 +171,14 @@ beforeAll(async () => {
     PUBLIC_ORIGIN: "http://localhost:8787",
   };
   await DB.exec(databaseSchema.replaceAll("\n", " "));
-  const statements = contacts.flatMap((contact, index) => [
-    DB.prepare("INSERT INTO contacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(
-      index + 1,
-      contact.id,
-      contact.name,
-      normalizeName(contact.name),
-      contact.prefectureCode,
-      contact.municipalityCode,
-      contact.category,
-      contact.sourceId,
-      JSON.stringify(contact),
+  const rowNumbers = new Map(
+    contacts.map((contact, index) => [contact.id, index + 1]),
+  );
+  await DB.batch(
+    contactSeedStatements(contacts, rowNumbers).map((statement) =>
+      DB.prepare(statement.sql).bind(...statement.params),
     ),
-    DB.prepare("INSERT INTO phones VALUES (?, ?)").bind(
-      contact.phones[0]?.e164 ?? "",
-      index + 1,
-    ),
-    DB.prepare("INSERT INTO contact_search(rowid, terms) VALUES (?, ?)").bind(
-      index + 1,
-      nameTokens(normalizeName(contact.name)).join(" "),
-    ),
-  ]);
-  await DB.batch(statements);
+  );
   const catalog = v.parse(CatalogSchema, {
     snapshot,
     generatedAt: "2026-10-29T00:00:00Z",
@@ -226,6 +213,11 @@ afterAll(async () => runtime.dispose());
 
 async function request(path: string, init?: RequestInit): Promise<Response> {
   return api.fetch(new Request(`https://example.org${path}`, init), bindings);
+}
+
+/** Asks workerd for the whole response, so each page of a long walk crosses from Node once. */
+async function served(path: string): Promise<WorkerResponse> {
+  return runtime.dispatchFetch(`https://example.org${path}`);
 }
 
 describe("native D1 public API", () => {
@@ -795,7 +787,7 @@ describe("native D1 public API", () => {
     ]) {
       let path: string | null = start;
       for (let index = 0; path; index += 1) {
-        const response = await request(path);
+        const response = await served(path);
         const text = await response.text();
         digests[`${start}#${index}`] =
           `${response.status}:${await sha256(text)}`;
@@ -812,7 +804,7 @@ describe("native D1 public API", () => {
       "/api/v1/contact-groups",
       "/api/contacts.vcf?limit=5",
     ]) {
-      const response = await request(path);
+      const response = await served(path);
       digests[path] =
         `${response.status}:${await sha256(await response.text())}`;
     }
