@@ -36,10 +36,11 @@ export const PublicUrlSchema = v.pipe(
     );
   }),
 );
+export const E164Schema = v.pipe(v.string(), v.regex(/^\+81[1-9][0-9]{8,9}$/));
 export const PhoneSchema = v.pipe(
   v.strictObject({
     display: TextSchema,
-    e164: v.pipe(v.string(), v.regex(/^\+81[1-9][0-9]{8,9}$/)),
+    e164: E164Schema,
   }),
   v.check((phone) => {
     const normalized = normalizePhone(phone.display);

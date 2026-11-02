@@ -26,6 +26,10 @@ export type WorkflowRule =
   | "id-token-outside-dispatch"
   | "change-runner-not-linux"
   | "change-release-check"
+  | "gate-not-always"
+  | "gate-needs-incomplete"
+  | "gate-script-unrecognized"
+  | "gate-accepts-unsuccessful"
   | "release-environment-off-main"
   | "production-without-predecessor"
   | "publication-concurrency"
@@ -74,6 +78,7 @@ const StepSchema = v.looseObject({
 });
 const StepsSchema = v.optional(v.array(StepSchema));
 const JobSchema = v.looseObject({
+  name: v.optional(v.unknown()),
   permissions: v.optional(v.unknown()),
   environment: v.optional(v.unknown()),
   "runs-on": v.optional(v.unknown()),
@@ -189,6 +194,195 @@ function changeJobViolations(
         location: `${location}.steps[${index}]`,
         rule: "change-release-check",
       });
+  return violations;
+}
+
+export const requiredCheck = "Checks";
+export const scopedJobs: readonly string[] = ["rust"];
+const successfulResults: readonly string[] = ["success"];
+const scopedResults: readonly string[] = ["success", "skipped"];
+const jobResults: readonly string[] = [
+  "success",
+  "failure",
+  "cancelled",
+  "skipped",
+];
+const maximumGateAssignments = 65_536;
+const gateCondition = /^(?:always\(\)|\$\{\{\s*always\(\)\s*\}\})$/u;
+const gateClause =
+  /^test "(\$[A-Z][A-Z0-9_]*(?::\$[A-Z][A-Z0-9_]*)*)" = ([a-z]+(?::[a-z]+)*)$/u;
+const gateClauseSeparator = " || ";
+const needsFact =
+  /^\$\{\{\s*needs\.([A-Za-z_][\w-]*)\.(result|outputs\.[A-Za-z_][\w-]*)\s*\}\}$/u;
+const resultFact = /^[\w-]+\.result$/u;
+
+const GateStepSchema = v.strictObject({
+  name: v.optional(v.string()),
+  env: v.optional(v.record(v.string(), v.string())),
+  run: v.string(),
+});
+const GateJobSchema = v.looseObject({
+  if: v.optional(v.unknown()),
+  needs: v.optional(v.union([v.string(), v.array(v.string())])),
+  steps: v.optional(v.array(v.unknown())),
+});
+
+interface GateClause {
+  readonly facts: readonly string[];
+  readonly expected: string;
+}
+type GateLine = readonly GateClause[];
+
+function gateClauseOf(
+  clause: string,
+  facts: ReadonlyMap<string, string>,
+): GateClause | null {
+  const [, operand, expected] = gateClause.exec(clause) ?? [];
+  if (operand === undefined || expected === undefined) return null;
+  const referenced: string[] = [];
+  for (const variable of operand.replaceAll("$", "").split(":")) {
+    const fact = facts.get(variable);
+    if (fact === undefined) return null;
+    referenced.push(fact);
+  }
+  return { facts: referenced, expected };
+}
+
+function gateLines(
+  step: unknown,
+  needs: readonly string[],
+): readonly GateLine[] | null {
+  const parsed = v.safeParse(GateStepSchema, step);
+  if (!parsed.success) return null;
+  const facts = new Map<string, string>();
+  for (const [variable, value] of Object.entries(parsed.output.env ?? {})) {
+    const [, job, property] = needsFact.exec(value) ?? [];
+    if (job === undefined || property === undefined || !needs.includes(job))
+      return null;
+    facts.set(variable, `${job}.${property}`);
+  }
+  const lines: GateLine[] = [];
+  for (const line of parsed.output.run.split("\n").map((text) => text.trim())) {
+    if (line === "") continue;
+    const clauses = line
+      .split(gateClauseSeparator)
+      .map((clause) => gateClauseOf(clause, facts));
+    if (clauses.includes(null)) return null;
+    lines.push(clauses.filter((clause) => clause !== null));
+  }
+  return lines.length > 0 ? lines : null;
+}
+
+function segmentRuns(literal: string): readonly string[] {
+  const segments = literal.split(":");
+  const runs: string[] = [];
+  for (let start = 0; start < segments.length; start += 1)
+    for (let end = start + 1; end <= segments.length; end += 1)
+      runs.push(segments.slice(start, end).join(":"));
+  return runs;
+}
+
+/** An output outside every compared literal fails each clause like the empty string does. */
+function outputDomain(lines: readonly GateLine[]): readonly string[] {
+  return [
+    ...new Set([
+      "",
+      ...lines.flat().flatMap((clause) => segmentRuns(clause.expected)),
+    ]),
+  ];
+}
+
+function gateAssignments(
+  facts: readonly string[],
+  outputs: readonly string[],
+): readonly ReadonlyMap<string, string>[] {
+  return facts.reduce<readonly ReadonlyMap<string, string>[]>(
+    (assignments, fact) =>
+      assignments.flatMap((assignment) =>
+        (resultFact.test(fact) ? jobResults : outputs).map(
+          (value) => new Map([...assignment, [fact, value]]),
+        ),
+      ),
+    [new Map()],
+  );
+}
+
+function gatePasses(
+  lines: readonly GateLine[],
+  assignment: ReadonlyMap<string, string>,
+): boolean {
+  return lines.every((line) =>
+    line.some(
+      ({ facts, expected }) =>
+        facts.map((fact) => assignment.get(fact)).join(":") === expected,
+    ),
+  );
+}
+
+function gateViolations(
+  file: string,
+  id: string,
+  document: unknown,
+  jobs: readonly string[],
+  shellDefaults: boolean,
+): readonly WorkflowViolation[] {
+  const location = `jobs.${id}`;
+  const gate = v.parse(GateJobSchema, document);
+  const needs = gate.needs === undefined ? [] : [gate.needs].flat();
+  const violations: WorkflowViolation[] = [];
+  if (typeof gate.if !== "string" || !gateCondition.test(gate.if.trim()))
+    violations.push({ file, location, rule: "gate-not-always" });
+  if (jobs.some((job) => job !== id && !needs.includes(job)))
+    violations.push({ file, location, rule: "gate-needs-incomplete" });
+  if (shellDefaults || "defaults" in gate || "continue-on-error" in gate) {
+    violations.push({ file, location, rule: "gate-script-unrecognized" });
+    return violations;
+  }
+  const steps = (gate.steps ?? []).map((step) => gateLines(step, needs));
+  for (const [index, lines] of steps.entries())
+    if (lines === null)
+      violations.push({
+        file,
+        location: `${location}.steps[${index}]`,
+        rule: "gate-script-unrecognized",
+      });
+  if (steps.includes(null)) return violations;
+  const lines = steps.filter((step) => step !== null).flat();
+  const facts = [
+    ...new Set([
+      ...needs.map((job) => `${job}.result`),
+      ...lines.flat().flatMap((clause) => clause.facts),
+    ]),
+  ];
+  const outputs = outputDomain(lines);
+  const assignments = facts.reduce(
+    (count, fact) =>
+      count * (resultFact.test(fact) ? jobResults : outputs).length,
+    1,
+  );
+  if (assignments > maximumGateAssignments) {
+    violations.push({ file, location, rule: "gate-script-unrecognized" });
+    return violations;
+  }
+  const passing = gateAssignments(facts, outputs).filter((assignment) =>
+    gatePasses(lines, assignment),
+  );
+  for (const job of needs) {
+    const accepted = scopedJobs.includes(job)
+      ? scopedResults
+      : successfulResults;
+    if (
+      passing.some(
+        (assignment) =>
+          !accepted.includes(assignment.get(`${job}.result`) ?? ""),
+      )
+    )
+      violations.push({
+        file,
+        location: `${location}.needs.${job}`,
+        rule: "gate-accepts-unsuccessful",
+      });
+  }
   return violations;
 }
 
@@ -333,6 +527,16 @@ export function workflowViolations(
     violations.push(...stepViolations(file, location, job.steps));
     if (runsOnChange)
       violations.push(...changeJobViolations(file, location, job));
+    if (runsOnChange && job.name === requiredCheck)
+      violations.push(
+        ...gateViolations(
+          file,
+          id,
+          job,
+          Object.keys(workflow.jobs),
+          "defaults" in workflow,
+        ),
+      );
     violations.push(...releaseJobViolations(file, location, job));
   }
   return violations;
