@@ -11,7 +11,18 @@ zizmor = "1.31.1"
 doppler = "3.77.1"
 taplo = "0.10.0"
 gitleaks = "8.30.1"
-"cargo:cargo-audit" = "0.22.2"
 xcodegen = { version = "2.46.0", os = ["macos"] }
 swiftlint = { version = "0.65.1", os = ["macos"] }
 "github:ericodx/swift-mutation-testing" = { version = "1.6.4", os = ["macos"] }
+
+# The prebuilt cargo-audit release.
+# A version change needs each asset's new SHA-256 from the release.
+[tools."github:rustsec/rustsec"]
+version = "0.22.2"
+version_prefix = "cargo-audit/v"
+
+[tools."github:rustsec/rustsec".platforms]
+linux-x64 = { asset_pattern = "cargo-audit-x86_64-unknown-linux-gnu-v*.tgz", checksum = "sha256:ab28a1bdb54db4d5d8ad5981cf1f959410370b3d28250dbd35f6a44248620e39" }
+linux-arm64 = { asset_pattern = "cargo-audit-aarch64-unknown-linux-gnu-v*.tgz", checksum = "sha256:c6603814ddaa45e51263dafd31c0ac98808f688d26f7395804f9670b0fd599dd" }
+macos-x64 = { asset_pattern = "cargo-audit-x86_64-apple-darwin-v*.tgz", checksum = "sha256:847831323de932155b226ab60ee4a180e13e5d007a019f0d4b7b4d89a6de2ab2" }
+macos-arm64 = { asset_pattern = "cargo-audit-aarch64-apple-darwin-v*.tgz", checksum = "sha256:ec7ca4263769593df4d909be85b94a6b79efa2897be5d2bb8ebd516e823175af" }
