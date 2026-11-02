@@ -1,7 +1,9 @@
 import type { APIResponse, Page } from "@playwright/test";
 import * as v from "valibot";
+import { ContactSchema } from "../../src/core/models.ts";
 import { uiCopy } from "../../src/ui/copy.ts";
-import { siteIcons } from "../../src/ui/icon-catalog.ts";
+import { iconIdPrefix, siteIcons } from "../../src/ui/icon-catalog.ts";
+import { type PageMatch, pageIcons } from "../../src/ui/route-icons.ts";
 import { expect, test } from "./fixtures.ts";
 
 const ok = 200;
@@ -14,6 +16,10 @@ const pngRgba = 6;
 const pngDepth = 8;
 const rgbaBitsPerPixel = 32;
 const paintedExtent = 0;
+const fixtureContact = `/contacts/${encodeURIComponent("fixture:0")}`;
+const spritePattern = /<svg[^>]*data-icon-sprite=""[^>]*>(.*?)<\/svg>/gsu;
+const symbolPattern = /<symbol id="([^"]+)"/gu;
+const usePattern = /<use href="#([^"]+)"/gu;
 
 const ManifestSchema = v.object({
   name: v.string(),
@@ -196,6 +202,45 @@ test("the server returns each declared site icon, the manifest, and the sharing 
       ),
     ),
   );
+});
+
+test("each server render inlines one sprite with exactly the symbols its routes can draw", async ({
+  request,
+}) => {
+  const contact = v.parse(
+    ContactSchema,
+    await (await request.get(`/api${fixtureContact}`)).json(),
+  );
+  const root = { routeId: "__root__" } as const;
+  const pages: readonly (readonly [string, readonly PageMatch[]])[] = [
+    ["/", [root, { routeId: "/" }]],
+    [`/?q=${encodeURIComponent(contact.name)}`, [root, { routeId: "/" }]],
+    [fixtureContact, [root, { routeId: "/contacts/$id", loaderData: contact }]],
+    [`${fixtureContact}/source`, [root, { routeId: "/contacts/$id_/source" }]],
+    ["/about", [root, { routeId: "/about" }]],
+    ["/data", [root, { routeId: "/data" }]],
+    ["/developers", [root, { routeId: "/developers" }]],
+    ["/privacy", [root, { routeId: "/privacy" }]],
+    ["/support", [root, { routeId: "/support" }]],
+    ["/missing-page", [root]],
+  ];
+  for (const [path, matches] of pages) {
+    const html = await (await request.get(path)).text();
+    const sprites = [...html.matchAll(spritePattern)];
+    expect(sprites, path).toHaveLength(1);
+    const defined = [...(sprites[0]?.[1] ?? "").matchAll(symbolPattern)].map(
+      (match) => match[1],
+    );
+    expect(defined, path).toEqual(
+      pageIcons(matches).map((name) => `${iconIdPrefix}${name}`),
+    );
+    const used = [...new Set([...html.matchAll(usePattern)].map((m) => m[1]))];
+    expect(used.length, path).toBeGreaterThan(0);
+    expect(
+      used.filter((id) => !defined.includes(id)),
+      path,
+    ).toEqual([]);
+  }
 });
 
 test("symbols draw from the sprite in the foreground color of plain and solid controls", async ({

@@ -12,11 +12,13 @@ import {
 const mappedCategoryIcons: Readonly<Partial<Record<Category, IconName>>> =
   categoryIcons;
 
-/** Defines every symbol once in the document, so icons need no request and keep working offline. */
+/** Defines each icon a page can draw once in the document, so icons need no request and keep working offline. */
 export function IconSprite({
   className,
+  names,
 }: {
   readonly className: string;
+  readonly names: readonly IconName[];
 }): ReactElement {
   return (
     <svg
@@ -25,7 +27,9 @@ export function IconSprite({
       height={0}
       aria-hidden="true"
       data-icon-sprite=""
-      dangerouslySetInnerHTML={{ __html: iconSymbols }}
+      dangerouslySetInnerHTML={{
+        __html: names.map((name) => iconSymbols[name]).join(""),
+      }}
     />
   );
 }
