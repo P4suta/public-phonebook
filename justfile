@@ -28,6 +28,15 @@ data-check bundle:
 phone-quality bundle report:
     npm run data:phones -- {{ quote(bundle) }} {{ quote(report) }}
 
+build-budget:
+    node tools/build-budget.ts
+
+search-parity bundle:
+    node tools/search-parity.ts {{ quote(bundle) }}
+
+search-performance bundle:
+    node tools/search-performance.ts {{ quote(bundle) }}
+
 check:
     npm run check
 
