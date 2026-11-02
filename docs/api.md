@@ -44,6 +44,9 @@ Each cursor binds the snapshot, normalized query, filters, and page size.
 A changed snapshot returns 409; restart without the cursor.
 Query identities are SHA-256 digests rather than copies of the query text.
 
+`GET /api/contacts.vcf` takes the same parameters and returns the same page of contacts as vCard text, one vCard 3.0 per contact.
+Follow the URL in its `Link` response header until the header is absent.
+
 ## Preview facility categories
 
 `GET /api/contact-groups` accepts the same search parameters.

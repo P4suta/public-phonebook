@@ -24,12 +24,38 @@ const origin = "https://reference.test";
 const DocumentSchema = v.looseObject({
   paths: v.record(v.string(), v.record(v.string(), v.unknown())),
 });
+const contractBases = ["/api", "/api/v1"] as const;
+/** The discovery roots and the documents themselves are the only served routes the documents leave out. */
+const undocumentedRoutes: readonly string[] = contractBases.flatMap((base) => [
+  base,
+  `${base}/openapi.json`,
+]);
+const routeParameter = /:([^/]+)/gu;
 
-async function generatedDocument(): Promise<unknown> {
-  const response = await api.request("/api/openapi.json");
+async function generatedDocument(base = "/api"): Promise<unknown> {
+  const response = await api.request(`${base}/openapi.json`);
   expect(response.status).toBe(200);
   return response.json();
 }
+
+describe("the generated OpenAPI documents", () => {
+  it("document every served route and no route the server lacks", async () => {
+    const documented = await Promise.all(
+      contractBases.map(async (base) =>
+        Object.keys(
+          v.parse(DocumentSchema, await generatedDocument(base)).paths,
+        ),
+      ),
+    );
+    const served = new Set(
+      api.routes
+        .filter((route) => route.method === "GET")
+        .map((route) => route.path.replaceAll(routeParameter, "{$1}"))
+        .filter((path) => !undocumentedRoutes.includes(path)),
+    );
+    expect(documented.flat().sort()).toEqual([...served].sort());
+  });
+});
 
 function operation(
   overrides: Partial<ReferenceOperation> = {},
