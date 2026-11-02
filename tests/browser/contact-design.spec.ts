@@ -3,6 +3,7 @@ import * as v from "valibot";
 import { SearchResponseSchema } from "../../src/core/models.ts";
 import { foundation } from "../../src/ui/foundations.ts";
 import { expect, test } from "./fixtures.ts";
+import { recordFullPage } from "./full-page-screenshot.ts";
 import { saveData } from "./search-sources.ts";
 
 test.use({ video: "on", screenshot: "off" });
@@ -301,10 +302,7 @@ for (const width of [320, 390, 800, 960, 1440]) {
         width === 1440 &&
         example.name === "reported-dental-result"
       )
-        await page.screenshot({
-          path: info.outputPath("reported-contact.png"),
-          fullPage: true,
-        });
+        await recordFullPage(page, info, "reported-contact");
     });
   }
 }
