@@ -16,6 +16,7 @@
     "data:check": "node tools/check-data.ts",
     "data:phones": "node tools/phone-quality.ts",
     "check": "node tools/check.ts",
+    "check:build": "node tools/check-build.ts",
     "prove": "node tools/prove.ts",
     "audit": "npm audit --audit-level=moderate",
     "data:remote": "node tools/remote-data.ts",

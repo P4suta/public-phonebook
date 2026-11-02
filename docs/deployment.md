@@ -11,11 +11,12 @@ mise install
 mise x -- npm ci --ignore-scripts
 mise x -- npm run browsers
 mise x -- just check
+mise x -- just check-build
 ```
 
-The fast check needs no Cloudflare account, secret, or national database.
-It creates an isolated fixture database and R2 bucket under `.local/check-state`.
-Its browser server uses port 8790 and cannot overwrite the national development state.
+The fast check and the build checks need no Cloudflare account, secret, or national database.
+The build checks create an isolated fixture database and R2 bucket under `.local/check-state`.
+Their browser server uses port 8790 and cannot overwrite the national development state.
 
 ## Prepare national data
 
@@ -108,6 +109,7 @@ The publisher refuses a local production publication, while `just recover` and `
 The bundle defaults to `.local/datasets/DATASET`, which `just data-fetch` fills.
 The publisher refuses a bundle whose manifest digest differs from the named dataset.
 The stages are `check`, `data`, `phones`, `prove`, and `e2e`, and each passing stage writes `.local/receipts/TREE/MANIFEST/STAGE.json`.
+The `check` stage runs `just check` and then `just check-build`, so the evidence keeps the build and the checks that pull requests skip.
 A run of every stage also writes the combined local receipt that staging publication requires.
 In GitHub Actions, `--record` stores each passing stage as candidate evidence under `candidates/TREE/MANIFEST/`.
 A local run can't record candidate evidence, so a local receipt never stands in for the release gate.

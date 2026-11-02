@@ -6,10 +6,9 @@ The previous Rust checks describe the previous implementation and do not verify 
 ## Required fast gate
 
 Run `mise x -- just check`.
-It runs strict TypeScript checking, Biome, type-aware Oxlint, deterministic unit and property tests, and a complete client and Worker build.
-It also runs dependency auditing, a publishable-file secret scan, workflow checks, and built-browser checks.
-The browser check creates a separate local D1 and R2 fixture with three contacts and uses port 8790.
-It covers the design, contact, API reference, external-link, information, CSP, privacy, row page, search, search-trigger, and startup cases that need no national archive.
+It runs strict TypeScript checking, Biome, type-aware Oxlint, and deterministic unit and property tests.
+It also runs npm dependency auditing, a publishable-file secret scan, and workflow checks.
+It needs no build, Rust toolchain, browser, container, or macOS host.
 It requires no owner-specific service, credentials, or national archive.
 
 Before every push, run `mise x -- just check-linux` as well.
@@ -21,17 +20,38 @@ The typed policy in `tools/workflow-policy.ts` also checks every workflow and lo
 It requires explicit permissions on every workflow and job, and every top-level block must be empty.
 It allows only `actions/checkout`, `actions/cache`, `actions/upload-artifact`, `actions/download-artifact`, `dopplerhq/secrets-fetch-action`, and `jdx/mise-action`, each pinned to a full commit SHA.
 It rejects `inputs` or `github.event` expressions inside a `run:` script, which must receive those values through `env:`.
+A workflow that `pull_request`, `pull_request_target`, `merge_group`, or `push` triggers is a change workflow.
+Each of its jobs must name a literal `ubuntu-` runner.
+No job may run `just assurance`, `just check-build`, `just prove`, `just e2e`, `just test`, or a `just ios-` recipe.
+No job may install Playwright browsers or call `assurance.yml` either.
 Its unit tests keep a violating workflow for every rule as a negative control.
 
-CI runs the same command on Linux with pinned tools, immutable action revisions, and no secrets.
+Pull requests and merge groups run only this fast gate.
+The Verify job of the Checks workflow runs `just check` on Linux with pinned tools, immutable action revisions, and no secrets.
+It installs only Node.js, just, Biome, actionlint, zizmor, and gitleaks, and it turns off mise's automatic installation of the other pinned tools.
 The `Checks` summary job is the required status check.
-A change-scope job lists the changed paths with Git and starts the formal and native assurance jobs only when their inputs change.
-`tools/change-scope.ts` declares those inputs, including the workflow, the shared toolchain action, `mise.toml`, and `justfile`.
-The formal job runs `just prove` and `just ios-prove`, and the native job runs `just ios-check` on the `xcode-27` runner.
-A failed or cancelled native job uploads `target/ios` with the [evidence of each failed UI scenario](ios.md) as a seven-day artifact.
-The manual `assurance` input starts both jobs for any change and adds the sanitizer and mutation campaigns.
-The national multi-browser campaign remains outside the per-change CI gate.
+The [release gate decision](adr/run-only-the-fast-gate-on-pull-requests-and-verify-at-the-release-gate.md) records why the heavier checks moved.
 The manual runner probe workflow reports the processor, memory, disk, Xcode versions, and simulators of the hosted runners.
+
+## Release assurance
+
+Run `mise x -- just assurance` on a Mac for the heavy checks that gate a release.
+It runs `just check-build`, `just prove`, `just ios-prove`, and `just ios-check` in that order.
+`just check-build` builds the client and Worker and checks the `tools/ios-check` crate.
+The crate checks are rustfmt, strict Clippy, its tests, the icon consistency check, and the pinned RustSec advisory snapshot.
+It then runs the built-browser checks.
+The browser check creates a separate local D1 and R2 fixture with three contacts and uses port 8790.
+It covers the design, contact, API reference, external-link, information, CSP, privacy, row page, search, search-trigger, and startup cases that need no national archive.
+It requires no owner-specific service, credentials, or national archive.
+
+The manual Assurance workflow, `assurance.yml`, runs the same set on hosted runners.
+Its build job runs `just check-build`, and its formal job runs `just prove` and `just ios-prove`.
+Its native job runs `just ios-check` on the `xcode-27` runner.
+A failed or cancelled native job uploads `target/ios` with the [evidence of each failed UI scenario](ios.md) as a seven-day artifact.
+The `campaigns` input adds the sanitizer and mutation campaigns to the native job.
+A release workflow can call it through `workflow_call`.
+No pull request, merge group, or push starts it, and a manual run gates nothing by itself.
+The national multi-browser campaign stays out of it and runs in `just test`.
 The manual TestFlight workflow reruns the native, Lean, sanitizer, and mutation checks for one `main` commit before its signed delivery.
 
 No owned source may use unchecked assertions, explicit any, floating promises, or unsafe dynamic values.
@@ -78,8 +98,8 @@ The tool refuses to start when the image's Playwright release differs from `pack
 
 The checkout is mounted read-only.
 The container copies the publishable files, the inventory the secret scan uses, into a fresh Linux tree and indexes them in a new Git repository.
-It then runs `npm ci --ignore-scripts` and `just check` with `CI=true` and `CARGO_BUILD_JOBS=2`, like the Verify job.
-Named volumes keep the npm cache, the Cargo registry, and `tools/ios-check/target`, the paths the Verify job caches.
+It then runs `npm ci --ignore-scripts` and `just check` with `CI=true`, like the Verify job.
+Named volumes keep the npm cache, the Cargo registry, and `tools/ios-check/target`.
 The macOS `node_modules`, Cargo target, and test outputs never enter the container's tree.
 
 The container gets four CPUs, 8 GiB of memory without swap, 4,096 processes, 1 GiB of shared memory, and a 3,600-second safety stop.
@@ -91,17 +111,15 @@ The bounded policy's 2 GiB, two-CPU, offline envelope also can't run Verify.
 The run needs the network.
 The image build fetches the base images, the Ubuntu packages, and the mise toolchain.
 `npm ci` fetches the locked npm packages, including the SheetJS tarball.
-`just check` itself queries the npm advisory service for `npm audit` and fetches the pinned RustSec advisory snapshot from GitHub.
-It also downloads crates from crates.io when the Cargo registry volume is empty.
+`just check` itself queries the npm advisory service for `npm audit`.
 The Verify job fetches the same data.
 
 The command exits with the container's status.
 It writes `receipt.json`, `output.log`, and a container record with phase times and peak memory under `.local/check-linux/verify/`.
-After a failure, the same directory keeps the container's `test-results`, the evidence the Verify job uploads.
+After a failure, the same directory keeps the container's `test-results`.
 
 The container runs `linux/arm64` on the Mac, while the Verify job runs `linux/amd64`.
 The native npm packages for esbuild, Rolldown, Lightning CSS, Oxlint, the TypeScript compiler, and workerd differ by architecture.
-Chromium is the same revision but a different build, and the Rust target is `aarch64` instead of `x86_64`.
 A difference that depends on the processor rather than the operating system can still reach CI first.
 The gzip header byte depends on the operating system, so this gate catches it.
 
@@ -227,7 +245,7 @@ Its audit found 160 relations outside the pinned full metadata's recognized patt
 They require source investigation and are preserved without speculative digit repairs.
 The audit requires zero unparseable spellings, source/canonical disagreements, formatting round-trip disagreements, and duplicate numbers within a contact.
 
-Run `mise x -- just test` for the fast gate, national data reconciliation and phone profile, complete proof inventory, and national browser campaign.
+Run `mise x -- just test` for the fast gate, the build checks, national data reconciliation and phone profile, complete proof inventory, and national browser campaign.
 The command invalidates its preceding test receipt before execution and records a replacement only for an unchanged clean Git tree and dataset manifest.
 Production rejects a receipt for another dataset, source tree, format, or incomplete result.
 Dirty development checkouts can run the same checks but produce no publication receipt.

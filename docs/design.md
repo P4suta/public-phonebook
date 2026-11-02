@@ -175,7 +175,7 @@ A real continuation link works without JavaScript.
 
 ## Checks
 
-The required fast gate uses the built Worker and an isolated fixture database.
+The build checks in `just check-build` use the built Worker and an isolated fixture database.
 It checks narrow and desktop layouts, semantic headings, horizontal overflow, touch targets, palette rules, and axe rules.
 The palette scanner inspects CSS declarations, computed styles, active pseudo-elements, and the backdrop of an open modal dialog.
 Prohibited fixtures verify that the scanner rejects color, gray, gradients, opacity, shadows, filters, blending, and the browser's default translucent backdrop.

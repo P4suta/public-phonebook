@@ -1,9 +1,11 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 import { candidateSigner, candidateStages } from "../../tools/release-store.ts";
 import {
+  checkStageScripts,
   parseTestArguments,
   recordingAuthority,
   stageRunner,
@@ -49,6 +51,17 @@ describe("test stages", () => {
     expect(Object.keys(stageRunner("fixture")).sort()).toEqual(
       [...candidateStages].sort(),
     );
+  });
+
+  it("keeps the build checks in the candidate check stage", async () => {
+    const { scripts } = v.parse(
+      v.object({ scripts: v.record(v.string(), v.string()) }),
+      JSON.parse(await readFile("package.json", "utf8")),
+    );
+    expect(checkStageScripts.map((script) => scripts[script])).toEqual([
+      "node tools/check.ts",
+      "node tools/check-build.ts",
+    ]);
   });
 
   it("records candidate evidence only from a clean Actions run", () => {
