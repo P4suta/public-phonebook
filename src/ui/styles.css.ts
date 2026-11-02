@@ -1,9 +1,11 @@
 import { globalStyle, style } from "@vanilla-extract/css";
 
+import { indexProgressSteps } from "../core/local-search-protocol.ts";
 import { foundation, px, scale, viewport } from "./foundations.ts";
 import { tokens, typography } from "./theme.css.ts";
 
 const skipLinkLayer = 10;
+const fullPercent = 100;
 const rule = `${tokens.control.border} solid ${tokens.color.ink}`;
 
 globalStyle("*", { boxSizing: "border-box" });
@@ -170,12 +172,31 @@ export const searchHint = style({
   whiteSpace: "pre-line",
 });
 export const searchField = style({
+  position: "relative",
   display: "flex",
   width: "100%",
   "@media": {
     [viewport.compact]: { flexDirection: "column", gap: tokens.space["8"] },
   },
 });
+export const indexProgress = style({
+  position: "absolute",
+  insetInlineStart: 0,
+  insetInlineEnd: 0,
+  insetBlockStart: `calc(${tokens.control.searchHeight} - ${tokens.space["4"]})`,
+  blockSize: tokens.space["4"],
+  pointerEvents: "none",
+});
+export const indexProgressFill = Array.from(
+  { length: indexProgressSteps + 1 },
+  (_, step) =>
+    style({
+      display: "block",
+      blockSize: "100%",
+      inlineSize: `${(step * fullPercent) / indexProgressSteps}%`,
+      background: tokens.color.ink,
+    }),
+);
 export const input = style({
   minWidth: 0,
   width: "100%",
@@ -204,66 +225,6 @@ export const searchButton = style([
     "@media": { [viewport.compact]: { width: "100%" } },
   },
 ]);
-export const filters = style({
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: tokens.space["12"],
-  alignItems: "flex-start",
-  marginBlockStart: tokens.space["24"],
-  selectors: {
-    '&[data-has-city="true"]': {
-      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-    },
-    [`${home} &`]: { alignSelf: "start" },
-  },
-  "@media": {
-    [viewport.compact]: {
-      gridTemplateColumns: "minmax(0, 1fr)",
-      selectors: {
-        '&[data-has-city="true"]': {
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-        },
-      },
-    },
-  },
-});
-export const filter = style({
-  display: "flex",
-  flexDirection: "column",
-  gap: tokens.space["8"],
-  minWidth: 0,
-  "@media": {
-    [viewport.compact]: {
-      selectors: {
-        [`${filters}[data-has-city="true"] &:last-child`]: {
-          gridColumn: "1 / -1",
-        },
-      },
-    },
-  },
-});
-export const selection = style({
-  position: "relative",
-  display: "flex",
-  alignItems: "center",
-});
-export const select = style({
-  appearance: "none",
-  border: rule,
-  padding: `${tokens.space["8"]} calc(${tokens.space["12"]} + ${tokens.control.selectIcon} + ${tokens.space["8"]}) ${tokens.space["8"]} ${tokens.space["12"]}`,
-  width: "100%",
-  minHeight: tokens.control.height,
-  ...typography("label"),
-  cursor: "pointer",
-  selectors: { "&:disabled": { borderStyle: "dotted", cursor: "not-allowed" } },
-});
-export const chevron = style({
-  position: "absolute",
-  right: tokens.space["12"],
-  pointerEvents: "none",
-  width: tokens.control.selectIcon,
-  height: tokens.control.selectIcon,
-});
 export const toolbar = style([actions, { justifyContent: "space-between" }]);
 export const results = style({
   display: "flex",
@@ -331,6 +292,10 @@ export const contactHeader = style({
 });
 export const contactName = style({
   ...typography("facility"),
+  overflowWrap: "anywhere",
+});
+export const region = style({
+  ...typography("meta"),
   overflowWrap: "anywhere",
 });
 export const contactNumbers = style({

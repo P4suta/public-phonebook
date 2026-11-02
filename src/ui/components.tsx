@@ -10,7 +10,13 @@ import {
   Phone,
   RotateCw,
 } from "lucide-react";
-import { type ReactElement, type ReactNode, useRef, useState } from "react";
+import {
+  type MouseEvent,
+  type ReactElement,
+  type ReactNode,
+  useRef,
+  useState,
+} from "react";
 import { categoryDefinitions } from "../core/catalog.ts";
 import { copyCompletion } from "../core/copy-policy.ts";
 import type { Contact } from "../core/models.ts";
@@ -21,6 +27,7 @@ import { type ExternalDestination, uiCopy } from "./copy.ts";
 import { foundation } from "./foundations.ts";
 import { CategoryIcon } from "./icons.tsx";
 import { opensNewTab } from "./links.ts";
+import type { ResultCardView } from "./result-cards.ts";
 import * as css from "./styles.css.ts";
 
 function copyFeedback(outcome: "copied" | "failed", subject: string): string {
@@ -158,101 +165,167 @@ export function CopyButton({
   );
 }
 
+interface CopyFeedback {
+  readonly id: string;
+  readonly message: string;
+  readonly control: {
+    readonly id: string;
+    readonly requests: { current: symbol | null };
+    readonly announce: (message: string) => void;
+  };
+}
+
+function useCopyFeedback(key: string): CopyFeedback {
+  const [message, setMessage] = useState("");
+  const requests = useRef<symbol | null>(null);
+  const id = `contact-feedback-${key}`;
+  return { id, message, control: { id, requests, announce: setMessage } };
+}
+
+function PhoneActions({
+  phones,
+  name,
+  feedback,
+  vcard,
+}: {
+  readonly phones: readonly string[];
+  readonly name: string;
+  readonly feedback: CopyFeedback;
+  readonly vcard?: string;
+}): ReactElement {
+  return (
+    <div className={css.contactNumbers} data-contact-part="phones">
+      {phones.map((e164, index) => {
+        const display = formatPhone(e164);
+        return (
+          <div className={css.phoneGroup} key={e164}>
+            <CopyButton
+              value={display}
+              label={display}
+              subject="電話番号"
+              accessibleLabel={`${display} コピーする（${name}の電話番号）`}
+              feedback={feedback.control}
+              presentation="telephone"
+            />
+            <div className={css.actions}>
+              <LinkButton
+                href={`tel:${e164}`}
+                primary
+                accessibleLabel={`${display}に電話をかける`}
+                icon={Phone}
+              >
+                電話をかける
+              </LinkButton>
+              {vcard && index === 0 && (
+                <LinkButton href={vcard} download icon={BookUser}>
+                  電話帳に入れる
+                </LinkButton>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function FeedbackRow({
+  feedback,
+}: {
+  readonly feedback: CopyFeedback;
+}): ReactElement {
+  return (
+    <output
+      id={feedback.id}
+      className={feedback.message ? css.cardFeedback : css.srOnly}
+    >
+      {feedback.message}
+    </output>
+  );
+}
+
+function plainActivation(event: MouseEvent<HTMLAnchorElement>): boolean {
+  return (
+    event.button === 0 &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey
+  );
+}
+
+/** Shows a search result with its place and telephone actions; the address stays on the detail page. */
+export function ResultCard({
+  card,
+  onOpenRow,
+}: {
+  readonly card: ResultCardView;
+  readonly onOpenRow: (card: ResultCardView) => void;
+}): ReactElement {
+  const feedback = useCopyFeedback(card.key);
+  const headingId = `contact-${card.key}`;
+  return (
+    <article
+      className={css.card}
+      data-layout="result"
+      data-grouped="true"
+      aria-labelledby={headingId}
+    >
+      <div className={css.contactHeader}>
+        <h3 className={css.contactName} id={headingId}>
+          <a
+            className={css.contactLink}
+            href={card.href}
+            aria-label={`${card.name}の情報を見る`}
+            onClick={(event) => {
+              if (!card.row || !plainActivation(event)) return;
+              event.preventDefault();
+              onOpenRow(card);
+            }}
+          >
+            <span>{card.name}</span>
+            <ChevronRight size={foundation.control.icon} aria-hidden="true" />
+          </a>
+        </h3>
+        {card.region && <p className={css.region}>{card.region}</p>}
+      </div>
+      <PhoneActions phones={card.phones} name={card.name} feedback={feedback} />
+      <FeedbackRow feedback={feedback} />
+    </article>
+  );
+}
+
 export function ContactCard({
   contact,
-  detail = false,
-  grouped = false,
-  returnTo = "/",
 }: {
   readonly contact: Contact;
-  readonly detail?: boolean;
-  readonly grouped?: boolean;
-  readonly returnTo?: string;
 }): ReactElement {
-  const [feedback, setFeedback] = useState("");
-  const copyRequests = useRef<symbol | null>(null);
-  const feedbackId = `contact-feedback-${contact.id}`;
-  const feedbackControl = {
-    id: feedbackId,
-    requests: copyRequests,
-    announce: setFeedback,
-  };
+  const feedback = useCopyFeedback(contact.id);
   const category = categoryDefinitions.find(
     (item) => item.id === contact.category,
   );
   const address = cleanAddress(contact.address);
-  const information = `/contacts/${encodeURIComponent(contact.id)}?from=${encodeURIComponent(returnTo)}`;
-  const ResultHeading = grouped ? "h3" : "h2";
   return (
     <article
       className={css.card}
-      data-layout={detail ? "detail" : "result"}
-      data-grouped={grouped && !detail ? "true" : undefined}
+      data-layout="detail"
       aria-labelledby={`contact-${contact.id}`}
     >
       <div className={css.contactHeader}>
-        {(detail || !grouped) && (
-          <p className={css.category}>
-            <CategoryIcon category={contact.category} />
-            {category?.label}
-          </p>
-        )}
-        {detail ? (
-          <h1 className={css.heading} id={`contact-${contact.id}`}>
-            {contact.name}
-          </h1>
-        ) : (
-          <ResultHeading
-            className={css.contactName}
-            id={`contact-${contact.id}`}
-          >
-            <a
-              className={css.contactLink}
-              href={information}
-              aria-label={`${contact.name}の情報を見る`}
-            >
-              <span>{contact.name}</span>
-              <ChevronRight size={foundation.control.icon} aria-hidden="true" />
-            </a>
-          </ResultHeading>
-        )}
+        <p className={css.category}>
+          <CategoryIcon category={contact.category} />
+          {category?.label}
+        </p>
+        <h1 className={css.heading} id={`contact-${contact.id}`}>
+          {contact.name}
+        </h1>
       </div>
-      <div className={css.contactNumbers} data-contact-part="phones">
-        {contact.phones.map((phone, index) => {
-          const display = formatPhone(phone.e164);
-          return (
-            <div className={css.phoneGroup} key={phone.e164}>
-              <CopyButton
-                value={display}
-                label={display}
-                subject="電話番号"
-                accessibleLabel={`${display} コピーする（${contact.name}の電話番号）`}
-                feedback={feedbackControl}
-                presentation="telephone"
-              />
-              <div className={css.actions}>
-                <LinkButton
-                  href={`tel:${phone.e164}`}
-                  primary
-                  accessibleLabel={`${display}に電話をかける`}
-                  icon={Phone}
-                >
-                  電話をかける
-                </LinkButton>
-                {detail && index === 0 && (
-                  <LinkButton
-                    href={`/api/contacts/${encodeURIComponent(contact.id)}/contact.vcf`}
-                    download
-                    icon={BookUser}
-                  >
-                    電話帳に入れる
-                  </LinkButton>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <PhoneActions
+        phones={contact.phones.map((phone) => phone.e164)}
+        name={contact.name}
+        feedback={feedback}
+        vcard={`/api/contacts/${encodeURIComponent(contact.id)}/contact.vcf`}
+      />
       {address && (
         <div className={css.contactLocation}>
           <a
@@ -275,12 +348,7 @@ export function ContactCard({
           </a>
         </div>
       )}
-      <output
-        id={feedbackId}
-        className={feedback ? css.cardFeedback : css.srOnly}
-      >
-        {feedback}
-      </output>
+      <FeedbackRow feedback={feedback} />
     </article>
   );
 }

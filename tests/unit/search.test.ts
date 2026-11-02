@@ -11,6 +11,8 @@ import {
   searchKey,
 } from "../../src/core/search.ts";
 import {
+  canonicalSearchPath,
+  hasSearch,
   parseSearchString,
   parseWebSearch,
 } from "../../src/core/web-search.ts";
@@ -83,6 +85,25 @@ describe("search contract", () => {
     ]) {
       expect(parseWebSearch(parseSearchString(query)).ok, query).toBe(false);
     }
+  });
+  it("redirects retired website filters and continuations without a term", () => {
+    for (const [from, to] of [
+      ["?q=a&prefecture=13&municipality=13101", "/?q=a"],
+      [
+        "?q=a&prefecture=99&category=library&cursor=abc",
+        "/?q=a&category=library",
+      ],
+      ["?prefecture=13", "/"],
+      ["?category=library", "/"],
+      ["?q=+&category=library&cursor=abc", "/?q=+"],
+      ["?q=a&municipality=13101&__proto__=x", "/?q=a&__proto__=x"],
+      ["?q=a&category=library&cursor=abc", null],
+      ["?q=a", null],
+      ["", null],
+    ] as const)
+      expect(canonicalSearchPath(from), from).toBe(to);
+    expect(parseWebSearch({ q: "a", prefecture: "13" }).ok).toBe(false);
+    expect(hasSearch({ q: " ", category: "library", cursor: "" })).toBe(false);
   });
   it("normalizes width and case and treats SQL metacharacters literally", () => {
     expect(normalizeName(" ＡＢＣ図書館 ")).toBe("abc図書館");

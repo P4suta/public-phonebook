@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createIsomorphicFn } from "@tanstack/react-start";
+import type { GroupedSearchResponse } from "../core/models.ts";
 import {
   emptyWebSearch,
   hasSearch,
@@ -9,6 +11,14 @@ import {
 import { DirectoryError, getCatalog, getContactGroups } from "../ui/client.ts";
 import { SearchPage } from "../ui/search-page.tsx";
 
+/** Renders the first results on the server; the page searches from the browser after that. */
+const serverResults = createIsomorphicFn()
+  .server(
+    async (params: URLSearchParams): Promise<GroupedSearchResponse | null> =>
+      getContactGroups(params),
+  )
+  .client(async (): Promise<GroupedSearchResponse | null> => null);
+
 export const Route = createFileRoute("/")({
   validateSearch: (raw: Record<string, unknown>) => {
     const { error, ...parameters } = raw;
@@ -17,13 +27,13 @@ export const Route = createFileRoute("/")({
       ? { ...result.value, error: "" }
       : { ...emptyWebSearch, error: "invalid_query" };
   },
-  staleTime: 60000,
+  shouldReload: false,
   loader: async ({ location }) => {
     const catalog = await getCatalog();
     const parsed = parseWebSearch(parseSearchString(location.searchStr));
     const initialSearch = parsed.ok ? parsed.value : emptyWebSearch;
     const first = hasSearch(initialSearch)
-      ? await getContactGroups(webSearchParameters(initialSearch))
+      ? await serverResults(webSearchParameters(initialSearch))
       : null;
     if (first && first.meta.snapshot !== catalog.snapshot)
       throw new DirectoryError("snapshot_changed", "");

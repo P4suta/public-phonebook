@@ -60,7 +60,7 @@ Exclude gray steps, gradients, shadows, translucent styling, filters, blending, 
 Use size, weight, grouping, spacing, and solid borders to communicate structure.
 The initial heading is the service name.
 The service name and the project information link below it start at the page's top padding and the content's start edge, 16 pixels apart.
-The search field row sits at the vertical center of the viewport, with its label and hint directly above it and the filters below it.
+The search field row sits at the vertical center of the viewport, with its label and hint directly above it.
 A viewport too short for that arrangement keeps the same order and derived spacing from the top and scrolls instead.
 Data and API information is reached through the project information link.
 No footer contains required information.
@@ -111,8 +111,7 @@ These checks compare the retained export, not a live Figma file or subjective vi
 
 Use short, concrete Japanese labels.
 The placeholder names facility names and telephone numbers.
-The category field says what is being classified.
-Municipalities appear after a prefecture is selected and reset when it changes.
+The search has no region or category filter, like the iPhone app.
 Japanese composition completes before an automatic search begins.
 Input that contains hiragana, katakana, or kanji searches 120 milliseconds after composition ends or the text changes.
 Input made only of telephone characters searches automatically once it forms a complete Japanese telephone number.
@@ -121,13 +120,18 @@ It also searches when the field loses focus or after a pause.
 The pause is three times the median interval between the reader's keystrokes since the field gained focus, and it needs at least two intervals.
 Enter and the search button always search, and clearing the field restores the initial screen after the same short delay.
 A pure policy decides the trigger, so typing doesn't send one request per keystroke.
+These triggers apply until the search index is ready and whenever the page searches on the server.
+After the first render, the page loads the search index in a Web Worker, unless the browser asks to save data.
+A thin black bar along the bottom of the search field shows the loading progress, and assistive technology doesn't announce it.
+Once the index is ready, each input searches in the Worker without a request, except during composition.
+The page then replaces server results in place, so the visible rows and focus stay.
+Without JavaScript, before the index is ready, and when the index fails its checks, the server searches.
 Early native-form input survives JavaScript enhancement.
-Clearing all search conditions restores the initial screen without a separate home action.
-Clearing text preserves explicitly selected region and category filters.
+Clearing the search term restores the initial screen without a separate home action.
 The search input stays mounted and focused across initial and result layouts.
 Layout changes do not use motion animation.
-The browser caches completed queries; the national search and API remain server-side.
-A visitor does not download the national database.
+The visible result count changes at once, and a separate status announces it about 0.6 seconds after typing stops.
+A visitor downloads the search index, not the national database, and it stays only in the browser's HTTP cache.
 
 Results prioritize exact names and show large telephone numbers with call and copy controls.
 Every contact appears under its fixed facility-category heading with one category icon and the category's exact count.
@@ -145,16 +149,18 @@ Programmatic clicks cannot initiate either write path.
 Only the latest copy request within a contact can publish completion feedback.
 It never carries a telephone URI or initiates calling.
 Calling uses a separate primary action labelled with its purpose.
-Facility headings link to details, and address values link to maps.
+Facility headings link to details, and the prefecture and municipality follow the facility name as text.
+Result cards leave the address and its map link to the detail page.
+A result that the device found opens its details through its index row, and a changed snapshot reloads the index and searches again.
 Those navigation links have visible underlines, icons, and minimum 44-pixel targets.
 This follows the distinction between [native links](https://www.w3.org/WAI/ARIA/apg/patterns/link/) and [action buttons](https://www.w3.org/WAI/ARIA/apg/patterns/button/).
 No separate telephone-copy or address-copy control is rendered.
 Copy feedback occupies a full-width row below the contact content.
-Successful and denied copying preserve the desktop map and call target alignment.
-Desktop results place identity and location beside telephone information.
-Narrow screens preserve the reading order of identity, telephone information, and location.
+Successful and denied copying preserve the call target alignment.
+Desktop results place the name and region beside telephone information.
+Narrow screens preserve the reading order of the name, the region, and telephone information.
 Detailed contacts expose contact saving once even when several telephone numbers are listed.
-Addresses lead to a map.
+Detail addresses lead to a map.
 Map links open a separate tab, show an external-navigation icon right after the address text, announce that behavior, and use `noopener noreferrer`.
 Publisher sites, source files, and reuse terms follow the same external-web-link convention before and after enhancement, with the external-navigation icon at the start of each action.
 A plain activation of a link to another site first opens a modal dialog that follows the [modal dialog pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/).
@@ -169,9 +175,11 @@ Known terminal map annotations are removed without stripping building descriptio
 Source details provide readable context before opening the publisher's original file.
 Bulk export belongs in the API rather than the search interface.
 A category's labelled continuation expands only that category in the same result screen.
-Automatic continuation begins after that expansion or an explicit category selection.
+Automatic continuation begins after that expansion or after opening a category continuation link.
+An explicit continuation moves focus to the first new card.
 Continuation preserves existing results on failure, prevents mixed snapshots and duplicate pages, and exposes recovery.
-A real continuation link works without JavaScript.
+A real continuation link works without JavaScript, and its `category` and `cursor` parameters carry that state.
+Old search URLs with `prefecture` or `municipality` redirect to the same search without them.
 
 ## Checks
 
@@ -180,12 +188,12 @@ It checks narrow and desktop layouts, semantic headings, horizontal overflow, to
 The palette scanner inspects CSS declarations, computed styles, active pseudo-elements, and the backdrop of an open modal dialog.
 Prohibited fixtures verify that the scanner rejects color, gray, gradients, opacity, shadows, filters, blending, and the browser's default translucent backdrop.
 The national browser suite checks Chromium, Firefox, WebKit, and a mobile WebKit profile.
-Live contact checks cover the reported dental result, long Japanese names and addresses, missing addresses, and multiple telephone numbers.
+Live contact checks cover the reported dental result, long Japanese names, and multiple telephone numbers.
 They run at 320, 390, 800, 960, and 1440 pixels and include doubled text, keyboard focus, exact copied values, and clipboard denial.
 Native clipboard tests separately click the number text and copy hint after automatic search.
 They also consume native transient activation before the first trusted click reaches React and verify the synchronous selection copy event, focus restoration, and temporary-field cleanup.
 Fault injection rejects an older pending copy after a later successful copy.
-Map tests confirm the dialog and then verify an actual new tab, its query, its absent opener, and preserved search results.
+Map tests on the detail page confirm the dialog and then verify an actual new tab, its query, its absent opener, and the preserved page.
 External-link checks open the dialog from every link type and check its description, host, initial and returned focus, Escape, cancellation, opener isolation, and design rules.
 They also require modifier-key and middle-button activations to bypass the dialog and links without JavaScript to open directly.
 The detector checks alignment, repeated framed actions, duplicate destinations, link affordances, native control roles, labels, target overlap, clipping, and accidental call links on telephone values.
