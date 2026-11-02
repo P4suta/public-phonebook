@@ -105,6 +105,7 @@ it("prepares canonical native data with normalized addresses and complete archiv
     municipalities: [{ code: "13101", prefectureCode: "13", name: "千代田区" }],
   });
   try {
+    db.exec("BEGIN");
     db.exec(databaseSchema);
     db.prepare("INSERT INTO contacts VALUES (1,?,?,?,?,?,?,?,?)").run(
       contact.id,
@@ -123,6 +124,7 @@ it("prepares canonical native data with normalized addresses and complete archiv
     db.prepare("INSERT INTO metadata VALUES ('catalog',?)").run(
       JSON.stringify(catalog),
     );
+    db.exec("COMMIT");
     db.close();
     const output = join(root, "bundle");
     await prepareSnapshot(path, output);
