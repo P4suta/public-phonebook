@@ -46,10 +46,12 @@ The Verify job installs only the tools that gate needs and turns off mise's auto
 `Checks` stays the required summary job.
 
 Rust inputs are the one exception, and it partially reverses the removal of change scoping in pull request 98.
-The Verify job lists the files that differ between the event's base commit and the checked-out head with `git diff --name-only`.
+A small Scope job lists the files that differ between the event's base commit and the checked-out head with `git diff --name-only`.
 The Rust inputs are `tools/ios-check`, `tools/check-rust.ts`, `mise.toml`, any `rust-toolchain` file, the toolchain action, and `checks.yml` itself.
 When one of them changed, the Rust job runs `just check-rust`, which holds the Cargo checks of `just check-build`.
-`Checks` needs both jobs, requires Verify to succeed, and accepts a skipped Rust job only when no Rust input changed.
+The Rust job waits only for Scope, so it runs alongside Verify.
+It installs the prebuilt cargo-audit release that `mise.toml` pins by version and per-platform SHA-256, rather than compiling it.
+`Checks` needs all three jobs, requires Scope and Verify to succeed, and accepts a skipped Rust job only when no Rust input changed.
 A path filter on the workflow can't replace this scope, because a skipped required workflow leaves its status pending.
 Renovate keeps merging Cargo updates on its own, and the Rust job now gates them.
 
@@ -83,7 +85,7 @@ Rejected alternatives:
 A broken build, a fixture browser regression, a failed proof, or a native failure no longer blocks a pull request.
 The release gate or a manual Assurance run finds it instead, so `main` can hold such a defect until then.
 A Cargo failure still blocks a pull request that changes a Rust input.
-Such a pull request waits for Verify and then for the Rust job, which starts from cold caches and may compile `cargo-audit`.
+Such a pull request also waits for the Rust job, which runs alongside Verify and may start from cold Cargo caches.
 Before pushing a change to the build or the browser checks, run `just check-build` locally, and run `just check-rust` before pushing a Rust input change.
 Dispatch the Assurance workflow or run `just assurance` when a change touches the proofs or native code.
 `just check-linux` stays the local pre-push equivalent of Verify, because it runs the same fast gate in the pinned Linux container.

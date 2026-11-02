@@ -37,11 +37,13 @@ Its unit tests keep a violating workflow for every rule as a negative control.
 Pull requests and merge groups run this fast gate, plus the Cargo checks when a Rust input changes.
 The Verify job of the Checks workflow runs `just check` on Linux with pinned tools, immutable action revisions, and no secrets.
 It installs only Node.js, just, Biome, actionlint, zizmor, and gitleaks, and it turns off mise's automatic installation of the other pinned tools.
-Before that, it lists the files that differ between the event's base commit and the checked-out head.
+Beside it, the Scope job lists the files that differ between the event's base commit and the checked-out head.
 The Rust inputs are `tools/ios-check`, `tools/check-rust.ts`, `mise.toml`, any `rust-toolchain` file, the toolchain action, and `checks.yml`.
-When one of them changed, the Rust job installs Rust, just, Node.js, and cargo-audit and runs `just check-rust`.
+When one of them changed, the Rust job runs alongside Verify.
+It installs Rust, just, Node.js, and the prebuilt cargo-audit release and runs `just check-rust`.
+mise checks that release against the SHA-256 that `mise.toml` pins for each platform.
 The `Checks` summary job is the required status check.
-It requires Verify to succeed, and it accepts a skipped Rust job only when no Rust input changed.
+It requires Scope and Verify to succeed, and it accepts a skipped Rust job only when no Rust input changed.
 The [release gate decision](adr/run-only-the-fast-gate-on-pull-requests-and-verify-at-the-release-gate.md) records why the heavier checks moved.
 The manual runner probe workflow reports the processor, memory, disk, Xcode versions, and simulators of the hosted runners.
 
