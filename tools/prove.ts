@@ -10,7 +10,7 @@ const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
 const verifiedUnitCount = 40;
-const declaredPostconditionCount = 80;
+const declaredPostconditionCount = 83;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -31,7 +31,7 @@ const expected = [
   "searchTrigger",
   "copyCompletion",
   "copyMethod",
-  "stripReferenceStyle",
+  "referenceRequestDecision",
   "importDecision",
   "promotionAdmission",
   "schoolEvidence",
@@ -136,7 +136,7 @@ const boundFiles = [
   "tests/unit/search-trigger.test.ts",
   "tests/browser/search-trigger.spec.ts",
   "src/core/copy-policy.ts",
-  "src/core/reference-style-policy.ts",
+  "src/core/reference-request-policy.ts",
   "src/core/publication-policy.ts",
   "tools/cloudflare.ts",
   "tools/remote-statements.ts",
@@ -151,12 +151,16 @@ const boundFiles = [
   "tests/browser/external-links.spec.ts",
   "tests/unit/publication.test.ts",
   "justfile",
+  "src/core/api-reference.ts",
   "src/ui/api-reference.tsx",
   "src/ui/api-reference.css.ts",
-  "src/ui/reference-accessibility.ts",
+  "src/ui/api-reference-copy.ts",
+  "src/ui/reference-request.ts",
+  "tests/unit/api-reference.test.ts",
+  "tests/unit/reference-request.test.ts",
+  "tests/browser/api-reference-design.spec.ts",
   "src/routes/developers.tsx",
   "src/server.ts",
-  "tools/reference-styles.ts",
   "vite.config.ts",
   "src/ui/components.tsx",
   "src/ui/clipboard.ts",
@@ -219,7 +223,7 @@ const proofSources = [
   "src/core/search-policy.ts",
   "src/core/search-trigger-policy.ts",
   "src/core/copy-policy.ts",
-  "src/core/reference-style-policy.ts",
+  "src/core/reference-request-policy.ts",
   "src/core/publication-policy.ts",
   "src/core/snapshot-policy.ts",
   "src/core/local-search-policy.ts",
@@ -515,24 +519,24 @@ async function main(): Promise<void> {
         );
     }
     const referenceSource = await readFile(
-      `${proofRoot}/src/core/reference-style-policy.ts`,
+      `${proofRoot}/src/core/reference-request-policy.ts`,
       "utf8",
     );
     const brokenReference = referenceSource.replace(
-      '    property === "opacity" ||',
-      "    false ||",
+      '  if (!pathComplete) return "incomplete_path";\n',
+      "",
     );
     if (brokenReference === referenceSource)
       throw new Error(
-        "The reference-style negative control did not mutate the implementation",
+        "The reference-request negative control did not mutate the implementation",
       );
     await writeFile(
-      `${proofRoot}/proof/negative/reference-style-policy.ts`,
+      `${proofRoot}/proof/negative/reference-request-policy.ts`,
       brokenReference,
     );
-    await generateModel("proof/negative/reference-style-policy.ts");
+    await generateModel("proof/negative/reference-request-policy.ts");
     const referenceNegative = await verifyModel(image, [
-      `${proofRoot}/proof/generated/proof/negative/reference-style-policy.dfy`,
+      `${proofRoot}/proof/generated/proof/negative/reference-request-policy.dfy`,
     ]);
     if (
       referenceNegative.code === 0 ||
@@ -540,7 +544,7 @@ async function main(): Promise<void> {
       !/could not be proved|could not prove/u.test(referenceNegative.output)
     )
       throw new Error(
-        `The reference-style negative control was inconclusive: ${referenceNegative.output}`,
+        `The reference-request negative control was inconclusive: ${referenceNegative.output}`,
       );
     const publicationSource = await readFile(
       `${proofRoot}/src/core/publication-policy.ts`,
@@ -845,7 +849,7 @@ async function main(): Promise<void> {
           semantics:
             "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
           negativeControl:
-            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, retained reference opacity, conflicting import identities, promotion of an unverified, displaced, or different candidate, withdrawal of a foreign candidate, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a substring ranked at the second position, a reflexive result order, a loading index searched on the device, a 31-row continuation, an index admitted without its digest, an off-by-one row range, a snapshot-blind row locator, a delta budget of the whole archive, an off-by-one copy range, and a delta admitted without its digest rejected",
+            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, a reference request sent with an incomplete path, conflicting import identities, promotion of an unverified, displaced, or different candidate, withdrawal of a foreign candidate, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a substring ranked at the second position, a reflexive result order, a loading index searched on the device, a 31-row continuation, an index admitted without its digest, an off-by-one row range, a snapshot-blind row locator, a delta budget of the whole archive, an off-by-one copy range, and a delta admitted without its digest rejected",
           result: "verified",
         },
         null,

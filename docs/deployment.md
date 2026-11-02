@@ -257,7 +257,7 @@ The upload creates a version without applying triggers, so custom domains and ot
 HTML responses use `no-store, no-transform` to prevent Cloudflare from adding scripts to the document.
 Browser checks reject scripts from other origins and verify that an inserted external script is detected.
 The publisher hashes build output before the upload and after it.
-Public Playwright checks exercise desktop and narrow search, telephone formatting, detail and provenance navigation, the interactive Scalar client, accessibility, security-policy failures, and the 512-byte query boundary.
+Public Playwright checks exercise desktop and narrow search, telephone formatting, detail and provenance navigation, the API reference's request form, accessibility, security-policy failures, and the 512-byte query boundary.
 They also download every archive through HTTPS and compare its byte length and SHA-256 with the checked manifest.
 Failure evidence stays under `test-results`.
 

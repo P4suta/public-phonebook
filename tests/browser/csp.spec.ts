@@ -115,22 +115,25 @@ for (const attempt of [
   });
 }
 
-for (const attempt of ["script"] as const) {
-  test(`the API reference rejects an untrusted ${attempt}`, async ({
+for (const attempt of ["attribute", "style", "script"] as const) {
+  test(`the API reference keeps the strict policy and rejects an untrusted ${attempt}`, async ({
     page,
   }) => {
     const response = await page.goto("/developers");
-    await expect(page.locator("[data-api-reference]")).toHaveAttribute(
-      "data-ready",
-      "true",
-    );
+    await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
     if (!response) throw new Error("Missing reference response");
     const csp = (await response.allHeaders())["content-security-policy"] ?? "";
-    expect(csp).toContain("style-src-attr 'unsafe-inline'");
     expect(csp).toMatch(/script-src 'self' 'nonce-[^']+';/u);
-    expect(csp).toContain("style-src 'self' 'unsafe-inline';");
+    expect(csp).toMatch(/style-src 'self' 'nonce-[^']+';/u);
+    expect(csp).not.toContain("unsafe-inline");
     expect(csp).not.toContain("unsafe-eval");
-    expect(await blockedAttempt(page, attempt)).toBe("script-src-elem");
+    expect(await blockedAttempt(page, attempt)).toBe(
+      {
+        attribute: "style-src-attr",
+        style: "style-src-elem",
+        script: "script-src-elem",
+      }[attempt],
+    );
     expect(
       await page.evaluate(() => document.documentElement.dataset.injected),
     ).toBeUndefined();

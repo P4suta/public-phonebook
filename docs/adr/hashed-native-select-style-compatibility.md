@@ -8,7 +8,7 @@ date: 2026-10-30
 
 Proposed.
 Implemented and checked locally.
-The separate style policy for `/developers` is recorded in the [interactive reference decision](openapi-driven-interactive-reference.md).
+Since the [server-rendered reference](server-rendered-api-reference.md), `/developers` uses this same policy.
 
 ## Context
 

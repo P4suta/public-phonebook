@@ -176,11 +176,6 @@ for (const width of [320, 390, 1440]) {
         "data-enhanced",
         "true",
       );
-      if (name === "api")
-        await expect(page.locator("[data-api-reference]")).toHaveAttribute(
-          "data-ready",
-          "true",
-        );
       await page.evaluate(async () => document.fonts.ready);
       expect(
         await page.evaluate(

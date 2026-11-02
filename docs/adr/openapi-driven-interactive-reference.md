@@ -6,8 +6,9 @@ date: 2026-10-30
 
 ## Status
 
-Proposed.
-Implemented locally.
+Superseded by [render the API reference on the server](server-rendered-api-reference.md).
+The page no longer loads Scalar, and its separate style policy is gone.
+The reference still follows the generated OpenAPI document rather than a hand-maintained operation list.
 
 ## Context
 
