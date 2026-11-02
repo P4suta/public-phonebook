@@ -7,7 +7,9 @@ import { parse } from "yaml";
 import {
   actionViolations,
   auditWorkflows,
+  dopplerConfigFor,
   interpolatesUntrustedContext,
+  releaseEnvironments,
   requireWorkflowPolicy,
   type WorkflowRule,
   workflowViolations,
@@ -432,4 +434,204 @@ it("reports violations from workflow and action files and rejects an empty inven
 it("rejects a workflow document without jobs", () => {
   const document: unknown = parse("on: push\npermissions: {}\n");
   expect(() => workflowViolations("fixture.yml", document)).toThrow();
+});
+
+const doppler =
+  "dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534";
+const mainGuard = `      - run: test "$GITHUB_REF" = refs/heads/main`;
+const publication = `    concurrency:
+      group: publication-production
+      cancel-in-progress: false`;
+
+function releaseJob(environment: string, body: string): string {
+  return `on: workflow_dispatch
+permissions: {}
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    environment: ${environment}
+    permissions:
+      contents: read
+      id-token: write
+${body}`;
+}
+
+function dopplerStep(config: string, inject = '"false"'): string {
+  return `      - uses: ${doppler}
+        with:
+          auth-method: oidc
+          doppler-config: ${config}
+          inject-env-vars: ${inject}`;
+}
+
+it("admits release jobs that guard the main branch, follow their predecessor, serialize publication, and fetch their own Doppler config", () => {
+  expect(dopplerConfigFor("release-candidate")).toBe("ci_release_candidate");
+  expect(
+    rules(
+      releaseJob(
+        "release-candidate",
+        `${publication}
+    steps:
+${mainGuard}
+${dopplerStep("ci_release_candidate")}`,
+      ),
+    ),
+  ).toEqual([]);
+  expect(
+    rules(
+      releaseJob(
+        "production",
+        `    needs: [verify]
+${publication}
+    steps:
+${mainGuard}
+${dopplerStep("ci_production")}`,
+      ),
+    ),
+  ).toEqual([]);
+  expect(
+    rules(
+      releaseJob(
+        "observe",
+        `    steps:
+${mainGuard}
+${dopplerStep("ci_observe")}`,
+      ),
+    ),
+  ).toEqual([]);
+  expect(
+    rules(
+      releaseJob(
+        "testflight",
+        `    steps:
+${dopplerStep("ci_testflight")}`,
+      ),
+    ),
+  ).toEqual([]);
+});
+
+it("rejects a release job that runs before it checks the main branch", () => {
+  for (const environment of releaseEnvironments)
+    expect(
+      rules(
+        releaseJob(
+          environment,
+          `    needs: [verify]
+${publication}
+    steps:
+      - uses: ${checkout}
+${mainGuard}`,
+        ),
+      ),
+      environment,
+    ).toEqual(["release-environment-off-main"]);
+});
+
+it("rejects a production job without a preceding job", () => {
+  for (const needs of ["", "    needs: []\n"])
+    expect(
+      rules(
+        releaseJob(
+          "production",
+          `${needs}${publication}
+    steps:
+${mainGuard}`,
+        ),
+      ),
+    ).toEqual(["production-without-predecessor"]);
+});
+
+it("rejects a publishing job outside the shared non-cancelling publication group", () => {
+  for (const concurrency of [
+    "",
+    "    concurrency: publication-production\n",
+    "    concurrency:\n      group: release-${{ github.ref }}\n      cancel-in-progress: false\n",
+    "    concurrency:\n      group: publication-production\n      cancel-in-progress: true\n",
+    "    concurrency:\n      group: publication-production\n",
+  ])
+    expect(
+      rules(
+        releaseJob(
+          "release-candidate",
+          `${concurrency}    steps:
+${mainGuard}`,
+        ),
+      ),
+      concurrency,
+    ).toEqual(["publication-concurrency"]);
+});
+
+it("rejects Doppler secrets injected into the job environment or fetched from another environment's config", () => {
+  for (const inject of ['"true"', "true", "false"])
+    expect(
+      rules(
+        releaseJob(
+          "observe",
+          `    steps:
+${mainGuard}
+${dopplerStep("ci_observe", inject)}`,
+        ),
+      ),
+      inject,
+    ).toEqual(["doppler-environment-injection"]);
+  for (const config of ["ci_production", "prd", "ci_release-candidate"])
+    expect(
+      rules(
+        releaseJob(
+          "release-candidate",
+          `${publication}
+    steps:
+${mainGuard}
+${dopplerStep(config)}`,
+        ),
+      ),
+      config,
+    ).toEqual(["doppler-config-mismatch"]);
+  expect(
+    rules(`on: workflow_dispatch
+permissions: {}
+jobs:
+  status:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+${dopplerStep("ci_observe")}`),
+  ).toEqual(["doppler-config-mismatch"]);
+});
+
+it("lets only a step that continues on error request another environment's config, as a refusal control", () => {
+  expect(
+    rules(
+      releaseJob(
+        "observe",
+        `    steps:
+${mainGuard}
+${dopplerStep("ci_production")}
+        continue-on-error: true`,
+      ),
+    ),
+  ).toEqual([]);
+  expect(
+    rules(
+      releaseJob(
+        "observe",
+        `    steps:
+${mainGuard}
+${dopplerStep("ci_production", '"true"')}
+        continue-on-error: true`,
+      ),
+    ),
+  ).toEqual(["doppler-environment-injection"]);
+  expect(
+    rules(
+      releaseJob(
+        "observe",
+        `    steps:
+${mainGuard}
+${dopplerStep("ci_production")}
+        continue-on-error: \${{ always() }}`,
+      ),
+    ),
+  ).toEqual(["doppler-config-mismatch"]);
 });

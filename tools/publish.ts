@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { readdir, readFile } from "node:fs/promises";
+import { appendFile, readdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import * as v from "valibot";
 import { databaseResourceName, environments } from "../src/core/environment.ts";
@@ -43,6 +43,7 @@ import {
   verifyVersionBindings,
 } from "./release-provider.ts";
 import {
+  controlsSigner,
   type JournalWriter,
   journalWriter,
   loadRelease,
@@ -350,6 +351,8 @@ const publishActions = [
   "--recover",
   "--status",
   "--check-admission",
+  "--check-evidence",
+  "--build-digest",
   "--drill",
   "--adopt",
 ] as const;
@@ -360,6 +363,12 @@ const datasetActions: ReadonlySet<PublishAction> = new Set([
   "--drill",
   "--adopt",
   "--check-admission",
+  "--check-evidence",
+]);
+const buildActions: ReadonlySet<PublishAction> = new Set([
+  "publish",
+  "--stage",
+  "--drill",
 ]);
 const effectfulActions: ReadonlySet<PublishAction> = new Set([
   "publish",
@@ -369,7 +378,7 @@ const effectfulActions: ReadonlySet<PublishAction> = new Set([
   "--drill",
   "--adopt",
 ]);
-const publishUsage = `Usage: publish ENVIRONMENT [${publishActions.filter((action) => action !== "publish").join("|")}] [--dataset MANIFEST_SHA256] [--bundle DIRECTORY] [--release RELEASE_ID]`;
+const publishUsage = `Usage: publish ENVIRONMENT [${publishActions.filter((action) => action !== "publish").join("|")}] [--dataset MANIFEST_SHA256] [--bundle DIRECTORY] [--release RELEASE_ID] [--artifact BUILD_DIGEST]`;
 
 export interface PublishArguments {
   readonly environment: RemoteEnvironment;
@@ -377,6 +386,7 @@ export interface PublishArguments {
   readonly dataset: string;
   readonly bundle: string;
   readonly release: string;
+  readonly artifact: string;
 }
 
 export function parsePublishArguments(
@@ -389,10 +399,14 @@ export function parsePublishArguments(
   let dataset = "";
   let bundle = "";
   let release = "";
+  let artifact = "";
   for (let index = 0; index < rest.length; index += 1) {
     const flag = rest[index];
     const value = rest[index + 1];
-    if (flag === "--dataset" && value && !dataset) {
+    if (flag === "--artifact" && value && !artifact) {
+      artifact = v.parse(DigestSchema, value);
+      index += 1;
+    } else if (flag === "--dataset" && value && !dataset) {
       dataset = v.parse(DigestSchema, value);
       index += 1;
     } else if (flag === "--bundle" && value && !bundle) {
@@ -421,6 +435,8 @@ export function parsePublishArguments(
         ? "Promotion requires the approved --release"
         : `The ${action} action takes no release`,
     );
+  if (artifact && !buildActions.has(action))
+    throw new Error(`The ${action} action takes no prebuilt artifact`);
   if (bundle && !dataset) throw new Error(publishUsage);
   return {
     environment: environment.output,
@@ -428,7 +444,22 @@ export function parsePublishArguments(
     dataset,
     bundle: bundle || (dataset ? resolve(fetchedDatasets, dataset) : ""),
     release,
+    artifact,
   };
+}
+
+export async function exportOutputs(
+  values: Readonly<Record<string, string>>,
+  variables: NodeJS.ProcessEnv = process.env,
+): Promise<void> {
+  const file = variables.GITHUB_OUTPUT;
+  if (!file) return;
+  await appendFile(
+    file,
+    Object.entries(values)
+      .map(([name, value]) => `${name}=${value}\n`)
+      .join(""),
+  );
 }
 
 export function publicationAuthority(
@@ -441,8 +472,12 @@ export function publicationAuthority(
     throw new Error(
       "Production publishes only from the release workflow; --withdraw, --recover, --status, and --check-admission stay available locally",
     );
-  if (provenance.workflow !== releaseSigner)
-    throw new Error(`Production publishes only from ${releaseSigner}`);
+  if (
+    provenance.workflow === releaseSigner ||
+    (action === "--drill" && provenance.workflow === controlsSigner)
+  )
+    return;
+  throw new Error(`Production publishes only from ${releaseSigner}`);
 }
 
 interface AdmittedCandidate {
@@ -516,6 +551,39 @@ async function checkAdmission(
   }
 }
 
+async function checkEvidence(
+  options: PublishArguments,
+  store: ControlStore,
+): Promise<void> {
+  const sourceTree = await committedTree();
+  const verification = await materializeVerificationDataset(
+    store,
+    options.dataset,
+    resolve(verificationCache),
+  );
+  const manifest = v.parse(
+    v.object({ snapshot: DigestSchema, databaseSha256: DigestSchema }),
+    JSON.parse(
+      await readFile(join(verification, "manifest.ready.json"), "utf8"),
+    ),
+  );
+  await requireCandidateEvidence(store, sourceTree, options.dataset);
+  await exportOutputs({
+    "database-sha256": manifest.databaseSha256,
+    "manifest-sha256": options.dataset,
+  });
+  console.info(
+    JSON.stringify({
+      operation: "publication.evidence",
+      environment: options.environment,
+      sourceTree,
+      dataset: options.dataset,
+      snapshot: manifest.snapshot,
+      result: "admitted",
+    }),
+  );
+}
+
 function requireJournal(
   journal: ReleaseJournal | null,
   action: PublishAction,
@@ -545,6 +613,14 @@ function report(
 async function main(args: readonly string[]): Promise<void> {
   const options = parsePublishArguments(args);
   const { environment, action, bundle } = options;
+  if (action === "--build-digest") {
+    const artifact = await buildDigest(resolve(workerBuildDirectory));
+    await exportOutputs({ "artifact-sha256": artifact });
+    console.info(
+      JSON.stringify({ operation: "publication.build", environment, artifact }),
+    );
+    return;
+  }
   const store = controlStoreFromEnvironment();
   const provenance = runProvenance();
   publicationAuthority(environment, action, provenance);
@@ -552,6 +628,10 @@ async function main(args: readonly string[]): Promise<void> {
   maskCandidate(head?.journal ?? null, provenance);
   if (action === "--check-admission") {
     await checkAdmission(options, store, head?.journal ?? null);
+    return;
+  }
+  if (action === "--check-evidence") {
+    await checkEvidence(options, store);
     return;
   }
   if (action === "--status") {
@@ -627,10 +707,15 @@ async function main(args: readonly string[]): Promise<void> {
       await admitCandidate(store, options, journal);
     if (!previous)
       throw new Error("Publication requires a verified predecessor");
-    process.env.DIAL_DATABASE_SHA256 = manifest.databaseSha256;
-    process.env.DIAL_MANIFEST_SHA256 = manifestSha256;
-    buildUnlock = await releaseLock("build");
-    await requireCommand("npm", ["run", "build", "--", environment]);
+    if (!options.artifact) {
+      process.env.DIAL_DATABASE_SHA256 = manifest.databaseSha256;
+      process.env.DIAL_MANIFEST_SHA256 = manifestSha256;
+      buildUnlock = await releaseLock("build");
+      await requireCommand("npm", ["run", "build", "--", environment]);
+    }
+    const artifactSha256 = await buildDigest(resolve(workerBuildDirectory));
+    if (options.artifact && artifactSha256 !== options.artifact)
+      throw new Error("The prebuilt Worker differs from its attested build");
     const prepared = v.parse(
       v.object({ database: v.pipe(v.string(), v.uuid()) }),
       JSON.parse(
@@ -647,7 +732,7 @@ async function main(args: readonly string[]): Promise<void> {
       databaseSha256: manifest.databaseSha256,
       databaseId: prepared.database,
       manifestSha256,
-      artifactSha256: await buildDigest(resolve(workerBuildDirectory)),
+      artifactSha256,
       manifestBinding: "digest",
     };
     const guardedPorts: ReleasePorts = {
@@ -667,6 +752,7 @@ async function main(args: readonly string[]): Promise<void> {
     }
     const staged = await stageCandidate(target, previous, guardedPorts);
     report("publication.stage", environment, staged);
+    await exportOutputs({ "release-id": staged.candidate.releaseId });
     if (action === "--stage") return;
     const verified = await verifyStagedCandidate(staged, guardedPorts);
     report("publication.candidate", environment, verified);
