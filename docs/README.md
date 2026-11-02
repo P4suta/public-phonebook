@@ -19,4 +19,5 @@
 - [Search the saved directory on the device](adr/search-the-saved-directory-on-the-device.md).
 - [Publish a name-ordered search index for the website](adr/publish-a-name-ordered-search-index-for-the-website.md).
 - [Search in the browser once the index loads](adr/search-in-the-browser-once-the-index-loads.md).
+- [Publish target-ordered deltas between directory archives](adr/publish-target-ordered-deltas-between-directory-archives.md).
 - [Number TestFlight builds from the workflow run and upload them with altool](adr/number-testflight-builds-from-the-workflow-run.md).

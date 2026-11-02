@@ -49,6 +49,22 @@ Development serves HTTP through Vite, so WebKit doesn't receive the Brotli index
 Use development for a loopback HTTP origin, such as the iOS screenshot command, because simulators reject the preview's self-signed certificate.
 No Container is needed.
 
+### Snapshot deltas
+
+Name the retained earlier bundles when you prepare a new snapshot, and preparation writes a delta from each of them to the new archive.
+
+```sh
+mise x -- npm run data -- prepare /path/to/public-snapshot.sqlite .local/next --delta-base .local/phonebook --delta-base .local/previous
+```
+
+A delta base is a prepared bundle, such as one that `just data-fetch` restored for the active or the rollback dataset.
+Preparation checks each base archive with its own manifest before it starts, so a wrong base fails at once and leaves no output.
+It decodes one base at a time, applies each delta to its base, and requires the exact new archive before it records the delta.
+It skips a delta whose Brotli bytes exceed half of the complete archive, and it logs the sizes of every delta it considers.
+The ready manifest lists the published deltas, so the dataset digest covers them, and `just data-remote` uploads them with the other archives.
+The `just data-prepare` recipe doesn't take delta bases yet, so use the `npm run data` form for them.
+The hosted release can't generate deltas until `release.yml` exists, and that workflow needs to fetch the retained bundles before preparation.
+
 ## Environment boundaries
 
 | Environment | Worker | Database | Bucket | Site |
