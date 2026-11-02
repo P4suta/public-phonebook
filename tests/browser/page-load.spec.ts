@@ -5,6 +5,8 @@ import { expect, test } from "./fixtures.ts";
 
 const redirectFree = 0;
 const layoutShiftLimit = 0.1;
+// Enough inserted header copies to push the reference at least a viewport down.
+const insertedHeaders = 4;
 
 async function knownContactPath(request: APIRequestContext): Promise<string> {
   const raw: unknown = await (
@@ -22,7 +24,7 @@ async function referenceLayoutShift(
   await page.goto("/developers");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
   return page.evaluate(
-    (move) =>
+    ({ move, copies }) =>
       new Promise<number>((resolve) => {
         let total = 0;
         function add(entries: readonly PerformanceEntry[]): void {
@@ -34,9 +36,9 @@ async function referenceLayoutShift(
           add(list.getEntries()),
         );
         observer.observe({ type: "layout-shift", buffered: true });
-        if (move) {
-          const header = document.querySelector("main > header");
-          if (!header) throw new Error("The reference header is missing");
+        const header = document.querySelector("main > header");
+        if (!header) throw new Error("The reference header is missing");
+        for (let index = 0; move && index < copies; index += 1) {
           const copy = header.cloneNode(true);
           if (!(copy instanceof Element))
             throw new Error("The reference header copy is missing");
@@ -50,7 +52,7 @@ async function referenceLayoutShift(
           }),
         );
       }),
-    moveReference,
+    { move: moveReference, copies: insertedHeaders },
   );
 }
 

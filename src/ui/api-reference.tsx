@@ -1,4 +1,4 @@
-import { Send } from "lucide-react";
+import { ChevronDown, Send } from "lucide-react";
 import { type FormEvent, type ReactElement, useRef, useState } from "react";
 import {
   codeExamples,
@@ -225,20 +225,23 @@ function Field({
         <span>（{parameterNote(parameter)}）</span>
       </label>
       {parameter.choices.length > 0 ? (
-        <select
-          id={id}
-          name={parameter.name}
-          defaultValue={value}
-          required={parameter.required}
-          className={css.control}
-        >
-          <option value="">{referenceCopy.attempt.unspecified}</option>
-          {parameter.choices.map((choice) => (
-            <option key={choice} value={choice}>
-              {choice}
-            </option>
-          ))}
-        </select>
+        <span className={css.selection}>
+          <select
+            id={id}
+            name={parameter.name}
+            defaultValue={value}
+            required={parameter.required}
+            className={css.select}
+          >
+            <option value="">{referenceCopy.attempt.unspecified}</option>
+            {parameter.choices.map((choice) => (
+              <option key={choice} value={choice}>
+                {choice}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className={css.chevron} aria-hidden="true" />
+        </span>
       ) : (
         <input
           id={id}

@@ -159,7 +159,7 @@ test("code examples copy their exact text", async ({
   const item = section(page, "searchContacts");
   for (const [language, expected] of [
     ["curl", /^curl --get '.+\/api\/contacts' \\\n {2}--data-urlencode 'q=/u],
-    ["JavaScript", /\/api\/contacts"\);\n.+"limit", "5"\);\n.+fetch\(url\);/u],
+    ["JavaScript", /\/api\/contacts"\);\n(?:.+\n)*.+"limit", "5"\);\n.+fetch\(url\);/u],
   ] as const) {
     const code = await item
       .locator("figure")

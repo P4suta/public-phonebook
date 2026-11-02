@@ -147,6 +147,7 @@ globalStyle(`${table} tbody th`, {
 });
 globalStyle(`${table} tbody th > code`, {
   fontWeight: foundation.font.rowHeading.weight,
+  overflowWrap: "normal",
 });
 export const cellNote = style({
   display: "block",
@@ -184,6 +185,26 @@ export const control = style({
   color: tokens.color.ink,
   background: tokens.color.paper,
   ...typography("label"),
+});
+export const selection = style({
+  position: "relative",
+  display: "flex",
+  alignItems: "center",
+});
+export const select = style([
+  control,
+  {
+    appearance: "none",
+    paddingInlineEnd: `calc(${tokens.space["12"]} + ${tokens.control.selectIcon} + ${tokens.space["8"]})`,
+    cursor: "pointer",
+  },
+]);
+export const chevron = style({
+  position: "absolute",
+  insetInlineEnd: tokens.space["12"],
+  pointerEvents: "none",
+  width: tokens.control.selectIcon,
+  height: tokens.control.selectIcon,
 });
 export const submit = style({ gridColumn: "1 / -1" });
 export const attempt = style({
