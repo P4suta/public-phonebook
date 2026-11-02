@@ -1,10 +1,10 @@
-import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import * as v from "valibot";
 import { canRetireResource } from "../src/core/publication-policy.ts";
+import { controlStoreFromEnvironment } from "./control-store.ts";
 import type { ReleaseJournal, ReleaseTarget } from "./release-lifecycle.ts";
 import { activeVersion } from "./release-provider.ts";
-import { ReleaseJournalSchema } from "./release-store.ts";
+import { RemoteEnvironmentSchema, releaseHistory } from "./release-store.ts";
 
 const commandArgumentOffset = 2;
 
@@ -75,30 +75,26 @@ export function databaseRetention(
   });
 }
 
+export function latestPerRelease(
+  history: readonly ReleaseJournal[],
+): readonly ReleaseJournal[] {
+  const latest = new Map<string, ReleaseJournal>();
+  for (const journal of history) {
+    latest.delete(journal.candidate.releaseId);
+    latest.set(journal.candidate.releaseId, journal);
+  }
+  return [...latest.values()];
+}
+
 async function main(args: readonly string[]): Promise<void> {
-  const environment = v.parse(v.picklist(["staging", "production"]), args[0]);
+  const environment = v.parse(RemoteEnvironmentSchema, args[0]);
   if (args.length !== 1)
     throw new Error("Usage: release-retention ENVIRONMENT");
-  const directory = resolve(".local/releases");
-  const latest = v.parse(
-    ReleaseJournalSchema,
-    JSON.parse(
-      await readFile(resolve(directory, `${environment}-journal.json`), "utf8"),
-    ),
+  const journals = latestPerRelease(
+    await releaseHistory(controlStoreFromEnvironment(), environment),
   );
-  const journals: ReleaseJournal[] = [];
-  for (const name of await readdir(directory))
-    if (
-      name.startsWith(`${environment}-`) &&
-      /^[a-z]+-[0-9a-f-]{36,40}\.json$/u.test(name)
-    )
-      journals.push(
-        v.parse(
-          ReleaseJournalSchema,
-          JSON.parse(await readFile(resolve(directory, name), "utf8")),
-        ),
-      );
-  journals.push(latest);
+  const latest = journals.at(-1);
+  if (!latest) throw new Error("There is no publication journal");
   console.info(
     JSON.stringify({
       operation: "publication.retention",

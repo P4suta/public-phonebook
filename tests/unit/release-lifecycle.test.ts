@@ -18,7 +18,6 @@ const previous: ReleaseTarget = {
   databaseId: "database-id-a",
   manifestSha256: "manifest-a",
   artifactSha256: "artifact-a",
-  bundle: "bundle-a",
   manifestBinding: "digest",
 };
 const candidate = {
@@ -31,7 +30,6 @@ const candidate = {
   databaseId: "database-id-b",
   manifestSha256: "manifest-b",
   artifactSha256: "artifact-b",
-  bundle: "bundle-b",
 };
 type Fault =
   | "none"

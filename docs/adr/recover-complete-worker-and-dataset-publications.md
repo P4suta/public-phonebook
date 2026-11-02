@@ -8,6 +8,7 @@ date: 2026-10-30
 
 Proposed.
 Extends [source-bound staging promotion](source-tree-bound-staging-promotion.md).
+[Keep release records in a conditionally written control bucket](keep-release-records-in-a-conditionally-written-control-bucket.md) moves the journal, verification bundles, and lease from `.local/releases` to R2.
 
 ## Context
 

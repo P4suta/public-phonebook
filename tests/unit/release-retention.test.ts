@@ -3,7 +3,10 @@ import type {
   ReleaseJournal,
   ReleaseTarget,
 } from "../../tools/release-lifecycle.ts";
-import { databaseRetention } from "../../tools/release-retention.ts";
+import {
+  databaseRetention,
+  latestPerRelease,
+} from "../../tools/release-retention.ts";
 
 function target(version: string): ReleaseTarget {
   return {
@@ -15,7 +18,6 @@ function target(version: string): ReleaseTarget {
     databaseId: version,
     manifestSha256: version,
     artifactSha256: version,
-    bundle: version,
     manifestBinding: "digest",
   };
 }
@@ -51,6 +53,26 @@ describe("publication retention", () => {
     expect(
       plan.find((resource) => resource.databaseId === "pending")?.pending,
     ).toBe(true);
+  });
+  it("judges each release by its last history record so completed transitions don't stay pending", () => {
+    const preparing: ReleaseJournal = {
+      phase: "preparing",
+      candidate: target("b"),
+      previous: target("a"),
+    };
+    const verified: ReleaseJournal = { ...preparing, phase: "verified" };
+    const older: ReleaseJournal = {
+      phase: "verified",
+      candidate: target("a"),
+      previous: target("unused"),
+    };
+    const history = latestPerRelease([older, preparing, verified]);
+    expect(history).toEqual([older, verified]);
+    expect(
+      databaseRetention(history, verified, "b")
+        .filter((resource) => resource.pending)
+        .map((resource) => resource.databaseId),
+    ).toEqual([]);
   });
   it("retains the predecessor of a restored release and refuses unknown deployments", () => {
     const verified: ReleaseJournal = {
