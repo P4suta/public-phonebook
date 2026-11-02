@@ -77,7 +77,7 @@ Validate the downloaded byte length and SHA-256 before processing it.
 Downloads contain the complete directory and do not depend on the search page size.
 Source-specific reuse terms remain attached to every record.
 CSV records carry the columns `id`, `name`, `category`, `prefecture_code`, `municipality_code`, `address`, `phone_numbers`, `website`, `source_id`, `source_url`, `license`, `license_url`, and `data_as_of`.
-A `phone_numbers` cell holds the contact's E.164 numbers unescaped and separated by semicolons, the same values as `e164` in JSONL and `TEL` in vCard.
+A `phone_numbers` cell holds the contact's E.164 numbers unescaped and separated by semicolons, the same values as `e164` in JSON Lines and `TEL` in vCard.
 Validation admits only `+81` and digits in each number, so the cell can't call a function, reference a cell, or run a command.
 A spreadsheet may still read that cell as a number, so import the column as text to keep the plus sign.
 Every other cell that begins with `=`, `+`, `-`, `@`, a tab, a carriage return, or a full-width `＝`, `＋`, `－`, or `＠` receives a leading apostrophe.

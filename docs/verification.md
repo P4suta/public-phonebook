@@ -281,7 +281,7 @@ Immutable Releases and the `v*` tag ruleset are repository settings that only th
 Prepare and seed the national bundle as described in [local operation](deployment.md).
 Run `npm run data:check -- .local/phonebook` to verify every retained contact, source reference, sortable field, index column, category and prefecture count, phone relation count, search index count, archive byte length, SHA-256, and SQLite integrity.
 The same check confirms that row numbers follow the normalized name and identifier order.
-It reads the JSONL, CSV, and vCard archives in step and requires the same telephone numbers, in the same order, for every contact.
+It reads the JSON Lines, CSV, and vCard archives in step and requires the same telephone numbers, in the same order, for every contact.
 Only the adoption of an earlier production bundle admits that publication's apostrophe before each CSV telephone cell.
 It rebuilds `search-index.br` from the database in row order, requires identical bytes, and rejects a compressed index above 8 MiB.
 For each directory delta, it checks both digests and lengths, the size rule, the base it names, and the rebuilt archive's identity and header line.
