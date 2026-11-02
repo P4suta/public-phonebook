@@ -6,7 +6,9 @@ date: 2026-10-30
 
 ## Status
 
-Proposed.
+Superseded by [verify release candidates in place before approval](verify-release-candidates-in-place-before-approval.md).
+The tools no longer publish or check staging, and the Worker no longer contains the Access guard.
+The staging resources stay in the account until the owner removes them.
 
 ## Context
 

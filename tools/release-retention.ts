@@ -2,7 +2,11 @@ import { resolve } from "node:path";
 import * as v from "valibot";
 import { canRetireResource } from "../src/core/publication-policy.ts";
 import { controlStoreFromEnvironment } from "./control-store.ts";
-import type { ReleaseJournal, ReleaseTarget } from "./release-lifecycle.ts";
+import {
+  isTerminal,
+  type ReleaseJournal,
+  type ReleaseTarget,
+} from "./release-lifecycle.ts";
 import { activeVersion } from "./release-provider.ts";
 import { RemoteEnvironmentSchema, releaseHistory } from "./release-store.ts";
 
@@ -37,7 +41,7 @@ export function databaseRetention(
             journal.candidate.versionId === activeVersionId,
         )?.previous ?? null);
   const pending = journals
-    .filter((journal) => !["verified", "recovered"].includes(journal.phase))
+    .filter((journal) => !isTerminal(journal.phase))
     .flatMap((journal) => [
       journal.candidate,
       ...(journal.previous ? [journal.previous] : []),

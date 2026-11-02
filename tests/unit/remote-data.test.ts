@@ -60,9 +60,9 @@ afterEach(async () => {
 
 describe("remote data arguments", () => {
   it("parses preparation, fetch, and store commands and refuses anything else", () => {
-    expect(parseRemoteDataArguments(["staging", "bundle"])).toEqual({
+    expect(parseRemoteDataArguments(["production", "bundle"])).toEqual({
       kind: "prepare",
-      environment: "staging",
+      environment: "production",
       bundle: resolve("bundle"),
     });
     expect(
@@ -80,7 +80,8 @@ describe("remote data arguments", () => {
       ["development", "bundle"],
       ["--fetch", "short", "target"],
       ["--fetch", manifestSha256],
-      ["staging"],
+      ["production"],
+      ["staging", "bundle"],
       ["--store"],
     ])
       expect(() => parseRemoteDataArguments(args), args.join(" ")).toThrow();

@@ -60,12 +60,13 @@ A timeout supplies no behavioral evidence.
 
 ## Source-bound proofs
 
-The staging admission predicate is bound to the outer Worker guard.
-Its proof requires all configured origin, token-verification, and identity predicates for staging admission.
-Signature validation, key retrieval, Cloudflare Access policy evaluation, and native asset routing cross verifier semantics.
-Their checked alternatives are real RSA-signed JWT fixtures, invalid-claim and forged-key controls, method/path boundary tests, native browser checks, provider policy reconciliation, and live anonymous probes.
-The trusted public-key endpoint is derived from the configured issuer, never the token header.
-Revisit this boundary if Access token semantics, the JWT library, or asset routing changes.
+The release decisions `promotionAdmission` and `withdrawalDecision` gate the in-place candidate lifecycle in `tools/release-lifecycle.ts`.
+Promotion requires a verified candidate whose version ID is still deployed at 0% while the current version is still the verified predecessor.
+Withdrawal removes only the candidate that the journal's release owns, and only while the predecessor serves and no traffic has moved.
+Cloudflare's version routing, the override header, the deployment API, and the zone's rate limit cross verifier semantics.
+Their checked alternatives are fake-provider tests of staging, withdrawal, promotion, rollback, and the withdrawal drill through the same lifecycle and provider code.
+Each public check refuses a response whose `x-dial-version` names another version, and unit tests cover the request budget and the refused Worker-wide settings.
+Revisit this boundary if Cloudflare changes version overrides, gradual deployments, or the Worker and version API responses.
 
 Run `mise x -- just prove`.
 LemmaScript 0.6.5 translates the actual annotated search, search-trigger, copy, reference-style, publication, collection, snapshot, and row locator policy implementations to Dafny.
@@ -76,8 +77,9 @@ The browser adapter uses fresh symbol identities and suppresses superseded state
 Separate negative controls accept limit 101, ignore a municipality when choosing a catalog total, store a failure status, reverse the completion guard, reverse the trusted-click guard, and retain reference opacity while retaining their contracts.
 Each must fail verification.
 Search-trigger controls ignore composition, search an incomplete telephone number, and pause after one keystroke interval, and each must fail verification too.
-A conflicting import identity and a changed staging candidate also have source-mutating negative controls that must fail verification.
-Publication controls also drop manifest equality, recovery ownership, pending-resource protection, coverage retention, and initial-candidate ownership.
+A conflicting import identity also has a source-mutating negative control that must fail verification.
+Publication controls also promote an unverified candidate, ignore a changed current version, ignore a different candidate version, and withdraw a foreign candidate.
+Further controls drop recovery ownership, pending-resource protection, coverage retention, lease expiry, and the evidence signer.
 The production coverage decision admits only validated integer counts within ten million records, keeping its arithmetic within exact JavaScript integer representation.
 Collection controls remove name evidence, admit an empty candidate set, and omit duplicate rows from accounting.
 The snapshot control admits a supplied snapshot that differs from the active dataset.
@@ -156,7 +158,7 @@ A query-plan test runs `EXPLAIN QUERY PLAN` on the generated SQL in local D1 wit
 It requires the name and category indexes without a sort and requires the constant-rank ordering to fall back to a sort as its negative control.
 The annotated cache-admission function proves that only status 200 is stored.
 Native cache tests use an injected cache and an empty database to show hits without database access, separation by dataset digest, and refusal to store 400, 409, and 503 problems.
-The Cloudflare Cache API, its per-location storage, and its unavailability under Access remain external boundaries checked only through that injected port.
+The Cloudflare Cache API and its per-location storage remain external boundaries checked only through that injected port.
 Local plans and timings do not establish D1 latency or production capacity.
 
 ## National data and browser campaign
@@ -179,7 +181,7 @@ Run `mise x -- just test` for the fast gate, national data reconciliation and ph
 The command invalidates its preceding test receipt before execution and records a replacement only for an unchanged clean Git tree and dataset manifest.
 Production rejects a receipt for another dataset, source tree, format, or incomplete result.
 Dirty development checkouts can run the same checks but produce no publication receipt.
-The publisher separately checks the proof receipt and the active staging publication.
+Production admits a candidate on candidate evidence from `candidate.yml` rather than on a local receipt.
 The browser campaign uses built client and Worker output.
 It covers automatic search, Japanese composition, early input, dependent regions, exact-name ranking, call/map/detail/source actions, external-link confirmation, denied clipboard access, native no-JavaScript continuation, retries, changed snapshots, untrusted result text, local assets, nonce handling, HTTP contracts, and complete-download hashes.
 It also queries every prefecture and category against native D1.

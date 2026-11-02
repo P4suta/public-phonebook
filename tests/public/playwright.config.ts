@@ -3,15 +3,10 @@ import { defineConfig, devices } from "@playwright/test";
 import { environments } from "../../src/core/environment.ts";
 
 const origin = process.env.DIAL_PUBLIC_ORIGIN;
-if (
-  origin !== environments.staging.origin &&
-  origin !== environments.production.origin
-)
+if (origin !== environments.production.origin)
   throw new Error(
     "Public verification requires an exact configured HTTPS origin",
   );
-const environment =
-  origin === environments.staging.origin ? "staging" : "production";
 const proxy = process.env.HTTPS_PROXY;
 export default defineConfig({
   testDir: ".",
@@ -22,12 +17,9 @@ export default defineConfig({
   timeout: 60000,
   reporter: [
     ["list"],
-    [
-      "json",
-      { outputFile: resolve(`test-results/public-${environment}.json`) },
-    ],
+    ["json", { outputFile: resolve("test-results/public-production.json") }],
   ],
-  outputDir: resolve(`test-results/public-${environment}`),
+  outputDir: resolve("test-results/public-production"),
   use: {
     baseURL: origin,
     ...(proxy ? { proxy: { server: proxy } } : {}),

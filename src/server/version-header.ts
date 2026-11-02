@@ -4,10 +4,10 @@ export interface VersionBindings {
   readonly CF_VERSION_METADATA?: { readonly id: string };
 }
 
-type Handler<Bindings> = (
+type Handler<Bindings, Context> = (
   request: Request,
   bindings: Bindings,
-  context?: ExecutionContext,
+  context?: Context,
 ) => Promise<Response>;
 
 function labeled(response: Response, version: string): Response {
@@ -22,9 +22,9 @@ function labeled(response: Response, version: string): Response {
   }
 }
 
-export function withVersionHeader<Bindings extends VersionBindings>(
-  handler: Handler<Bindings>,
-): Handler<Bindings> {
+export function withVersionHeader<Bindings extends VersionBindings, Context>(
+  handler: Handler<Bindings, Context>,
+): Handler<Bindings, Context> {
   return async (request, bindings, context) => {
     const response = await handler(request, bindings, context);
     const version = bindings.CF_VERSION_METADATA?.id;

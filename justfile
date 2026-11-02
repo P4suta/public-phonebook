@@ -96,19 +96,22 @@ data-fetch dataset directory:
     doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --only-secrets R2_ACCESS_KEY_ID --only-secrets R2_SECRET_ACCESS_KEY --no-fallback -- npm run data:remote -- --fetch {{ quote(dataset) }} {{ quote(directory) }}
 
 publish environment dataset bundle="":
-    doppler run --project public-phonebook --config {{ if environment == "staging" { "stg" } else { "prd" } }} --no-fallback -- npm run publish -- {{ quote(environment) }} --dataset {{ quote(dataset) }} {{ if bundle == "" { "" } else { "--bundle " + quote(bundle) } }}
+    doppler run --project public-phonebook --config prd --no-fallback -- npm run publish -- {{ quote(environment) }} --dataset {{ quote(dataset) }} {{ if bundle == "" { "" } else { "--bundle " + quote(bundle) } }}
 
 publish-admission environment dataset bundle="":
-    doppler run --project public-phonebook --config {{ if environment == "staging" { "stg" } else { "prd" } }} --no-fallback -- npm run publish -- {{ quote(environment) }} --check-admission --dataset {{ quote(dataset) }} {{ if bundle == "" { "" } else { "--bundle " + quote(bundle) } }}
+    doppler run --project public-phonebook --config prd --no-fallback -- npm run publish -- {{ quote(environment) }} --check-admission --dataset {{ quote(dataset) }} {{ if bundle == "" { "" } else { "--bundle " + quote(bundle) } }}
 
 release dataset:
     node tools/release.ts {{ quote(dataset) }}
 
 recover environment:
-    doppler run --project public-phonebook --config {{ if environment == "staging" { "stg" } else { "prd" } }} --no-fallback -- npm run publish -- {{ quote(environment) }} --recover
+    doppler run --project public-phonebook --config prd --no-fallback -- npm run publish -- {{ quote(environment) }} --recover
+
+withdraw environment:
+    doppler run --project public-phonebook --config prd --no-fallback -- npm run publish -- {{ quote(environment) }} --withdraw
 
 release-status environment:
-    doppler run --project public-phonebook --config {{ if environment == "staging" { "stg" } else { "prd" } }} --no-fallback -- npm run publish -- {{ quote(environment) }} --status
+    doppler run --project public-phonebook --config prd --no-fallback -- npm run publish -- {{ quote(environment) }} --status
 
 release-retention environment:
     doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --only-secrets R2_ACCESS_KEY_ID --only-secrets R2_SECRET_ACCESS_KEY --no-fallback -- node tools/release-retention.ts {{ quote(environment) }}
@@ -116,13 +119,3 @@ release-retention environment:
 [positional-arguments]
 control-import directory *flags:
     node tools/control-import.ts "$@"
-
-release-rehearse bundle=".local/phonebook":
-    node tools/release-rehearsal.ts run {{ quote(bundle) }}
-
-staging-access:
-    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --no-fallback -- doppler run --project public-phonebook --config stg --no-fallback -- node tools/staging-access.ts configure
-
-staging-check:
-    doppler run --project public-phonebook --config stg --no-fallback -- node tools/staging-access.ts check
-    doppler run --project public-phonebook --config stg --no-fallback -- node tools/staging-probes.ts

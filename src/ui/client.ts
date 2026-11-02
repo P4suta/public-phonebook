@@ -15,7 +15,6 @@ import {
   type Source,
   SourceSchema,
 } from "../core/models.ts";
-import { browserCredentials } from "../core/staging-access-policy.ts";
 
 export class DirectoryError extends Error {
   readonly code: string;
@@ -34,7 +33,7 @@ const request = createIsomorphicFn()
     async (path: string, signal?: AbortSignal): Promise<Response> =>
       fetch(path, {
         signal: signal ?? null,
-        credentials: browserCredentials(window.location.origin),
+        credentials: "omit",
         headers: { Accept: "application/json" },
       }),
   )

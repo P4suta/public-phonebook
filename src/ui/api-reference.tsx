@@ -7,7 +7,6 @@ import {
   useRef,
 } from "react";
 import "@scalar/api-reference-react/style.css";
-import { browserCredentials } from "../core/staging-access-policy.ts";
 import { enhanceReference } from "./reference-accessibility.ts";
 
 export default function ApiReference({
@@ -81,7 +80,7 @@ export default function ApiReference({
     customFetch: (input, init) =>
       fetch(input, {
         ...init,
-        credentials: browserCredentials(window.location.origin),
+        credentials: "omit",
       }),
     onLoaded: () => {
       onReady();

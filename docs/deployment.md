@@ -1,8 +1,8 @@
 # Local operation and Cloudflare environments
 
 The application uses native Workers, D1, and R2.
-Publication prepares isolated resources and checks a staging candidate before production promotion.
-Per-environment receipts and HTTPS checks establish deployment status.
+Publication prepares isolated resources, checks the candidate version at 0% inside the production Worker, and moves traffic after the owner approves it.
+Receipts, the control store's journal, and HTTPS checks establish deployment status.
 
 ## Install and verify
 
@@ -49,7 +49,6 @@ No Container is needed.
 | Environment | Worker | Database | Bucket | Site |
 | --- | --- | --- | --- | --- |
 | development | dial-development | dial-development-directory | dial-development-datasets | 127.0.0.1:8787 |
-| staging | dial-staging | dial-staging-directory-DIGEST | dial-staging-datasets | staging.dial.page |
 | production | dial-production | dial-production-directory-DIGEST | dial-production-datasets | www.dial.page |
 
 `src/core/environment.ts` is the source of these identities.
@@ -67,23 +66,39 @@ Enable R2 in the Cloudflare account before the first remote preparation.
 
 ## Prepare and publish
 
-### Staging access
+### Candidates in the production Worker
 
-Staging requires Cloudflare Access across every path.
-The initial reviewer is the Cloudflare account owner, using the existing one-time PIN identity provider.
-Additional reviewers require the Access email policy and `ACCESS_REVIEWERS` in Doppler `stg` to agree.
-Production remains anonymous.
+There is no staging environment.
+A candidate is a new version of `dial-production` that waits at 0% beside the current version until the owner approves it.
 
-Run `tools/staging-access.ts configure` through Doppler `stg`, inheriting the account selector from `prd` during first setup.
-This creates only the staging application and its 90-day verification identity and stores credentials directly in Doppler.
-Run `tools/staging-access.ts check` with Doppler `stg` to reject broader policies, mismatched identities, expired tokens, and public R2 endpoints.
-No automation secret belongs in a browser context, URL, artifact, or Worker binding.
+1. The data command prepares the candidate's D1 database and archive keys under their digests, which the current version never reads.
+2. `--stage` uploads the built Worker with `cf workers versions create`, tagged with a new release ID, and deploys it at 0%.
+3. `--verify-candidate` runs the public checks on `www.dial.page` with `Cloudflare-Workers-Version-Overrides` aimed at the candidate.
+4. The release workflow waits for the owner's approval of the GitHub `production` environment.
+5. `--promote --release RELEASE_ID` moves traffic from 0% to 100% in one step and runs the checks again without the override.
+   A failure restores the verified predecessor and checks it again.
 
-For rotation, create a replacement staging service token in Cloudflare Access, store its ID, client ID, and secret in Doppler `stg`, and update the application's service policy to its exact token ID.
-Rebuild staging with the matching public client ID, verify both authenticated and anonymous behavior, then revoke the preceding token.
-During an Access outage, stop publication and repair the configured identity or policy through the provider console.
-Do not enable anonymous bypass or restore an expired token for recovery.
-The [staging authorization decision](adr/authenticate-the-entire-staging-origin.md) explains the shared boundary.
+The journal records `preparing`, `staged`, and `candidate-verified` before approval.
+Any failure before approval withdraws the candidate, records `withdrawing` and `withdrawn`, and leaves the current version and the verified predecessor unchanged.
+A withdrawal from a job with a read-only token stays pending in `withdrawing`, and the next `--withdraw` completes it.
+While a candidate awaits approval, the tools refuse every new deployment and mask its version ID in Actions logs and status output.
+Run `mise x -- just withdraw production` to withdraw it.
+GitHub's approval expires after 30 days, after which the candidate stays at 0% until someone withdraws it.
+
+Every check sends its requests from Node and refuses a response whose `x-dial-version` names another version.
+The browser checks route each same-origin request through the same client, so pages, assets, and API calls all carry the override.
+Before the checks start, three consecutive requests must reach the expected version.
+The checks share a ledger that counts requests in a sliding 10-second window and holds any request that would be the 40th.
+Failure artifacts never contain the candidate's version ID, and the artifact audit refuses any that do.
+
+The tools refuse a candidate whose built configuration changes domains, routes, cron triggers, `runWorkerFirst`, `workers.dev`, or preview URLs.
+They compare the build with the live Worker's domains and subdomain settings and the serving version's Worker-first routing.
+Routes and cron triggers can't be read back, so the build must declare none.
+Apply a Worker-wide change separately with the owner's `cf` profile, and then publish a candidate whose configuration matches it.
+
+`--drill` stages a candidate, runs its checks, injects a probe failure, and requires the withdrawal to leave production unchanged.
+The release workflow runs it before the first approved publication.
+The [in-place verification decision](adr/verify-release-candidates-in-place-before-approval.md) explains the conditions and the remaining weaknesses.
 
 ### Release inputs
 
@@ -96,29 +111,24 @@ mise x -- just release DATASET
 The release command dispatches `release.yml` on `main` with the dataset input, finds the dispatched run, and watches it.
 It never publishes from the local machine and never adopts or bootstraps an environment on its own.
 Production publishes only from that workflow, with candidate evidence for the same Git tree and manifest.
-The publisher refuses a local production publication, while `just recover` and `just release-status` stay available locally.
+The publisher refuses a local `--stage`, `--verify-candidate`, `--promote`, `--drill`, or `--adopt`.
+`just withdraw`, `just recover`, and `just release-status` stay available locally.
 
 | Command | Inputs | Effect |
 | --- | --- | --- |
-| `just publish staging DATASET [BUNDLE]` | Dataset digest, optional bundle | Publishes staging from a clean checkout |
-| `just publish-admission ENV DATASET [BUNDLE]` | Environment, dataset digest | Runs every admission check without a lease, build, or provider effect |
+| `just publish-admission production DATASET [BUNDLE]` | Dataset digest | Runs every admission check without a lease, build, or provider effect |
+| `just withdraw production` | None | Withdraws a candidate that never took traffic |
 | `just data-fetch DATASET DIRECTORY` | Dataset digest, target directory | Restores the bundle from the control store and checks every file |
 | `just test --bundle DIRECTORY --stage STAGE` | Bundle, stages | Runs selected stages of the gate and writes one receipt per stage |
 
 The bundle defaults to `.local/datasets/DATASET`, which `just data-fetch` fills.
 The publisher refuses a bundle whose manifest digest differs from the named dataset.
 The stages are `check`, `data`, `phones`, `prove`, and `e2e`, and each passing stage writes `.local/receipts/TREE/MANIFEST/STAGE.json`.
-A run of every stage also writes the combined local receipt that staging publication requires.
+A run of every stage also writes the combined local receipt.
 In GitHub Actions, `--record` stores each passing stage as candidate evidence under `candidates/TREE/MANIFEST/`.
 A local run can't record candidate evidence, so a local receipt never stands in for the release gate.
 Production admits a candidate only when every stage has passing evidence for the same tree and manifest from `candidate.yml` on `main`.
 Normal preparation and publication require canonical addresses.
-
-For a private failure exercise, run `mise x -- just release-rehearse .local/phonebook` after the full local gate.
-It derives a real subset from the supplied directory, retaining every populated category and prefecture plus the fixed verification contacts.
-The exact subset size depends on the input.
-It publishes A, activates B, injects the expected verification failure, verifies A again, and then publishes B normally.
-The exercise affects staging only.
 
 The data command validates the complete local bundle before remote writes.
 It uploads content-addressed archives and the manifest through the S3 API, only to the environment's private R2 bucket and only under new archive keys.
@@ -132,15 +142,13 @@ The full digest remains the import identity, so a prefix collision cannot overwr
 Repeated preparation reuses the exact database artifact and preserves earlier database resources.
 The final checks compare counts, foreign keys, the complete catalog, and fixed payload samples with the validated source.
 
-The publisher requires a clean committed checkout and a verified remote-data receipt.
-Staging also requires current full-test and proof receipts from the local gate.
-Production requires admitted candidate evidence instead, and the identical active verified staging Git tree, contact snapshot, database SHA-256, and manifest SHA-256.
+The publisher requires a clean committed checkout, a verified remote-data receipt, and admitted candidate evidence.
 Tree identity allows a merge commit to preserve an already checked candidate when its files are unchanged.
-Each environment is rebuilt with its own bindings and origin before the prebuilt cf deployment.
-The cf deployment applies the Worker's triggers, including custom domains.
+The candidate is built with production bindings and origin, and no secret, before the prebuilt version upload.
+The upload creates a version without applying triggers, so custom domains and other Worker-wide settings stay as the owner last applied them.
 HTML responses use `no-store, no-transform` to prevent Cloudflare from adding scripts to the document.
 Browser checks reject scripts from other origins and verify that an inserted external script is detected.
-The publisher hashes build output before deployment and after provider provisioning.
+The publisher hashes build output before the upload and after it.
 Public Playwright checks exercise desktop and narrow search, telephone formatting, detail and provenance navigation, the interactive Scalar client, accessibility, security-policy failures, and the 512-byte query boundary.
 They also download every archive through HTTPS and compare its byte length and SHA-256 with the checked manifest.
 Failure evidence stays under `test-results`.
@@ -181,14 +189,14 @@ The import converts a journal only when its bundle name and manifest bytes match
 It refuses to replace a different journal head, and repeating it changes nothing.
 Run the second command with the control-store credentials in the environment.
 
-The previous Worker and its data remain available while the new staging service is checked.
-The publication journal in the control store records the predecessor's exact version and bindings before activation.
-Failure restores the complete predecessor and verifies it before recording recovery.
-`mise x -- just release-status staging` reads the journal and active provider version.
-`mise x -- just recover staging` retries interrupted recovery without building or deploying a new candidate.
-Replace `staging` with `production` for public recovery.
+The previous version and its data keep serving while the candidate is checked at 0%.
+The publication journal in the control store records the predecessor's exact version and bindings before the upload.
+A failure after approval restores the complete predecessor and verifies it before recording recovery.
+`mise x -- just release-status production` reads the journal and the deployed versions, with a waiting candidate's version ID masked.
+`mise x -- just recover production` withdraws an interrupted candidate or restores the predecessor without building or deploying a new candidate.
+It refuses a candidate that awaits approval, which only `just withdraw` removes.
 An unrelated active deployment is refused rather than overwritten.
-Repair access or provider availability before retrying failed verification.
+Repair provider availability before retrying failed verification.
 
 ### Worker versions
 
@@ -197,11 +205,7 @@ It reports both versions with their release tags, and it refuses any other split
 Every Worker response carries `x-dial-version` with the answering version ID from `CF_VERSION_METADATA`.
 A check of a 0% candidate compares this header with the candidate's ID, because Cloudflare routes a request whose override doesn't apply to the current version without an error.
 
-The first staging publication requires `--bootstrap` with `--dataset` and has no verified rollback target.
-If its activation succeeded but verification was interrupted, run `doppler run --project public-phonebook --config stg --no-fallback -- node tools/publish.ts staging --resume-bootstrap`.
-It accepts only the owned active initial candidate and its original committed source.
-If that candidate failed verification, run `--bootstrap` again from corrected committed source.
-It supersedes the failed candidate only while no staging publication is verified and the failed candidate still owns the active version.
+Every publication needs a verified predecessor in the journal, and no command starts an environment without one.
 Do not discard journals or edit them to make a foreign deployment pass.
 
 `mise x -- just release-retention production` prints a read-only database retirement plan.
@@ -209,7 +213,7 @@ Active, rollback, and pending resources remain protected, and all published R2 d
 The command never deletes resources.
 The control store keeps the journals and verification bundles for recovery.
 Provider provisioning, network delivery, and the truth of upstream records remain external trust boundaries.
-Read the [recovery decision](adr/recover-complete-worker-and-dataset-publications.md), [promotion decision](adr/source-tree-bound-staging-promotion.md), and [verification contract](verification.md) for their checks and limits.
+Read the [recovery decision](adr/recover-complete-worker-and-dataset-publications.md), [in-place verification decision](adr/verify-release-candidates-in-place-before-approval.md), and [verification contract](verification.md) for their checks and limits.
 
 ## Support mail
 
@@ -224,6 +228,6 @@ The zone publishes `v=DMARC1; p=reject; adkim=s; aspf=s` at `_dmarc.dial.page`, 
 The zone's rate limiting rule blocks a client IP for 10 seconds after 60 requests in 10 seconds to `/`, `/api/contact*`, or `/api/v1/contact*`.
 The block answers 429 with `Retry-After` and sets no cookie, which keeps the privacy page accurate.
 Don't use a managed challenge or Bot Fight Mode on these hosts, because they set cookies.
-The rule matches paths only, so it also covers staging, where verification sends far fewer requests than the limit.
+Release checks hold any request that would be their 40th in 10 seconds, so they stay below the limit.
 A single redirect rule sends `https://dial.page/` with its path and query to `https://www.dial.page/` with status 301, through a proxied apex record.
 Browsers enforce HTTPS on every `.page` host through the preloaded top-level domain, so the Worker sets no HSTS header of its own.

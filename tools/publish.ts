@@ -4,7 +4,6 @@ import { join, resolve } from "node:path";
 import * as v from "valibot";
 import { databaseResourceName, environments } from "../src/core/environment.ts";
 import { CatalogSchema, DigestSchema } from "../src/core/models.ts";
-import { canPromote } from "../src/core/publication-policy.ts";
 import { checkDataBundle } from "./check-data.ts";
 import { acquireLease, type PublicationLease } from "./control-lease.ts";
 import {
@@ -12,20 +11,35 @@ import {
   controlStoreFromEnvironment,
 } from "./control-store.ts";
 import { command, requireCommand } from "./process.ts";
+import {
+  awaitExpectedVersion,
+  publicAccess,
+  type VersionMode,
+} from "./public-request.ts";
 import { validatePublicationCoverage } from "./publication-coverage.ts";
 import {
-  ownsUnverifiedBootstrap,
+  beforeTraffic,
+  type DeployedVersions,
+  drillWithdrawal,
+  isTerminal,
+  promoteCandidate,
   type ReleaseJournal,
   type ReleasePorts,
   type ReleaseTarget,
-  recoverRelease,
-  resumeBootstrap,
-  runRelease,
+  recoverPublication,
+  stageCandidate,
+  verifiedPredecessor,
+  verifyStagedCandidate,
+  withdrawCandidate,
 } from "./release-lifecycle.ts";
 import {
   activeDatabaseId,
-  activeVersion,
+  deployAlone,
+  deployCandidate,
+  deployedVersions,
+  liveWorkerSettings,
   restoreVersion,
+  uploadVersion,
   verifyVersionBindings,
 } from "./release-provider.ts";
 import {
@@ -43,24 +57,21 @@ import {
   storeVerificationDataset,
 } from "./release-store.ts";
 import { fileDigest } from "./snapshot.ts";
-import { validateStagingApplication } from "./staging-access.ts";
-import { probeStaging } from "./staging-probes.ts";
 import { auditVerificationArtifacts } from "./verification-artifacts.ts";
-import { requireVerificationReceipt } from "./verification-receipt.ts";
+import {
+  readCandidateWorkerSettings,
+  requireUnchangedWorkerSettings,
+} from "./worker-settings.ts";
 
 const commandArgumentOffset = 2;
 const workerBuildDirectory = ".cloudflare/output/v0/workers/default";
-const cf = resolve("node_modules/.bin/cf");
 const verificationCache = ".local/control-cache/datasets";
 const fetchedDatasets = ".local/datasets";
+const probeLedgers = ".local/probe-ledgers";
 const treeSchema = v.pipe(v.string(), v.regex(/^[a-f0-9]{40}$/u));
-
-class RecoveryExerciseFailure extends Error {
-  constructor() {
-    super("The staging recovery exercise rejected a checked candidate");
-    this.name = "RecoveryExerciseFailure";
-  }
-}
+const ReleaseIdSchema = v.pipe(v.string(), v.uuid());
+const actionsMask = "::add-mask::";
+export const maskedVersion = "masked";
 
 export async function buildDigest(directory: string): Promise<string> {
   const hash = createHash("sha256");
@@ -83,6 +94,44 @@ export async function buildDigest(directory: string): Promise<string> {
   return hash.digest("hex");
 }
 
+export function maskVersion(
+  versionId: string,
+  provenance: RunProvenance,
+  write: (line: string) => void = console.info,
+): void {
+  if (versionId && provenance.kind === "github-actions")
+    write(`${actionsMask}${versionId}`);
+}
+
+export function maskCandidate(
+  journal: ReleaseJournal | null,
+  provenance: RunProvenance,
+  write: (line: string) => void = console.info,
+): void {
+  if (journal && beforeTraffic(journal.phase))
+    maskVersion(journal.candidate.versionId, provenance, write);
+}
+
+export function publicJournal(
+  journal: ReleaseJournal | null,
+): ReleaseJournal | null {
+  if (!journal || !beforeTraffic(journal.phase) || !journal.candidate.versionId)
+    return journal;
+  return {
+    ...journal,
+    candidate: { ...journal.candidate, versionId: maskedVersion },
+  };
+}
+
+export function publicDeployment(deployed: DeployedVersions): DeployedVersions {
+  return {
+    current: deployed.current,
+    candidate: deployed.candidate
+      ? { ...deployed.candidate, versionId: maskedVersion }
+      : null,
+  };
+}
+
 function verificationBundle(
   store: ControlStore,
   target: ReleaseTarget,
@@ -98,6 +147,7 @@ async function verifyTarget(
   environment: RemoteEnvironment,
   target: ReleaseTarget,
   store: ControlStore,
+  mode: VersionMode,
 ): Promise<void> {
   await verifyVersionBindings(environment, target);
   const bundle = await verificationBundle(store, target);
@@ -119,6 +169,13 @@ async function verifyTarget(
     );
   process.env.DIAL_PUBLIC_ORIGIN = environments[environment].origin;
   process.env.DIAL_PUBLIC_BUNDLE = bundle;
+  process.env.DIAL_PUBLIC_VERSION = target.versionId;
+  process.env.DIAL_PUBLIC_VERSION_MODE = mode;
+  process.env.DIAL_PROBE_LEDGER ??= resolve(
+    probeLedgers,
+    `${randomUUID()}.json`,
+  );
+  await awaitExpectedVersion(publicAccess());
   const failures: unknown[] = [];
   try {
     await requireCommand("npm", [
@@ -139,22 +196,13 @@ async function verifyTarget(
         resolve(`test-results/public-${environment}.json`),
         resolve(`test-results/public-${environment}`),
       ],
-      environment === "staging"
-        ? [
-            process.env.ACCESS_SERVICE_CLIENT_ID ?? "",
-            process.env.ACCESS_SERVICE_CLIENT_SECRET ?? "",
-          ]
-        : [],
+      mode === "override" ? [target.versionId] : [],
     );
   } catch (error) {
     failures.push(error);
   }
   if (failures.length)
     throw new AggregateError(failures, "Public verification did not pass");
-  if (environment === "staging") {
-    await validateStagingApplication();
-    await probeStaging();
-  }
 }
 
 interface PublicationContext {
@@ -162,10 +210,11 @@ interface PublicationContext {
   readonly store: ControlStore;
   readonly writer: JournalWriter;
   readonly lease: PublicationLease;
+  readonly provenance: RunProvenance;
 }
 
 function releasePorts(
-  { environment, store, writer, lease }: PublicationContext,
+  { environment, store, writer, lease, provenance }: PublicationContext,
   sourceBundle: string,
 ): ReleasePorts {
   return {
@@ -173,12 +222,7 @@ function releasePorts(
       lease.assertHeld();
       await writer.save(journal);
     },
-    active: () => activeVersion(environment),
-    async restore(previous): Promise<void> {
-      lease.assertHeld();
-      await restoreVersion(environment, previous);
-    },
-    verify: (target) => verifyTarget(environment, target, store),
+    deployed: () => deployedVersions(environment),
     async prepare(target): Promise<void> {
       const manifest = await checkDataBundle(sourceBundle);
       const prepared = v.parse(
@@ -206,33 +250,42 @@ function releasePorts(
           target.artifactSha256 ||
         (await committedTree()) !== target.sourceTree
       )
-        throw new Error("The prepared candidate changed before activation");
-      if (environment === "staging") await validateStagingApplication();
-    },
-    async activate(target): Promise<void> {
-      lease.assertHeld();
-      const deployed = await command(
-        cf,
-        [
-          "deploy",
-          "--prebuilt",
-          "--mode",
-          environment,
-          "--tag",
-          target.releaseId,
-          "--message",
-          target.sourceTree ?? "",
-        ],
-        true,
+        throw new Error("The prepared candidate changed before its upload");
+      const current = (await deployedVersions(environment)).current;
+      requireUnchangedWorkerSettings(
+        await readCandidateWorkerSettings(),
+        await liveWorkerSettings(environment, current.versionId),
       );
-      if (deployed.code !== 0)
-        throw new Error("Cloudflare candidate activation did not complete");
+    },
+    async stage(target, current): Promise<void> {
+      lease.assertHeld();
+      const versionId = await uploadVersion(environment, target);
+      maskVersion(versionId, provenance);
       if (
         (await buildDigest(resolve(workerBuildDirectory))) !==
         target.artifactSha256
       )
-        throw new Error("Deployment changed the verified Worker or assets");
+        throw new Error("The upload changed the verified Worker or assets");
+      await verifyVersionBindings(environment, { ...target, versionId });
+      lease.assertHeld();
+      await deployCandidate(environment, current.versionId, versionId);
     },
+    async withdraw(current): Promise<void> {
+      lease.assertHeld();
+      await deployAlone(environment, current.versionId);
+    },
+    async activate(candidate): Promise<void> {
+      lease.assertHeld();
+      await deployAlone(environment, candidate.versionId);
+    },
+    async restore(previous): Promise<void> {
+      lease.assertHeld();
+      await restoreVersion(environment, previous);
+    },
+    verifyCandidate: (target) =>
+      verifyTarget(environment, target, store, "override"),
+    verify: (target, evidence) =>
+      verifyTarget(environment, target, store, evidence),
   };
 }
 
@@ -246,15 +299,6 @@ async function committedTree(): Promise<string> {
   return v.parse(treeSchema, tree.stdout.trim());
 }
 
-function verifiedPredecessor(
-  journal: ReleaseJournal | null,
-): ReleaseTarget | null {
-  if (!journal) return null;
-  if (journal.phase === "verified") return journal.candidate;
-  if (journal.phase === "recovered") return journal.previous;
-  throw new Error("An incomplete publication requires recovery");
-}
-
 async function adoptProduction(
   bundle: string,
   context: PublicationContext,
@@ -262,7 +306,7 @@ async function adoptProduction(
   if (context.writer.current())
     throw new Error("Production already has a publication journal");
   const manifest = await checkDataBundle(bundle, "retained");
-  const active = await activeVersion("production");
+  const active = (await deployedVersions("production")).current;
   const target: ReleaseTarget = {
     releaseId: active.versionId,
     versionId: active.versionId,
@@ -274,8 +318,11 @@ async function adoptProduction(
     artifactSha256: null,
     manifestBinding: "snapshot",
   };
-  await verifyTarget("production", target, context.store);
-  if ((await activeVersion("production")).versionId !== target.versionId)
+  await verifyTarget("production", target, context.store, "optional");
+  if (
+    (await deployedVersions("production")).current.versionId !==
+    target.versionId
+  )
     throw new Error("Production changed during baseline verification");
   context.lease.assertHeld();
   await context.writer.save({
@@ -296,36 +343,40 @@ async function adoptProduction(
 
 const publishActions = [
   "publish",
-  "--bootstrap",
+  "--stage",
+  "--verify-candidate",
+  "--promote",
+  "--withdraw",
   "--recover",
-  "--adopt",
   "--status",
-  "--rehearse-recovery",
-  "--resume-bootstrap",
   "--check-admission",
+  "--drill",
+  "--adopt",
 ] as const;
 export type PublishAction = (typeof publishActions)[number];
 const datasetActions: ReadonlySet<PublishAction> = new Set([
   "publish",
-  "--bootstrap",
+  "--stage",
+  "--drill",
   "--adopt",
-  "--rehearse-recovery",
   "--check-admission",
 ]);
 const effectfulActions: ReadonlySet<PublishAction> = new Set([
   "publish",
-  "--bootstrap",
+  "--stage",
+  "--verify-candidate",
+  "--promote",
+  "--drill",
   "--adopt",
-  "--rehearse-recovery",
-  "--resume-bootstrap",
 ]);
-const publishUsage = `Usage: publish ENVIRONMENT [${publishActions.filter((action) => action !== "publish").join("|")}] [--dataset MANIFEST_SHA256] [--bundle DIRECTORY]`;
+const publishUsage = `Usage: publish ENVIRONMENT [${publishActions.filter((action) => action !== "publish").join("|")}] [--dataset MANIFEST_SHA256] [--bundle DIRECTORY] [--release RELEASE_ID]`;
 
 export interface PublishArguments {
   readonly environment: RemoteEnvironment;
   readonly action: PublishAction;
   readonly dataset: string;
   readonly bundle: string;
+  readonly release: string;
 }
 
 export function parsePublishArguments(
@@ -337,6 +388,7 @@ export function parsePublishArguments(
   let action: PublishAction = "publish";
   let dataset = "";
   let bundle = "";
+  let release = "";
   for (let index = 0; index < rest.length; index += 1) {
     const flag = rest[index];
     const value = rest[index + 1];
@@ -345,6 +397,9 @@ export function parsePublishArguments(
       index += 1;
     } else if (flag === "--bundle" && value && !bundle) {
       bundle = resolve(value);
+      index += 1;
+    } else if (flag === "--release" && value && !release) {
+      release = v.parse(ReleaseIdSchema, value);
       index += 1;
     } else if (
       action === "publish" &&
@@ -360,12 +415,19 @@ export function parsePublishArguments(
         ? `The ${action} action requires an explicit --dataset`
         : `The ${action} action takes no dataset`,
     );
+  if ((action === "--promote") !== (release !== ""))
+    throw new Error(
+      action === "--promote"
+        ? "Promotion requires the approved --release"
+        : `The ${action} action takes no release`,
+    );
   if (bundle && !dataset) throw new Error(publishUsage);
   return {
     environment: environment.output,
     action,
     dataset,
     bundle: bundle || (dataset ? resolve(fetchedDatasets, dataset) : ""),
+    release,
   };
 }
 
@@ -377,7 +439,7 @@ export function publicationAuthority(
   if (environment !== "production" || !effectfulActions.has(action)) return;
   if (provenance.kind === "local")
     throw new Error(
-      "Production publishes only from the release workflow; --recover, --status, and --check-admission stay available locally",
+      "Production publishes only from the release workflow; --withdraw, --recover, --status, and --check-admission stay available locally",
     );
   if (provenance.workflow !== releaseSigner)
     throw new Error(`Production publishes only from ${releaseSigner}`);
@@ -391,7 +453,6 @@ interface AdmittedCandidate {
 }
 
 async function admitCandidate(
-  environment: RemoteEnvironment,
   store: ControlStore,
   options: PublishArguments,
   journal: ReleaseJournal | null,
@@ -403,72 +464,33 @@ async function admitCandidate(
   );
   if (manifestSha256 !== options.dataset)
     throw new Error("The bundle's manifest differs from the --dataset digest");
-  if (environment === "production") {
-    await requireCandidateEvidence(store, sourceTree, manifestSha256);
-    const staging = (await loadRelease(store, "staging"))?.journal;
-    const checked = staging?.phase === "verified" ? staging.candidate : null;
-    if (
-      !checked ||
-      !canPromote(
-        sourceTree,
-        checked.sourceTree ?? "",
-        manifest.snapshot,
-        checked.snapshot,
-        true,
-        manifest.databaseSha256,
-        checked.databaseSha256,
-        manifestSha256,
-        checked.manifestSha256,
-      ) ||
-      (await activeVersion("staging")).versionId !== checked.versionId
-    )
-      throw new Error(
-        "Production requires the identical active verified staging source and dataset artifacts",
-      );
-  } else await requireLocalReceipts(sourceTree);
+  await requireCandidateEvidence(store, sourceTree, manifestSha256);
   const previous = verifiedPredecessor(journal);
   const catalog: unknown = JSON.parse(
     await readFile(join(options.bundle, "catalog.json"), "utf8"),
   );
-  const precedingCatalog =
-    previous && environment === "production"
-      ? v.parse(
-          CatalogSchema,
-          JSON.parse(
-            await readFile(
-              join(await verificationBundle(store, previous), "catalog.json"),
-              "utf8",
-            ),
+  const precedingCatalog = previous
+    ? v.parse(
+        CatalogSchema,
+        JSON.parse(
+          await readFile(
+            join(await verificationBundle(store, previous), "catalog.json"),
+            "utf8",
           ),
-        )
-      : undefined;
+        ),
+      )
+    : undefined;
   validatePublicationCoverage(catalog, precedingCatalog);
   return { sourceTree, manifest, manifestSha256, previous };
-}
-
-async function requireLocalReceipts(sourceTree: string): Promise<void> {
-  await requireVerificationReceipt(sourceTree);
-  await requireCommand(process.execPath, ["tools/prove.ts", "--check-receipt"]);
 }
 
 async function checkAdmission(
   options: PublishArguments,
   store: ControlStore,
+  journal: ReleaseJournal | null,
 ): Promise<void> {
-  const journal = (await loadRelease(store, options.environment))?.journal;
   try {
-    if (
-      journal &&
-      journal.phase !== "verified" &&
-      journal.phase !== "recovered"
-    )
-      throw new Error("An incomplete publication requires recovery");
-    const admitted = await admitCandidate(
-      options.environment,
-      store,
-      options,
-      journal ?? null,
-    );
+    const admitted = await admitCandidate(store, options, journal);
     if (!admitted.previous)
       throw new Error("Publication requires a verified predecessor");
     console.info(
@@ -494,26 +516,53 @@ async function checkAdmission(
   }
 }
 
+function requireJournal(
+  journal: ReleaseJournal | null,
+  action: PublishAction,
+): ReleaseJournal {
+  if (!journal)
+    throw new Error(`There is no publication journal for ${action}`);
+  return journal;
+}
+
+function report(
+  operation: string,
+  environment: RemoteEnvironment,
+  journal: ReleaseJournal,
+): void {
+  console.info(
+    JSON.stringify({
+      operation,
+      environment,
+      releaseId: journal.candidate.releaseId,
+      snapshot: journal.candidate.snapshot,
+      phase: journal.phase,
+      versionId: publicJournal(journal)?.candidate.versionId,
+    }),
+  );
+}
+
 async function main(args: readonly string[]): Promise<void> {
   const options = parsePublishArguments(args);
   const { environment, action, bundle } = options;
   const store = controlStoreFromEnvironment();
   const provenance = runProvenance();
   publicationAuthority(environment, action, provenance);
+  const head = await loadRelease(store, environment);
+  maskCandidate(head?.journal ?? null, provenance);
   if (action === "--check-admission") {
-    await checkAdmission(options, store);
+    await checkAdmission(options, store, head?.journal ?? null);
     return;
   }
   if (action === "--status") {
-    const head = await loadRelease(store, environment);
     console.info(
       JSON.stringify({
         operation: "publication.status",
         environment,
         sequence: head?.record.sequence ?? null,
         provenance: head?.record.provenance ?? null,
-        journal: head?.journal ?? null,
-        active: await activeVersion(environment),
+        journal: publicJournal(head?.journal ?? null),
+        deployed: publicDeployment(await deployedVersions(environment)),
       }),
     );
     return;
@@ -530,86 +579,56 @@ async function main(args: readonly string[]): Promise<void> {
       environment,
       store,
       lease,
-      writer: journalWriter(
-        store,
-        environment,
-        provenance,
-        await loadRelease(store, environment),
-      ),
+      provenance,
+      writer: journalWriter(store, environment, provenance, head),
     };
-    let journal = context.writer.current()?.journal ?? null;
+    let journal = head?.journal ?? null;
     const ports = releasePorts(context, bundle);
     if (action === "--recover") {
-      if (!journal)
-        throw new Error("There is no publication journal to recover");
-      const recovered = await recoverRelease(journal, ports);
-      console.info(
-        JSON.stringify({
-          operation: "publication.recover",
-          environment,
-          phase: recovered.phase,
-          result: "verified",
-        }),
+      const recovered = await recoverPublication(
+        requireJournal(journal, action),
+        ports,
       );
+      report("publication.recover", environment, recovered);
       return;
     }
-    if (action === "--resume-bootstrap") {
-      const initialTree = await committedTree();
-      await requireLocalReceipts(initialTree);
-      if (
-        environment !== "staging" ||
-        !journal ||
-        journal.candidate.sourceTree !== initialTree
-      )
-        throw new Error(
-          "Initial verification requires its original committed staging source",
-        );
-      const completed = await resumeBootstrap(journal, ports);
-      console.info(
-        JSON.stringify({
-          operation: "publication.bootstrap.resume",
-          phase: completed.phase,
-          result: "verified",
-        }),
+    if (action === "--withdraw") {
+      const withdrawn = await withdrawCandidate(
+        requireJournal(journal, action),
+        ports,
       );
+      report("publication.withdraw", environment, withdrawn);
+      return;
+    }
+    if (action === "--verify-candidate") {
+      const verified = await verifyStagedCandidate(
+        requireJournal(journal, action),
+        ports,
+      );
+      report("publication.candidate", environment, verified);
+      return;
+    }
+    if (action === "--promote") {
+      const promoted = await promoteCandidate(
+        requireJournal(journal, action),
+        options.release,
+        ports,
+      );
+      report("publication", environment, promoted);
       return;
     }
     if (action === "--adopt") {
-      if (environment !== "production")
-        throw new Error(
-          "Only the existing public production baseline can be adopted",
-        );
       await adoptProduction(bundle, context);
       return;
     }
-    const bootstrap = action === "--bootstrap";
-    if (bootstrap) {
-      if (
-        environment !== "staging" ||
-        (journal && !ownsUnverifiedBootstrap(journal, await ports.active()))
-      )
-        throw new Error(
-          "Bootstrap is restricted to an unverified protected staging publication",
-        );
-      journal = null;
-    } else if (
-      journal &&
-      journal.phase !== "verified" &&
-      journal.phase !== "recovered"
-    )
-      journal = await recoverRelease(journal, ports);
+    if (journal && !isTerminal(journal.phase))
+      journal = await recoverPublication(journal, ports);
     const { sourceTree, manifest, manifestSha256, previous } =
-      await admitCandidate(environment, store, options, journal);
-    const exercise = action === "--rehearse-recovery";
-    if (exercise && (environment !== "staging" || !previous))
-      throw new Error(
-        "Recovery exercises require an existing verified staging publication",
-      );
-    if (!previous && !bootstrap)
+      await admitCandidate(store, options, journal);
+    if (!previous)
       throw new Error("Publication requires a verified predecessor");
     process.env.DIAL_DATABASE_SHA256 = manifest.databaseSha256;
     process.env.DIAL_MANIFEST_SHA256 = manifestSha256;
-    if (environment === "staging") await validateStagingApplication();
     buildUnlock = await releaseLock("build");
     await requireCommand("npm", ["run", "build", "--", environment]);
     const prepared = v.parse(
@@ -633,61 +652,24 @@ async function main(args: readonly string[]): Promise<void> {
     };
     const guardedPorts: ReleasePorts = {
       ...ports,
-      async activate(candidate): Promise<void> {
+      async stage(candidate, current): Promise<void> {
         try {
-          await ports.activate(candidate);
+          await ports.stage(candidate, current);
         } finally {
           await releaseBuild();
         }
       },
-      async verify(candidate): Promise<void> {
-        await ports.verify(candidate);
-        if (exercise && candidate.releaseId === target.releaseId)
-          throw new RecoveryExerciseFailure();
-      },
     };
-    let result: ReleaseJournal;
-    try {
-      result = await runRelease(target, previous, guardedPorts, bootstrap);
-    } catch (error) {
-      const recovered = context.writer.current()?.journal;
-      if (
-        exercise &&
-        error instanceof Error &&
-        error.cause instanceof RecoveryExerciseFailure &&
-        recovered?.phase === "recovered" &&
-        recovered.candidate.releaseId === target.releaseId &&
-        recovered.previous?.versionId === previous?.versionId
-      ) {
-        console.info(
-          JSON.stringify({
-            operation: "publication.rehearsal",
-            environment,
-            rejectedSnapshot: target.snapshot,
-            restoredSnapshot: previous?.snapshot,
-            result: "recovered",
-          }),
-        );
-        return;
-      }
-      throw error;
+    if (action === "--drill") {
+      const withdrawn = await drillWithdrawal(target, previous, guardedPorts);
+      report("publication.drill", environment, withdrawn);
+      return;
     }
-    if (exercise) {
-      await recoverRelease(result, ports);
-      throw new Error(
-        "The recovery exercise did not observe its expected failure",
-      );
-    }
-    console.info(
-      JSON.stringify({
-        operation: "publication",
-        environment,
-        sourceTree,
-        snapshot: target.snapshot,
-        versionId: result.candidate.versionId,
-        result: "verified",
-      }),
-    );
+    const staged = await stageCandidate(target, previous, guardedPorts);
+    report("publication.stage", environment, staged);
+    if (action === "--stage") return;
+    const verified = await verifyStagedCandidate(staged, guardedPorts);
+    report("publication.candidate", environment, verified);
   } finally {
     try {
       await releaseBuild();
