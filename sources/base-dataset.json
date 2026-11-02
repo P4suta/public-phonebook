@@ -1,0 +1,8 @@
+{
+  "manifestSha256": "d5d630f769138ac7fef864ea6f4a52efb80b845569d1976acb845751d9ba0c99",
+  "database": {
+    "key": "blobs/sha256/03a3424b9f46b5000d1dfad6624a76b6a655f078012b000d47686b738abc788e",
+    "sha256": "03a3424b9f46b5000d1dfad6624a76b6a655f078012b000d47686b738abc788e",
+    "bytes": 993763328
+  }
+}
