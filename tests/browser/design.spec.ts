@@ -161,13 +161,13 @@ for (const width of [320, 390, 1440]) {
     for (const [name, path] of [
       ["home", "/"],
       ["about", "/about"],
-      ["results", "/?q=国立国会図書館&prefecture=13&category=library"],
+      ["results", "/?q=国立国会図書館&category=library"],
       ["empty", "/?q=存在しない施設000000"],
       ["data", "/data"],
       ["api", "/developers"],
       ["detail", detail],
       ["source", `${detail}/source`],
-      ["invalid", "/?prefecture=99"],
+      ["invalid", "/?q=国立国会図書館&category=unknown"],
       ["missing", "/contacts/does-not-exist"],
     ]) {
       if (!name || !path) throw new Error("Missing visual case");
@@ -322,19 +322,8 @@ for (const width of [320, 390, 1440]) {
           path: info.outputPath(`${name}-${width}.png`),
           fullPage: name !== "data",
         });
-      if (name === "results" && width <= foundation.layout.compactUntil) {
-        const prefecture = await page
-          .getByLabel("都道府県", { exact: true })
-          .boundingBox();
-        const municipality = await page
-          .getByLabel("市区町村", { exact: true })
-          .boundingBox();
-        expect(
-          prefecture &&
-            municipality &&
-            Math.abs(prefecture.y - municipality.y) < 1,
-        ).toBe(true);
-      }
+      if (name === "home" || name === "results")
+        await expect(page.getByRole("combobox"), name).toHaveCount(0);
     }
   });
 }
@@ -344,7 +333,7 @@ for (const width of [320, 1440]) {
     page,
   }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto("/?q=国立国会図書館&prefecture=13&category=library");
+    await page.goto("/?q=国立国会図書館&category=library");
     await addStyleSheet(page, ":root { font-size: 200%; }");
     await expect(page.locator("article").first()).toBeVisible();
     expect(
@@ -414,7 +403,7 @@ for (const width of [320, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     for (const [name, path] of [
       ["home", "/"],
-      ["results", "/?q=国立国会図書館&prefecture=13&category=library"],
+      ["results", "/?q=国立国会図書館&category=library"],
       ["contact", `/contacts/${encodeURIComponent(contact.id)}`],
       ["about", "/about"],
       ...serviceInformation.map(({ key }) => [key, `/${key}`]),

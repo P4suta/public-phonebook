@@ -8,7 +8,22 @@ import {
   ContactCard,
   LinkButton,
   OfficialLink,
+  ResultCard,
 } from "../../src/ui/components.tsx";
+import {
+  catalogRegions,
+  localCard,
+  regionLabel,
+  serverCard,
+} from "../../src/ui/result-cards.ts";
+
+const regions = catalogRegions({
+  prefectures: [
+    { code: "13", name: "東京都" },
+    { code: "26", name: "京都府" },
+  ],
+  municipalities: [{ code: "13101", prefectureCode: "13", name: "千代田区" }],
+});
 
 vi.mock("../../src/ui/styles.css.ts", () => ({
   actions: "actions",
@@ -25,6 +40,7 @@ vi.mock("../../src/ui/styles.css.ts", () => ({
   cardFeedback: "cardFeedback",
   phoneGroup: "phoneGroup",
   group: "group",
+  region: "region",
   heading: "heading",
   solid: "solid",
   srOnly: "srOnly",
@@ -77,10 +93,14 @@ it("shows every telephone action and one contact-save action for a multi-number 
     phoneConfirmed: false,
     phoneConfirmationUrl: null,
   });
-  for (const detail of [false, true]) {
-    const markup = renderToStaticMarkup(
-      createElement(ContactCard, { contact, detail }),
-    );
+  const result = serverCard(contact, regions, "/?q=library");
+  for (const markup of [
+    renderToStaticMarkup(createElement(ContactCard, { contact })),
+    renderToStaticMarkup(
+      createElement(ResultCard, { card: result, onOpenRow: () => undefined }),
+    ),
+  ]) {
+    const detail = markup.includes('data-layout="detail"');
     expect(markup.match(/href="tel:/g)).toHaveLength(2);
     expect(markup.match(/data-phone/g)).toHaveLength(2);
     expect(markup.match(/<button[^>]*data-phone/g)).toHaveLength(2);
@@ -89,8 +109,42 @@ it("shows every telephone action and one contact-save action for a multi-number 
     for (const phone of contact.phones)
       expect(markup).toContain(`href="tel:${phone.e164}"`);
     expect(markup.match(/contact\.vcf/g) ?? []).toHaveLength(detail ? 1 : 0);
-    expect(markup).toMatch(
-      /<a[^>]*data-external-destination="address"[^>]*><svg[^>]*lucide-map-pin[^>]*>.*?<\/svg><span>Tokyo<svg[^>]*lucide-external-link/u,
-    );
+    if (detail)
+      expect(markup).toMatch(
+        /<a[^>]*data-external-destination="address"[^>]*><svg[^>]*lucide-map-pin[^>]*>.*?<\/svg><span>Tokyo<svg[^>]*lucide-external-link/u,
+      );
+    else {
+      expect(markup).not.toContain("Tokyo");
+      expect(markup).not.toContain("google.com/maps");
+      expect(markup).toContain('<p class="region">東京都千代田区</p>');
+      expect(markup).toContain(
+        'href="/contacts/fixture%3Amultiple-phones?from=%2F%3Fq%3Dlibrary"',
+      );
+    }
   }
+});
+
+it("links a device result through its index row and keeps the national number's digits", () => {
+  const card = localCard(
+    {
+      row: 41,
+      name: "市立図書館",
+      category: "library",
+      region: "26",
+      phones: ["0774981200"],
+    },
+    "a".repeat(64),
+    regions,
+    "/?q=図書館",
+  );
+  expect(card).toEqual({
+    key: "row-41",
+    name: "市立図書館",
+    region: "京都府",
+    phones: ["+81774981200"],
+    href: `/contacts/row/${"a".repeat(64)}/41?from=%2F%3Fq%3D%E5%9B%B3%E6%9B%B8%E9%A4%A8`,
+    row: { snapshot: "a".repeat(64), row: 41 },
+  });
+  expect(regionLabel("13999", regions)).toBe("東京都");
+  expect(regionLabel("99", regions)).toBe("");
 });

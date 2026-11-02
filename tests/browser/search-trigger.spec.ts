@@ -1,5 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "./fixtures.ts";
+import { saveData, waitForLocalSearch } from "./search-sources.ts";
 
 const settleDelay = 120;
 const keystrokeGap = 2 * settleDelay;
@@ -16,6 +17,7 @@ async function searchPage(
     queries.push(new URL(route.request().url()).searchParams.get("q") ?? "");
     await route.continue();
   });
+  await saveData(page);
   await page.clock.install({ time: loadedAt });
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
@@ -119,6 +121,25 @@ test("Enter searches a partial telephone number", async ({ page }) => {
   expect(queries).toEqual([]);
   await page.keyboard.press("Enter");
   await expectSearches(page, queries, ["03-35"]);
+});
+
+test("after the index loads, each Latin keystroke searches on the device at once", async ({
+  page,
+}) => {
+  const queries: string[] = [];
+  await page.route("**/api/contact-groups?**", async (route) => {
+    queries.push(new URL(route.request().url()).searchParams.get("q") ?? "");
+    await route.continue();
+  });
+  await page.goto("/");
+  await waitForLocalSearch(page);
+  const input = page.getByRole("searchbox");
+  await input.focus();
+  for (const text of ["k", "ko", "kok"]) {
+    await page.keyboard.type(text.at(-1) ?? "");
+    await expect(page).toHaveURL(`/?q=${text}`);
+  }
+  expect(queries).toEqual([]);
 });
 
 test("Japanese input keeps the short delay after composition", async ({

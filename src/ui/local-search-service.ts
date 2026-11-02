@@ -8,6 +8,7 @@ import {
 } from "../core/local-search.ts";
 import { indexAdmission } from "../core/local-search-policy.ts";
 import {
+  indexProgressSteps,
   type LocalRow,
   type LocalSearchReply,
   LocalSearchRequestSchema,
@@ -41,15 +42,56 @@ async function digestHex(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
   ).join("");
 }
 
+function concatenate(
+  chunks: readonly Uint8Array[],
+  length: number,
+): Uint8Array<ArrayBuffer> {
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
+/** Reads the decoded body and reports each completed step; a body longer than expected stops early and fails admission. */
 async function download(
   ports: LocalSearchPorts,
-  url: string,
+  expected: Expected,
+  current: () => boolean,
 ): Promise<Result<Uint8Array<ArrayBuffer>, string>> {
   try {
-    const response = await ports.fetch(url);
+    const response = await ports.fetch(expected.url);
     if (!response.ok)
       return { ok: false, error: `The index responded ${response.status}` };
-    return { ok: true, value: new Uint8Array(await response.arrayBuffer()) };
+    if (!response.body)
+      return { ok: true, value: new Uint8Array(await response.arrayBuffer()) };
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    let step = 0;
+    for (;;) {
+      const read = await reader.read();
+      if (read.done) break;
+      const chunk: unknown = read.value;
+      if (!(chunk instanceof Uint8Array))
+        throw new TypeError("The index body didn't stream bytes");
+      chunks.push(chunk);
+      received += chunk.byteLength;
+      if (received > expected.bytes) {
+        await reader.cancel();
+        break;
+      }
+      const reached = Math.floor(
+        (received * indexProgressSteps) / Math.max(expected.bytes, 1),
+      );
+      if (reached > step && current()) {
+        step = reached;
+        ports.post({ type: "progress", received, total: expected.bytes });
+      }
+    }
+    return { ok: true, value: concatenate(chunks, received) };
   } catch (error) {
     return { ok: false, error: String(error) };
   }
@@ -85,14 +127,16 @@ export function localSearchService(
     readonly matches: LocalMatches;
   } | null = null;
 
+  /** Keeps answering from the current index until a replacement is admitted, and drops it when the replacement fails. */
   async function load(expected: Expected): Promise<void> {
     loads += 1;
     const generation = loads;
-    index = null;
-    cached = null;
-    const downloaded = await download(ports, expected.url);
-    if (generation !== loads) return;
+    const current = (): boolean => generation === loads;
+    const downloaded = await download(ports, expected, current);
+    if (!current()) return;
     if (!downloaded.ok) {
+      index = null;
+      cached = null;
       ports.post({
         type: "unavailable",
         reason: "fetch_failed",
@@ -104,7 +148,7 @@ export function localSearchService(
     const lengthMatches = bytes.byteLength === expected.bytes;
     const digestMatches =
       lengthMatches && (await digestHex(bytes)) === expected.sha256;
-    if (generation !== loads) return;
+    if (!current()) return;
     const signatureMatches = digestMatches && hasSearchIndexSignature(bytes);
     const decoded = signatureMatches ? decode(bytes) : null;
     const admission = indexAdmission(
@@ -116,7 +160,9 @@ export function localSearchService(
       decoded?.ok === true &&
         decoded.value.header.snapshot === expected.snapshot,
     );
+    cached = null;
     if (admission !== "admitted" || !decoded?.ok) {
+      index = null;
       ports.post({
         type: "unavailable",
         reason: admission === "admitted" ? "malformed" : admission,

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 import {
+  indexProgressSteps,
   type LocalSearchReply,
   LocalSearchReplySchema,
 } from "../../src/core/local-search-protocol.ts";
@@ -10,6 +11,7 @@ import { type ModelContact, modelDirectory } from "./local-search-fixture.ts";
 
 const snapshot = "d".repeat(64);
 const indexPath = `/api/search-index/${snapshot}/index`;
+const chunkCount = 7;
 const contacts: ModelContact[] = [
   ["c:1", "図書館", "library", "+81335812331"],
   ["c:2", "図書館", "medical", "+81335812331"],
@@ -26,6 +28,12 @@ const contacts: ModelContact[] = [
 
 function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
+}
+
+function withoutProgress(
+  replies: readonly LocalSearchReply[],
+): LocalSearchReply[] {
+  return replies.filter((reply) => reply.type !== "progress");
 }
 
 interface Harness {
@@ -183,7 +191,7 @@ describe("local search worker", () => {
     for (const [body, message, reason] of cases) {
       const worker = harness(body);
       await worker.handle(message);
-      expect(worker.replies).toEqual([
+      expect(withoutProgress(worker.replies)).toEqual([
         {
           type: "unavailable",
           reason,
@@ -237,12 +245,87 @@ describe("local search worker", () => {
     const second = handle(load(current));
     pending[1]?.(new Response(current.slice()));
     await second;
+    const answered = replies.length;
     pending[0]?.(new Response(stale.slice()));
     await first;
-    expect(replies).toHaveLength(1);
-    expect(replies[0]).toMatchObject({
+    expect(replies).toHaveLength(answered);
+    expect(withoutProgress(replies)).toHaveLength(1);
+    expect(replies.at(-1)).toMatchObject({
       type: "ready",
       contacts: contacts.length,
+    });
+  });
+
+  it("reports the decoded bytes in bounded, increasing steps", async () => {
+    const { bytes } = modelDirectory(contacts, snapshot);
+    const chunk = Math.ceil(bytes.byteLength / chunkCount);
+    const replies: LocalSearchReply[] = [];
+    const handle = localSearchService({
+      fetch: async () =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller): void {
+              for (let offset = 0; offset < bytes.byteLength; offset += chunk)
+                controller.enqueue(bytes.slice(offset, offset + chunk));
+              controller.close();
+            },
+          }),
+        ),
+      post: (reply) => {
+        replies.push(v.parse(LocalSearchReplySchema, reply));
+      },
+    });
+    await handle(load(bytes));
+    const progress = replies.flatMap((reply) =>
+      reply.type === "progress" ? [reply] : [],
+    );
+    expect(progress.length).toBeGreaterThan(1);
+    expect(progress.length).toBeLessThanOrEqual(indexProgressSteps);
+    expect(progress.every((reply) => reply.total === bytes.byteLength)).toBe(
+      true,
+    );
+    expect(
+      progress.every(
+        (reply, index) =>
+          index === 0 || reply.received > (progress[index - 1]?.received ?? 0),
+      ),
+    ).toBe(true);
+    expect(progress.at(-1)?.received).toBe(bytes.byteLength);
+    expect(replies.at(-1)).toMatchObject({ type: "ready" });
+  });
+
+  it("answers from the current index until a replacement is admitted, and drops it when the replacement fails", async () => {
+    const current = modelDirectory(contacts, snapshot).bytes;
+    const replacement = modelDirectory(contacts.slice(1), snapshot).bytes;
+    const replies: LocalSearchReply[] = [];
+    const pending: ((response: Response) => void)[] = [];
+    const handle = localSearchService({
+      fetch: async () =>
+        new Promise<Response>((resolve) => {
+          pending.push(resolve);
+        }),
+      post: (reply) => {
+        replies.push(v.parse(LocalSearchReplySchema, reply));
+      },
+    });
+    const first = handle(load(current));
+    pending[0]?.(new Response(current.slice()));
+    await first;
+    const second = handle(load(replacement));
+    await handle({ type: "search", id: 1, query: "図書館" });
+    expect(replies.at(-1)).toMatchObject({ type: "results", id: 1, total: 3 });
+    pending[1]?.(new Response(replacement.slice()));
+    await second;
+    await handle({ type: "search", id: 2, query: "図書館" });
+    expect(replies.at(-1)).toMatchObject({ type: "results", id: 2, total: 2 });
+    const failing = handle(load(current));
+    pending[2]?.(new Response(null, { status: 404 }));
+    await failing;
+    await handle({ type: "search", id: 3, query: "図書館" });
+    expect(replies.at(-1)).toEqual({
+      type: "failed",
+      id: 3,
+      error: "not_ready",
     });
   });
 

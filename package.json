@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "cf dev",
-    "preview": "vite preview --mode development --host 127.0.0.1 --port 8787 --strictPort",
+    "preview": "node tools/built-worker-server.ts",
     "build": "node tools/build.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit --project tests/public/tsconfig.json",
     "lint": "biome check src tools tests/unit tests/browser tests/public docs/*.json *.ts *.json && oxlint --type-aware --deny-warnings src tools tests/unit tests/browser tests/public *.ts",

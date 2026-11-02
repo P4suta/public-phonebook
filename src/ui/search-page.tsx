@@ -1,19 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronDown, Info, Search as SearchIcon } from "lucide-react";
+import { Info, Search as SearchIcon } from "lucide-react";
 import {
   type FormEvent,
   type ReactElement,
+  useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import * as v from "valibot";
-import {
-  CategorySchema,
-  MunicipalityCodeSchema,
-  PrefectureCodeSchema,
-} from "../core/catalog.ts";
+import { CategorySchema } from "../core/catalog.ts";
+import { searchSource } from "../core/local-search-policy.ts";
+import type { LocalRow } from "../core/local-search-protocol.ts";
+import type { Contact, GroupedSearchResponse } from "../core/models.ts";
 import {
   completeTelephone,
   inputScript,
@@ -31,20 +32,67 @@ import {
   webSearchParameters,
 } from "../core/web-search.ts";
 import { Route } from "../routes/index.tsx";
-import { DirectoryError, getContactGroups } from "./client.ts";
+import { DirectoryError, getContactGroups, getRowLocation } from "./client.ts";
 import { LinkButton, LoadingError } from "./components.tsx";
 import { uiCopy } from "./copy.ts";
 import { ErrorPage } from "./error-page.tsx";
 import { foundation } from "./foundations.ts";
-import { GroupResults } from "./group-results.tsx";
+import {
+  type Continuation,
+  GroupResults,
+  type GroupView,
+  type ResultSource,
+} from "./group-results.tsx";
+import {
+  indexReadiness,
+  type LocalIndexClient,
+  type LocalResults,
+  useLocalIndex,
+} from "./local-index.ts";
+import {
+  catalogRegions,
+  localCard,
+  type RegionNames,
+  type ResultCardView,
+  serverCard,
+} from "./result-cards.ts";
 import * as css from "./styles.css.ts";
 
 const settleMilliseconds = 120;
+const announcementDelayMilliseconds = 600;
+const restartCodes: readonly string[] = [
+  "snapshot_changed",
+  "invalid_page",
+  "invalid_cursor",
+];
+
+interface ResultsView {
+  readonly key: string;
+  readonly epoch: number;
+  readonly source: ResultSource;
+  readonly total: number;
+  readonly groups: readonly GroupView[];
+  readonly more: Continuation;
+}
+
+interface LocalView {
+  readonly key: string;
+  readonly generation: number;
+  readonly query: string;
+  readonly snapshot: string;
+  readonly regions: RegionNames;
+  readonly results: LocalResults;
+}
+
+// Server results share the first index's epoch, so the first switch keeps each group mounted.
+const firstIndexGeneration = 1;
+const noContinuation = async (): Promise<null> => null;
 
 export function SearchPage(): ReactElement {
   const { catalog, first, initialSearch, invalid } = Route.useLoaderData();
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/" });
+  const { client, state: index } = useLocalIndex(!invalid && !search.error);
   const [draft, setDraft] = useState<{
     readonly input: string;
     readonly observed: string;
@@ -68,28 +116,25 @@ export function SearchPage(): ReactElement {
     setDraft((previous) => ({ ...previous, input: value, event }));
   }
   const [composing, setComposing] = useState(false);
+  const [rowUpdatedFor, setRowUpdatedFor] = useState<string | null>(null);
+  const [localView, setLocalView] = useState<LocalView | null>(null);
   const keystrokes = useRef<number[]>([]);
   const form = useRef<HTMLFormElement>(null);
   const restoredInput = useRef(false);
   const active = hasSearch(search);
   const key = webSearchParameters(search).toString();
+  const localKey = webSearchParameters({ ...search, cursor: "" }).toString();
   const initialKey = webSearchParameters(initialSearch).toString();
   const queryKey = ["contact-groups", catalog.snapshot, key];
-  useEffect(() => {
-    if (restoredInput.current || !form.current) return;
-    restoredInput.current = true;
-    const restored = parseWebSearch(
-      Object.fromEntries(new FormData(form.current)),
-    );
-    if (restored.ok && webSearchParameters(restored.value).toString() !== key) {
-      void navigate({
-        to: "/",
-        search: { ...restored.value, error: "" },
-        replace: true,
-        resetScroll: false,
-      });
-    }
-  }, [key, navigate]);
+  const readiness = indexReadiness(index.status);
+  const local = index.status === "ready" && !search.cursor;
+  const returnTo = `/${key ? `?${key}` : ""}`;
+  const regions = useMemo(() => catalogRegions(catalog), [catalog]);
+  const toCard = useCallback(
+    (contact: Contact) => serverCard(contact, regions, returnTo),
+    [regions, returnTo],
+  );
+
   const query = useQuery({
     queryKey,
     queryFn: async ({ signal }) => {
@@ -102,35 +147,93 @@ export function SearchPage(): ReactElement {
       return result;
     },
     ...(first && key === initialKey ? { initialData: first } : {}),
-    enabled: active,
+    enabled: active && !local,
     retry: (failureCount, error) =>
       !(error instanceof DirectoryError && error.code === "snapshot_changed") &&
       failureCount < 1,
   });
 
   useEffect(() => {
+    if (!local || !active || !index.regions) return;
+    let current = true;
+    const { snapshot, generation, regions: names } = index;
+    const view = (results: LocalResults): void => {
+      if (current)
+        setLocalView({
+          key: localKey,
+          generation,
+          query: search.q,
+          snapshot,
+          regions: names,
+          results,
+        });
+    };
+    if (search.category)
+      void client.page(search.q, search.category, 0).then((page) => {
+        if (page)
+          view({
+            total: page.total,
+            groups: [
+              { category: page.category, total: page.total, rows: page.rows },
+            ],
+          });
+      });
+    else
+      void client.search(search.q).then((results) => {
+        if (results) view(results);
+      });
+    return (): void => {
+      current = false;
+    };
+  }, [local, active, localKey, search.q, search.category, index, client]);
+
+  const searchFor = useCallback(
+    (q: string, replace: boolean): void => {
+      setDraft((previous) => ({ ...previous, submitted: q }));
+      if (!q) setLocalView(null);
+      void navigate({
+        to: "/",
+        search: { q, category: "", cursor: "", error: "" },
+        replace,
+        resetScroll: false,
+      });
+    },
+    [navigate],
+  );
+
+  useEffect(() => {
+    if (restoredInput.current || !form.current) return;
+    restoredInput.current = true;
+    const restored = parseWebSearch(
+      Object.fromEntries(new FormData(form.current)),
+    );
+    if (restored.ok && restored.value.q !== search.q)
+      void navigate({
+        to: "/",
+        search: { q: restored.value.q, category: "", cursor: "", error: "" },
+        replace: true,
+        resetScroll: false,
+      });
+  }, [search.q, navigate]);
+
+  useEffect(() => {
     const q = input.trim();
     if (q === search.q) return;
     const script = inputScript(input);
     const intervals = keystrokeIntervals(keystrokes.current);
-    const trigger = searchTrigger(
-      script,
-      draft.event,
-      composing,
-      script === "telephone" && completeTelephone(input),
-      intervals.length,
-    );
+    const trigger =
+      searchSource(q !== "", composing, readiness) === "local"
+        ? "search"
+        : searchTrigger(
+            script,
+            draft.event,
+            composing,
+            script === "telephone" && completeTelephone(input),
+            intervals.length,
+          );
     if (trigger === "wait") return;
     const timeout = window.setTimeout(
-      () => {
-        setDraft((previous) => ({ ...previous, submitted: q }));
-        void navigate({
-          to: "/",
-          search: { ...search, q, cursor: "" },
-          replace: true,
-          resetScroll: false,
-        });
-      },
+      () => searchFor(q, true),
       trigger === "search"
         ? 0
         : trigger === "settle"
@@ -138,35 +241,69 @@ export function SearchPage(): ReactElement {
           : pauseDelay(intervals),
     );
     return (): void => window.clearTimeout(timeout);
-  }, [input, draft.event, composing, search, navigate]);
+  }, [input, draft.event, composing, search.q, readiness, searchFor]);
 
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    setDraft((previous) => ({ ...previous, submitted: input.trim() }));
-    void navigate({
-      to: "/",
-      search: { ...search, q: input.trim(), cursor: "" },
-      replace: false,
-      resetScroll: false,
-    });
+    searchFor(input.trim(), false);
   }
 
-  function changeRegion(value: string): void {
-    const prefecture = value ? v.parse(PrefectureCodeSchema, value) : "";
-    void navigate({
-      to: "/",
-      search: { ...search, prefecture, municipality: "", cursor: "" },
-      replace: false,
-      resetScroll: false,
-    });
-  }
-
-  const groups = query.data?.groups ?? [];
-  const total = query.data?.meta.total;
-  const cities = catalog.municipalities.filter(
-    (city) => city.prefectureCode === search.prefecture,
+  const openRow = useCallback(
+    (card: ResultCardView): void => {
+      const { row } = card;
+      if (!row) return;
+      void (async (): Promise<void> => {
+        try {
+          const located = await getRowLocation(row.snapshot, String(row.row));
+          window.location.assign(
+            `/contacts/${encodeURIComponent(located.id)}?from=${encodeURIComponent(returnTo)}`,
+          );
+        } catch (error) {
+          if (
+            error instanceof DirectoryError &&
+            error.code === "snapshot_changed"
+          ) {
+            setRowUpdatedFor(search.q);
+            client.reload();
+            return;
+          }
+          window.location.assign(card.href);
+        }
+      })();
+    },
+    [client, returnTo, search.q],
   );
-  const returnTo = `/${key ? `?${key}` : ""}`;
+
+  const serverView = useMemo(
+    (): ResultsView | null =>
+      query.data ? fromServer(query.data, key, toCard) : null,
+    [query.data, key, toCard],
+  );
+  const view = useMemo((): ResultsView | null => {
+    const localResults = localView
+      ? fromLocal(localView, client, returnTo)
+      : null;
+    if (!local) return serverView;
+    if (localView?.key === localKey) return localResults;
+    if (serverView?.key === localKey) return serverView;
+    return localResults;
+  }, [local, localView, localKey, serverView, client, returnTo]);
+
+  const countText = !active
+    ? ""
+    : view
+      ? uiCopy.search.found(view.total.toLocaleString("ja-JP"))
+      : query.isFetching
+        ? uiCopy.search.searching
+        : "";
+  const [announced, setAnnounced] = useState(countText);
+  useEffect(() => {
+    const timeout = window.setTimeout(
+      () => setAnnounced(countText),
+      announcementDelayMilliseconds,
+    );
+    return (): void => window.clearTimeout(timeout);
+  }, [countText, input]);
 
   if (invalid || search.error)
     return <ErrorPage title={uiCopy.search.invalid} />;
@@ -194,7 +331,11 @@ export function SearchPage(): ReactElement {
             </p>
           </div>
         </div>
-        <search className={css.searchArea}>
+        <search
+          className={css.searchArea}
+          data-local-search={index.status}
+          data-index-generation={index.generation}
+        >
           <form
             ref={form}
             method="get"
@@ -238,70 +379,13 @@ export function SearchPage(): ReactElement {
                 <SearchIcon size={foundation.control.icon} aria-hidden="true" />
                 {uiCopy.search.action}
               </button>
-            </div>
-            <div
-              className={css.filters}
-              data-has-city={Boolean(search.prefecture)}
-            >
-              <Filter
-                label="都道府県"
-                name="prefecture"
-                value={search.prefecture}
-                onChange={changeRegion}
-              >
-                <option value="">{uiCopy.search.prefecture}</option>
-                {catalog.prefectures.map((prefecture) => (
-                  <option key={prefecture.code} value={prefecture.code}>
-                    {prefecture.name}
-                  </option>
-                ))}
-              </Filter>
-              {search.prefecture && (
-                <Filter
-                  label="市区町村"
-                  name="municipality"
-                  value={search.municipality}
-                  onChange={(value) => {
-                    const municipality = value
-                      ? v.parse(MunicipalityCodeSchema, value)
-                      : "";
-                    void navigate({
-                      to: "/",
-                      search: { ...search, municipality, cursor: "" },
-                      resetScroll: false,
-                    });
-                  }}
-                >
-                  <option value="">{uiCopy.search.municipality}</option>
-                  {cities.map((city) => (
-                    <option key={city.code} value={city.code}>
-                      {city.name}
-                    </option>
-                  ))}
-                </Filter>
+              {index.status === "loading" && (
+                <span className={css.indexProgress} aria-hidden="true">
+                  <span
+                    className={css.indexProgressFill[index.progress] ?? ""}
+                  />
+                </span>
               )}
-              <Filter
-                label="施設や窓口の種類"
-                name="category"
-                value={search.category}
-                onChange={(value) => {
-                  const category = value ? v.parse(CategorySchema, value) : "";
-                  void navigate({
-                    to: "/",
-                    search: { ...search, category, cursor: "" },
-                    resetScroll: false,
-                  });
-                }}
-              >
-                <option value="">{uiCopy.search.category}</option>
-                {catalog.categories
-                  .filter((category) => category.contacts > 0)
-                  .map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.label}
-                    </option>
-                  ))}
-              </Filter>
             </div>
           </form>
         </search>
@@ -309,23 +393,26 @@ export function SearchPage(): ReactElement {
           <>
             <div className={css.toolbar}>
               <h1 className={css.srOnly}>検索結果</h1>
-              <output>
-                {query.isFetching && !query.data
-                  ? uiCopy.search.searching
-                  : total !== undefined
-                    ? uiCopy.search.found(total.toLocaleString("ja-JP"))
-                    : ""}
+              <p className={css.body} aria-hidden="true">
+                {countText}
+              </p>
+              <output id="search-status" className={css.srOnly}>
+                {announced}
               </output>
             </div>
-            {query.isError && (
+            {rowUpdatedFor === search.q && (
+              <section className={css.stack}>
+                <h2 className={css.subheading}>{uiCopy.rowUpdated.title}</h2>
+                <output className={css.body}>
+                  {uiCopy.rowUpdated.searchedAgain}
+                </output>
+              </section>
+            )}
+            {!local && query.isError && (
               <LoadingError
                 restartHref={
                   query.error instanceof DirectoryError &&
-                  [
-                    "snapshot_changed",
-                    "invalid_page",
-                    "invalid_cursor",
-                  ].includes(query.error.code)
+                  restartCodes.includes(query.error.code)
                     ? `/?${webSearchParameters({ ...search, cursor: "" })}`
                     : undefined
                 }
@@ -334,20 +421,25 @@ export function SearchPage(): ReactElement {
                 }}
               />
             )}
-            {!query.isPending && !query.isError && total === 0 && (
+            {view?.total === 0 && (
               <section className={css.stack}>
                 <h2 className={css.subheading}>{uiCopy.search.none}</h2>
                 <p className={css.body}>{uiCopy.search.empty}</p>
               </section>
             )}
             <div className={css.resultGroups}>
-              {groups.map((group) => (
+              {view?.groups.map((group) => (
                 <GroupResults
-                  key={`${key}:${group.category}`}
+                  key={`${view.key}:${view.epoch}:${group.category}`}
                   group={group}
-                  search={search}
+                  source={view.source}
+                  search={
+                    view.source === "local" ? { ...search, cursor: "" } : search
+                  }
                   snapshot={catalog.snapshot}
-                  returnTo={returnTo}
+                  toCard={toCard}
+                  more={view.more}
+                  onOpenRow={openRow}
                 />
               ))}
             </div>
@@ -358,36 +450,47 @@ export function SearchPage(): ReactElement {
   );
 }
 
-function Filter({
-  label,
-  name,
-  value,
-  onChange,
-  children,
-}: {
-  readonly label: string;
-  readonly name: string;
-  readonly value: string;
-  readonly onChange: (value: string) => void;
-  readonly children: React.ReactNode;
-}): ReactElement {
-  return (
-    <div className={css.filter}>
-      <label className={css.fieldLabel} htmlFor={`filter-${name}`}>
-        {label}
-      </label>
-      <span className={css.selection}>
-        <select
-          id={`filter-${name}`}
-          name={name}
-          className={css.select}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-        >
-          {children}
-        </select>
-        <ChevronDown className={css.chevron} aria-hidden="true" />
-      </span>
-    </div>
-  );
+function fromServer(
+  response: GroupedSearchResponse,
+  key: string,
+  toCard: (contact: Contact) => ResultCardView,
+): ResultsView {
+  return {
+    key,
+    epoch: firstIndexGeneration,
+    source: "server",
+    total: response.meta.total,
+    groups: response.groups.map((group) => ({
+      category: group.category,
+      total: group.results.meta.total,
+      rows: group.results.data.map(toCard),
+      server: group.results,
+    })),
+    more: noContinuation,
+  };
+}
+
+function fromLocal(
+  view: LocalView,
+  client: LocalIndexClient,
+  returnTo: string,
+): ResultsView {
+  const card = (row: LocalRow): ResultCardView =>
+    localCard(row, view.snapshot, view.regions, returnTo);
+  return {
+    key: view.key,
+    epoch: Math.max(view.generation, firstIndexGeneration),
+    source: "local",
+    total: view.results.total,
+    groups: view.results.groups.map((group) => ({
+      category: v.parse(CategorySchema, group.category),
+      total: group.total,
+      rows: group.rows.map(card),
+      server: null,
+    })),
+    more: async (category, visible) => {
+      const page = await client.page(view.query, category, visible);
+      return page ? page.rows.map(card) : null;
+    },
+  };
 }

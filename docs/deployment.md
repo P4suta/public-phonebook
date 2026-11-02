@@ -41,8 +41,13 @@ The original source remains read-only.
 A failed preparation never produces a ready manifest.
 The native TypeScript collector and overlay preparation are described in [data sources](data-sources.md).
 
-For a built local preview, run `mise x -- just build` followed by `mise x -- npm run preview`.
+For a built local preview, run `mise x -- just build` followed by `mise x -- npm run preview`, then open https://127.0.0.1:8787/.
+The preview serves the build from workerd over HTTPS with Miniflare's self-signed loopback certificate, so the browser shows a certificate warning.
+It sends the Brotli search index unchanged, as production does.
+The browser campaign `mise x -- just e2e` uses the same preview, so build first.
 Both development and preview run the native Cloudflare Workers runtime with local D1 and R2 bindings.
+Development serves HTTP through Vite, so WebKit doesn't receive the Brotli index there and the page searches on the server.
+Use development for a loopback HTTP origin, such as the iOS screenshot command, because simulators reject the preview's self-signed certificate.
 No Container is needed.
 
 ## Environment boundaries
@@ -57,7 +62,7 @@ No Container is needed.
 The apex has no application domain assignment.
 `cloudflare.config.ts` derives typed bindings through the pinned cf configuration API.
 The project uses cf rather than Wrangler for Cloudflare project operations.
-Vite's build API and preview command handle the full client and Worker build locally.
+Vite's build API handles the full client and Worker build locally, and `tools/built-worker-server.ts` serves the build.
 The CLI and plugin are beta dependencies, so upgrades require the native integration checks.
 
 Secrets belong in Doppler.
