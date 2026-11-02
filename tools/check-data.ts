@@ -1,9 +1,8 @@
 import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { brotliDecompressSync, createGunzip } from "node:zlib";
+import { brotliDecompressSync } from "node:zlib";
 import * as v from "valibot";
 import { normalizeAddress } from "../src/core/address.ts";
 import {
@@ -26,6 +25,7 @@ import {
   type Source,
   SourceSchema,
 } from "../src/core/models.ts";
+import { readGzipArchive } from "./archive-stream.ts";
 import { decodeUtf8, requireDirectoryText } from "./directory-delta.ts";
 import { checkRowOrder, readSearchIndex } from "./search-index.ts";
 import { fileDigest } from "./snapshot.ts";
@@ -225,9 +225,9 @@ export async function checkDataBundle(
       throw new Error("Incomplete catalog partition");
     const archiveHash = createHash("sha256");
     let archiveBytes = 0;
-    for await (const chunk of createReadStream(
+    for await (const chunk of readGzipArchive(
       join(directory, "contacts.jsonl.gz"),
-    ).compose(createGunzip())) {
+    )) {
       const value: unknown = chunk;
       if (!(value instanceof Uint8Array))
         throw new Error("JSONL archive did not yield bytes");

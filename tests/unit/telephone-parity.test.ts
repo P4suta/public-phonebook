@@ -47,11 +47,32 @@ const contacts = [
   ]),
   fixtureContact(foldedIdentifier, [["0774-98-1200", "+81774981200"]]),
 ];
-const jsonl = contacts
-  .map((contact) => `${JSON.stringify(contact)}\n`)
-  .join("");
-const csv = `${contactCsvHeader}${contacts.map(contactCsv).join("")}`;
-const vcard = contacts.map(contactVCard).join("");
+const contactsJsonl = (list: readonly Contact[]): string =>
+  list.map((contact) => `${JSON.stringify(contact)}\n`).join("");
+const contactsCsv = (list: readonly Contact[]): string =>
+  `${contactCsvHeader}${list.map(contactCsv).join("")}`;
+const contactsVCard = (list: readonly Contact[]): string =>
+  list.map(contactVCard).join("");
+const jsonl = contactsJsonl(contacts);
+const csv = contactsCsv(contacts);
+const vcard = contactsVCard(contacts);
+
+/** Enough contacts that the stream stages still hold unread records when the check stops. */
+const streamedContactCount = 64;
+const subscriberDigits = 4;
+const truncatedArchiveFraction = 0.5;
+
+function streamedContact(index: number, subscriber = index): Contact {
+  const digits = String(subscriber).padStart(subscriberDigits, "0");
+  return fixtureContact(`fixture:stream:${index}`, [
+    [`03-3581-${digits}`, `+8133581${digits}`],
+  ]);
+}
+
+const streamedContacts = Array.from(
+  { length: streamedContactCount },
+  (_, index) => streamedContact(index),
+);
 
 async function* chunked(
   bytes: Uint8Array,
@@ -208,5 +229,78 @@ describe("telephone parity across the downloadable archives", () => {
     await expect(checkTelephoneParity(directory, "canonical")).rejects.toThrow(
       "The vCard archive ends inside a card",
     );
+  });
+
+  describe("when the check stops before the archives end", () => {
+    const escaped: unknown[] = [];
+    const recordEscape = (error: unknown): void => {
+      escaped.push(error);
+    };
+
+    beforeEach(() => {
+      escaped.length = 0;
+      process.on("uncaughtException", recordEscape);
+      process.on("unhandledRejection", recordEscape);
+    });
+    afterEach(() => {
+      process.off("uncaughtException", recordEscape);
+      process.off("unhandledRejection", recordEscape);
+    });
+
+    async function expectOnlyRejection(message: string): Promise<void> {
+      await expect(
+        checkTelephoneParity(directory, "canonical"),
+      ).rejects.toThrow(message);
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(escaped).toEqual([]);
+    }
+
+    it("reports a mismatch at any contact without a stream error escaping", async () => {
+      for (let index = 0; index < streamedContactCount; index += 1) {
+        const differing = streamedContacts.with(
+          index,
+          streamedContact(index, streamedContactCount + index),
+        );
+        await writeArchives({
+          jsonl: contactsJsonl(streamedContacts),
+          csv: contactsCsv(differing),
+          vcard: contactsVCard(streamedContacts),
+        });
+        await expectOnlyRejection(
+          `CSV telephone numbers differ from the JSONL archive: fixture:stream:${index}`,
+        );
+        await writeArchives({
+          jsonl: contactsJsonl(streamedContacts),
+          csv: contactsCsv(streamedContacts),
+          vcard: contactsVCard(differing),
+        });
+        await expectOnlyRejection(
+          `vCard telephone numbers differ from the JSONL archive: fixture:stream:${index}`,
+        );
+      }
+    });
+
+    it("reports a truncated archive without a stream error escaping", async () => {
+      for (const [file, text] of [
+        ["contacts.jsonl.gz", contactsJsonl(streamedContacts)],
+        ["contacts.csv.gz", contactsCsv(streamedContacts)],
+        ["contacts.vcf.gz", contactsVCard(streamedContacts)],
+      ] as const) {
+        await writeArchives({
+          jsonl: contactsJsonl(streamedContacts),
+          csv: contactsCsv(streamedContacts),
+          vcard: contactsVCard(streamedContacts),
+        });
+        const archive = gzipSync(text);
+        await writeFile(
+          join(directory, file),
+          archive.subarray(
+            0,
+            Math.floor(archive.byteLength * truncatedArchiveFraction),
+          ),
+        );
+        await expectOnlyRejection("unexpected end of file");
+      }
+    });
   });
 });
