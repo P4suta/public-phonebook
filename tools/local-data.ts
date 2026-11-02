@@ -17,6 +17,7 @@ import { checkDataBundle } from "./check-data.ts";
 export const developmentHost = "127.0.0.1";
 export const developmentPort = 8787;
 const commandArgumentOffset = 2;
+const persistenceVersion = "v3";
 
 async function serverIsRunning(port: number): Promise<boolean> {
   return new Promise((resolveConnection, reject) => {
@@ -33,24 +34,11 @@ async function serverIsRunning(port: number): Promise<boolean> {
   });
 }
 
-export async function seedLocalData(
-  bundle: string,
-  options: { readonly state: string; readonly port: number } = {
-    state: ".local/state",
-    port: developmentPort,
-  },
-): Promise<void> {
-  if (await serverIsRunning(options.port))
-    throw new Error("Stop the local server before seeding data");
-  const directory = resolve(bundle);
-  const manifest = await checkDataBundle(directory);
-  const database = join(directory, "directory.sqlite");
-  const state = resolve(options.state, "v3");
-  await mkdir(state, { recursive: true });
-  const identity = randomUUID();
-  const runtime = new Miniflare({
+/** Opens the local D1 and R2 state that the seeder fills and the preview serves. */
+export function localDataRuntime(state: string): Miniflare {
+  return new Miniflare({
     cf: false,
-    resourcePersistencePath: state,
+    resourcePersistencePath: resolve(state, persistenceVersion),
     telemetry: { enabled: false },
     enableDevRegistry: false,
     workers: [
@@ -80,6 +68,24 @@ export async function seedLocalData(
       },
     ],
   });
+}
+
+export async function seedLocalData(
+  bundle: string,
+  options: { readonly state: string; readonly port: number } = {
+    state: ".local/state",
+    port: developmentPort,
+  },
+): Promise<void> {
+  if (await serverIsRunning(options.port))
+    throw new Error("Stop the local server before seeding data");
+  const directory = resolve(bundle);
+  const manifest = await checkDataBundle(directory);
+  const database = join(directory, "directory.sqlite");
+  const state = resolve(options.state, persistenceVersion);
+  await mkdir(state, { recursive: true });
+  const identity = randomUUID();
+  const runtime = localDataRuntime(options.state);
   try {
     const db = await runtime.getD1Database("DB");
     await db.exec(

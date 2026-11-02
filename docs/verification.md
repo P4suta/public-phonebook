@@ -260,6 +260,33 @@ Its audit found 160 relations outside the pinned full metadata's recognized patt
 They require source investigation and are preserved without speculative digit repairs.
 The audit requires zero unparseable spellings, source/canonical disagreements, formatting round-trip disagreements, and duplicate numbers within a contact.
 
+The release gate checks the build and the device search with these entry points, which the candidate workflow can call.
+Run `mise x -- node tools/build-budget.ts` after a build.
+It requires the gzip size of the Worker's modules to stay under 1 MiB, well below Cloudflare's compressed upload limit, so an accidental bundle fails here first.
+It also requires exactly one search Worker script of at most 34 KiB.
+The national browser campaign keeps the search page's own scripts within 232 KiB transferred and 736 KiB decoded before the index loads.
+On November 2, 2026, the Worker's modules measured 463,097 bytes compressed, the search Worker script 27,152 bytes, and the search page's scripts 185,459 bytes transferred and 589,343 bytes decoded.
+The script limits sit about a quarter above those sizes.
+
+Run `mise x -- node tools/search-parity.ts BUNDLE` after `mise x -- just data-local BUNDLE` seeds the same bundle.
+It loads the bundle's index through the service that the browser Worker runs, with its admission checks.
+It asks the actual API against the seeded D1 for the same queries.
+A fixed seed draws 2,000 substrings and 1,000 display names from the index, 1,000 listed telephone numbers in two spellings, and 200 valid numbers that no contact lists.
+Each query compares the total, the category order, each category's count, and each preview row's contact ID, name, category, region, and numbers.
+For the first category of 4 to 100 rows, it also compares the complete ordered category.
+It checks 100 row positions with the row locator, the lookup that opens a device result's details.
+The run fails on any difference.
+It also requires two controls to differ: previews with their first two rows swapped, and an index whose adjacent same-name rows with different details are swapped.
+It writes `.local/search-parity.json`.
+
+Run `mise x -- node tools/search-performance.ts BUNDLE` with the build and the seeded state to record the device search's performance in `.local/search-performance.json`.
+It serves the build like the browser campaign, and runs Chromium with 4x CPU throttling, desktop WebKit, and the iPhone 13 profile.
+It records the transferred index bytes, the time until the index is ready, and the p50 and p95 of the Worker's search round trip for 40 queries.
+It also records input events of 16 ms or longer while typing, long tasks in Chromium, and the main-thread heap in Chromium.
+It estimates the decoded index's heap in V8 from Node, because browsers expose a Worker's heap only to cross-origin isolated pages.
+Safari on a physical iPhone and the Worker's own heap need a person and a debugger, so the record lists them as not run.
+The record holds measurements, not thresholds.
+
 Run `mise x -- just test` for the fast gate, national data reconciliation and phone profile, complete proof inventory, and national browser campaign.
 The command invalidates its preceding test receipt before execution and records a replacement only for an unchanged clean Git tree and dataset manifest.
 Production rejects a receipt for another dataset, source tree, format, or incomplete result.
