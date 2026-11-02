@@ -371,22 +371,26 @@ it("rejects the assurance workflow when a pull request triggers it", async () =>
   expect(planted).toContain("jobs.build.steps[3] change-release-check");
 });
 
+const scopeCheck = 'test "$SCOPE_RESULT" = success';
 const verifyCheck = 'test "$VERIFY_RESULT" = success';
+const requiredChecks = `${scopeCheck}\n${verifyCheck}`;
 const rustCheck =
   'test "$RUST_REQUIRED:$RUST_RESULT" = true:success || test "$RUST_REQUIRED:$RUST_RESULT" = false:skipped';
-const boundRustGate = `${verifyCheck}\n${rustCheck}`;
+const boundRustGate = `${requiredChecks}\n${rustCheck}`;
+const gateNeeds = "[scope, verify, rust]";
 
 function summaryJob(
   run: string,
-  needs = "[verify, rust]",
+  needs = gateNeeds,
   condition = "    if: always()\n",
 ): string {
   return `${condition}    needs: ${needs}
     steps:
       - name: Require successful verification
         env:
+          SCOPE_RESULT: \${{ needs.scope.result }}
           VERIFY_RESULT: \${{ needs.verify.result }}
-          RUST_REQUIRED: \${{ needs.verify.outputs.rust }}
+          RUST_REQUIRED: \${{ needs.scope.outputs.rust }}
           RUST_RESULT: \${{ needs.rust.result }}
         run: ${JSON.stringify(run)}`;
 }
@@ -397,17 +401,22 @@ function checksWorkflow(summary: string, extraJobs = ""): string {
   merge_group:
 permissions: {}
 jobs:
-  verify:
-    name: Verify
+  scope:
+    name: Scope
     runs-on: ubuntu-24.04
     permissions: {}
     outputs:
       rust: \${{ steps.scope.outputs.rust }}
     steps: []
+  verify:
+    name: Verify
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps: []
   rust:
     name: Rust
-    needs: [verify]
-    if: needs.verify.outputs.rust == 'true'
+    needs: [scope]
+    if: needs.scope.outputs.rust == 'true'
     runs-on: ubuntu-24.04
     permissions: {}
     steps: []
@@ -431,8 +440,8 @@ it("admits a Checks job that always runs, needs every job, and accepts a skip on
     located(
       checksWorkflow(
         summaryJob(
-          'test "$VERIFY_RESULT" = success\ntest "$RUST_RESULT" = success || test "$RUST_RESULT" = skipped',
-          "[rust, verify]",
+          `${requiredChecks}\ntest "$RUST_RESULT" = success || test "$RUST_RESULT" = skipped`,
+          "[rust, verify, scope]",
           "    if: ${{ always() }}\n",
         ),
       ),
@@ -448,9 +457,7 @@ it("rejects a Checks job that skips with a failed job or misses a job", () => {
     "    if: always() && needs.verify.result == 'success'\n",
   ])
     expect(
-      located(
-        checksWorkflow(summaryJob(boundRustGate, "[verify, rust]", condition)),
-      ),
+      located(checksWorkflow(summaryJob(boundRustGate, gateNeeds, condition))),
       condition,
     ).toEqual(["jobs.gate gate-not-always"]);
   expect(
@@ -467,11 +474,11 @@ it("rejects a Checks job that skips with a failed job or misses a job", () => {
 
 it("rejects a Checks job that ignores a failed or cancelled rust job", () => {
   for (const run of [
-    verifyCheck,
-    `${verifyCheck}\ntest "$RUST_RESULT" = success || test "$RUST_RESULT" = failure`,
-    `${verifyCheck}\ntest "$RUST_REQUIRED:$RUST_RESULT" = true:success || test "$RUST_REQUIRED:$RUST_RESULT" = true:cancelled`,
-    `${verifyCheck}\ntest "$RUST_REQUIRED:$RUST_RESULT" = true:success || test "$RUST_REQUIRED:$RUST_RESULT" = maybe:failure`,
-    `${verifyCheck}\ntest "$RUST_RESULT" = success || test "$RUST_REQUIRED" = ignored`,
+    requiredChecks,
+    `${requiredChecks}\ntest "$RUST_RESULT" = success || test "$RUST_RESULT" = failure`,
+    `${requiredChecks}\ntest "$RUST_REQUIRED:$RUST_RESULT" = true:success || test "$RUST_REQUIRED:$RUST_RESULT" = true:cancelled`,
+    `${requiredChecks}\ntest "$RUST_REQUIRED:$RUST_RESULT" = true:success || test "$RUST_REQUIRED:$RUST_RESULT" = maybe:failure`,
+    `${requiredChecks}\ntest "$RUST_RESULT" = success || test "$RUST_REQUIRED" = ignored`,
   ])
     expect(located(checksWorkflow(summaryJob(run))), run).toEqual([
       "jobs.gate.needs.rust gate-accepts-unsuccessful",
@@ -479,7 +486,9 @@ it("rejects a Checks job that ignores a failed or cancelled rust job", () => {
   expect(
     located(
       checksWorkflow(
-        summaryJob(`${verifyCheck} || test "$RUST_RESULT" = success`),
+        summaryJob(
+          `${scopeCheck}\n${verifyCheck} || test "$RUST_RESULT" = success`,
+        ),
       ),
     ),
   ).toEqual([
@@ -489,30 +498,35 @@ it("rejects a Checks job that ignores a failed or cancelled rust job", () => {
 });
 
 it("rejects a Checks job that accepts a skip from any job but rust", () => {
-  expect(
-    located(
-      checksWorkflow(
-        summaryJob(
-          `${verifyCheck} || test "$VERIFY_RESULT" = skipped\n${rustCheck}`,
-        ),
-      ),
-    ),
-  ).toEqual(["jobs.gate.needs.verify gate-accepts-unsuccessful"]);
+  for (const [job, run] of [
+    [
+      "verify",
+      `${scopeCheck}\n${verifyCheck} || test "$VERIFY_RESULT" = skipped\n${rustCheck}`,
+    ],
+    [
+      "scope",
+      `${scopeCheck} || test "$SCOPE_RESULT" = skipped\n${verifyCheck}\n${rustCheck}`,
+    ],
+  ] as const)
+    expect(located(checksWorkflow(summaryJob(run))), run).toEqual([
+      `jobs.gate.needs.${job} gate-accepts-unsuccessful`,
+    ]);
   expect(
     located(
       checksWorkflow(
         `    if: always()
-    needs: [verify, rust, lint]
+    needs: [scope, verify, rust, lint]
     steps:
       - env:
+          SCOPE_RESULT: \${{ needs.scope.result }}
           VERIFY_RESULT: \${{ needs.verify.result }}
-          RUST_REQUIRED: \${{ needs.verify.outputs.rust }}
+          RUST_REQUIRED: \${{ needs.scope.outputs.rust }}
           RUST_RESULT: \${{ needs.rust.result }}
           LINT_RESULT: \${{ needs.lint.result }}
         run: ${JSON.stringify(`${boundRustGate}\ntest "$LINT_RESULT" = success || test "$LINT_RESULT" = skipped`)}`,
         `  lint:
-    needs: [verify]
-    if: needs.verify.outputs.rust == 'true'
+    needs: [scope]
+    if: needs.scope.outputs.rust == 'true'
     runs-on: ubuntu-24.04
     permissions: {}
     steps: []
@@ -551,10 +565,10 @@ it("rejects a Checks job whose script or shell the policy can't interpret", () =
     expect(
       located(
         checksWorkflow(`    if: always()
-    needs: [verify, rust]
+    needs: [scope, verify, rust]
     steps:
       - env:
-          RUST_REQUIRED: \${{ needs.verify.outputs.rust }}
+          RUST_REQUIRED: \${{ needs.scope.outputs.rust }}
           RUST_RESULT: \${{ needs.rust.result }}
         run: ${JSON.stringify(rustCheck)}
 ${step}`),
@@ -568,7 +582,7 @@ ${step}`),
     expect(
       located(
         checksWorkflow(`    if: always()
-${setting}${summaryJob(boundRustGate, "[verify, rust]", "")}`),
+${setting}${summaryJob(boundRustGate, gateNeeds, "")}`),
       ),
       setting,
     ).toEqual(["jobs.gate gate-script-unrecognized"]);
@@ -590,7 +604,7 @@ it("refuses to evaluate a Checks job with more result combinations than its boun
   expect(
     located(
       checksWorkflow(
-        summaryJob(boundRustGate, `[verify, rust, ${extra.join(", ")}]`),
+        summaryJob(boundRustGate, `[scope, verify, rust, ${extra.join(", ")}]`),
         extra
           .map(
             (id) => `  ${id}:
@@ -637,19 +651,25 @@ it("rejects planted gate defects in the repository's Checks workflow", async () 
     "jobs.gate gate-needs-incomplete",
     "jobs.gate.steps[0] gate-script-unrecognized",
   ]);
-  expect(
-    planted({
-      steps: [
-        {
-          ...step,
-          run: step.run
-            .split("\n")
-            .filter((line) => !line.includes("RUST"))
-            .join("\n"),
-        },
-      ],
-    }),
-  ).toEqual(["jobs.gate.needs.rust gate-accepts-unsuccessful"]);
+  for (const [variable, job] of [
+    ["RUST_RESULT", "rust"],
+    ["SCOPE_RESULT", "scope"],
+    ["VERIFY_RESULT", "verify"],
+  ] as const)
+    expect(
+      planted({
+        steps: [
+          {
+            ...step,
+            run: step.run
+              .split("\n")
+              .filter((line) => !line.includes(variable))
+              .join("\n"),
+          },
+        ],
+      }),
+      variable,
+    ).toEqual([`jobs.gate.needs.${job} gate-accepts-unsuccessful`]);
   expect(planted({ if: "success()" })).toEqual(["jobs.gate gate-not-always"]);
 });
 
