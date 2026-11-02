@@ -105,6 +105,7 @@ it("prepares canonical native data with normalized addresses and complete archiv
     municipalities: [{ code: "13101", prefectureCode: "13", name: "千代田区" }],
   });
   try {
+    db.exec("BEGIN");
     db.exec(databaseSchema);
     db.prepare("INSERT INTO contacts VALUES (1,?,?,?,?,?,?,?,?)").run(
       contact.id,
@@ -123,6 +124,7 @@ it("prepares canonical native data with normalized addresses and complete archiv
     db.prepare("INSERT INTO metadata VALUES ('catalog',?)").run(
       JSON.stringify(catalog),
     );
+    db.exec("COMMIT");
     db.close();
     const output = join(root, "bundle");
     await prepareSnapshot(path, output);
@@ -248,9 +250,14 @@ function writeInput(
 ): void {
   const db = new DatabaseSync(path);
   try {
+    // One transaction keeps the storage syncs constant as the fixture grows.
+    db.exec("BEGIN");
     db.exec(databaseSchema);
+    const insert = db.prepare(
+      "INSERT INTO contacts VALUES (?,?,?,?,?,?,?,?,?)",
+    );
     for (const [index, contact] of contacts.entries())
-      db.prepare("INSERT INTO contacts VALUES (?,?,?,?,?,?,?,?,?)").run(
+      insert.run(
         index + 1,
         contact.id,
         contact.name,
@@ -268,6 +275,7 @@ function writeInput(
     db.prepare("INSERT INTO metadata VALUES ('catalog',?)").run(
       JSON.stringify(catalog),
     );
+    db.exec("COMMIT");
   } finally {
     db.close();
   }
