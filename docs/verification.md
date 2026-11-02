@@ -12,6 +12,9 @@ The browser check creates a separate local D1 and R2 fixture with three contacts
 It covers the design, contact, API reference, external-link, information, CSP, privacy, row page, search, search-trigger, and startup cases that need no national archive.
 It requires no owner-specific service, credentials, or national archive.
 
+Before every push, run `mise x -- just check-linux` as well.
+It's the local equivalent of the Verify job, as the [Linux gate](#linux-equivalent-of-verify) section describes.
+
 The workflow checks run actionlint over every workflow and zizmor offline with the pedantic persona over `.github`.
 Offline mode leaves out zizmor's online audits, so the result doesn't depend on network access or a token.
 The typed policy in `tools/workflow-policy.ts` also checks every workflow and local composite action.
@@ -58,6 +61,54 @@ The local preview server decodes a Worker's encoded body while it keeps the enco
 Planted duplicate categories, foreign-category rows, repeated identities, false totals, and mixed snapshots must fail response validation.
 Runtime initialization has a safety deadline rather than a performance assertion.
 A timeout supplies no behavioral evidence.
+
+## Linux equivalent of Verify
+
+The Verify job runs `just check` on `ubuntu-24.04`, and `just check` on macOS can't show Linux differences.
+The provider corpus once changed only on Linux, because macOS and Linux write a different operating system byte into gzip headers.
+Run `mise x -- just check-linux` before every push to run Verify's `just check` in a pinned Linux container.
+
+The command builds `verification/linux/Dockerfile`, or reuses its cached layers.
+The image starts from the digest-pinned Playwright image for the locked Playwright release.
+That image is Ubuntu 24.04 with the matching Chromium build and its system libraries.
+It adds mise at the toolchain action's version and installs the `mise.toml` toolchain.
+It also adds pinned ShellCheck 0.9.0, which the hosted runner provides and actionlint uses for `run:` scripts.
+A pinned C compiler and C library headers let Cargo link.
+The tool refuses to start when the image's Playwright release differs from `package-lock.json` or its mise differs from the toolchain action.
+
+The checkout is mounted read-only.
+The container copies the publishable files, the inventory the secret scan uses, into a fresh Linux tree and indexes them in a new Git repository.
+It then runs `npm ci --ignore-scripts` and `just check` with `CI=true` and `CARGO_BUILD_JOBS=2`, like the Verify job.
+Named volumes keep the npm cache, the Cargo registry, and `tools/ios-check/target`, the paths the Verify job caches.
+The macOS `node_modules`, Cargo target, and test outputs never enter the container's tree.
+
+The container gets four CPUs, 8 GiB of memory without swap, 4,096 processes, 1 GiB of shared memory, and a 3,600-second safety stop.
+The hosted runner has four CPUs and 16 GiB of memory.
+A memory kill or a safety stop is inconclusive, never a pass or a failure.
+The command doesn't use `dotfiles bounded run`, because `just check` runs none of the bounded tools.
+The bounded policy's 2 GiB, two-CPU, offline envelope also can't run Verify.
+
+The run needs the network.
+The image build fetches the base images, the Ubuntu packages, and the mise toolchain.
+`npm ci` fetches the locked npm packages, including the SheetJS tarball.
+`just check` itself queries the npm advisory service for `npm audit` and fetches the pinned RustSec advisory snapshot from GitHub.
+It also downloads crates from crates.io when the Cargo registry volume is empty.
+The Verify job fetches the same data.
+
+The command exits with the container's status.
+It writes `receipt.json`, `output.log`, and a container record with phase times and peak memory under `.local/check-linux/verify/`.
+After a failure, the same directory keeps the container's `test-results`, the evidence the Verify job uploads.
+
+The container runs `linux/arm64` on the Mac, while the Verify job runs `linux/amd64`.
+The native npm packages for esbuild, Rolldown, Lightning CSS, Oxlint, the TypeScript compiler, and workerd differ by architecture.
+Chromium is the same revision but a different build, and the Rust target is `aarch64` instead of `x86_64`.
+A difference that depends on the processor rather than the operating system can still reach CI first.
+The gzip header byte depends on the operating system, so this gate catches it.
+
+`mise x -- just check-linux --control` keeps that case as a negative control.
+It removes the gzip header normalization from a copy of the provider fixture and regenerates the corpus on macOS, which must accept it.
+The unchanged corpus must then pass in the container, and the planted copy must fail the corpus assertion there.
+The control records its result in `.local/check-linux/control/receipt.json`.
 
 ## Source-bound proofs
 
