@@ -248,9 +248,14 @@ function writeInput(
 ): void {
   const db = new DatabaseSync(path);
   try {
+    // One transaction keeps the storage syncs constant as the fixture grows.
+    db.exec("BEGIN");
     db.exec(databaseSchema);
+    const insert = db.prepare(
+      "INSERT INTO contacts VALUES (?,?,?,?,?,?,?,?,?)",
+    );
     for (const [index, contact] of contacts.entries())
-      db.prepare("INSERT INTO contacts VALUES (?,?,?,?,?,?,?,?,?)").run(
+      insert.run(
         index + 1,
         contact.id,
         contact.name,
@@ -268,6 +273,7 @@ function writeInput(
     db.prepare("INSERT INTO metadata VALUES ('catalog',?)").run(
       JSON.stringify(catalog),
     );
+    db.exec("COMMIT");
   } finally {
     db.close();
   }
