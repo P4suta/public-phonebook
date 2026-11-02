@@ -20,15 +20,7 @@ test("the initial screen gives a complete instruction and one project-informatio
   await expect(
     page.getByRole("button", { name: "電話番号をさがす", exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByLabel("都道府県", { exact: true }).locator("option").first(),
-  ).toHaveText("都道府県をえらばない");
-  await expect(
-    page
-      .getByLabel("施設や窓口の種類", { exact: true })
-      .locator("option")
-      .first(),
-  ).toHaveText("種類をえらばない");
+  await expect(page.getByRole("combobox")).toHaveCount(0);
   const navigation = page.getByRole("navigation", { name: "サービスの情報" });
   await expect(navigation.getByRole("link")).toHaveCount(1);
   const link = navigation.getByRole("link", {

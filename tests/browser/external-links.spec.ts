@@ -100,7 +100,7 @@ test("every external link type confirms its destination before opening a tab", a
   });
   const cases = [
     {
-      path: "/?q=国立国会図書館",
+      path: contact,
       link: (): Locator =>
         page
           .locator("article")

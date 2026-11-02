@@ -37,7 +37,7 @@ function ContactPage(): ReactElement {
     <main id="main" className={css.page}>
       <div className={css.stack}>
         <BackButton href={from}>検索結果にもどる</BackButton>
-        <ContactCard contact={contact} detail />
+        <ContactCard contact={contact} />
         {contact.website && (
           <div className={css.actions}>
             <OfficialLink href={contact.website} destination="facility">
