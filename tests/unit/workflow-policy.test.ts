@@ -1,6 +1,7 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import * as v from "valibot";
 import { expect, it } from "vitest";
 import { parse } from "yaml";
 import {
@@ -247,6 +248,123 @@ it("rejects an OIDC token in a workflow that a push, pull request, or schedule s
       ),
     ),
   ).toEqual(["id-token-outside-dispatch"]);
+});
+
+function changeWorkflow(trigger: string, job: string): string {
+  return `on: ${trigger}
+permissions: {}
+jobs:
+  build:
+    permissions: {}
+${job}`;
+}
+
+it("keeps release-gate runners out of change workflows", () => {
+  for (const runner of [
+    "xcode-27",
+    "macos-15",
+    "windows-2025",
+    "${{ matrix.runner }}",
+    "[ubuntu-24.04, xcode-27]",
+  ])
+    expect(
+      rules(
+        changeWorkflow(
+          "pull_request",
+          `    runs-on: ${runner}
+    steps: []`,
+        ),
+      ),
+    ).toEqual(["change-runner-not-linux"]);
+  expect(
+    rules(
+      changeWorkflow(
+        "pull_request",
+        `    runs-on: ubuntu-24.04
+    steps: []`,
+      ),
+    ),
+  ).toEqual([]);
+});
+
+it("keeps release-gate checks out of change workflows", () => {
+  for (const script of [
+    "mise x -- just prove",
+    "mise x -- just ios-prove",
+    "mise x -- just ios-check",
+    "mise x -- just assurance",
+    "mise x -- just check-build",
+    "mise x -- just e2e",
+    "mise x -- just test --stage data",
+    "mise x -- npm exec --no -- playwright install --with-deps chromium",
+  ])
+    expect(
+      rules(
+        workflow(`    permissions: {}
+    steps:
+      - run: ${JSON.stringify(script)}`),
+      ),
+    ).toEqual(["change-release-check"]);
+  for (const script of [
+    "mise x -- just check",
+    "mise x -- just check-linux",
+    "mise x -- just typecheck",
+    "mise x -- just lint",
+    "echo prove",
+  ])
+    expect(
+      rules(
+        workflow(`    permissions: {}
+    steps:
+      - run: ${JSON.stringify(script)}`),
+      ),
+    ).toEqual([]);
+  for (const reference of [
+    "$/.github/workflows/assurance.yml",
+    "./.github/workflows/assurance.yml",
+  ])
+    expect(
+      rules(changeWorkflow("merge_group", `    uses: ${reference}`)),
+    ).toEqual(["change-release-check"]);
+});
+
+it("applies the change rules to every change trigger form and no other trigger", () => {
+  const heavy = `    runs-on: xcode-27
+    steps:
+      - run: mise x -- just ios-check`;
+  for (const trigger of [
+    "pull_request",
+    "merge_group",
+    "push",
+    "pull_request_target",
+    "[workflow_dispatch, push]",
+    "\n  merge_group:\n  workflow_dispatch:",
+  ])
+    expect(rules(changeWorkflow(trigger, heavy)), trigger).toEqual([
+      "change-runner-not-linux",
+      "change-release-check",
+    ]);
+  for (const trigger of [
+    "workflow_dispatch",
+    "[workflow_dispatch, workflow_call]",
+    "\n  workflow_call:\n  workflow_dispatch:",
+  ])
+    expect(rules(changeWorkflow(trigger, heavy)), trigger).toEqual([]);
+});
+
+it("rejects the assurance workflow when a pull request triggers it", async () => {
+  const assurance: unknown = parse(
+    await readFile(".github/workflows/assurance.yml", "utf8"),
+  );
+  expect(workflowViolations("assurance.yml", assurance)).toEqual([]);
+  const planted = workflowViolations("assurance.yml", {
+    ...v.parse(v.looseObject({}), assurance),
+    on: "pull_request",
+  }).map(({ location, rule }) => `${location} ${rule}`);
+  expect(planted).toContain("jobs.native change-runner-not-linux");
+  expect(planted).toContain("jobs.native.steps[2] change-release-check");
+  expect(planted).toContain("jobs.proofs.steps[2] change-release-check");
+  expect(planted).toContain("jobs.build.steps[3] change-release-check");
 });
 
 it("applies the step rules to composite actions", () => {

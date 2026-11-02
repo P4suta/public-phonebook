@@ -61,11 +61,17 @@ export function parseTestArguments(args: readonly string[]): TestArguments {
   };
 }
 
+/** The candidate's check stage runs the fast gate and the build checks that pull requests skip. */
+export const checkStageScripts = ["check", "check:build"] as const;
+
 export function stageRunner(
   bundle: string,
 ): Record<CandidateStage, () => Promise<void>> {
   return {
-    check: () => requireCommand("npm", ["run", "check"]),
+    check: async (): Promise<void> => {
+      for (const script of checkStageScripts)
+        await requireCommand("npm", ["run", script]);
+    },
     data: async (): Promise<void> => {
       await checkDataBundle(bundle);
     },

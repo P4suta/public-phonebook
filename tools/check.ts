@@ -1,7 +1,6 @@
 import { copyFile, mkdir, readFile, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import * as v from "valibot";
-import { prepareCheckFixture } from "./check-fixture.ts";
 import { command, requireCommand } from "./process.ts";
 import { requireWorkflowPolicy } from "./workflow-policy.ts";
 
@@ -47,28 +46,8 @@ async function scanSecrets(): Promise<void> {
   console.info(JSON.stringify({ operation: "secrets", files }));
 }
 
-for (const script of ["typecheck", "lint", "test", "build", "audit"])
+for (const script of ["typecheck", "lint", "test", "audit"])
   await requireCommand("npm", ["run", script]);
-const nativeTools = ["--manifest-path", "tools/ios-check/Cargo.toml"];
-await requireCommand("cargo", ["fmt", ...nativeTools, "--check"]);
-await requireCommand("cargo", [
-  "clippy",
-  "--locked",
-  ...nativeTools,
-  "--all-targets",
-  "--",
-  "-D",
-  "warnings",
-]);
-await requireCommand("cargo", ["test", "--locked", ...nativeTools]);
-for (const action of ["icons --check", "audit"])
-  await requireCommand("cargo", [
-    "run",
-    "--locked",
-    ...nativeTools,
-    "--",
-    ...action.split(" "),
-  ]);
 const decoded: unknown = JSON.parse(
   await readFile("test-results/unit.json", "utf8"),
 );
@@ -87,15 +66,6 @@ await requireCommand("zizmor", [
   ".github",
 ]);
 await requireWorkflowPolicy(".");
-await prepareCheckFixture();
-await requireCommand("npm", [
-  "exec",
-  "--no",
-  "--",
-  "playwright",
-  "test",
-  "--config=playwright.check.config.ts",
-]);
 console.info(
   JSON.stringify({
     operation: "check",
