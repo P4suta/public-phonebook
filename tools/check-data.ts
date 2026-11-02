@@ -14,6 +14,11 @@ import {
   directoryArchiveEncoder,
   directoryArchiveFile,
 } from "../src/core/directory-archive.ts";
+import {
+  decodeDirectoryDelta,
+  deltaMatchesTarget,
+} from "../src/core/directory-delta.ts";
+import { deltaPublication } from "../src/core/directory-delta-policy.ts";
 import { normalizeName } from "../src/core/identity.ts";
 import {
   CatalogSchema,
@@ -21,6 +26,7 @@ import {
   type Source,
   SourceSchema,
 } from "../src/core/models.ts";
+import { decodeUtf8, requireDirectoryText } from "./directory-delta.ts";
 import { checkRowOrder, readSearchIndex } from "./search-index.ts";
 import { fileDigest } from "./snapshot.ts";
 
@@ -28,6 +34,56 @@ const commandArgumentOffset = 2;
 
 function sha256Hex(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
+}
+
+/** Checks each delta's digests, size rule, target identity, header line, and literal rows. */
+async function checkDirectoryDeltas(
+  directory: string,
+  manifest: PreparedDatasetManifest,
+  expectedArchive: Uint8Array,
+): Promise<void> {
+  const archive = manifest.files.find(
+    (file) => file.file === directoryArchiveFile,
+  );
+  if (!archive) throw new Error("The manifest has no directory archive");
+  const target = requireDirectoryText(
+    decodeUtf8(expectedArchive, "directory archive"),
+  );
+  const identity = {
+    snapshot: manifest.snapshot,
+    archiveSha256: archive.sha256,
+    sha256: sha256Hex(expectedArchive),
+    bytes: expectedArchive.byteLength,
+  };
+  for (const artifact of manifest.deltas) {
+    let bytes: Uint8Array;
+    try {
+      bytes = brotliDecompressSync(
+        await readFile(join(directory, artifact.file)),
+        { maxOutputLength: artifact.uncompressedBytes },
+      );
+    } catch (error) {
+      throw new Error(
+        `Directory delta exceeds its manifest: ${artifact.file}`,
+        {
+          cause: error,
+        },
+      );
+    }
+    const delta = decodeDirectoryDelta(decodeUtf8(bytes, "directory delta"));
+    if (
+      bytes.byteLength !== artifact.uncompressedBytes ||
+      sha256Hex(bytes) !== artifact.uncompressedSha256 ||
+      !delta.ok ||
+      delta.value.header.base.snapshot !== artifact.base ||
+      delta.value.header.base.archiveSha256 !== artifact.baseArchiveSha256 ||
+      !deltaPublication(artifact.bytes, archive.bytes) ||
+      !deltaMatchesTarget(delta.value, target, identity)
+    )
+      throw new Error(
+        `Directory delta differs from its directory: ${artifact.file}`,
+      );
+  }
 }
 
 export async function checkDataBundle(
@@ -41,7 +97,11 @@ export async function checkDataBundle(
   const path = join(directory, "directory.sqlite");
   if ((await fileDigest(path)) !== manifest.databaseSha256)
     throw new Error("Database checksum mismatch");
-  for (const file of [...manifest.files, manifest.searchIndex])
+  for (const file of [
+    ...manifest.files,
+    manifest.searchIndex,
+    ...manifest.deltas,
+  ])
     if (
       (await stat(join(directory, file.file))).size !== file.bytes ||
       (await fileDigest(join(directory, file.file))) !== file.sha256
@@ -206,6 +266,7 @@ export async function checkDataBundle(
         createHash("sha256").update(expectedArchive).digest("hex")
     )
       throw new Error("Directory archive differs from its directory");
+    await checkDirectoryDeltas(directory, manifest, expectedArchive);
     checkRowOrder(db);
     const expectedIndex = readSearchIndex(db, {
       snapshot: manifest.snapshot,

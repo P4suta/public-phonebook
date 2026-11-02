@@ -9,8 +9,8 @@ import { fileDigest } from "./snapshot.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 36;
-const declaredPostconditionCount = 69;
+const verifiedUnitCount = 39;
+const declaredPostconditionCount = 80;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -51,6 +51,9 @@ const expected = [
   "nextVisible",
   "indexAdmission",
   "rowLocatorDecision",
+  "deltaPublication",
+  "copyAdmission",
+  "deltaAdmission",
 ];
 const boundFiles = [
   "src/core/api-contract.ts",
@@ -172,6 +175,10 @@ const boundFiles = [
   "src/core/row-locator-policy.ts",
   "src/core/content-negotiation.ts",
   "tests/unit/row-locator.test.ts",
+  "src/core/directory-delta-policy.ts",
+  "src/core/directory-delta.ts",
+  "tools/directory-delta.ts",
+  "tests/unit/directory-delta.test.ts",
   "tests/unit/content-negotiation.test.ts",
   "tests/unit/workerd-api.test.ts",
   "cloudflare.config.ts",
@@ -218,6 +225,7 @@ const proofSources = [
   "src/core/snapshot-policy.ts",
   "src/core/local-search-policy.ts",
   "src/core/row-locator-policy.ts",
+  "src/core/directory-delta-policy.ts",
 ];
 const modelPaths = proofSources.map(
   (path) => `${proofRoot}/proof/generated/${path.replace(/\.ts$/u, ".dfy")}`,
@@ -790,6 +798,47 @@ async function main(): Promise<void> {
           `The ${control.name} negative control was inconclusive: ${rejected.output}`,
         );
     }
+    const deltaSource = await readFile(
+      `${proofRoot}/src/core/directory-delta-policy.ts`,
+      "utf8",
+    );
+    for (const control of [
+      {
+        name: "delta-budget",
+        from: "const deltaBudgetDenominator = 2;",
+        to: "const deltaBudgetDenominator = 1;",
+      },
+      {
+        name: "delta-range",
+        from: "return start >= 0 && count >= 1 && start + count <= baseRows;",
+        to: "return start >= 0 && count >= 1 && start + count <= baseRows + 1;",
+      },
+      {
+        name: "delta-digest",
+        from: '  if (!digestMatches) return "digest_mismatch";\n',
+        to: "",
+      },
+    ]) {
+      const brokenDelta = deltaSource.replace(control.from, control.to);
+      if (brokenDelta === deltaSource)
+        throw new Error(
+          `The ${control.name} negative control did not mutate the implementation`,
+        );
+      const path = `proof/negative/${control.name}.ts`;
+      await writeFile(`${proofRoot}/${path}`, brokenDelta);
+      await generateModel(path);
+      const rejected = await verifyModel(image, [
+        `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
+      ]);
+      if (
+        rejected.code === 0 ||
+        !/[1-9][0-9]* error/u.test(rejected.output) ||
+        !/could not be proved|could not prove/u.test(rejected.output)
+      )
+        throw new Error(
+          `The ${control.name} negative control was inconclusive: ${rejected.output}`,
+        );
+    }
     for (const binding of bindings) {
       if (
         (await fileDigest(binding.file)) !== binding.sha256 ||
@@ -817,7 +866,7 @@ async function main(): Promise<void> {
           semantics:
             "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
           negativeControl:
-            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a substring ranked at the second position, a reflexive result order, a loading index searched on the device, a 31-row continuation, an index admitted without its digest, an off-by-one row range, and a snapshot-blind row locator rejected",
+            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, retained reference opacity, conflicting publication identities, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a substring ranked at the second position, a reflexive result order, a loading index searched on the device, a 31-row continuation, an index admitted without its digest, an off-by-one row range, a snapshot-blind row locator, a delta budget of the whole archive, an off-by-one copy range, and a delta admitted without its digest rejected",
           result: "verified",
         },
         null,

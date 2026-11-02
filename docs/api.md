@@ -117,6 +117,54 @@ Rows are sorted by their UTF-8 bytes, identical rows may repeat, and the last ro
 The header's `contacts` and prefecture counts equal the rows.
 The archive omits contact and source-record IDs, which remain in JSONL.
 
+### Native directory deltas
+
+A delta rebuilds the current decoded `directory.tsv.br` from the decoded archive of an earlier snapshot, so an offline client can skip the complete download.
+`GET /api/dataset-deltas` lists the deltas to the current snapshot, and `/api/datasets` doesn't list them.
+The versioned `GET /api/v1/dataset-deltas?snapshot=…` takes the same snapshot pin as the other versioned resources and returns 409 after a change.
+The response holds the current `snapshot`, the `archiveSha256` of the `directory.tsv.br` that every delta rebuilds, and a `deltas` array that may be empty.
+Each entry names its `base` snapshot, the `baseArchiveSha256` of that snapshot's `directory.tsv.br`, its `file` and `url`, and the `bytes` and `sha256` of its Brotli bytes.
+It also gives the `uncompressedBytes` and `uncompressedSha256` of the decoded delta, so a client can bound its decoder.
+The listing revalidates like the dataset manifest.
+The URL serves the exact Brotli bytes as `application/octet-stream` without `Content-Encoding`, with the immutable caching of the complete files.
+The file is `directory-delta-` followed by the base snapshot and `.tsv.br`.
+Preparation publishes a delta only when its Brotli bytes are at most half of the complete archive's, and keeps at most 12 of them.
+
+The decoded delta is UTF-8 text with LF line endings and no byte order mark, and its last line ends with LF.
+Line 1 is `public-phonebook-directory-delta`, a TAB, and the format version `1`.
+Line 2 is a one-line JSON header.
+
+| Key | Content |
+| --- | --- |
+| `base`, `target` | The `snapshot`, the `archiveSha256` of its `directory.tsv.br`, the `sha256` and `bytes` of the decoded archive, and its `contacts` |
+| `kept` | Rows copied from the base |
+| `added` | Literal rows |
+| `removed` | Base rows that no copy names; `kept + removed` is the base's `contacts` |
+| `categories`, `provenances`, `links` | One entry per base dictionary index, holding the target index or `null` |
+
+`kept + added` is the target's `contacts`, and the two snapshots differ.
+Line 3 is the target archive's line 2, byte for byte.
+Every following line is one instruction, in the order of the rebuilt rows.
+`=`, a TAB, a 0-based base row position, a TAB, and a positive count copy that many consecutive base rows.
+`+`, a TAB, and an archive row add that row as written.
+Positions and counts are decimal without leading zeros, every copy lies inside the base, and no two copies overlap.
+
+A copied row keeps fields 2 through 6.
+Field 1 becomes the `categories` entry for its index.
+Field 7 becomes the `provenances` entry for its index.
+Each index in field 8, and the index in field 9 when it isn't empty or `*`, becomes its `links` entry.
+A `null` or an index outside the target header's dictionary rejects the delta.
+The maps aren't identities: a recollection that only changes retrieval times maps each old provenance to its new one, so those rows stay copies.
+
+To apply a delta, start from the client's stored rows of the base snapshot in archive order.
+Check the listed digest and length of the delta file, then line 1 and the header.
+Check that `base` names the stored snapshot, its row count, and its dictionary sizes, and, when the client kept them, the decoded digest and length.
+Write line 1 of the archive format, a LF, line 3 of the delta, and a LF.
+Then write each rebuilt row followed by a LF, in instruction order, and hash those bytes as they're written.
+The result is the target only when its rows equal `target.contacts`, and its bytes and SHA-256 equal `target.bytes` and `target.sha256`.
+Validate the rebuilt archive as a complete one before replacing stored data.
+After any failure, keep the stored data and download the complete `directory.tsv.br`.
+
 ## Website search index
 
 The website's search index is a website contract rather than a public download.

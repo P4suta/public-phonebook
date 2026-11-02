@@ -40,6 +40,21 @@ The original source remains read-only.
 A failed preparation never produces a ready manifest.
 The native TypeScript collector and overlay preparation are described in [data sources](data-sources.md).
 
+### Snapshot deltas
+
+Name the retained earlier bundles when you prepare a new snapshot, and preparation writes a delta from each of them to the new archive.
+
+```sh
+mise x -- npm run data -- prepare /path/to/public-snapshot.sqlite .local/next --delta-base .local/phonebook --delta-base .local/previous
+```
+
+A delta base is a prepared bundle, such as one that `just data-fetch` restored for the active or the rollback dataset.
+Preparation checks each base archive with its own manifest, applies each delta to its base, and requires the exact new archive before it records the delta.
+It skips a delta whose Brotli bytes exceed half of the complete archive, and it logs the sizes of every delta it considers.
+The ready manifest lists the published deltas, so the dataset digest covers them, and `just data-remote` uploads them with the other archives.
+The `just data-prepare` recipe doesn't take delta bases yet, so use the `npm run data` form for them.
+The hosted release can't generate deltas until `release.yml` exists, and that workflow needs to fetch the retained bundles before preparation.
+
 For a built local preview, run `mise x -- just build` followed by `mise x -- npm run preview`.
 Both development and preview run the native Cloudflare Workers runtime with local D1 and R2 bindings.
 No Container is needed.

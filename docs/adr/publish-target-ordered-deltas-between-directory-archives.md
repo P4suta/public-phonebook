@@ -1,0 +1,51 @@
+---
+date: 2026-11-02
+---
+
+# Publish target-ordered deltas between directory archives
+
+## Status
+
+Proposed.
+The server publishes, lists, and checks deltas now.
+The iPhone app applies them in a follow-up change for #55, and that change records the adoption.
+
+## Context
+
+The iPhone app saves the national `directory.tsv.br`, about 13.4 MB, and downloads it again for each monthly snapshot.
+Most rows don't change between snapshots, so a delta from the saved archive could transfer far less.
+Archive rows carry no contact identifier, and identical rows may repeat, so a delta can't name a record to replace or update.
+Rows refer to the header's category, provenance, and link dictionaries by index.
+One new link or source that sorts early renumbers every later row that refers to its dictionary.
+A category that gains its first contact renumbers the first field, which also reorders the archive.
+A provenance includes the retrieval time, so a recollection changes the provenance of every row from each refreshed source.
+A line-by-line difference would then repeat most of the archive each month.
+The app stores rows by archive position, so it can read any range of its saved rows without a sort.
+
+## Decision
+
+Publish `directory-delta-{base}.tsv.br` format 1 from each retained earlier snapshot to the new snapshot, as `docs/api.md` specifies.
+Carry maps from each base category, provenance, and link index to a target index in the delta header.
+Carry the target header line byte for byte, and follow it with instructions in target row order.
+An instruction copies a range of base rows through the maps, or adds one literal row.
+Leave removed rows implicit, so the delta never repeats their text.
+Map categories by ID and links by URL.
+Map each base provenance to the target provenance that the most rows match once the provenance field is ignored, with ties going to the lower index.
+Record the decoded length, SHA-256, and row count of both archives, and admit a rebuilt archive only when all three match the target.
+Generate deltas while preparing a snapshot, apply each one to its base, and require the exact target bytes before recording it.
+Publish a delta only when its Brotli bytes are at most half of the complete archive's.
+A client that loses a delta then downloads at most one and a half complete archives, and a client that uses one saves at least half.
+Below that saving, the extra path isn't worth its failure mode, because the client rewrites its whole store either way.
+Keep at most 12 deltas, a year of monthly snapshots.
+List them at `/api/dataset-deltas` and the pinned `/api/v1/dataset-deltas`, and keep `/api/datasets` and `/api/v1/datasets` unchanged.
+Prove the copy range guard, the size rule, and the admission decision in Dafny.
+
+## Consequences
+
+A client applies a delta while it streams the instructions, hashes the rebuilt archive as it writes it, and needs no local sort.
+A recollection that only changes retrieval times costs one map entry per provenance instead of every row.
+A bad provenance choice can only add literal rows, because the target digest decides whether a delta is right.
+The data check can't read copied rows without the base, so preparation's own application stays the only check of copied content.
+The ready manifest lists the deltas, so the dataset digest covers them, and old manifests without deltas still parse.
+The hosted release can't produce deltas until `release.yml` fetches the retained bundles before preparation.
+The discovery document gains its delta link with the app change, because the shared contract corpus lives under `ios/`.

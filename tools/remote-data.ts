@@ -90,6 +90,7 @@ const RetainedManifestSchema = v.object({
   databaseSha256: DigestSchema,
   files: v.array(RetainedFileSchema),
   searchIndex: v.optional(RetainedFileSchema),
+  deltas: v.optional(v.array(RetainedFileSchema), []),
 });
 type RetainedFile = v.InferOutput<typeof RetainedFileSchema>;
 
@@ -99,6 +100,7 @@ function datasetFiles(
   return [
     ...manifest.files,
     ...(manifest.searchIndex ? [manifest.searchIndex] : []),
+    ...manifest.deltas,
   ];
 }
 
