@@ -5,7 +5,42 @@ enum BrotliError: Error, Equatable {
   case corrupt, truncated, lineTooLong, unterminated
 }
 
-struct BrotliLines {
+protocol ArchiveLines {
+  /// Calls `body` with each LF-terminated line and the encoded bytes read so far.
+  nonisolated(nonsending) func eachLine(_ body: (Data, Int) async throws -> Void) async throws
+}
+
+/// Reads an uncompressed archive, such as one that a delta rebuilt, with the limits of `BrotliLines`.
+struct PlainLines: ArchiveLines {
+  private static let chunk = 262_144
+  private static let lineFeed = UInt8(ascii: "\n")
+
+  private let handle: FileHandle
+
+  init(url: URL) throws { handle = try FileHandle(forReadingFrom: url) }
+
+  nonisolated(nonsending) func eachLine(_ body: (Data, Int) async throws -> Void) async throws {
+    defer { try? handle.close() }
+    var line = Data()
+    var consumed = 0
+    while let chunk = try handle.read(upToCount: Self.chunk), !chunk.isEmpty {
+      consumed += chunk.count
+      var start = chunk.startIndex
+      while let end = chunk[start...].firstIndex(of: Self.lineFeed) {
+        line.append(contentsOf: chunk[start..<end])
+        guard line.count <= BrotliLines.maximumLine else { throw BrotliError.lineTooLong }
+        try await body(line, consumed)
+        line.removeAll(keepingCapacity: true)
+        start = chunk.index(after: end)
+      }
+      line.append(contentsOf: chunk[start...])
+      guard line.count <= BrotliLines.maximumLine else { throw BrotliError.lineTooLong }
+    }
+    guard line.isEmpty else { throw BrotliError.unterminated }
+  }
+}
+
+struct BrotliLines: ArchiveLines {
   static let maximumLine = 4_194_304
   private static let chunk = 262_144
 

@@ -2,7 +2,6 @@ use anyhow::{Context, Result, bail, ensure};
 use resvg::{tiny_skia, usvg};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -193,7 +192,7 @@ fn import(root: &Path, path: &Path) -> Result<()> {
             node_id: asset.id,
             width: asset.width,
             height: asset.height,
-            sha256: format!("{:x}", Sha256::digest(asset.svg.as_bytes())),
+            sha256: crate::sha256_hex(asset.svg.as_bytes()),
         });
     }
     let manifest = Manifest {
@@ -313,7 +312,7 @@ pub fn generate(root: &Path, check: bool) -> Result<()> {
         let path = source_path(asset.kind, &asset.name)?;
         let bytes = fs::read(root.join(&path))?;
         ensure!(
-            format!("{:x}", Sha256::digest(&bytes)) == asset.sha256,
+            crate::sha256_hex(&bytes) == asset.sha256,
             "Modified Figma export: {path}"
         );
         validate_svg(std::str::from_utf8(&bytes)?, asset.width, asset.height)?;

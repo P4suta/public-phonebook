@@ -631,6 +631,7 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
       catalog: `${base}/catalog`,
       sources: `${base}/sources`,
       datasets: `${base}/datasets`,
+      datasetDeltas: `${base}/dataset-deltas`,
       openapi: `${base}/openapi.json`,
       docs: "/developers",
     };
@@ -649,6 +650,7 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
         catalog: pin(discovery.catalog),
         sources: pin(discovery.sources),
         datasets: pin(discovery.datasets),
+        datasetDeltas: pin(discovery.datasetDeltas),
       }),
     );
   });

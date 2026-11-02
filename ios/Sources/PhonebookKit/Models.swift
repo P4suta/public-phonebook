@@ -73,6 +73,8 @@ public struct Resource<Value: Sendable>: Sendable {
 
 public struct Endpoints: Sendable {
   public let datasets: String
+  /// The delta listing, which a provider that doesn't publish deltas omits.
+  public let datasetDeltas: String?
 }
 
 public enum ImportError: Error, Equatable, Sendable {

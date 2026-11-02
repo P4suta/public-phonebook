@@ -397,6 +397,43 @@ public actor SnapshotStore {
     return try LocalSearch(names: url(generation, "names"), kinds: url(generation, "kinds"))
   }
 
+  /// The most saved rows that one call returns, which bounds the memory of copying a national base.
+  public static let archiveRowBatch = 4096
+
+  /// Writes saved rows back as archive lines, where each row `id` is its archive position plus one.
+  public func archiveRows(generation: UUID, from start: Int, count: Int) throws -> [Data] {
+    guard start >= 0, (1...Self.archiveRowBatch).contains(count) else {
+      throw ImportError.invalidRecord
+    }
+    let (database, _) = try readable(generation)
+    let rows = try database.query(
+      """
+      SELECT category, region, name, address, phones, website, provenance, origin, confirmation
+      FROM contacts WHERE id > ? AND id <= ? ORDER BY id
+      """, [.integer(Int64(start)), .integer(Int64(start + count))]
+    ) { try Self.archiveLine($0) }
+    // Row identifiers are distinct integers, so `count` rows in the range are every position in it.
+    guard rows.count == count else { throw ImportError.invalidSnapshot }
+    return rows
+  }
+
+  private static func archiveLine(_ row: OpaquePointer) throws -> Data {
+    let phones = try SQLiteDatabase.text(row, 4).split(separator: "\u{1F}").map { item in
+      let parts = item.split(separator: "\u{1E}", maxSplits: 1, omittingEmptySubsequences: false)
+      guard parts.count == 2 else { throw ImportError.invalidRecord }
+      return ArchiveRecord.telephone(e164: parts[0], display: parts[1])
+    }
+    let fields = [
+      String(SQLiteDatabase.integer(row, 0)), try SQLiteDatabase.text(row, 1),
+      try SQLiteDatabase.text(row, 2), try SQLiteDatabase.text(row, 3),
+      phones.joined(separator: "\u{1F}"), try SQLiteDatabase.optionalText(row, 5) ?? "",
+      String(SQLiteDatabase.integer(row, 6)),
+      try SQLiteDatabase.text(row, 7).replacingOccurrences(of: ",", with: "\u{1F}"),
+      try SQLiteDatabase.text(row, 8),
+    ]
+    return Data(fields.joined(separator: "\t").utf8)
+  }
+
   public func contactIDs(generation: UUID, number: Int64) throws -> [Int64] {
     let (database, _) = try readable(generation)
     return try database.query(

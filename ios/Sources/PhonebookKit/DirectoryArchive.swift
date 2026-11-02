@@ -183,12 +183,28 @@ extension Character {
   fileprivate var isASCIIDigit: Bool { isASCII && isNumber }
 }
 
-/// Reads `directory.tsv.br` as a stream and checks its signature, header, order, and counts.
+extension ArchiveRecord {
+  private static let countryPrefix = "+81"
+  private static let trunkPrefix = "0"
+  private static let asciiDigits = UInt8(ascii: "0")...UInt8(ascii: "9")
+
+  /// Spells a saved telephone as an archive field, the same way `src/core/directory-archive.ts` does.
+  static func telephone(e164: Substring, display: Substring) -> String {
+    let national = trunkPrefix + e164.dropFirst(countryPrefix.count)
+    let digits = String(decoding: display.utf8.filter { asciiDigits.contains($0) }, as: UTF8.self)
+    return digits == national ? String(display) : national + String(spellingSeparator) + display
+  }
+}
+
+/// Reads `directory.tsv.br`, or an archive that a delta rebuilt, and checks its signature, header, order, and counts.
 struct DirectoryArchiveReader {
+  enum Encoding { case brotli, plain }
+
   static let signature = Data("public-phonebook-directory\t1".utf8)
   static let batchSize = 1_000
 
   let url: URL
+  var encoding = Encoding.brotli
 
   nonisolated(nonsending) func read(
     header receiveHeader: (ArchiveHeader) async throws -> Void,
@@ -200,7 +216,12 @@ struct DirectoryArchiveReader {
     var batch: [ArchiveRecord] = []
     var counts: [String: Int] = [:]
     var records = 0
-    try await BrotliLines(url: url).eachLine { data, consumed in
+    let lines: any ArchiveLines =
+      switch encoding {
+      case .brotli: try BrotliLines(url: url)
+      case .plain: try PlainLines(url: url)
+      }
+    try await lines.eachLine { data, consumed in
       defer { line += 1 }
       switch line {
       case 0:

@@ -6,7 +6,6 @@ use super::{
 use crate::locations::{APP_STORE_CONNECT_BUILDS, CURL};
 use anyhow::{Context, Result, bail, ensure};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     ffi::OsString,
@@ -364,7 +363,7 @@ fn candidate(root: &Path) -> Result<Candidate> {
     )?;
     let (package, build, sha256) = admit_candidate(&record)?;
     ensure!(
-        format!("{:x}", Sha256::digest(fs::read(&package)?)) == sha256,
+        crate::sha256_hex(fs::read(&package)?) == sha256,
         "The archived package changed after verification"
     );
     let recorded = record["source_sha256"]

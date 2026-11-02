@@ -3,8 +3,13 @@ import { readFile } from "node:fs/promises";
 import { brotliDecompressSync } from "node:zlib";
 import * as v from "valibot";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DirectoryDiscoverySchema } from "../../src/core/api-contract.ts";
+import {
+  type DirectoryDiscovery,
+  DirectoryDiscoverySchema,
+} from "../../src/core/api-contract.ts";
+import { DirectoryDeltaListingSchema } from "../../src/core/dataset-storage.ts";
 import { decodeDirectoryArchive } from "../../src/core/directory-archive.ts";
+import { applyDirectoryDelta } from "../../src/core/directory-delta.ts";
 import {
   DigestSchema,
   GroupedSearchResponseSchema,
@@ -12,7 +17,11 @@ import {
   VersionedDatasetManifestSchema,
 } from "../../src/core/models.ts";
 import { snapshotAdmission } from "../../src/core/snapshot-policy.ts";
-import { directoryFixture } from "../../tools/directory-fixture.ts";
+import { sha256Digest } from "../../tools/directory-delta.ts";
+import {
+  contractOrigin,
+  directoryFixture,
+} from "../../tools/directory-fixture.ts";
 import { contractResponses } from "../../tools/native-fixture.ts";
 
 let fixture: Awaited<ReturnType<typeof directoryFixture>> | undefined;
@@ -50,6 +59,7 @@ describe("shared native API contract", () => {
       discovery.catalog,
       discovery.sources,
       discovery.datasets,
+      discovery.datasetDeltas,
     ])
       expect(
         new URL(path, "https://contract.example").searchParams.get("snapshot"),
@@ -163,41 +173,94 @@ describe("shared native API contract", () => {
       ),
     );
     const actual = await contractResponses();
-    const discovery = v.parse(
-      DirectoryDiscoverySchema,
-      JSON.parse(actual[0]?.body ?? ""),
-    );
-    const manifest = v.parse(
-      VersionedDatasetManifestSchema,
-      JSON.parse(actual[2]?.body ?? ""),
-    );
-    const file = manifest.files.find(
-      (item) => item.file === "directory.tsv.br",
-    );
-    expect(actual.map((response) => response.path)).toEqual([
-      "/api/v1",
-      discovery.catalog,
-      discovery.datasets,
-      file?.url,
-    ]);
-    const archive = actual[3];
-    expect(archive?.encoding).toBe("base64");
-    expect(archive?.headers["Content-Type"]).toBe("application/octet-stream");
-    const bytes = Uint8Array.from(atob(archive?.body ?? ""), (character) =>
-      character.charCodeAt(0),
-    );
-    expect(bytes.byteLength).toBe(file?.bytes);
-    expect(createHash("sha256").update(bytes).digest("hex")).toBe(file?.sha256);
-    const decoded = decodeDirectoryArchive(
+    const bytes = (body = ""): Uint8Array =>
+      Uint8Array.from(atob(body), (character) => character.charCodeAt(0));
+    const text = (data: Uint8Array): string =>
       new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(
-        brotliDecompressSync(bytes),
+        brotliDecompressSync(data),
+      );
+    const sha256 = (data: Uint8Array): string =>
+      createHash("sha256").update(data).digest("hex");
+    const revision = (
+      name: "baseline" | "updated",
+    ): {
+      readonly responses: typeof actual;
+      readonly discovery: DirectoryDiscovery;
+      readonly file:
+        | { readonly url: string; readonly sha256: string }
+        | undefined;
+      readonly archive: string;
+    } => {
+      const responses = actual.filter((response) => response.revision === name);
+      const discovery = v.parse(
+        DirectoryDiscoverySchema,
+        JSON.parse(responses[0]?.body ?? ""),
+      );
+      const listing = responses.find(
+        (response) => response.path === discovery.datasets,
+      );
+      const manifest = v.parse(
+        VersionedDatasetManifestSchema,
+        JSON.parse(listing?.body ?? ""),
+      );
+      const file = manifest.files.find(
+        (item) => item.file === "directory.tsv.br",
+      );
+      const archive = responses.find((response) => response.path === file?.url);
+      expect(archive?.encoding).toBe("base64");
+      expect(archive?.headers["Content-Type"]).toBe("application/octet-stream");
+      const data = bytes(archive?.body);
+      expect(data.byteLength).toBe(file?.bytes);
+      expect(sha256(data)).toBe(file?.sha256);
+      const decoded = decodeDirectoryArchive(text(data));
+      expect(decoded.header.snapshot).toBe(discovery.snapshot);
+      expect(decoded.rows).toHaveLength(manifest.contacts);
+      return { responses, discovery, file, archive: text(data) };
+    };
+    const baseline = revision("baseline");
+    expect(baseline.responses.map((response) => response.path)).toEqual([
+      "/api/v1",
+      baseline.discovery.catalog,
+      baseline.discovery.datasets,
+      baseline.file?.url,
+    ]);
+    const updated = revision("updated");
+    const listing = v.parse(
+      DirectoryDeltaListingSchema,
+      JSON.parse(updated.responses[2]?.body ?? ""),
+    );
+    const [delta] = listing.deltas;
+    expect(listing.deltas).toHaveLength(1);
+    expect(listing.archiveSha256).toBe(updated.file?.sha256);
+    expect(delta?.base).toBe(baseline.discovery.snapshot);
+    expect(delta?.baseArchiveSha256).toBe(baseline.file?.sha256);
+    expect(updated.responses.map((response) => response.path)).toEqual([
+      "/api/v1",
+      updated.discovery.datasets,
+      updated.discovery.datasetDeltas,
+      delta?.url,
+      updated.file?.url,
+    ]);
+    const deltaBytes = bytes(updated.responses[3]?.body);
+    expect(updated.responses[3]?.headers["Content-Type"]).toBe(
+      "application/octet-stream",
+    );
+    expect(deltaBytes.byteLength).toBe(delta?.bytes);
+    expect(sha256(deltaBytes)).toBe(delta?.sha256);
+    const applied = applyDirectoryDelta(
+      baseline.archive,
+      text(deltaBytes),
+      sha256Digest,
+    );
+    expect(applied.admission).toBe("apply");
+    expect(applied.text).toBe(updated.archive);
+    expect(
+      actual.every(
+        (response) =>
+          !response.encoding ===
+          !/\.tsv\.br$/u.test(new URL(response.path, contractOrigin).pathname),
       ),
-    );
-    expect(decoded.header.snapshot).toBe(discovery.snapshot);
-    expect(decoded.rows).toHaveLength(manifest.contacts);
-    expect(actual.slice(0, 3).every((response) => !response.encoding)).toBe(
-      true,
-    );
+    ).toBe(true);
     expect(actual).toEqual(expected);
   });
 
@@ -251,6 +314,7 @@ describe("shared native API contract", () => {
       "contacts/13%3Adental",
       "contacts/13%3Adental/contact.vcf",
       "datasets",
+      "dataset-deltas",
     ]) {
       expect(
         (await request(`/api/v1/${path}?snapshot=${"0".repeat(64)}`)).status,

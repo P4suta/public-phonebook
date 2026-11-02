@@ -1,7 +1,6 @@
 use super::{logged, require_current_sources, source_hashes, source_records};
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -262,7 +261,7 @@ pub fn run(root: &Path) -> Result<()> {
                 .arg("--keep-logs")
                 .arg(&logs),
         )?;
-        let hash = format!("{:x}", Sha256::digest(plan_bytes));
+        let hash = crate::sha256_hex(plan_bytes);
         let counts = results(
             root,
             &plan,
