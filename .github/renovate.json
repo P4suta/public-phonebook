@@ -63,7 +63,8 @@
         "jdx/mise",
         "docker.io/jdxcode/mise",
         "dopplerhq/secrets-fetch-action",
-        "actions/attest-build-provenance"
+        "actions/attest-build-provenance",
+        "actions/attest-sbom"
       ],
       "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
       "groupName": "deployment dependencies",

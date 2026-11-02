@@ -113,6 +113,9 @@ publish-admission environment dataset bundle="":
 release dataset:
     node tools/release.ts {{ quote(dataset) }}
 
+release-verify tag directory:
+    node tools/release-record.ts verify-published {{ quote(tag) }} {{ quote(directory) }}
+
 recover environment:
     doppler run --project public-phonebook --config prd --no-fallback -- npm run publish -- {{ quote(environment) }} --recover
 

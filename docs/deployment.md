@@ -1,8 +1,9 @@
-# Local operation and Cloudflare environments
+# Local operation and publication from GitHub Actions
 
 The application uses native Workers, D1, and R2.
-Publication prepares isolated resources, checks the candidate version at 0% inside the production Worker, and moves traffic after the owner approves it.
-Receipts, the control store's journal, and HTTPS checks establish deployment status.
+Production publishes only from the `Release` workflow on `main`, which checks the candidate version at 0% inside the production Worker and moves traffic after the owner approves it.
+Each release ends with an immutable GitHub release that holds its evidence, checksums, dataset identity, SBOM, provenance, and approval.
+Local commands prepare and inspect data, start a release, and withdraw or recover a publication.
 
 ## Install and verify
 
@@ -64,7 +65,7 @@ It decodes one base at a time, applies each delta to its base, and requires the 
 It skips a delta whose Brotli bytes exceed half of the complete archive, and it logs the sizes of every delta it considers.
 The ready manifest lists the published deltas, so the dataset digest covers them, and `just data-remote` uploads them with the other archives.
 The `just data-prepare` recipe doesn't take delta bases yet, so use the `npm run data` form for them.
-The hosted release can't generate deltas until `release.yml` exists, and that workflow needs to fetch the retained bundles before preparation.
+The `Release` workflow publishes a stored dataset as it is, so a delta exists only when the preparation that stored the dataset wrote it.
 
 ## Environment boundaries
 
@@ -83,10 +84,93 @@ The CLI and plugin are beta dependencies, so upgrades require the native integra
 Secrets belong in Doppler.
 The checked-in Doppler configuration identifies the existing project and account configuration; it grants no deployment authority.
 Public reads have no application secret.
-The commands use Doppler for account selection and the existing cf OAuth profile for provider authentication.
+Local commands use the Doppler `prd` config for account selection and the owner's cf sign-in profile for provider authentication.
+Workflows use one Doppler config per GitHub environment through OIDC and scoped API tokens, as the next section describes.
 Enable R2 in the Cloudflare account before the first remote preparation.
 
-## Prepare and publish
+## Publish from GitHub Actions
+
+### Common rules
+
+These rules hold for every workflow, and `tools/workflow-policy.ts` enforces the ones that a workflow file can show.
+- Each workflow starts from `permissions: {}`, and each job adds only the permissions it uses, explaining each grant beyond reading the repository.
+- Each action is pinned to a full commit SHA, and a script receives inputs and event values only through `env:`.
+- A job that holds a secret runs only on `main`, in a protected environment, from `workflow_dispatch` or `workflow_call`.
+- Its first step refuses any other ref, and it fetches only its own environment's Doppler config through OIDC.
+- The owner's Doppler identities accept only the subject `repo:P4suta@42543015/public-phonebook@1438449191:environment:<env>`.
+- A secret reaches only the step that uses it, never the job environment.
+- One publication runs at a time, through the non-cancelling `publication-production` concurrency group and the R2 lease.
+- Public logs and artifacts never hold a token, a raw secret, or an IPA, and a candidate's version ID stays masked until it takes traffic.
+- A release record becomes a GitHub release once, after every asset is complete and checked.
+
+### Release workflows
+
+| Workflow | Start | Effect |
+| --- | --- | --- |
+| `candidate.yml` | Manual, or called by `release.yml` | Runs `assurance.yml`, then every candidate stage on the national dataset, and records passing evidence |
+| `release.yml` | Manual, `dataset` and `checks` inputs | Admits evidence, builds and attests the Worker, stages it at 0%, checks it, waits for approval, promotes it, and publishes its record |
+| `recover.yml` | Manual, `withdraw` or `restore` | Withdraws a candidate that never took traffic, or restores the verified predecessor after approval |
+| `status.yml` | Manual | Reads the masked journal, the deployed versions, and the retention plan |
+| `pipeline-controls.yml` | Manual, `dataset` input | Runs the pipeline's refusals and the withdrawal drill |
+
+`release.yml` runs these jobs in order.
+1. `candidate` calls `candidate.yml`, unless `checks` is `reuse` because evidence for the same tree and dataset already exists.
+2. `evidence` requires passing evidence for every stage and reads the database digest from the stored manifest.
+3. `build` builds the Worker without any secret, attests a tarball of the build output and its SBOM, and records its build digest.
+4. `stage` verifies the attestation, prepares the D1 database and archives, and deploys the attested build at 0%.
+5. `verify` checks the candidate through the version override with a read-only token.
+6. `promote` waits for the `production` approval, moves traffic in one step, and checks the candidate without the override.
+7. `record` assembles the release record and publishes it as a GitHub release.
+8. `withdraw` removes the candidate when `verify` fails, because the read-only token leaves the withdrawal pending.
+
+Evidence counts when `candidate.yml` records it directly or inside `release.yml`, both on `main`.
+A called workflow reports its caller in `GITHUB_WORKFLOW_REF`, so the admission accepts exactly these two signers.
+The build job sits in the `candidate` environment only so that it can sign attestations, and it fetches no secret.
+
+Each environment fetches its own Doppler config through OIDC, and the workflow policy refuses any other pairing.
+
+| Environment | Doppler config | Keys | Token scope |
+| --- | --- | --- | --- |
+| `candidate` | `ci_candidate` | `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Read and write `dial-control` |
+| `release-candidate` | `ci_release_candidate` | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Workers Editor for `dial-production`, D1 Edit, and R2 on `dial-control` and `dial-production-datasets` |
+| `observe` | `ci_observe` | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Worker metadata and D1 read, and R2 on `dial-control` for the journal, the lease, and the release evidence |
+| `production` | `ci_production` | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Workers Editor for `dial-production`, and R2 on `dial-control` |
+
+Every step that calls Cloudflare, R2, or Doppler waits for the owner, who creates the tokens, stores them in these configs, and sets `DOPPLER_IDENTITY_ID`.
+Run the workflows in this order once they exist: `status.yml`, `pipeline-controls.yml`, a `release.yml` run whose approval the owner rejects, and then the first approved release.
+After a rejected approval, the candidate stays at 0% until `recover.yml` withdraws it.
+
+### Release record
+
+After promotion, the `record` job publishes one GitHub release whose tag is `vYEAR.MONTHDAY.RUN`, such as `v2026.1102.15` for run 15 on November 2 in UTC.
+It holds no token that can deploy, and it runs only after a verified promotion.
+
+| Asset | Contents |
+| --- | --- |
+| `release-evidence.json` | Tree, commit, run, dataset, snapshot, release and version IDs, predecessor, build digest, candidate stage decisions, approvers, and asset digests |
+| `SHA256SUMS` | The SHA-256 of every other asset |
+| `manifest.ready.json`, `catalog.json` | The published dataset's identity, from `datasets/MANIFEST/` |
+| `sbom.cdx.json` | CycloneDX list of every locked production npm package with its version, purl, license, and integrity digest |
+| `worker-build.tar` | The attested Worker build that took traffic |
+| `attestations.jsonl` | The build provenance and SBOM attestation bundles for that tarball |
+| `approval.json` | The `production` environment reviews of the run |
+
+The job verifies both attestations and requires an approval of `production` with no rejection.
+It requires the journal's verified release to come from the checked-out tree and every candidate stage to be admitted.
+It writes the evidence to the control store's append-only `evidence/releases/` prefix as well, so it outlives GitHub's artifact retention.
+It creates a draft, downloads the draft's assets, requires them to match `SHA256SUMS` exactly, and then publishes the release once.
+
+Anyone can check a published release.
+
+```sh
+mise x -- just release-verify v2026.1102.15 target/release-check
+```
+
+The command downloads the assets, checks every digest, and verifies the provenance and SBOM attestations against `release.yml` on `main`.
+The SBOM lists the locked production dependencies, not the exact modules that the bundler kept, and an attestation doesn't make that list accurate.
+
+The owner turns on Immutable Releases in the repository settings and adds a tag ruleset that keeps `v*` tags for the release workflow.
+Until then, a published release can still change, so the record depends on nobody editing it.
 
 ### Candidates in the production Worker
 
@@ -94,7 +178,7 @@ There is no staging environment.
 A candidate is a new version of `dial-production` that waits at 0% beside the current version until the owner approves it.
 
 1. The data command prepares the candidate's D1 database and archive keys under their digests, which the current version never reads.
-2. `--stage` uploads the built Worker with `cf workers versions create`, tagged with a new release ID, and deploys it at 0%.
+2. `--stage` uploads the attested build with `cf workers versions create`, tagged with a new release ID, and deploys it at 0%.
 3. `--verify-candidate` runs the public checks on `www.dial.page` with `Cloudflare-Workers-Version-Overrides` aimed at the candidate.
 4. The release workflow waits for the owner's approval of the GitHub `production` environment.
 5. `--promote --release RELEASE_ID` moves traffic from 0% to 100% in one step and runs the checks again without the override.
@@ -119,7 +203,7 @@ Routes and cron triggers can't be read back, so the build must declare none.
 Apply a Worker-wide change separately with the owner's `cf` profile, and then publish a candidate whose configuration matches it.
 
 `--drill` stages a candidate, runs its checks, injects a probe failure, and requires the withdrawal to leave production unchanged.
-The release workflow runs it before the first approved publication.
+`pipeline-controls.yml` runs it on an attested build before the first approved publication and after each held deployment dependency update.
 The [in-place verification decision](adr/verify-release-candidates-in-place-before-approval.md) explains the conditions and the remaining weaknesses.
 
 ### Release inputs
@@ -140,6 +224,7 @@ The publisher refuses a local `--stage`, `--verify-candidate`, `--promote`, `--d
 | --- | --- | --- |
 | `just publish-admission production DATASET [BUNDLE]` | Dataset digest | Runs every admission check without a lease, build, or provider effect |
 | `just withdraw production` | None | Withdraws a candidate that never took traffic |
+| `just release-verify TAG DIRECTORY` | Release tag, target directory | Downloads a published release record and checks its digests and attestations |
 | `just data-fetch DATASET DIRECTORY` | Dataset digest, target directory | Restores the bundle from the control store and checks every file |
 | `just test --bundle DIRECTORY --stage STAGE` | Bundle, stages | Runs selected stages of the gate and writes one receipt per stage |
 
@@ -167,7 +252,7 @@ The final checks compare counts, foreign keys, the complete catalog, and fixed p
 
 The publisher requires a clean committed checkout, a verified remote-data receipt, and admitted candidate evidence.
 Tree identity allows a merge commit to preserve an already checked candidate when its files are unchanged.
-The candidate is built with production bindings and origin, and no secret, before the prebuilt version upload.
+The `build` job builds the candidate with production bindings and origin and no secret, and `--artifact` names that build by its digest.
 The upload creates a version without applying triggers, so custom domains and other Worker-wide settings stay as the owner last applied them.
 HTML responses use `no-store, no-transform` to prevent Cloudflare from adding scripts to the document.
 Browser checks reject scripts from other origins and verify that an inserted external script is detected.
@@ -240,44 +325,6 @@ The control store keeps the journals and verification bundles for recovery.
 Provider provisioning, network delivery, and the truth of upstream records remain external trust boundaries.
 Read the [recovery decision](adr/recover-complete-worker-and-dataset-publications.md), [in-place verification decision](adr/verify-release-candidates-in-place-before-approval.md), and [verification contract](verification.md) for their checks and limits.
 
-### Release workflows
-
-Production publishes from GitHub Actions on `main`, and every job that holds a secret starts by refusing any other ref.
-
-| Workflow | Start | Effect |
-| --- | --- | --- |
-| `candidate.yml` | Manual, or called by `release.yml` | Runs `assurance.yml`, then every candidate stage on the national dataset, and records passing evidence |
-| `release.yml` | Manual, `dataset` and `checks` inputs | Admits evidence, builds and attests the Worker, stages it at 0%, checks it, waits for approval, and promotes it |
-| `recover.yml` | Manual, `withdraw` or `restore` | Withdraws a candidate that never took traffic, or restores the verified predecessor after approval |
-| `status.yml` | Manual | Reads the masked journal, the deployed versions, and the retention plan |
-| `pipeline-controls.yml` | Manual, `dataset` input | Runs the pipeline's refusals and the withdrawal drill |
-
-`release.yml` runs these jobs in order.
-1. `candidate` calls `candidate.yml`, unless `checks` is `reuse` because evidence for the same tree and dataset already exists.
-2. `evidence` requires passing evidence for every stage and reads the database digest from the stored manifest.
-3. `build` builds the Worker without any secret, attests a tarball of the build output, and records its build digest.
-4. `stage` verifies the attestation, prepares the D1 database and archives, and deploys the attested build at 0%.
-5. `verify` checks the candidate through the version override with a read-only token.
-6. `promote` waits for the `production` approval, moves traffic in one step, and checks the candidate without the override.
-7. `withdraw` removes the candidate when `verify` fails, because the read-only token leaves the withdrawal pending.
-
-Evidence counts when `candidate.yml` records it directly or inside `release.yml`, both on `main`.
-A called workflow reports its caller in `GITHUB_WORKFLOW_REF`, so the admission accepts exactly these two signers.
-The build job sits in the `candidate` environment only so that it can sign provenance, and it fetches no secret.
-The jobs that change the production Worker share the `publication-production` concurrency group and never cancel each other, and the R2 lease still serializes them.
-
-Each environment fetches its own Doppler config through OIDC, and the workflow policy refuses any other pairing.
-
-| Environment | Doppler config | Keys | Token scope |
-| --- | --- | --- | --- |
-| `candidate` | `ci_candidate` | `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Read and write `dial-control` |
-| `release-candidate` | `ci_release_candidate` | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Workers Editor for `dial-production`, D1 Edit, and R2 on `dial-control` and `dial-production-datasets` |
-| `observe` | `ci_observe` | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Worker metadata and D1 read, and R2 on `dial-control` for the journal and lease |
-| `production` | `ci_production` | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Workers Editor for `dial-production`, and R2 on `dial-control` |
-
-Every step that calls Cloudflare, R2, or Doppler waits for the owner, who creates the tokens, stores them in these configs, and sets `DOPPLER_IDENTITY_ID`.
-Run the workflows in this order once they exist: `status.yml`, `pipeline-controls.yml`, a `release.yml` run whose approval the owner rejects, and then the first approved release.
-After a rejected approval, the candidate stays at 0% until `recover.yml` withdraws it.
 
 ## Dependency updates
 

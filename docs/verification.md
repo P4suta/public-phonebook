@@ -19,7 +19,7 @@ The workflow checks run actionlint over every workflow and zizmor offline with t
 Offline mode leaves out zizmor's online audits, so the result doesn't depend on network access or a token.
 The typed policy in `tools/workflow-policy.ts` also checks every workflow and local composite action.
 It requires explicit permissions on every workflow and job, and every top-level block must be empty.
-It allows only `actions/checkout`, `actions/cache`, `actions/upload-artifact`, `actions/download-artifact`, `dopplerhq/secrets-fetch-action`, and `jdx/mise-action`, each pinned to a full commit SHA.
+It allows only `actions/checkout`, `actions/cache`, `actions/upload-artifact`, `actions/download-artifact`, `dopplerhq/secrets-fetch-action`, `jdx/mise-action`, and the three `actions/attest` actions, each pinned to a full commit SHA.
 It rejects `inputs` or `github.event` expressions inside a `run:` script, which must receive those values through `env:`.
 It admits `id-token: write` only in a job that names an environment or calls a reusable workflow.
 A workflow with such a job may start only from `workflow_dispatch` or `workflow_call`.
@@ -52,7 +52,7 @@ Its build job runs `just check-build`, and its formal job runs `just prove` and 
 Its native job runs `just ios-check` on the `xcode-27` runner.
 A failed or cancelled native job uploads `target/ios` with the [evidence of each failed UI scenario](ios.md) as a seven-day artifact.
 The `campaigns` input adds the sanitizer and mutation campaigns to the native job.
-A release workflow can call it through `workflow_call`.
+`candidate.yml` calls it through `workflow_call` for each release candidate.
 No pull request, merge group, or push starts it, and a manual run gates nothing by itself.
 The national multi-browser campaign stays out of it and runs in `just test`.
 The manual TestFlight workflow reruns the native, Lean, sanitizer, and mutation checks for one `main` commit before its signed delivery.
@@ -260,6 +260,21 @@ The unit tests keep a violating fixture for each rule.
 
 The drill and the two token controls need the owner's Cloudflare tokens and Doppler configs, so they haven't run yet.
 The authorization refusal's exact message is an assumption about the Cloudflare API, and the first run confirms it.
+
+## Release record
+
+`tools/release-record.ts` builds and checks each production release record.
+The SBOM lists every locked production package once, by purl, with its license expression and its integrity digest in hexadecimal.
+It refuses a package without a version, license, or supported integrity, an SBOM for another product, and one that lacks a direct production dependency.
+`SHA256SUMS` has one sorted line per asset, and verification refuses a malformed or repeated line, a missing or extra asset, and a changed byte.
+The evidence needs a verified release built from the checked-out tree, admitted evidence for every candidate stage, and a `production` approval without a rejection.
+Unit tests cover each refusal, the release tag, and a complete record assembled from a file-backed control store.
+
+The workflow verifies the provenance and SBOM attestations before it keeps their bundles, and it publishes only a draft whose downloaded bytes match `SHA256SUMS`.
+`just release-verify` repeats those checks for anyone who downloads a published release.
+Provenance shows which workflow, ref, and commit built the tarball, not that the source is correct.
+The SBOM lists the locked production dependencies rather than the modules that the bundler kept, and its attestation binds that list to the tarball without proving it complete.
+Immutable Releases and the `v*` tag ruleset are repository settings that only the owner can change, so the tests can't establish them.
 
 ## National data and browser campaign
 
