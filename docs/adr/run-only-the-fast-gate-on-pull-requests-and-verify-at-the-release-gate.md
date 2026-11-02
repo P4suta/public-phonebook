@@ -23,7 +23,7 @@ Hosted runs on 2026-11-02 measured the cost:
 - In [another run](https://github.com/P4suta/public-phonebook/actions/runs/41376727004), Formal assurance took 13 minutes and Native assurance took 22 minutes after Verify.
   That pull request waited 30 minutes for `Checks`.
 - A pull request can't restore a cache that another pull request saved, and no workflow ran on `main`.
-  So every pull request started with cold caches.
+  Every pull request started with cold caches.
 
 The build, browser, proof, and native checks decide whether a release is safe, not whether a merge is.
 The web release path already admits production only with candidate evidence for the `check`, `data`, `phones`, `prove`, and `e2e` stages.
@@ -50,7 +50,7 @@ It rejects a change workflow that uses a non-Linux runner, runs a heavy recipe o
 
 The toolchain action caches npm by `package-lock.json`.
 It caches Cargo by `Cargo.lock` and `mise.toml` only when it installs Rust.
-So a fast gate run can't save an empty Cargo cache under the key a heavy job reads.
+A fast gate run then can't save an empty Cargo cache under the key a heavy job reads.
 
 Rejected alternatives:
 - Keeping the change-scope selection keeps a 30-minute wait on any change to the workflow, the toolchain, or a proof or native input.
