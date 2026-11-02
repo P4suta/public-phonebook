@@ -242,6 +242,25 @@ Native cache tests use an injected cache and an empty database to show hits with
 The Cloudflare Cache API and its per-location storage remain external boundaries checked only through that injected port.
 Local plans and timings do not establish D1 latency or production capacity.
 
+## Release workflow policy and pipeline controls
+
+The workflow policy in `tools/workflow-policy.ts` also checks the release workflows.
+A job in the `candidate`, `release-candidate`, `observe`, or `production` environment must start with the `main` branch guard.
+A `production` job must follow another job, so the owner approves only after the candidate check.
+Jobs in `release-candidate` and `production` must share the non-cancelling `publication-production` concurrency group.
+A Doppler step must keep its secrets out of the job environment and fetch `ci_` plus its own environment's name.
+Only a step that continues on error may request another environment's config, which is how a refusal control works.
+The unit tests keep a violating fixture for each rule.
+
+`pipeline-controls.yml` fails unless each refusal happens for its expected reason.
+- The fake-provider tests refuse an unverified, displaced, removed, or different candidate, a second lease holder, and evidence from another tree, manifest, or signer.
+- The observe identity requests the `ci_production` config, and the next step requires that request to fail.
+- The read-only token tries to deploy a version that doesn't exist, and the step requires an authorization refusal rather than a missing-version error.
+- The withdrawal drill stages an attested build at 0%, runs the real candidate checks, injects a probe failure, and requires the withdrawal to leave production unchanged.
+
+The drill and the two token controls need the owner's Cloudflare tokens and Doppler configs, so they haven't run yet.
+The authorization refusal's exact message is an assumption about the Cloudflare API, and the first run confirms it.
+
 ## National data and browser campaign
 
 Prepare and seed the national bundle as described in [local operation](deployment.md).
