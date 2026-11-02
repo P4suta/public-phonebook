@@ -1,5 +1,6 @@
 export const httpStatus = {
   ok: 200,
+  movedPermanently: 301,
   seeOther: 303,
   notModified: 304,
   badRequest: 400,

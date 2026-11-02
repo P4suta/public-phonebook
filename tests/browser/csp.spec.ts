@@ -1,8 +1,9 @@
 import { expect, type Page, test } from "@playwright/test";
+import { waitForLocalSearch } from "./search-sources.ts";
 
 test.use({ trace: "off", video: "off", screenshot: "off" });
 
-type Attempt = "attribute" | "style" | "empty-style" | "script";
+type Attempt = "attribute" | "style" | "empty-style" | "script" | "worker";
 
 async function blockedAttempt(page: Page, attempt: Attempt): Promise<string> {
   return page.evaluate(
@@ -22,6 +23,19 @@ async function blockedAttempt(page: Page, attempt: Attempt): Promise<string> {
           script.textContent =
             'document.documentElement.dataset.injected = "true"';
           document.body.appendChild(script);
+        } else if (kind === "worker") {
+          const source = URL.createObjectURL(
+            new Blob(['postMessage("injected")'], { type: "text/javascript" }),
+          );
+          void Promise.resolve()
+            .then(() => {
+              new Worker(source).addEventListener("message", () => {
+                document.documentElement.dataset.injected = "true";
+              });
+            })
+            .catch((error: unknown) => {
+              document.documentElement.dataset.workerRefusal = String(error);
+            });
         } else {
           const style = document.createElement("style");
           style.textContent =
@@ -33,7 +47,7 @@ async function blockedAttempt(page: Page, attempt: Attempt): Promise<string> {
   );
 }
 
-test("native selects work without CSP violations and the permitted style hash is exact", async ({
+test("the search Worker runs without CSP violations and the permitted style hash is exact", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -42,7 +56,7 @@ test("native selects work without CSP violations and the permitted style hash is
   });
   const response = await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
-  await expect(page.getByRole("combobox")).toHaveCount(2);
+  await waitForLocalSearch(page);
   expect(errors).toEqual([]);
   if (!response) throw new Error("Missing page response");
   const hash = await page.evaluate(async () =>
@@ -78,16 +92,19 @@ for (const attempt of [
   "style",
   "empty-style",
   "script",
+  "worker",
 ] as const) {
   test(`CSP rejects an untrusted ${attempt}`, async ({ page }) => {
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
     expect(await blockedAttempt(page, attempt)).toBe(
-      attempt === "attribute"
-        ? "style-src-attr"
-        : attempt === "script"
-          ? "script-src-elem"
-          : "style-src-elem",
+      {
+        attribute: "style-src-attr",
+        script: "script-src-elem",
+        worker: "worker-src",
+        style: "style-src-elem",
+        "empty-style": "style-src-elem",
+      }[attempt],
     );
     expect(
       await page.evaluate(() => document.documentElement.dataset.injected),

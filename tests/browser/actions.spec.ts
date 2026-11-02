@@ -1,3 +1,5 @@
+import * as v from "valibot";
+import { SearchResponseSchema } from "../../src/core/models.ts";
 import { expect, test } from "./fixtures.ts";
 
 test.use({ video: "on", screenshot: "off" });
@@ -190,7 +192,7 @@ test("native clipboard accepts clicks on both the number and the copy hint", asy
   );
 });
 
-test("the map opens in a new tab after confirmation and preserves the current results", async ({
+test("the detail page's map opens in a new tab after confirmation and preserves the current page", async ({
   page,
   context,
 }) => {
@@ -200,7 +202,12 @@ test("the map opens in a new tab after confirmation and preserves the current re
       body: "<title>Map destination</title>",
     });
   });
-  await page.goto("/?q=国立国会図書館");
+  const raw: unknown = await (
+    await page.request.get("/api/contacts?q=国立国会図書館")
+  ).json();
+  const contact = v.parse(SearchResponseSchema, raw).data[0];
+  if (!contact) throw new Error("Known map fixture missing");
+  await page.goto(`/contacts/${encodeURIComponent(contact.id)}`);
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
   const before = page.url();
   const card = page.locator("article").first();
