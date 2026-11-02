@@ -3,7 +3,7 @@ import {
   useInfiniteQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { ChevronDown } from "lucide-react";
+
 import {
   type ReactElement,
   useEffect,
@@ -19,7 +19,7 @@ import { canFetchNext } from "../core/search-policy.ts";
 import { type WebSearch, webSearchParameters } from "../core/web-search.ts";
 import { DirectoryError, getSearch } from "./client.ts";
 import { LoadingError, ResultCard } from "./components.tsx";
-import { CategoryIcon } from "./icons.tsx";
+import { CategoryIcon, Icon } from "./icons.tsx";
 import type { ResultCardView } from "./result-cards.ts";
 import * as css from "./styles.css.ts";
 
@@ -251,7 +251,7 @@ export function GroupResults({
               void loadMore(true);
             }}
           >
-            <ChevronDown aria-hidden="true" />
+            <Icon name="chevron-down" />
             {loadingNext
               ? `${label}を読みこんでいます。`
               : `${label}をもっと見る`}

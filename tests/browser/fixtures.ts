@@ -1,6 +1,8 @@
 import { test as base, expect, type Page } from "@playwright/test";
+import { iconIdPrefix } from "../../src/ui/icon-catalog.ts";
 
 const accessControlFailure = /(\S+) due to access control checks\.$/u;
+const symbolExcerpt = 160;
 
 /**
  * WebKit reports a fetch that a navigation cancelled as an access-control failure, sometimes as a page error.
@@ -39,10 +41,33 @@ export async function externalLinkIssues(
       const name = link.getAttribute("aria-label") ?? link.textContent ?? "";
       if (!name.includes("新しいタブ"))
         issues.push(`new-tab-announcement: ${link.href}`);
-      if (!link.querySelector("svg.lucide-external-link"))
+      if (link.querySelectorAll('svg[data-icon="external-link"]').length !== 1)
         issues.push(`new-tab-icon: ${link.href}`);
       return issues;
     }),
+  );
+}
+
+/** Lists rendered symbols that don't draw a named master from the document's one sprite. */
+export async function symbolIssues(page: Page): Promise<readonly string[]> {
+  return page.locator("svg").evaluateAll(
+    (symbols, { prefix, excerpt }) => {
+      const sprites = document.querySelectorAll("svg[data-icon-sprite]");
+      return symbols.flatMap((symbol) => {
+        if (symbol.hasAttribute("data-icon-sprite"))
+          return sprites.length === 1 ? [] : ["sprite: not exactly one"];
+        const name = symbol.getAttribute("data-icon");
+        const target = `${prefix}${name ?? ""}`;
+        const use = symbol.querySelector(":scope > use");
+        return name &&
+          symbol.childElementCount === 1 &&
+          use?.getAttribute("href") === `#${target}` &&
+          sprites[0]?.querySelector(`:scope > symbol[id="${target}"]`)
+          ? []
+          : [`symbol: ${symbol.outerHTML.slice(0, excerpt)}`];
+      });
+    },
+    { prefix: iconIdPrefix, excerpt: symbolExcerpt },
   );
 }
 
@@ -112,6 +137,10 @@ export const test = base.extend<{
         expect(
           await externalScriptIssues(page),
           "Scripts must come from the site's own origin",
+        ).toEqual([]);
+        expect(
+          await symbolIssues(page),
+          "Every rendered symbol must draw a named master from the sprite",
         ).toEqual([]);
       }
       await info.attach("browser-errors", {

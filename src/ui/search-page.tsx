@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Info, Search as SearchIcon } from "lucide-react";
+
 import {
   type FormEvent,
   type ReactElement,
@@ -36,13 +36,13 @@ import { DirectoryError, getContactGroups, getRowLocation } from "./client.ts";
 import { LinkButton, LoadingError } from "./components.tsx";
 import { uiCopy } from "./copy.ts";
 import { ErrorPage } from "./error-page.tsx";
-import { foundation } from "./foundations.ts";
 import {
   type Continuation,
   GroupResults,
   type GroupView,
   type ResultSource,
 } from "./group-results.tsx";
+import { Icon } from "./icons.tsx";
 import {
   indexReadiness,
   type LocalIndexClient,
@@ -316,7 +316,7 @@ export function SearchPage(): ReactElement {
             <div className={css.homeHeading}>
               <h1 className={css.brand}>Public Phonebook</h1>
               <nav aria-label="サービスの情報" className={css.actions}>
-                <LinkButton href="/about" icon={Info}>
+                <LinkButton href="/about" icon="info">
                   {uiCopy.about}
                 </LinkButton>
               </nav>
@@ -376,7 +376,7 @@ export function SearchPage(): ReactElement {
                 type="search"
               />
               <button className={css.searchButton} type="submit">
-                <SearchIcon size={foundation.control.icon} aria-hidden="true" />
+                <Icon name="search" />
                 {uiCopy.search.action}
               </button>
               {index.status === "loading" && (
