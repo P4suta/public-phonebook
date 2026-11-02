@@ -26,10 +26,10 @@ The TypeScript proof gate checks its full declared contract inventory and delibe
 Neither result proves the entire app.
 The proof gate rejects unsupported proof escapes and stale source or generated-model receipts.
 
-The fast project gate includes strict TypeScript checks, behavioral tests, build, Rust formatting, strict Clippy, Rust tests, and icon consistency.
-It also includes dependency checks, secret checks, workflow checks, and built-browser checks.
-A pull request that changes native or proof inputs also runs the native checks or both proof commands on hosted runners.
-Sanitizer and mutation checks run only from the manual assurance input.
+The fast project gate on every pull request includes strict TypeScript checks, behavioral tests, dependency checks, secret checks, and workflow checks.
+The release assurance set adds the build, Rust formatting, strict Clippy, Rust tests, icon consistency, built-browser checks, both proof commands, and the native checks.
+The manual Assurance workflow runs that set on hosted runners, and its `campaigns` input adds the sanitizer and mutation checks.
+The TestFlight workflow runs the native checks, the Lean proofs, and the sanitizer and mutation checks before every delivery.
 No personal credentials or connected phone are prerequisites of these hosted checks.
 
 Physical-device search, forced background callbacks, natural OS scheduling, and real incoming calls are distinct observations.

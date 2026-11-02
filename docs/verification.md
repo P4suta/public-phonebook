@@ -6,14 +6,14 @@ The previous Rust checks describe the previous implementation and do not verify 
 ## Required fast gate
 
 Run `mise x -- just check`.
-It runs strict TypeScript checking, Biome, type-aware Oxlint, deterministic unit and property tests, and a complete client and Worker build.
-It also runs dependency auditing, a publishable-file secret scan, workflow checks, and built-browser checks.
-The browser check creates a separate local D1 and R2 fixture with three contacts and uses port 8790.
-It covers the design, contact, API reference, external-link, information, CSP, privacy, row page, local search, search, search-trigger, and startup cases that need no national archive.
+It runs strict TypeScript checking, Biome, type-aware Oxlint, and deterministic unit and property tests.
+It also runs npm dependency auditing, a publishable-file secret scan, and workflow checks.
+It needs no build, Rust toolchain, browser, container, or macOS host.
 It requires no owner-specific service, credentials, or national archive.
 
 Before every push, run `mise x -- just check-linux` as well.
 It's the local equivalent of the Verify job, as the [Linux gate](#linux-equivalent-of-verify) section describes.
+Before pushing a change to the build, the browser checks, or Rust code, also run `mise x -- just check-build`, because pull requests don't run it.
 
 The workflow checks run actionlint over every workflow and zizmor offline with the pedantic persona over `.github`.
 Offline mode leaves out zizmor's online audits, so the result doesn't depend on network access or a token.
@@ -21,17 +21,40 @@ The typed policy in `tools/workflow-policy.ts` also checks every workflow and lo
 It requires explicit permissions on every workflow and job, and every top-level block must be empty.
 It allows only `actions/checkout`, `actions/cache`, `actions/upload-artifact`, `actions/download-artifact`, `dopplerhq/secrets-fetch-action`, and `jdx/mise-action`, each pinned to a full commit SHA.
 It rejects `inputs` or `github.event` expressions inside a `run:` script, which must receive those values through `env:`.
+It admits `id-token: write` only in a job that names an environment or calls a reusable workflow.
+A workflow with such a job may start only from `workflow_dispatch` or `workflow_call`.
+A workflow that `pull_request`, `pull_request_target`, `merge_group`, or `push` triggers is a change workflow.
+Each of its jobs must name a literal `ubuntu-` runner.
+No job may run `just assurance`, `just check-build`, `just prove`, `just e2e`, `just test`, or a `just ios-` recipe.
+No job may install Playwright browsers or call `assurance.yml` either.
 Its unit tests keep a violating workflow for every rule as a negative control.
 
-CI runs the same command on Linux with pinned tools, immutable action revisions, and no secrets.
+Pull requests and merge groups run only this fast gate.
+The Verify job of the Checks workflow runs `just check` on Linux with pinned tools, immutable action revisions, and no secrets.
+It installs only Node.js, just, Biome, actionlint, zizmor, and gitleaks, and it turns off mise's automatic installation of the other pinned tools.
 The `Checks` summary job is the required status check.
-A change-scope job lists the changed paths with Git and starts the formal and native assurance jobs only when their inputs change.
-`tools/change-scope.ts` declares those inputs, including the workflow, the shared toolchain action, `mise.toml`, and `justfile`.
-The formal job runs `just prove` and `just ios-prove`, and the native job runs `just ios-check` on the `xcode-27` runner.
-A failed or cancelled native job uploads `target/ios` with the [evidence of each failed UI scenario](ios.md) as a seven-day artifact.
-The manual `assurance` input starts both jobs for any change and adds the sanitizer and mutation campaigns.
-The national multi-browser campaign remains outside the per-change CI gate.
+The [release gate decision](adr/run-only-the-fast-gate-on-pull-requests-and-verify-at-the-release-gate.md) records why the heavier checks moved.
 The manual runner probe workflow reports the processor, memory, disk, Xcode versions, and simulators of the hosted runners.
+
+## Release assurance
+
+Run `mise x -- just assurance` on a Mac for the heavy checks that gate a release.
+It runs `just check-build`, `just prove`, `just ios-prove`, and `just ios-check` in that order.
+`just check-build` builds the client and Worker and checks the `tools/ios-check` crate.
+The crate checks are rustfmt, strict Clippy, its tests, the icon consistency check, and the pinned RustSec advisory snapshot.
+It then runs the built-browser checks.
+The browser check creates a separate local D1 and R2 fixture with three contacts and uses port 8790.
+It covers the design, contact, API reference, external-link, information, CSP, privacy, row page, local search, search, search-trigger, and startup cases that need no national archive.
+It requires no owner-specific service, credentials, or national archive.
+
+The manual Assurance workflow, `assurance.yml`, runs the same set on hosted runners.
+Its build job runs `just check-build`, and its formal job runs `just prove` and `just ios-prove`.
+Its native job runs `just ios-check` on the `xcode-27` runner.
+A failed or cancelled native job uploads `target/ios` with the [evidence of each failed UI scenario](ios.md) as a seven-day artifact.
+The `campaigns` input adds the sanitizer and mutation campaigns to the native job.
+A release workflow can call it through `workflow_call`.
+No pull request, merge group, or push starts it, and a manual run gates nothing by itself.
+The national multi-browser campaign stays out of it and runs in `just test`.
 The manual TestFlight workflow reruns the native, Lean, sanitizer, and mutation checks for one `main` commit before its signed delivery.
 
 No owned source may use unchecked assertions, explicit any, floating promises, or unsafe dynamic values.
@@ -84,8 +107,8 @@ The tool refuses to start when the image's Playwright release differs from `pack
 
 The checkout is mounted read-only.
 The container copies the publishable files, the inventory the secret scan uses, into a fresh Linux tree and indexes them in a new Git repository.
-It then runs `npm ci --ignore-scripts` and `just check` with `CI=true` and `CARGO_BUILD_JOBS=2`, like the Verify job.
-Named volumes keep the npm cache, the Cargo registry, and `tools/ios-check/target`, the paths the Verify job caches.
+It then runs `npm ci --ignore-scripts` and `just check` with `CI=true`, like the Verify job.
+Named volumes keep the npm cache, the Cargo registry, and `tools/ios-check/target`.
 The macOS `node_modules`, Cargo target, and test outputs never enter the container's tree.
 
 The container gets four CPUs, 8 GiB of memory without swap, 4,096 processes, 1 GiB of shared memory, and a 3,600-second safety stop.
@@ -97,17 +120,15 @@ The bounded policy's 2 GiB, two-CPU, offline envelope also can't run Verify.
 The run needs the network.
 The image build fetches the base images, the Ubuntu packages, and the mise toolchain.
 `npm ci` fetches the locked npm packages, including the SheetJS tarball.
-`just check` itself queries the npm advisory service for `npm audit` and fetches the pinned RustSec advisory snapshot from GitHub.
-It also downloads crates from crates.io when the Cargo registry volume is empty.
+`just check` itself queries the npm advisory service for `npm audit`.
 The Verify job fetches the same data.
 
 The command exits with the container's status.
 It writes `receipt.json`, `output.log`, and a container record with phase times and peak memory under `.local/check-linux/verify/`.
-After a failure, the same directory keeps the container's `test-results`, the evidence the Verify job uploads.
+After a failure, the same directory keeps the container's `test-results`.
 
 The container runs `linux/arm64` on the Mac, while the Verify job runs `linux/amd64`.
 The native npm packages for esbuild, Rolldown, Lightning CSS, Oxlint, the TypeScript compiler, and workerd differ by architecture.
-Chromium is the same revision but a different build, and the Rust target is `aarch64` instead of `x86_64`.
 A difference that depends on the processor rather than the operating system can still reach CI first.
 The gzip header byte depends on the operating system, so this gate catches it.
 
@@ -127,7 +148,7 @@ Each public check refuses a response whose `x-dial-version` names another versio
 Revisit this boundary if Cloudflare changes version overrides, gradual deployments, or the Worker and version API responses.
 
 Run `mise x -- just prove`.
-LemmaScript 0.6.5 translates the actual annotated search, search-trigger, copy, reference-style, publication, collection, snapshot, and row locator policy implementations to Dafny.
+LemmaScript 0.6.5 translates the actual annotated search, search-trigger, copy, reference-style, publication, collection, snapshot, row locator, and directory delta policy implementations to Dafny.
 The gate requires unmodified generated output and every function listed in `tools/prove.ts`.
 Dafny 4.11.0 checks its expected nonempty unit and postcondition inventory for the supported search, search-trigger, copy, styling, publication, school-evidence, unique-candidate, source-accounting, versioned-API snapshot, and row locator decisions.
 The copy policy partitions current success, current failure, and superseded completion over the full Boolean domain.
@@ -143,6 +164,8 @@ Collection controls remove name evidence, admit an empty candidate set, and omit
 The snapshot control admits a supplied snapshot that differs from the active dataset.
 The row locator decision partitions malformed input, a stale snapshot, a missing row, and a located row, and places a located row's D1 rowid within the contact count.
 Its controls locate the row equal to the contact count and skip the snapshot check.
+The directory delta decisions bound each copy inside the base, publish a delta only at half the complete archive or less, and admit a rebuilt archive only when every check holds.
+Their controls admit a delta as large as the archive, a copy one row past the base, and a result without a digest match.
 Each must fail with an unproved contract rather than a tool error.
 A tool error, timeout, missing condition, or empty inventory cannot count as that rejection.
 
@@ -225,6 +248,10 @@ Prepare and seed the national bundle as described in [local operation](deploymen
 Run `npm run data:check -- .local/phonebook` to verify every retained contact, source reference, sortable field, index column, category and prefecture count, phone relation count, search index count, archive byte length, SHA-256, and SQLite integrity.
 The same check confirms that row numbers follow the normalized name and identifier order.
 It rebuilds `search-index.br` from the database in row order, requires identical bytes, and rejects a compressed index above 8 MiB.
+For each directory delta, it checks both digests and lengths, the size rule, the base it names, and the rebuilt archive's identity and header line.
+It also compares every literal row with the archive row at its position and requires the instructions to cover every row.
+The bundle doesn't hold the base, so the check can't read copied rows; preparation applies each delta to its base and requires identical bytes before it records the delta.
+Fixed-seed properties over generated pairs, including renumbered dictionaries and recollections, require the same exact reconstruction.
 The original publication is opened read-only.
 The active retained snapshot has 667,696 contacts, 561,495 distinct telephone numbers, 1,179 sources, 62 populated categories, and 47 prefectures.
 The data audit identifies the exact snapshot in its output.
@@ -235,12 +262,40 @@ Its audit found 160 relations outside the pinned full metadata's recognized patt
 They require source investigation and are preserved without speculative digit repairs.
 The audit requires zero unparseable spellings, source/canonical disagreements, formatting round-trip disagreements, and duplicate numbers within a contact.
 
+The release gate checks the build and the device search with these entry points, which the candidate workflow can call.
+Run `mise x -- node tools/build-budget.ts` after a build.
+It requires the gzip size of the Worker's modules to stay under 1 MiB, well below Cloudflare's compressed upload limit, so an accidental bundle fails here first.
+It also requires exactly one search Worker script of at most 34 KiB.
+The national browser campaign keeps the search page's own scripts within 232 KiB transferred and 736 KiB decoded before the index loads.
+On November 2, 2026, the Worker's modules measured 463,097 bytes compressed, the search Worker script 27,152 bytes, and the search page's scripts 185,459 bytes transferred and 589,343 bytes decoded.
+The script limits sit about a quarter above those sizes.
+
+Run `mise x -- node tools/search-parity.ts BUNDLE` after `mise x -- just data-local BUNDLE` seeds the same bundle.
+It loads the bundle's index through the service that the browser Worker runs, with its admission checks.
+It asks the actual API against the seeded D1 for the same queries.
+A fixed seed draws 2,000 substrings and 1,000 display names from the index, 1,000 listed telephone numbers in two spellings, and 200 valid numbers that no contact lists.
+Each query compares the total, the category order, each category's count, and each preview row's contact ID, name, category, region, and numbers.
+For the first category of 4 to 100 rows, it also compares the complete ordered category.
+It checks 100 row positions with the row locator, the lookup that opens a device result's details.
+The run fails on any difference.
+It also requires two controls to differ: previews with their first two rows swapped, and an index whose adjacent same-name rows with different details are swapped.
+It writes `.local/search-parity.json`.
+
+Run `mise x -- node tools/search-performance.ts BUNDLE` with the build and the seeded state to record the device search's performance in `.local/search-performance.json`.
+It serves the build like the browser campaign, and runs Chromium with 4x CPU throttling, desktop WebKit, and the iPhone 13 profile.
+It records the transferred index bytes, the time until the index is ready, and the p50 and p95 of the Worker's search round trip for 40 queries.
+It also records input events of 16 ms or longer while typing, long tasks in Chromium, and the main-thread heap in Chromium.
+It estimates the decoded index's heap in V8 from Node, because browsers expose a Worker's heap only to cross-origin isolated pages.
+Safari on a physical iPhone and the Worker's own heap need a person and a debugger, so the record lists them as not run.
+The record holds measurements, not thresholds.
+
 Run `mise x -- just test` for the fast gate, national data reconciliation and phone profile, complete proof inventory, and national browser campaign.
 The command invalidates its preceding test receipt before execution and records a replacement only for an unchanged clean Git tree and dataset manifest.
 Production rejects a receipt for another dataset, source tree, format, or incomplete result.
 Dirty development checkouts can run the same checks but produce no publication receipt.
 Production admits a candidate on candidate evidence from `candidate.yml` rather than on a local receipt.
-The browser campaign uses built client and Worker output.
+The `check` stage runs the build checks after the fast gate.
+The browser campaign uses the built client and Worker output from that stage.
 It covers automatic search, Japanese composition, early input, on-device search and its switch from server results, offline search, old URL redirects, exact-name ranking, call/map/detail/source actions, external-link confirmation, denied clipboard access, native no-JavaScript continuation, retries, changed snapshots, untrusted result text, local assets, nonce handling, HTTP contracts, and complete-download hashes.
 It also queries every prefecture and category against native D1.
 Browser failures retain screenshots, videos, traces, and structured diagnostics under `test-results`.

@@ -11,11 +11,12 @@ mise install
 mise x -- npm ci --ignore-scripts
 mise x -- npm run browsers
 mise x -- just check
+mise x -- just check-build
 ```
 
-The fast check needs no Cloudflare account, secret, or national database.
-It creates an isolated fixture database and R2 bucket under `.local/check-state`.
-Its browser server uses port 8790 and cannot overwrite the national development state.
+The fast check and the build checks need no Cloudflare account, secret, or national database.
+The build checks create an isolated fixture database and R2 bucket under `.local/check-state`.
+Their browser server uses port 8790 and cannot overwrite the national development state.
 
 ## Prepare national data
 
@@ -48,6 +49,22 @@ Both development and preview run the native Cloudflare Workers runtime with loca
 Development serves HTTP through Vite, so WebKit doesn't receive the Brotli index there and the page searches on the server.
 Use development for a loopback HTTP origin, such as the iOS screenshot command, because simulators reject the preview's self-signed certificate.
 No Container is needed.
+
+### Snapshot deltas
+
+Name the retained earlier bundles when you prepare a new snapshot, and preparation writes a delta from each of them to the new archive.
+
+```sh
+mise x -- npm run data -- prepare /path/to/public-snapshot.sqlite .local/next --delta-base .local/phonebook --delta-base .local/previous
+```
+
+A delta base is a prepared bundle, such as one that `just data-fetch` restored for the active or the rollback dataset.
+Preparation checks each base archive with its own manifest before it starts, so a wrong base fails at once and leaves no output.
+It decodes one base at a time, applies each delta to its base, and requires the exact new archive before it records the delta.
+It skips a delta whose Brotli bytes exceed half of the complete archive, and it logs the sizes of every delta it considers.
+The ready manifest lists the published deltas, so the dataset digest covers them, and `just data-remote` uploads them with the other archives.
+The `just data-prepare` recipe doesn't take delta bases yet, so use the `npm run data` form for them.
+The hosted release can't generate deltas until `release.yml` exists, and that workflow needs to fetch the retained bundles before preparation.
 
 ## Environment boundaries
 
@@ -129,6 +146,7 @@ The publisher refuses a local `--stage`, `--verify-candidate`, `--promote`, `--d
 The bundle defaults to `.local/datasets/DATASET`, which `just data-fetch` fills.
 The publisher refuses a bundle whose manifest digest differs from the named dataset.
 The stages are `check`, `data`, `phones`, `prove`, and `e2e`, and each passing stage writes `.local/receipts/TREE/MANIFEST/STAGE.json`.
+The `check` stage runs `just check` and then `just check-build`, so the evidence keeps the build and the checks that pull requests skip.
 A run of every stage also writes the combined local receipt.
 In GitHub Actions, `--record` stores each passing stage as candidate evidence under `candidates/TREE/MANIFEST/`.
 A local run can't record candidate evidence, so a local receipt never stands in for the release gate.
@@ -168,7 +186,8 @@ Conditional writes keep one writer per object: a create sends `If-None-Match: *`
 | --- | --- | --- |
 | `blobs/sha256/DIGEST` | Databases and archives | Once |
 | `datasets/MANIFEST/` | Ready manifest and catalog for verification | Once |
-| `collections/REPORT/`, `collection-cache/` | Collection reports and cached sources | Once |
+| `collections/REPORT/` | Collection outputs, source artifact list, and prepared dataset link | Once |
+| `collection-cache/DIGEST` | Source bytes of a collection | Once |
 | `candidates/TREE/MANIFEST/STAGE.json` | Candidate evidence per stage | Once |
 | `journals/ENV/head.json` | Current publication journal | Conditional replacement |
 | `journals/ENV/history/SEQUENCE.json` | Every journal record | Append-only, bucket lock |
@@ -181,6 +200,7 @@ Verification reads the manifest and catalog from `datasets/MANIFEST/`, so the jo
 Each publication command holds the environment's lease, which lasts 10 minutes, renews every 60 seconds, and expires by R2's response time.
 A second publisher is refused while the lease is live and can take it over after it expires.
 The [control bucket decision](adr/keep-release-records-in-a-conditionally-written-control-bucket.md) explains the format and the lease.
+The `Collect` workflow writes the collection keys and a prepared dataset from the `data` environment, as [data sources](data-sources.md#collection-in-github-actions) describes.
 
 Import the owner's format 1 records once, after checking the plan.
 
@@ -219,6 +239,20 @@ The command never deletes resources.
 The control store keeps the journals and verification bundles for recovery.
 Provider provisioning, network delivery, and the truth of upstream records remain external trust boundaries.
 Read the [recovery decision](adr/recover-complete-worker-and-dataset-publications.md), [in-place verification decision](adr/verify-release-candidates-in-place-before-approval.md), and [verification contract](verification.md) for their checks and limits.
+
+## Dependency updates
+
+Renovate merges minor and patch updates on its own once the required checks pass, except for the ones a publication depends on.
+The `deployment dependencies` group holds updates that change the deployed Worker, its build, or a release path, and labels them `release-rehearsal`.
+It covers cf, Miniflare, `@cloudflare/*`, TanStack Start with the router release it pins, Vite and its plugins, vanilla-extract, PostCSS, and aws4fetch.
+It also covers the `node`, `just`, `doppler`, `rust`, and `xcodegen` tools and the GitHub Actions of the TestFlight workflow and the toolchain action.
+The Linux check image's mise moves with them, because `just check-linux` refuses a mise that differs from the toolchain action's.
+npm lock file maintenance waits in its own branch, because it moves the bundler and CSS tools that Vite resolves within ranges.
+The staging rehearsal is gone, so until `release.yml` lands, the owner reviews such an update before merging it.
+When it changes the TestFlight workflow or its tools, also run `mise x -- just ios-archive`.
+The hosted withdrawal drill replaces the rehearsal once the release workflows land, and each new deployment workflow's actions join the group then.
+Major updates already wait for the owner and need the same rehearsal.
+Vulnerability fixes still merge on their own, because the shared preset forces automerge for them.
 
 ## Support mail
 
