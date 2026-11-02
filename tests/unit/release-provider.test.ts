@@ -99,13 +99,13 @@ describe("deployed versions", () => {
     expect(
       (
         await deployedVersions(
-          "staging",
+          "production",
           provider([{ version_id: current, percentage: 100 }]).run,
         )
       ).candidate,
     ).toBeNull();
     await expect(
-      deployedVersions("staging", async () => ({ deployments: [] })),
+      deployedVersions("production", async () => ({ deployments: [] })),
     ).rejects.toThrow("no active deployment");
   });
 });

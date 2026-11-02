@@ -9,6 +9,11 @@ date: 2026-10-30
 Proposed.
 Extends [source-bound staging promotion](source-tree-bound-staging-promotion.md).
 [Keep release records in a conditionally written control bucket](keep-release-records-in-a-conditionally-written-control-bucket.md) moves the journal, verification bundles, and lease from `.local/releases` to R2.
+[Verify release candidates in place before approval](verify-release-candidates-in-place-before-approval.md) amends this record.
+A candidate now waits at 0% beside the verified predecessor, and a failure before approval withdraws it instead of restoring anything.
+Recovery after approval is unchanged.
+The staging bootstrap, its resumption, and the staging recovery rehearsal are gone, because no environment starts without a verified predecessor.
+The withdrawal drill replaces the rehearsal.
 
 ## Context
 

@@ -77,10 +77,10 @@ beforeEach(async () => {
     join(root, "test-receipt.json"),
     JSON.stringify({ formatVersion: 1, result: "passed" }),
   );
-  await writeFile(join(root, "releases/staging.json"), "{}");
+  await writeFile(join(root, "releases/production.json"), "{}");
   const journals = [
     {
-      name: `staging-${failed}.json`,
+      name: `production-${failed}.json`,
       at: 1,
       value: {
         formatVersion: 1,
@@ -90,7 +90,7 @@ beforeEach(async () => {
       },
     },
     {
-      name: `staging-${first}.json`,
+      name: `production-${first}.json`,
       at: 2,
       value: {
         formatVersion: 1,
@@ -100,7 +100,7 @@ beforeEach(async () => {
       },
     },
     {
-      name: `staging-${second}.json`,
+      name: `production-${second}.json`,
       at: 3,
       value: {
         formatVersion: 1,
@@ -116,8 +116,17 @@ beforeEach(async () => {
     await utimes(path, journal.at, journal.at);
   }
   await writeFile(
+    join(root, "releases/production-journal.json"),
+    JSON.stringify(journals[2]?.value),
+  );
+  await writeFile(
     join(root, "releases/staging-journal.json"),
     JSON.stringify(journals[2]?.value),
+  );
+  await mkdir(join(root, "remote-data"));
+  await writeFile(
+    join(root, "remote-data/staging.json"),
+    JSON.stringify({ environment: "staging", result: "verified" }),
   );
 });
 afterEach(async () => {
@@ -140,9 +149,9 @@ describe("control import", () => {
     ]);
     expect(plan.objects.map((object) => object.key).sort()).toEqual(
       [
-        controlKeys.journalHistory("staging", 1),
-        controlKeys.journalHistory("staging", 2),
-        controlKeys.journalHistory("staging", 3),
+        controlKeys.journalHistory("production", 1),
+        controlKeys.journalHistory("production", 2),
+        controlKeys.journalHistory("production", 3),
         controlKeys.dataset(manifestSha256, "manifest.ready.json"),
         controlKeys.dataset(manifestSha256, "catalog.json"),
         controlKeys.blob(digest(archiveText)),
@@ -154,12 +163,16 @@ describe("control import", () => {
       ].sort(),
     );
     expect(plan.heads.map((head) => head.key)).toEqual([
-      controlKeys.journalHead("staging"),
+      controlKeys.journalHead("production"),
     ]);
     expect(plan.skipped).toEqual([
       {
-        source: "releases/staging.json",
+        source: "releases/production.json",
         reason: "not a format 1 publication journal",
+      },
+      {
+        source: "releases/staging-journal.json",
+        reason: "a journal of the retired staging environment",
       },
     ]);
     const serialized = JSON.stringify(
@@ -178,7 +191,7 @@ describe("control import", () => {
 
   it("writes the plan to a store once, repeats without change, and refuses a different head", async () => {
     const store = fileControlStore(join(root, "store"), {
-      lockedPrefixes: ["journals/staging/history/", "evidence/"],
+      lockedPrefixes: ["journals/production/history/", "evidence/"],
     });
     const plan = await planControlImport(root);
     expect(await applyControlImport(store, plan)).toEqual({
@@ -189,11 +202,11 @@ describe("control import", () => {
       created: 0,
       unchanged: 9,
     });
-    const head = await loadRelease(store, "staging");
+    const head = await loadRelease(store, "production");
     expect(head?.record.sequence).toBe(3);
     expect(head?.record.provenance).toEqual({ kind: "local" });
     expect(
-      (await releaseHistory(store, "staging")).map(
+      (await releaseHistory(store, "production")).map(
         (journal) => journal.candidate.releaseId,
       ),
     ).toEqual([failed, first, second]);
@@ -204,7 +217,7 @@ describe("control import", () => {
     expect(new TextDecoder().decode(blob?.body)).toBe(databaseText);
     const other = fileControlStore(join(root, "other"));
     await other.write(
-      controlKeys.journalHead("staging"),
+      controlKeys.journalHead("production"),
       new TextEncoder().encode("{}"),
       { kind: "create" },
     );
@@ -230,7 +243,7 @@ describe("control import", () => {
   });
 
   it("rejects a head that isn't the latest record and a predecessor without an earlier record", async () => {
-    await utimes(join(root, `releases/staging-${first}.json`), 4, 4);
+    await utimes(join(root, `releases/production-${first}.json`), 4, 4);
     await expect(planControlImport(root)).rejects.toThrow("predecessor");
   });
 });

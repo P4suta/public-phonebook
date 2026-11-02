@@ -1,16 +1,40 @@
+import { resolve } from "node:path";
 import * as v from "valibot";
 import { environments } from "../src/core/environment.ts";
 import { cloudflare } from "./cloudflare.ts";
-import type { ActiveVersion, ReleaseTarget } from "./release-lifecycle.ts";
+import { command } from "./process.ts";
+import type {
+  ActiveVersion,
+  DeployedVersions,
+  ReleaseTarget,
+} from "./release-lifecycle.ts";
 import type { RemoteEnvironment } from "./release-store.ts";
+import {
+  runsWorkerFirst,
+  type WorkerFirst,
+  type WorkerSettings,
+} from "./worker-settings.ts";
 
 const fullTraffic = 100;
 const noTraffic = 0;
 export type CloudflareRunner = (args: readonly string[]) => Promise<unknown>;
+export type CloudflareUploader = (args: readonly string[]) => Promise<void>;
+export type { DeployedVersions } from "./release-lifecycle.ts";
 
 const versionSchema = v.object({
   id: v.pipe(v.string(), v.uuid()),
   annotations: v.optional(v.record(v.string(), v.string()), {}),
+  assets: v.optional(
+    v.object({
+      config: v.optional(
+        v.object({
+          run_worker_first: v.optional(
+            v.union([v.boolean(), v.array(v.string())]),
+          ),
+        }),
+      ),
+    }),
+  ),
   bindings: v.array(
     v.object({
       name: v.string(),
@@ -30,6 +54,15 @@ const TrafficSchema = v.array(
 );
 const DeploymentListSchema = v.object({
   deployments: v.array(v.object({ id: v.string(), versions: TrafficSchema })),
+});
+const WorkerSchema = v.object({
+  references: v.object({
+    domains: v.array(v.object({ hostname: v.string() })),
+  }),
+  subdomain: v.object({
+    enabled: v.optional(v.boolean(), false),
+    previews_enabled: v.optional(v.boolean(), false),
+  }),
 });
 
 export interface DeploymentTraffic {
@@ -59,11 +92,6 @@ export function deploymentTraffic(versions: unknown): DeploymentTraffic {
   };
 }
 
-export interface DeployedVersions {
-  readonly current: ActiveVersion;
-  readonly candidate: ActiveVersion | null;
-}
-
 async function workerVersion(
   environment: RemoteEnvironment,
   versionId: string,
@@ -80,6 +108,17 @@ async function workerVersion(
       environments[environment].worker,
     ]),
   );
+}
+
+function workerFirst(
+  version: v.InferOutput<typeof versionSchema>,
+): WorkerFirst {
+  const value = version.assets?.config?.run_worker_first;
+  if (value === undefined)
+    throw new Error(
+      "The Worker version reports no Worker-first routing; check the provider's version response",
+    );
+  return value;
 }
 
 function identity(version: v.InferOutput<typeof versionSchema>): ActiveVersion {
@@ -123,6 +162,24 @@ export async function activeVersion(
   return (await deployedVersions(environment, run)).current;
 }
 
+export async function liveWorkerSettings(
+  environment: RemoteEnvironment,
+  currentVersionId: string,
+  run: CloudflareRunner = cloudflare,
+): Promise<WorkerSettings> {
+  const worker = v.parse(
+    WorkerSchema,
+    await run(["workers", "get", environments[environment].worker]),
+  );
+  const current = await workerVersion(environment, currentVersionId, run);
+  return {
+    domains: worker.references.domains.map((domain) => domain.hostname),
+    runWorkerFirst: workerFirst(current),
+    workersDev: worker.subdomain.enabled,
+    previewUrls: worker.subdomain.previews_enabled,
+  };
+}
+
 export async function verifyVersionBindings(
   environment: RemoteEnvironment,
   target: ReleaseTarget,
@@ -151,12 +208,43 @@ export async function verifyVersionBindings(
     );
 }
 
-export async function restoreVersion(
+async function uploadWithCli(args: readonly string[]): Promise<void> {
+  const result = await command(resolve("node_modules/.bin/cf"), args, true);
+  if (result.code !== 0)
+    throw new Error("Cloudflare didn't accept the candidate version upload");
+}
+
+export async function uploadVersion(
   environment: RemoteEnvironment,
   target: ReleaseTarget,
   run: CloudflareRunner = cloudflare,
+  upload: CloudflareUploader = uploadWithCli,
+): Promise<string> {
+  await upload([
+    "workers",
+    "versions",
+    "create",
+    "--prebuilt",
+    "--mode",
+    environment,
+    "--tag",
+    target.releaseId,
+    "--message",
+    target.sourceTree ?? "",
+  ]);
+  const version = await workerVersion(environment, "latest", run);
+  if (version.annotations["workers/tag"] !== target.releaseId)
+    throw new Error("The latest Worker version isn't this candidate's upload");
+  if (!runsWorkerFirst(workerFirst(version)))
+    throw new Error("The candidate version doesn't run the Worker first");
+  return version.id;
+}
+
+async function deploy(
+  environment: RemoteEnvironment,
+  versions: readonly { readonly versionId: string; readonly share: number }[],
+  run: CloudflareRunner,
 ): Promise<void> {
-  await verifyVersionBindings(environment, target, run);
   await run([
     "workers",
     "deployments",
@@ -166,8 +254,46 @@ export async function restoreVersion(
     "--strategy",
     "percentage",
     "--versions",
-    JSON.stringify([{ version_id: target.versionId, percentage: fullTraffic }]),
+    JSON.stringify(
+      versions.map((version) => ({
+        version_id: version.versionId,
+        percentage: version.share,
+      })),
+    ),
   ]);
+}
+
+export async function deployCandidate(
+  environment: RemoteEnvironment,
+  currentVersionId: string,
+  candidateVersionId: string,
+  run: CloudflareRunner = cloudflare,
+): Promise<void> {
+  await deploy(
+    environment,
+    [
+      { versionId: currentVersionId, share: fullTraffic },
+      { versionId: candidateVersionId, share: noTraffic },
+    ],
+    run,
+  );
+}
+
+export async function deployAlone(
+  environment: RemoteEnvironment,
+  versionId: string,
+  run: CloudflareRunner = cloudflare,
+): Promise<void> {
+  await deploy(environment, [{ versionId, share: fullTraffic }], run);
+}
+
+export async function restoreVersion(
+  environment: RemoteEnvironment,
+  target: ReleaseTarget,
+  run: CloudflareRunner = cloudflare,
+): Promise<void> {
+  await verifyVersionBindings(environment, target, run);
+  await deployAlone(environment, target.versionId, run);
 }
 
 export async function activeDatabaseId(
