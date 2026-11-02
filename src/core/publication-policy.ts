@@ -77,6 +77,65 @@ export function retainsCoverage(candidate: number, previous: number): boolean {
   return candidate * coverageScale >= previous * coverageRetained;
 }
 
+export type LeaseAdmission =
+  | "acquire"
+  | "renew"
+  | "takeover"
+  | "refuse"
+  | "lost";
+
+export function leaseAdmission(
+  present: boolean,
+  held: boolean,
+  serverTimeMs: number,
+  expiresAtMs: number,
+): LeaseAdmission {
+  //@ verify
+  //@ requires serverTimeMs >= 0 && serverTimeMs <= 9007199254740991
+  //@ requires expiresAtMs >= 0 && expiresAtMs <= 9007199254740991
+  //@ ensures (\result === "acquire") === !present
+  //@ ensures (\result === "renew") === (present && held && serverTimeMs < expiresAtMs)
+  //@ ensures (\result === "takeover") === (present && !held && serverTimeMs >= expiresAtMs)
+  //@ ensures (\result === "refuse") === (present && !held && serverTimeMs < expiresAtMs)
+  //@ ensures (\result === "lost") === (present && held && serverTimeMs >= expiresAtMs)
+  if (!present) return "acquire";
+  if (serverTimeMs >= expiresAtMs) return held ? "lost" : "takeover";
+  return held ? "renew" : "refuse";
+}
+
+export type EvidenceAdmission =
+  | "admit"
+  | "missing-stage"
+  | "stale-tree"
+  | "different-manifest"
+  | "different-signer"
+  | "failed-stage";
+
+export function evidenceAdmission(
+  present: boolean,
+  tree: string,
+  expectedTree: string,
+  manifest: string,
+  expectedManifest: string,
+  signer: string,
+  expectedSigner: string,
+  passed: boolean,
+): EvidenceAdmission {
+  //@ verify
+  //@ ensures (\result === "missing-stage") === !present
+  //@ ensures (\result === "stale-tree") === (present && tree !== expectedTree)
+  //@ ensures (\result === "different-manifest") === (present && tree === expectedTree && manifest !== expectedManifest)
+  //@ ensures (\result === "different-signer") === (present && tree === expectedTree && manifest === expectedManifest && signer !== expectedSigner)
+  //@ ensures (\result === "failed-stage") === (present && tree === expectedTree && manifest === expectedManifest && signer === expectedSigner && !passed)
+  //@ ensures (\result === "admit") === (present && tree === expectedTree && manifest === expectedManifest && signer === expectedSigner && passed)
+  if (!present) return "missing-stage";
+  if (tree !== expectedTree) return "stale-tree";
+  if (manifest !== expectedManifest) return "different-manifest";
+  if (signer !== expectedSigner) return "different-signer";
+  if (!passed) return "failed-stage";
+  return "admit";
+}
+
 export function bootstrapAdmission(
   previousPresent: boolean,
   terminal: boolean,

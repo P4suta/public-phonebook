@@ -5,6 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import * as v from "valibot";
 import { CatalogSchema, ContactSchema } from "../src/core/models.ts";
 import { checkDataBundle } from "./check-data.ts";
+import { controlStoreFromEnvironment } from "./control-store.ts";
 import { requireCommand } from "./process.ts";
 import { loadRelease } from "./release-store.ts";
 import { fileDigest, prepareSnapshot } from "./snapshot.ts";
@@ -130,8 +131,11 @@ async function stagingPublish(bundle: string, action?: string): Promise<void> {
     process.execPath,
     "tools/publish.ts",
     "staging",
-    bundle,
     ...(action ? [action] : []),
+    "--dataset",
+    await fileDigest(join(bundle, "manifest.ready.json")),
+    "--bundle",
+    bundle,
   ]);
 }
 async function stagingData(bundle: string): Promise<void> {
@@ -143,6 +147,10 @@ async function stagingData(bundle: string): Promise<void> {
     "prd",
     "--only-secrets",
     "CLOUDFLARE_ACCOUNT_ID",
+    "--only-secrets",
+    "R2_ACCESS_KEY_ID",
+    "--only-secrets",
+    "R2_SECRET_ACCESS_KEY",
     "--no-fallback",
     "--",
     process.execPath,
@@ -162,7 +170,7 @@ async function main(args: readonly string[]): Promise<void> {
   const full = resolve(sourceBundle);
   const subset = await prepare(full, resolve(".local/release-rehearsal"));
   if (action === "prepare") return;
-  const previous = await loadRelease("staging");
+  const previous = await loadRelease(controlStoreFromEnvironment(), "staging");
   await stagingData(subset);
   await stagingPublish(subset, previous ? undefined : "--bootstrap");
   await stagingData(full);
