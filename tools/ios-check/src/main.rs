@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, ensure};
 use clap::Parser;
+use sha2::{Digest, Sha256};
 use std::{
     path::Path,
     process::{Command, Output, Stdio},
@@ -10,6 +11,14 @@ mod ios;
 mod locations;
 
 const ADVISORIES: &str = "2295466c4e9df26647fd67d8fa1c705ac2fc7f81";
+
+/// Formats the SHA-256 of `bytes` as lowercase hexadecimal, which `sha2` 0.11 digests no longer print directly.
+fn sha256_hex(bytes: impl AsRef<[u8]>) -> String {
+    Sha256::digest(bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
 
 fn audit(root: &Path) -> Result<()> {
     let database = root.join("target/advisory-db");

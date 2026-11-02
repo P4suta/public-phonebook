@@ -5,7 +5,6 @@ use super::{
 use crate::locations::LOOPBACK_HOST;
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use std::{fs, path::Path, process::Command};
 
 const SIZE: (u32, u32) = (1206, 2622);
@@ -185,7 +184,7 @@ pub fn capture(root: &Path, origin: &str) -> Result<()> {
     for (exported, output) in select(&manifest)? {
         let bytes = opaque_rgb(&fs::read(attachments.join(exported))?)?;
         fs::write(screens.join(output), &bytes)?;
-        files.push(json!({"file":output,"sha256":format!("{:x}", Sha256::digest(&bytes))}));
+        files.push(json!({"file":output,"sha256":crate::sha256_hex(&bytes)}));
     }
     require_current_sources(root, &sources)?;
     let revision = super::super::checked(

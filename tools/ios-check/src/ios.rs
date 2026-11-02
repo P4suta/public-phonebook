@@ -2,7 +2,6 @@ use crate::locations::{FIXTURE_PORT, LOOPBACK_HOST};
 use anyhow::{Context, Result, bail, ensure};
 use clap::Subcommand;
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs::{self, OpenOptions},
@@ -170,7 +169,7 @@ fn source_hashes(root: &Path) -> Result<BTreeMap<String, String>> {
     for path in paths {
         let bytes =
             fs::read(root.join(&path)).with_context(|| format!("Read iOS check input {path}"))?;
-        hashes.insert(path, format!("{:x}", Sha256::digest(bytes)));
+        hashes.insert(path, crate::sha256_hex(bytes));
     }
     ensure!(
         hashes.keys().any(|path| path.starts_with("ios/Sources/")),

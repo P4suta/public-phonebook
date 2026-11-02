@@ -8,7 +8,6 @@ use crate::locations::{FIXTURE_ORIGIN, PRODUCTION_ORIGIN};
 use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs, path::Path, process::Command};
 
 const STORE_TEXT_LIMITS: [(&str, usize); 6] = [
@@ -461,7 +460,7 @@ pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
             .current_dir(root)
             .args(["rev-parse", "HEAD"]),
     )?;
-    let sha256 = format!("{:x}", Sha256::digest(fs::read(ipa)?));
+    let sha256 = crate::sha256_hex(fs::read(ipa)?);
     let sbom = json!({"bomFormat":"CycloneDX","specVersion":"1.6","version":1,"metadata":{"component":{"type":"application","name":Environment::Production.identity().1,"version":"1.0","hashes":[{"alg":"SHA-256","content":sha256}]}},"components":[{"type":"library","name":"PhonebookCore","version":"1.0","licenses":[{"expression":"MIT OR Apache-2.0"}],"scope":"required"},{"type":"library","name":"PhonebookKit","version":"1.0","licenses":[{"expression":"MIT OR Apache-2.0"}],"scope":"required"},{"type":"data","name":"Lucide icons","licenses":[{"license":{"id":"ISC"}}],"scope":"required"},{"type":"data","name":"Feather-derived icons","licenses":[{"license":{"id":"MIT"}}],"scope":"required"}],"properties":[{"name":"phonebook:platform-dependencies","value":"Apple iOS frameworks, Swift runtime, and SQLite are supplied by iOS; no third-party Swift packages are linked."}]});
     fs::write(
         directory.join("sbom.cdx.json"),
