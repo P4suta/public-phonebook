@@ -31,6 +31,9 @@ Name every key in one module, and refuse a replacement outside the conditional k
 - `journals/<env>/head.json` and `leases/<env>.json` are replaced conditionally.
 - `journals/<env>/history/` and `evidence/` are append-only, and a bucket lock makes them permanent, which R2 reports as 409.
 
+`<report>` is the digest of a collection report, which records the digest of each other collector output.
+`collection-cache/` holds each source artifact by its own digest.
+
 Store journals in format 2.
 Format 2 drops the absolute `bundle` path, because the verification bundle lives under `datasets/<manifest>/` and its key is the manifest digest.
 It adds the environment, a sequence number, and the run provenance.

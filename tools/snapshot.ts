@@ -39,6 +39,11 @@ import { contactVCard } from "../src/core/vcard.ts";
 import { categorySources } from "./category-sources.ts";
 import { mergeContacts, readCollectionOverlay } from "./collection/overlay.ts";
 import { databaseSchema } from "./database-schema.ts";
+import {
+  deltaSource,
+  requireDistinctSources,
+  writeDirectoryDeltas,
+} from "./directory-delta.ts";
 import { importContact, importSource } from "./import-contact.ts";
 import { compressSearchIndex, readSearchIndex } from "./search-index.ts";
 
@@ -169,11 +174,16 @@ export async function prepareSnapshot(
   sourcePath: string,
   outputPath: string,
   collectionDirectory?: string,
+  deltaBases: readonly string[] = [],
 ): Promise<SnapshotResult> {
   const source = resolve(sourcePath);
   const destination = resolve(outputPath);
   if (source.startsWith(`${destination}/`))
     throw new Error("The source must be outside the output directory");
+  const deltaSources = await Promise.all(
+    deltaBases.map((base) => deltaSource(resolve(base))),
+  );
+  requireDistinctSources(deltaSources);
   await mkdir(destination, { recursive: false });
   const input = new DatabaseSync(source, { readOnly: true });
   const output = new DatabaseSync(join(destination, "directory.sqlite"));
@@ -395,9 +405,8 @@ export async function prepareSnapshot(
         url: `/api/datasets/${snapshot}/${sha256}/${file}.gz`,
       });
     }
-    const directoryBytes = new TextEncoder().encode(
-      archive.finish({ snapshot, catalog, sources }),
-    );
+    const directoryText = archive.finish({ snapshot, catalog, sources });
+    const directoryBytes = new TextEncoder().encode(directoryText);
     const directoryPath = join(destination, "directory.tsv");
     await writeFile(directoryPath, directoryBytes, { flag: "wx" });
     const archivePath = join(destination, directoryArchiveFile);
@@ -409,12 +418,19 @@ export async function prepareSnapshot(
       createWriteStream(archivePath, { flags: "wx" }),
     );
     const archiveSha256 = await fileDigest(archivePath);
+    const archiveBytes = (await stat(archivePath)).size;
     files.push({
       file: directoryArchiveFile,
       sha256: archiveSha256,
-      bytes: (await stat(archivePath)).size,
+      bytes: archiveBytes,
       url: `/api/datasets/${snapshot}/${archiveSha256}/${directoryArchiveFile}`,
     });
+    const deltas = await writeDirectoryDeltas(
+      destination,
+      { snapshot, archiveSha256, archiveBytes, text: directoryText },
+      deltaSources,
+      compressDirectoryArchive,
+    );
     const compressedIndex = compressSearchIndex(searchIndex);
     await writeFile(join(destination, searchIndexFile), compressedIndex, {
       flag: "wx",
@@ -444,6 +460,7 @@ export async function prepareSnapshot(
       databaseSha256: await fileDigest(join(destination, "directory.sqlite")),
       files,
       searchIndex: searchIndexArtifact,
+      deltas,
     });
     await writeFile(
       join(destination, "manifest.json"),

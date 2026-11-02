@@ -1,0 +1,106 @@
+name: Collect
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: collect-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    name: Collect and replay
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - name: Require the main branch
+        run: test "$GITHUB_REF" = refs/heads/main
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/toolchain
+        with:
+          tools: node just
+          dependencies: "false"
+      - name: Install the locked npm packages without the shared cache
+        run: npm ci --ignore-scripts
+      - name: Collect the public directories
+        run: just data-collect .local/collection/current
+      - name: Replay the collection offline
+        run: just data-replay .local/collection/replayed
+      - name: Require the same result from the replay
+        run: node tools/collection-store.ts compare .local/collection/current .local/collection/replayed
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: collection
+          path: |
+            .local/collection/current
+            .local/collection/cache
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: failure()
+        with:
+          name: collection-failure-reports
+          path: |
+            .local/collection/current/collection-report.json
+            .local/collection/replayed/collection-report.json
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
+          overwrite: true
+  store:
+    name: Prepare and store
+    needs: [collect]
+    runs-on: ubuntu-24.04
+    environment: data
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_data config.
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/toolchain
+        with:
+          tools: node just
+          dependencies: "false"
+      - name: Install the locked npm packages without the shared cache
+        run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: collection
+          path: .local/collection
+      - id: doppler
+        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
+          doppler-project: public-phonebook
+          doppler-config: ci_data
+          inject-env-vars: "false"
+      - name: Download the pinned base database
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
+        run: node tools/collection-store.ts base target/collection/base
+      - name: Prepare the publication from the base and the collection
+        run: just data-prepare target/collection/base/directory.sqlite target/collection/dataset .local/collection/current
+      - name: Check every record, archive, and index
+        run: just data-check target/collection/dataset
+      - name: Check every telephone identity
+        run: just phone-quality target/collection/dataset target/collection/phone-quality.json
+      - name: Store the collection and the publication
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
+        run: node tools/collection-store.ts store .local/collection/current .local/collection/cache target/collection/dataset

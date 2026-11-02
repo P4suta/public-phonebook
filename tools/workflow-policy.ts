@@ -18,7 +18,11 @@ export type WorkflowRule =
   | "job-permissions-missing"
   | "action-not-pinned"
   | "action-not-allowed"
-  | "script-interpolation";
+  | "script-interpolation"
+  | "id-token-without-environment"
+  | "id-token-outside-dispatch"
+  | "change-runner-not-linux"
+  | "change-release-check";
 
 export interface WorkflowViolation {
   readonly file: string;
@@ -36,6 +40,25 @@ const workflowDirectory = ".github/workflows";
 const actionDirectory = ".github/actions";
 const workflowExtension = /\.ya?ml$/u;
 const actionFiles = ["action.yml", "action.yaml"];
+const credentialTriggers: readonly string[] = [
+  "workflow_dispatch",
+  "workflow_call",
+];
+
+const changeEvents = [
+  "pull_request",
+  "pull_request_target",
+  "merge_group",
+  "push",
+];
+const releaseGateRecipes = ["assurance", "check-build", "prove", "e2e", "test"];
+const linuxRunner = /^ubuntu-/u;
+const releaseGateCommand = new RegExp(
+  `\\bjust\\s+(?:${releaseGateRecipes.join("|")}|ios-[a-z-]+)(?![\\w-])|\\bplaywright\\s+install\\b`,
+  "u",
+);
+const releaseGateWorkflow =
+  /^(?:\$|\.)\/\.github\/workflows\/assurance\.ya?ml$/u;
 
 const StepSchema = v.looseObject({
   uses: v.optional(v.string()),
@@ -44,13 +67,48 @@ const StepSchema = v.looseObject({
 const StepsSchema = v.optional(v.array(StepSchema));
 const JobSchema = v.looseObject({
   permissions: v.optional(v.unknown()),
+  environment: v.optional(v.unknown()),
+  "runs-on": v.optional(v.unknown()),
   uses: v.optional(v.string()),
   steps: StepsSchema,
 });
 const WorkflowSchema = v.looseObject({
+  on: v.optional(v.unknown()),
   permissions: v.optional(v.unknown()),
   jobs: v.record(v.string(), JobSchema),
 });
+const IdTokenGrantSchema = v.union([
+  v.literal("write-all"),
+  v.looseObject({ "id-token": v.literal("write") }),
+]);
+const NamedEnvironmentSchema = v.union([
+  v.pipe(v.string(), v.minLength(1)),
+  v.looseObject({ name: v.pipe(v.string(), v.minLength(1)) }),
+]);
+const TriggerSchema = v.union([
+  v.pipe(
+    v.string(),
+    v.transform((trigger) => [trigger]),
+  ),
+  v.array(v.string()),
+  v.pipe(
+    v.record(v.string(), v.unknown()),
+    v.transform((triggers) => Object.keys(triggers)),
+  ),
+]);
+
+function triggerEvents(triggers: unknown): readonly string[] {
+  const parsed = v.safeParse(TriggerSchema, triggers);
+  return parsed.success ? parsed.output : [];
+}
+
+export function startsOnlyByDispatchOrCall(triggers: unknown): boolean {
+  const events = triggerEvents(triggers);
+  return (
+    events.length > 0 &&
+    events.every((trigger) => credentialTriggers.includes(trigger))
+  );
+}
 const ActionSchema = v.looseObject({
   runs: v.looseObject({ using: v.string(), steps: StepsSchema }),
 });
@@ -104,11 +162,36 @@ function stepViolations(
   });
 }
 
+function changeJobViolations(
+  file: string,
+  location: string,
+  job: v.InferOutput<typeof JobSchema>,
+): readonly WorkflowViolation[] {
+  const violations: WorkflowViolation[] = [];
+  const runner = job["runs-on"];
+  if (job.uses !== undefined) {
+    if (releaseGateWorkflow.test(job.uses))
+      violations.push({ file, location, rule: "change-release-check" });
+  } else if (typeof runner !== "string" || !linuxRunner.test(runner))
+    violations.push({ file, location, rule: "change-runner-not-linux" });
+  for (const [index, step] of (job.steps ?? []).entries())
+    if (step.run !== undefined && releaseGateCommand.test(step.run))
+      violations.push({
+        file,
+        location: `${location}.steps[${index}]`,
+        rule: "change-release-check",
+      });
+  return violations;
+}
+
 export function workflowViolations(
   file: string,
   document: unknown,
 ): readonly WorkflowViolation[] {
   const workflow = v.parse(WorkflowSchema, document);
+  const runsOnChange = triggerEvents(workflow.on).some((event) =>
+    changeEvents.includes(event),
+  );
   const violations: WorkflowViolation[] = [];
   if (!("permissions" in workflow))
     violations.push({
@@ -122,6 +205,25 @@ export function workflowViolations(
       location: "permissions",
       rule: "workflow-permissions-not-empty",
     });
+  const credentialJobs = Object.entries(workflow.jobs).filter(([, job]) =>
+    v.is(IdTokenGrantSchema, job.permissions),
+  );
+  if (credentialJobs.length > 0 && !startsOnlyByDispatchOrCall(workflow.on))
+    violations.push({
+      file,
+      location: "on",
+      rule: "id-token-outside-dispatch",
+    });
+  for (const [id, job] of credentialJobs)
+    if (
+      job.uses === undefined &&
+      !v.is(NamedEnvironmentSchema, job.environment)
+    )
+      violations.push({
+        file,
+        location: `jobs.${id}`,
+        rule: "id-token-without-environment",
+      });
   for (const [id, job] of Object.entries(workflow.jobs)) {
     const location = `jobs.${id}`;
     if (!("permissions" in job))
@@ -129,6 +231,8 @@ export function workflowViolations(
     if (job.uses !== undefined)
       violations.push(...referenceViolations(file, location, job.uses));
     violations.push(...stepViolations(file, location, job.steps));
+    if (runsOnChange)
+      violations.push(...changeJobViolations(file, location, job));
   }
   return violations;
 }

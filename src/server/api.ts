@@ -9,6 +9,8 @@ import {
   matchesEntityTag,
 } from "../core/content-negotiation.ts";
 import {
+  DirectoryDeltaListingSchema,
+  directoryDeltaListing,
   manifestObjectKey,
   type PreparedDatasetManifest,
   PreparedDatasetManifestSchema,
@@ -17,6 +19,7 @@ import {
   searchIndexLocation,
   searchIndexObjectKey,
 } from "../core/dataset-storage.ts";
+import { directoryDeltaFilePattern } from "../core/directory-delta.ts";
 import { type FailureStatus, httpStatus } from "../core/http-status.ts";
 import { sha256 } from "../core/identity.ts";
 import {
@@ -966,12 +969,43 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
   );
 
   api.get(
+    `${base}/dataset-deltas`,
+    describeResource({
+      operationId: "getDatasetDeltas",
+      tags: ["Datasets"],
+      summary:
+        "List deltas from earlier native directory archives to the current one",
+      description:
+        "Each delta rebuilds the current directory.tsv.br from the named base archive. Verify the downloaded bytes, then the decoded target length and SHA-256 in the delta header, before replacing stored data. Download the complete archive when no delta starts from the stored snapshot or a check fails.",
+      responses: {
+        [httpStatus.ok]: {
+          description: "Deltas to the current snapshot, possibly none",
+          content: {
+            "application/json": {
+              schema: resolver(DirectoryDeltaListingSchema),
+            },
+          },
+        },
+        ...failureResponses,
+      },
+    }),
+    async (c) => {
+      const catalog = await readCatalog(directoryDatabase(c.env.DB));
+      const prepared = await readPreparedManifest(c, catalog);
+      if (!prepared) return problem(c, "unavailable", httpStatus.unavailable);
+      c.header("X-Dataset-Snapshot", catalog.snapshot);
+      c.header("Cache-Control", mutableCache);
+      return c.json(directoryDeltaListing(prepared, base));
+    },
+  );
+
+  api.get(
     `${base}/datasets/:snapshot/:digest/:file`,
     describeRoute({
       operationId: "downloadDataset",
       tags: ["Datasets"],
       summary:
-        "Download immutable complete JSONL, CSV, vCard, or native directory data",
+        "Download immutable complete JSONL, CSV, vCard, or native directory data, or a native directory delta",
       responses: {
         [httpStatus.ok]: {
           description:
@@ -983,26 +1017,26 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
     async (c) => {
       const snapshot = c.req.param("snapshot");
       const digest = c.req.param("digest");
-      const file = v.safeParse(DatasetFileNameSchema, c.req.param("file"));
+      const name = c.req.param("file");
+      const complete = v.is(DatasetFileNameSchema, name);
+      const delta = directoryDeltaFilePattern.test(name);
       if (
         !v.safeParse(DigestSchema, snapshot).success ||
         !v.safeParse(DigestSchema, digest).success ||
-        !file.success
+        (!complete && !delta)
       )
         return problem(c, "not_found", httpStatus.notFound);
-      const object = await c.env.DATASETS.get(
-        `${snapshot}/${digest}/${file.output}`,
-      );
+      const object = await c.env.DATASETS.get(`${snapshot}/${digest}/${name}`);
       if (!object) return problem(c, "not_found", httpStatus.notFound);
       const headers = new Headers({
         "Content-Type":
-          file.output === "directory.tsv.br"
+          delta || name === "directory.tsv.br"
             ? "application/octet-stream"
             : "application/gzip",
         "Content-Length": String(object.size),
         ETag: object.httpEtag,
         "Cache-Control": immutableCache,
-        "Content-Disposition": `attachment; filename="${file.output}"`,
+        "Content-Disposition": `attachment; filename="${name}"`,
         "X-Dataset-Snapshot": snapshot,
       });
       if (c.req.header("If-None-Match") === object.httpEtag)
