@@ -284,7 +284,7 @@ After a rejected approval, the candidate stays at 0% until `recover.yml` withdra
 Renovate merges minor and patch updates on its own once the required checks pass, except for the ones a publication depends on.
 The `deployment dependencies` group holds updates that change the deployed Worker, its build, or a release path, and labels them `release-rehearsal`.
 It covers cf, Miniflare, `@cloudflare/*`, TanStack Start with the router release it pins, Vite and its plugins, vanilla-extract, PostCSS, and aws4fetch.
-It also covers the `node`, `just`, `doppler`, `rust`, and `xcodegen` tools and the GitHub Actions of the TestFlight workflow and the toolchain action.
+It also covers the `node`, `just`, `doppler`, `rust`, and `xcodegen` tools and the GitHub Actions of the TestFlight workflow, the release workflows, and the toolchain action.
 The Linux check image's mise moves with them, because `just check-linux` refuses a mise that differs from the toolchain action's.
 npm lock file maintenance waits in its own branch, because it moves the bundler and CSS tools that Vite resolves within ranges.
 Merge such an update only after the owner reviews it, and run the withdrawal drill in `pipeline-controls.yml` on `main` before the next release.
