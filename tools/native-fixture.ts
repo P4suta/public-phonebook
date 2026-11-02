@@ -7,11 +7,13 @@ import {
 import { dirname } from "node:path";
 import * as v from "valibot";
 import { DirectoryDiscoverySchema } from "../src/core/api-contract.ts";
+import { DirectoryDeltaListingSchema } from "../src/core/dataset-storage.ts";
 import { directoryArchiveFile } from "../src/core/directory-archive.ts";
 import { VersionedDatasetManifestSchema } from "../src/core/models.ts";
 import {
   contractOrigin,
   directoryFixture,
+  type FixtureRevision,
   fixturePort,
 } from "./directory-fixture.ts";
 
@@ -23,6 +25,7 @@ const commandArgumentOffset = 2;
 const corpusDestination = "ios/Tests/PhonebookKitTests/DirectoryContract.json";
 
 interface ContractResponse {
+  readonly revision: FixtureRevision;
   readonly path: string;
   readonly status: number;
   readonly headers: Readonly<Record<string, string>>;
@@ -30,10 +33,22 @@ interface ContractResponse {
   readonly encoding?: "base64";
 }
 
+/**
+ * Records the baseline import, then the update to the next revision through its delta and its complete archive.
+ */
 export async function contractResponses(): Promise<
   readonly ContractResponse[]
 > {
-  const fixture = await directoryFixture();
+  return [
+    ...(await revisionResponses("baseline")),
+    ...(await revisionResponses("updated")),
+  ];
+}
+
+async function revisionResponses(
+  revision: FixtureRevision,
+): Promise<readonly ContractResponse[]> {
+  const fixture = await directoryFixture({ revision });
   const responses: ContractResponse[] = [];
   async function request(path: string, binary = false): Promise<string> {
     const response = await fixture.fetch(
@@ -52,22 +67,36 @@ export async function contractResponses(): Promise<
       for (const byte of new Uint8Array(await response.arrayBuffer()))
         bytes += String.fromCharCode(byte);
       const body = btoa(bytes);
-      responses.push({ path, status, headers, body, encoding: "base64" });
+      responses.push({
+        revision,
+        path,
+        status,
+        headers,
+        body,
+        encoding: "base64",
+      });
       return body;
     }
     const body = await response.text();
-    responses.push({ path, status, headers, body });
+    responses.push({ revision, path, status, headers, body });
     return body;
   }
   try {
     const raw: unknown = JSON.parse(await request("/api/v1"));
     const discovery = v.parse(DirectoryDiscoverySchema, raw);
-    await request(discovery.catalog);
+    if (revision === "baseline") await request(discovery.catalog);
     const listing: unknown = JSON.parse(await request(discovery.datasets));
     const archive = v
       .parse(VersionedDatasetManifestSchema, listing)
       .files.find((file) => file.file === directoryArchiveFile);
     if (!archive) throw new Error("The provider contract has no archive");
+    if (revision === "updated") {
+      const deltas: unknown = JSON.parse(
+        await request(discovery.datasetDeltas),
+      );
+      for (const delta of v.parse(DirectoryDeltaListingSchema, deltas).deltas)
+        await request(delta.url, true);
+    }
     await request(archive.url, true);
     return responses;
   } finally {

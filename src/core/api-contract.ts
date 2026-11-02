@@ -17,6 +17,7 @@ export const DirectoryDiscoverySchema = v.pipe(
     catalog: PinnedEndpointSchema,
     sources: PinnedEndpointSchema,
     datasets: PinnedEndpointSchema,
+    datasetDeltas: PinnedEndpointSchema,
     openapi: v.literal("/api/v1/openapi.json"),
     docs: v.literal("/developers"),
   }),
@@ -27,6 +28,7 @@ export const DirectoryDiscoverySchema = v.pipe(
       catalog: value.catalog,
       sources: value.sources,
       datasets: value.datasets,
+      "dataset-deltas": value.datasetDeltas,
     }).every(
       ([key, path]) => path === `/api/v1/${key}?snapshot=${value.snapshot}`,
     ),

@@ -71,7 +71,7 @@ const UI_TESTS: [&str; 12] = [
     "testLandscapeLargeTextSettings",
     "testAboutStaysInTheAppAndLicenseIsReadable",
 ];
-const REQUIRED_TESTS: [&str; 31] = [
+const REQUIRED_TESTS: [&str; 37] = [
     "currentProviderArchiveImportsTheNationalDirectory",
     "archiveRecordsCarryEveryField",
     "malformedArchivesAreRejected",
@@ -103,6 +103,12 @@ const REQUIRED_TESTS: [&str; 31] = [
     "canonicalPhoneMutationsMatchTheIndependentGrammarAndNumericIdentity",
     "everyConsumerAvailabilityFailureReceiptAndForceCombinationPreservesIndependentProgress",
     "automaticRefreshMatchesIndependentGregorianMonthEndsAcrossFourCenturies",
+    "deltaAdmissionRefinesTheProviderOrderingAndCopyGuard",
+    "storedRowsReencodeTheirArchiveLines",
+    "deltasRebuildTheTargetArchiveByteForByte",
+    "everyDeltaFaultIsRejectedBeforeStaging",
+    "synchronizationAppliesDeltasAndFallsBackToTheCompleteArchive",
+    "currentProviderDeltaRebuildsTheUpdatedArchive",
 ];
 const SCOPE: [&str; 19] = [
     "ios",
@@ -136,6 +142,7 @@ const FINITE_FEED_INPUTS: usize = 8;
 const FINITE_PUBLICATION_INPUTS: usize = 16;
 const PUBLICATION_TRANSITIONS: usize = 25;
 const RECEIVE_BUDGET_BOUNDARY_CASES: usize = 13_829;
+const DELTA_ADMISSION_CASES: usize = 13_896;
 
 fn source_hashes(root: &Path) -> Result<BTreeMap<String, String>> {
     let output = super::checked(
@@ -1102,7 +1109,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
             fs::write(
                 unit_receipt,
                 serde_json::to_vec_pretty(&json!({
-                    "result":"passed","unit_tests":unit_tests,"required_contracts":REQUIRED_TESTS,
+                    "result":"passed","unit_tests":unit_tests,"required_contracts":REQUIRED_TESTS.as_slice(),
                     "coverage":coverage,"source_sha256":source_records(&sources),
                     "scope":"strict Swift lints and all compiled macOS Swift package tests; excludes app and extension execution"
                 }))?,
@@ -1174,6 +1181,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "xcode":fs::read_to_string(root.join("ios/.xcode-version"))?.trim(),
                     "ui_results":results.directory, "ui_tests":results.count, "finite_feed_inputs":FINITE_FEED_INPUTS, "finite_publication_inputs":FINITE_PUBLICATION_INPUTS,
                     "publication_transitions":PUBLICATION_TRANSITIONS, "receive_budget_boundary_cases":RECEIVE_BUDGET_BOUNDARY_CASES,
+                    "delta_admission_cases":DELTA_ADMISSION_CASES,
                     "unit_tests":unit_tests, "coverage":coverage,
                     "source_sha256":source_records(&sources),
                     "swift_language_mode":"6", "deployment_target":"iOS 18.0",
