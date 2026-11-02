@@ -46,6 +46,7 @@ It sends the Brotli search index unchanged, as production does.
 The browser campaign `mise x -- just e2e` uses the same preview, so build first.
 Both development and preview run the native Cloudflare Workers runtime with local D1 and R2 bindings.
 Development serves HTTP through Vite, so WebKit doesn't receive the Brotli index there and the page searches on the server.
+Use development for a loopback HTTP origin, such as the iOS screenshot command, because simulators reject the preview's self-signed certificate.
 No Container is needed.
 
 ## Environment boundaries
@@ -89,15 +90,33 @@ During an Access outage, stop publication and repair the configured identity or 
 Do not enable anonymous bypass or restore an expired token for recovery.
 The [staging authorization decision](adr/authenticate-the-entire-staging-origin.md) explains the shared boundary.
 
+### Release inputs
+
+Every publication names its dataset by the SHA-256 of its ready manifest.
+
 ```sh
-mise x -- just release .local/phonebook
+mise x -- just release DATASET
 ```
 
-The release command runs the complete local test gate before remote preparation.
-It prepares and checks staging before production and reuses immutable data resources.
-For the first migration, preserve the validated existing production bundle at `.local/published-phonebook`.
-The command adopts that exact public baseline before its first replacement.
-Adoption permits the retained address spelling while preserving all checksum, provenance, index, count, and archive checks.
+The release command dispatches `release.yml` on `main` with the dataset input, finds the dispatched run, and watches it.
+It never publishes from the local machine and never adopts or bootstraps an environment on its own.
+Production publishes only from that workflow, with candidate evidence for the same Git tree and manifest.
+The publisher refuses a local production publication, while `just recover` and `just release-status` stay available locally.
+
+| Command | Inputs | Effect |
+| --- | --- | --- |
+| `just publish staging DATASET [BUNDLE]` | Dataset digest, optional bundle | Publishes staging from a clean checkout |
+| `just publish-admission ENV DATASET [BUNDLE]` | Environment, dataset digest | Runs every admission check without a lease, build, or provider effect |
+| `just data-fetch DATASET DIRECTORY` | Dataset digest, target directory | Restores the bundle from the control store and checks every file |
+| `just test --bundle DIRECTORY --stage STAGE` | Bundle, stages | Runs selected stages of the gate and writes one receipt per stage |
+
+The bundle defaults to `.local/datasets/DATASET`, which `just data-fetch` fills.
+The publisher refuses a bundle whose manifest digest differs from the named dataset.
+The stages are `check`, `data`, `phones`, `prove`, and `e2e`, and each passing stage writes `.local/receipts/TREE/MANIFEST/STAGE.json`.
+A run of every stage also writes the combined local receipt that staging publication requires.
+In GitHub Actions, `--record` stores each passing stage as candidate evidence under `candidates/TREE/MANIFEST/`.
+A local run can't record candidate evidence, so a local receipt never stands in for the release gate.
+Production admits a candidate only when every stage has passing evidence for the same tree and manifest from `candidate.yml` on `main`.
 Normal preparation and publication require canonical addresses.
 
 For a private failure exercise, run `mise x -- just release-rehearse .local/phonebook` after the full local gate.
@@ -107,7 +126,8 @@ It publishes A, activates B, injects the expected verification failure, verifies
 The exercise affects staging only.
 
 The data command validates the complete local bundle before remote writes.
-It uploads content-addressed archives and the manifest to the environment's private R2 bucket.
+It uploads content-addressed archives and the manifest through the S3 API, only to the environment's private R2 bucket and only under new archive keys.
+It creates a missing bucket only outside CI, and a CI run without the bucket stops for the owner.
 It imports bound SQL batches through the pinned cf CLI, within D1's parameter and request budgets.
 An import identity and checkpoint commit in the same native D1 transaction as each batch.
 A lost acknowledgement can resume from the stored checkpoint without duplicate inserts.
@@ -117,8 +137,9 @@ The full digest remains the import identity, so a prefix collision cannot overwr
 Repeated preparation reuses the exact database artifact and preserves earlier database resources.
 The final checks compare counts, foreign keys, the complete catalog, and fixed payload samples with the validated source.
 
-The publisher requires a clean committed checkout, current full-test and proof receipts, and a verified remote-data receipt.
-Production additionally requires the identical active verified staging Git tree, contact snapshot, database SHA-256, and manifest SHA-256.
+The publisher requires a clean committed checkout and a verified remote-data receipt.
+Staging also requires current full-test and proof receipts from the local gate.
+Production requires admitted candidate evidence instead, and the identical active verified staging Git tree, contact snapshot, database SHA-256, and manifest SHA-256.
 Tree identity allows a merge commit to preserve an already checked candidate when its files are unchanged.
 Each environment is rebuilt with its own bindings and origin before the prebuilt cf deployment.
 The cf deployment applies the Worker's triggers, including custom domains.
@@ -127,10 +148,46 @@ Browser checks reject scripts from other origins and verify that an inserted ext
 The publisher hashes build output before deployment and after provider provisioning.
 Public Playwright checks exercise desktop and narrow search, telephone formatting, detail and provenance navigation, the interactive Scalar client, accessibility, security-policy failures, and the 512-byte query boundary.
 They also download every archive through HTTPS and compare its byte length and SHA-256 with the checked manifest.
-Receipts and failure evidence stay under `.local/releases` and `test-results`.
+Failure evidence stays under `test-results`.
+
+### Control store
+
+Publication records live in the private R2 bucket `dial-control`, which the tools reach through the S3 API.
+The tools read `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` from the environment and never print them.
+Conditional writes keep one writer per object: a create sends `If-None-Match: *`, a replacement sends `If-Match` with the stored entity tag, and R2 answers 412 to the loser.
+
+| Key | Contents | Writes |
+| --- | --- | --- |
+| `blobs/sha256/DIGEST` | Databases and archives | Once |
+| `datasets/MANIFEST/` | Ready manifest and catalog for verification | Once |
+| `collections/REPORT/`, `collection-cache/` | Collection reports and cached sources | Once |
+| `candidates/TREE/MANIFEST/STAGE.json` | Candidate evidence per stage | Once |
+| `journals/ENV/head.json` | Current publication journal | Conditional replacement |
+| `journals/ENV/history/SEQUENCE.json` | Every journal record | Append-only, bucket lock |
+| `leases/ENV.json` | Publication lease | Conditional replacement |
+| `evidence/` | Imported receipts and release evidence | Append-only, bucket lock |
+
+Journal format 2 records the environment, sequence, phase, candidate, predecessor, and run provenance.
+The provenance names the Actions repository, workflow, run ID, attempt, commit, and actor, or `local` for owner recovery.
+Verification reads the manifest and catalog from `datasets/MANIFEST/`, so the journal holds no local path.
+Each publication command holds the environment's lease, which lasts 10 minutes, renews every 60 seconds, and expires by R2's response time.
+A second publisher is refused while the lease is live and can take it over after it expires.
+The [control bucket decision](adr/keep-release-records-in-a-conditionally-written-control-bucket.md) explains the format and the lease.
+
+Import the owner's format 1 records once, after checking the plan.
+
+```sh
+mise x -- just control-import ../public-phonebook-typescript/.local --plan
+mise x -- just control-import ../public-phonebook-typescript/.local
+```
+
+The plan prints each history record, dataset, verified blob, and receipt with its key, size, and digest, and it writes nothing.
+The import converts a journal only when its bundle name and manifest bytes match the recorded manifest digest.
+It refuses to replace a different journal head, and repeating it changes nothing.
+Run the second command with the control-store credentials in the environment.
 
 The previous Worker and its data remain available while the new staging service is checked.
-The publication journal records the predecessor's exact version and bindings before activation.
+The publication journal in the control store records the predecessor's exact version and bindings before activation.
 Failure restores the complete predecessor and verifies it before recording recovery.
 `mise x -- just release-status staging` reads the journal and active provider version.
 `mise x -- just recover staging` retries interrupted recovery without building or deploying a new candidate.
@@ -138,8 +195,15 @@ Replace `staging` with `production` for public recovery.
 An unrelated active deployment is refused rather than overwritten.
 Repair access or provider availability before retrying failed verification.
 
-The first staging publication requires `--bootstrap` and has no verified rollback target.
-If its activation succeeded but verification was interrupted, run `doppler run --project public-phonebook --config stg --no-fallback -- node tools/publish.ts staging BUNDLE --resume-bootstrap`.
+### Worker versions
+
+The provider reads a deployment that routes 100% to the current version and 0% to at most one candidate, in either order.
+It reports both versions with their release tags, and it refuses any other split, because traffic moves from 0% to 100% in one step.
+Every Worker response carries `x-dial-version` with the answering version ID from `CF_VERSION_METADATA`.
+A check of a 0% candidate compares this header with the candidate's ID, because Cloudflare routes a request whose override doesn't apply to the current version without an error.
+
+The first staging publication requires `--bootstrap` with `--dataset` and has no verified rollback target.
+If its activation succeeded but verification was interrupted, run `doppler run --project public-phonebook --config stg --no-fallback -- node tools/publish.ts staging --resume-bootstrap`.
 It accepts only the owned active initial candidate and its original committed source.
 If that candidate failed verification, run `--bootstrap` again from corrected committed source.
 It supersedes the failed candidate only while no staging publication is verified and the failed candidate still owns the active version.
@@ -148,7 +212,7 @@ Do not discard journals or edit them to make a foreign deployment pass.
 `mise x -- just release-retention production` prints a read-only database retirement plan.
 Active, rollback, and pending resources remain protected, and all published R2 download URLs remain retained.
 The command never deletes resources.
-Preserve `.local/releases` and its verification bundles for recovery.
+The control store keeps the journals and verification bundles for recovery.
 Provider provisioning, network delivery, and the truth of upstream records remain external trust boundaries.
 Read the [recovery decision](adr/recover-complete-worker-and-dataset-publications.md), [promotion decision](adr/source-tree-bound-staging-promotion.md), and [verification contract](verification.md) for their checks and limits.
 

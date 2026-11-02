@@ -5,6 +5,9 @@ import type { ActiveVersion, ReleaseTarget } from "./release-lifecycle.ts";
 import type { RemoteEnvironment } from "./release-store.ts";
 
 const fullTraffic = 100;
+const noTraffic = 0;
+export type CloudflareRunner = (args: readonly string[]) => Promise<unknown>;
+
 const versionSchema = v.object({
   id: v.pipe(v.string(), v.uuid()),
   annotations: v.optional(v.record(v.string(), v.string()), {}),
@@ -19,24 +22,80 @@ const versionSchema = v.object({
     }),
   ),
 });
-export async function activeVersion(
+const TrafficSchema = v.array(
+  v.object({
+    version_id: v.pipe(v.string(), v.uuid()),
+    percentage: v.number(),
+  }),
+);
+const DeploymentListSchema = v.object({
+  deployments: v.array(v.object({ id: v.string(), versions: TrafficSchema })),
+});
+
+export interface DeploymentTraffic {
+  readonly current: string;
+  readonly candidate: string | null;
+}
+
+export function deploymentTraffic(versions: unknown): DeploymentTraffic {
+  const traffic = v.parse(TrafficSchema, versions);
+  const current = traffic.filter((entry) => entry.percentage === fullTraffic);
+  const candidates = traffic.filter((entry) => entry.percentage === noTraffic);
+  const [serving] = current;
+  const [candidate] = candidates;
+  if (
+    !serving ||
+    current.length !== 1 ||
+    candidates.length > 1 ||
+    current.length + candidates.length !== traffic.length ||
+    candidate?.version_id === serving.version_id
+  )
+    throw new Error(
+      "The deployment must route 100% to one version and 0% to at most one other candidate",
+    );
+  return {
+    current: serving.version_id,
+    candidate: candidate?.version_id ?? null,
+  };
+}
+
+export interface DeployedVersions {
+  readonly current: ActiveVersion;
+  readonly candidate: ActiveVersion | null;
+}
+
+async function workerVersion(
   environment: RemoteEnvironment,
-): Promise<ActiveVersion> {
+  versionId: string,
+  run: CloudflareRunner,
+): Promise<v.InferOutput<typeof versionSchema>> {
+  return v.parse(
+    versionSchema,
+    await run([
+      "workers",
+      "versions",
+      "get",
+      versionId,
+      "--worker-id",
+      environments[environment].worker,
+    ]),
+  );
+}
+
+function identity(version: v.InferOutput<typeof versionSchema>): ActiveVersion {
+  return {
+    versionId: version.id,
+    releaseId: version.annotations["workers/tag"] ?? version.id,
+  };
+}
+
+export async function deployedVersions(
+  environment: RemoteEnvironment,
+  run: CloudflareRunner = cloudflare,
+): Promise<DeployedVersions> {
   const result = v.parse(
-    v.object({
-      deployments: v.array(
-        v.object({
-          id: v.string(),
-          versions: v.tuple([
-            v.object({
-              version_id: v.pipe(v.string(), v.uuid()),
-              percentage: v.literal(fullTraffic),
-            }),
-          ]),
-        }),
-      ),
-    }),
-    await cloudflare([
+    DeploymentListSchema,
+    await run([
       "workers",
       "deployments",
       "list",
@@ -48,37 +107,28 @@ export async function activeVersion(
   );
   const deployment = result.deployments[0];
   if (!deployment) throw new Error("The Worker has no active deployment");
-  const version = v.parse(
-    versionSchema,
-    await cloudflare([
-      "workers",
-      "versions",
-      "get",
-      deployment.versions[0].version_id,
-      "--worker-id",
-      environments[environment].worker,
-    ]),
-  );
+  const traffic = deploymentTraffic(deployment.versions);
   return {
-    versionId: version.id,
-    releaseId: version.annotations["workers/tag"] ?? version.id,
+    current: identity(await workerVersion(environment, traffic.current, run)),
+    candidate: traffic.candidate
+      ? identity(await workerVersion(environment, traffic.candidate, run))
+      : null,
   };
 }
+
+export async function activeVersion(
+  environment: RemoteEnvironment,
+  run: CloudflareRunner = cloudflare,
+): Promise<ActiveVersion> {
+  return (await deployedVersions(environment, run)).current;
+}
+
 export async function verifyVersionBindings(
   environment: RemoteEnvironment,
   target: ReleaseTarget,
+  run: CloudflareRunner = cloudflare,
 ): Promise<void> {
-  const version = v.parse(
-    versionSchema,
-    await cloudflare([
-      "workers",
-      "versions",
-      "get",
-      target.versionId,
-      "--worker-id",
-      environments[environment].worker,
-    ]),
-  );
+  const version = await workerVersion(environment, target.versionId, run);
   const database = version.bindings.find((binding) => binding.name === "DB");
   const bucket = version.bindings.find(
     (binding) => binding.name === "DATASETS",
@@ -100,12 +150,14 @@ export async function verifyVersionBindings(
       "The Worker version has mismatched data or environment bindings",
     );
 }
+
 export async function restoreVersion(
   environment: RemoteEnvironment,
   target: ReleaseTarget,
+  run: CloudflareRunner = cloudflare,
 ): Promise<void> {
-  await verifyVersionBindings(environment, target);
-  await cloudflare([
+  await verifyVersionBindings(environment, target, run);
+  await run([
     "workers",
     "deployments",
     "create",
@@ -117,21 +169,13 @@ export async function restoreVersion(
     JSON.stringify([{ version_id: target.versionId, percentage: fullTraffic }]),
   ]);
 }
+
 export async function activeDatabaseId(
   environment: RemoteEnvironment,
   versionId: string,
+  run: CloudflareRunner = cloudflare,
 ): Promise<string> {
-  const version = v.parse(
-    versionSchema,
-    await cloudflare([
-      "workers",
-      "versions",
-      "get",
-      versionId,
-      "--worker-id",
-      environments[environment].worker,
-    ]),
-  );
+  const version = await workerVersion(environment, versionId, run);
   const database = version.bindings.find((binding) => binding.name === "DB");
   return v.parse(
     v.pipe(v.string(), v.uuid()),
