@@ -254,12 +254,13 @@ Its audit found 160 relations outside the pinned full metadata's recognized patt
 They require source investigation and are preserved without speculative digit repairs.
 The audit requires zero unparseable spellings, source/canonical disagreements, formatting round-trip disagreements, and duplicate numbers within a contact.
 
-Run `mise x -- just test` for the fast gate, the build checks, national data reconciliation and phone profile, complete proof inventory, and national browser campaign.
+Run `mise x -- just test` for the fast gate, national data reconciliation and phone profile, complete proof inventory, and national browser campaign.
 The command invalidates its preceding test receipt before execution and records a replacement only for an unchanged clean Git tree and dataset manifest.
 Production rejects a receipt for another dataset, source tree, format, or incomplete result.
 Dirty development checkouts can run the same checks but produce no publication receipt.
 The publisher separately checks the proof receipt and the active staging publication.
-The browser campaign uses built client and Worker output.
+The `check` stage runs the build checks after the fast gate.
+The browser campaign uses the built client and Worker output from that stage.
 It covers automatic search, Japanese composition, early input, on-device search and its switch from server results, offline search, old URL redirects, exact-name ranking, call/map/detail/source actions, external-link confirmation, denied clipboard access, native no-JavaScript continuation, retries, changed snapshots, untrusted result text, local assets, nonce handling, HTTP contracts, and complete-download hashes.
 It also queries every prefecture and category against native D1.
 Browser failures retain screenshots, videos, traces, and structured diagnostics under `test-results`.
