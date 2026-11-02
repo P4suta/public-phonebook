@@ -523,7 +523,16 @@ class RouteWalk {
     if (tag?.type === "JSXIdentifier") {
       if (/^[A-Z]/u.test(tagName))
         component = this.#reference(context, tagName, tag, true);
-    } else if (tag) this.#walk(tag, context);
+      else if (tagName === "use" && context.module.path !== iconModule)
+        this.#problems.push(
+          `${this.#at(context, tag)}: only Icon may draw a sprite symbol`,
+        );
+    } else {
+      let object = tag;
+      while (object?.type === "JSXMemberExpression")
+        object = child(object, "object");
+      if (object) this.#reference(context, nameOf(object) ?? "", object, false);
+    }
     const attributes: Record<string, string> = {};
     for (const attribute of children(node, "attributes")) {
       if (attribute.type === "JSXSpreadAttribute") {

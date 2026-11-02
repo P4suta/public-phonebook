@@ -187,6 +187,17 @@ describe("the icon walk", () => {
       "names IconName",
     ],
     [
+      "a symbol drawn outside Icon",
+      `function Page() { return <svg><use href="#icon-send" /></svg>; }`,
+      "only Icon may draw a sprite symbol",
+    ],
+    [
+      "a component reached through a member tag",
+      `const parts = { Button };
+       function Page() { return <parts.Button icon="send" />; }`,
+      "forwards an icon prop",
+    ],
+    [
       "a type predicate naming IconName",
       `function named(value: string): value is IconName { return value !== ""; }
        function Page() { return named("send"); }`,
