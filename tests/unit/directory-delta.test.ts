@@ -1,4 +1,8 @@
 import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { brotliDecompressSync } from "node:zlib";
 import * as fc from "fast-check";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
@@ -35,7 +39,15 @@ import {
   PhoneSchema,
   PublicUrlSchema,
 } from "../../src/core/models.ts";
+import {
+  type DeltaArchive,
+  type DeltaSource,
+  requireDistinctSources,
+  writeDirectoryDeltas,
+} from "../../tools/directory-delta.ts";
+import { compressDirectoryArchive } from "../../tools/snapshot.ts";
 
+const largeArchiveBytes = 1_000_000;
 const baseSnapshot = "a".repeat(64);
 const targetSnapshot = "b".repeat(64);
 const otherSnapshot = "c".repeat(64);
@@ -548,6 +560,86 @@ describe("directory deltas", () => {
         ...identity(otherTarget),
       }),
     ).toBe(false);
+  });
+
+  it("writes only verified deltas within the size rule from distinct earlier bases", async () => {
+    const root = await mkdtemp(join(tmpdir(), "phonebook-delta-files-"));
+    try {
+      const contacts = libraries(12);
+      const baseText = archive(contacts.slice(1), baseSnapshot);
+      const targetText = archive(contacts, targetSnapshot);
+      const source = (snapshot: string): DeltaSource => ({
+        snapshot,
+        read: async (): Promise<DeltaArchive> => ({
+          snapshot,
+          ...identity(baseText),
+          archiveBytes: 1,
+          text: baseText,
+        }),
+      });
+      const target = (archiveBytes: number): DeltaArchive => ({
+        snapshot: targetSnapshot,
+        ...identity(targetText),
+        archiveBytes,
+        text: targetText,
+      });
+      const published = join(root, "published");
+      await mkdir(published);
+      const [artifact, ...rest] = await writeDirectoryDeltas(
+        published,
+        target(largeArchiveBytes),
+        [source(baseSnapshot)],
+        compressDirectoryArchive,
+      );
+      expect(rest).toEqual([]);
+      if (!artifact) throw new Error("The delta was not published");
+      const bytes = await readFile(join(published, artifact.file));
+      expect(artifact).toMatchObject({
+        file: directoryDeltaFile(baseSnapshot),
+        base: baseSnapshot,
+        baseArchiveSha256: identity(baseText).archiveSha256,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+        bytes: bytes.byteLength,
+      });
+      const decoded = brotliDecompressSync(bytes).toString("utf8");
+      expect(artifact.uncompressedBytes).toBe(
+        new TextEncoder().encode(decoded).byteLength,
+      );
+      expect(applyDirectoryDelta(baseText, decoded, digest).text).toBe(
+        targetText,
+      );
+      const skipped = join(root, "skipped");
+      await mkdir(skipped);
+      expect(
+        await writeDirectoryDeltas(
+          skipped,
+          target(artifact.bytes * 2 - 1),
+          [source(baseSnapshot)],
+          compressDirectoryArchive,
+        ),
+      ).toEqual([]);
+      expect(await readdir(skipped)).toEqual([]);
+      for (const sources of [
+        [source(baseSnapshot), source(baseSnapshot)],
+        [source(targetSnapshot)],
+        Array.from({ length: 13 }, (_, index) =>
+          source(index.toString(16).padStart(64, "d")),
+        ),
+      ])
+        await expect(
+          writeDirectoryDeltas(
+            skipped,
+            target(largeArchiveBytes),
+            sources,
+            compressDirectoryArchive,
+          ),
+        ).rejects.toThrow(/distinct earlier snapshots|At most 12/u);
+      expect(() =>
+        requireDistinctSources([source(baseSnapshot)]),
+      ).not.toThrow();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   it("exhausts the delta admission, copy range, and publication decisions", () => {

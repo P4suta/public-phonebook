@@ -49,7 +49,8 @@ mise x -- npm run data -- prepare /path/to/public-snapshot.sqlite .local/next --
 ```
 
 A delta base is a prepared bundle, such as one that `just data-fetch` restored for the active or the rollback dataset.
-Preparation checks each base archive with its own manifest, applies each delta to its base, and requires the exact new archive before it records the delta.
+Preparation checks each base archive with its own manifest before it starts, so a wrong base fails at once and leaves no output.
+It decodes one base at a time, applies each delta to its base, and requires the exact new archive before it records the delta.
 It skips a delta whose Brotli bytes exceed half of the complete archive, and it logs the sizes of every delta it considers.
 The ready manifest lists the published deltas, so the dataset digest covers them, and `just data-remote` uploads them with the other archives.
 The `just data-prepare` recipe doesn't take delta bases yet, so use the `npm run data` form for them.

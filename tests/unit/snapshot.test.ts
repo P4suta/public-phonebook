@@ -33,7 +33,10 @@ import {
 import { checkDataBundle } from "../../tools/check-data.ts";
 import { parsePrepareArguments } from "../../tools/data.ts";
 import { databaseSchema } from "../../tools/database-schema.ts";
-import { sha256Digest } from "../../tools/directory-delta.ts";
+import {
+  deltaSource as bundleDeltaSource,
+  sha256Digest,
+} from "../../tools/directory-delta.ts";
 import { compressSearchIndex } from "../../tools/search-index.ts";
 import {
   compressDirectoryArchive,
@@ -661,25 +664,33 @@ it("publishes a verified delta from an earlier prepared bundle", async () => {
     );
     await writeFile(deltaPath, deltaBytes);
     await writeFile(manifestPath, manifestText);
-    await checkDataBundle(join(root, "target"));
 
-    const rewritten = await prepareContacts(
-      root,
-      "rewritten",
-      deltaContacts("2026-11-30T00:00:00Z", "博物館"),
-      [join(root, "base")],
-    );
-    expect(rewritten.deltas).toEqual([]);
-    await expect(
-      prepareContacts(root, "again", baseContacts, [join(root, "base")]),
-    ).rejects.toThrow("distinct earlier snapshots");
+    const source = await bundleDeltaSource(join(root, "base"));
+    expect(source.snapshot).toBe(base.snapshot);
+    expect((await source.read()).text).toBe(baseText);
+    const unchecked = join(root, "unchecked");
+    for (const [bases, message] of [
+      [[join(root, "missing")], "ENOENT"],
+      [[join(root, "base"), join(root, "base")], "distinct earlier snapshots"],
+    ] as const) {
+      await expect(
+        prepareSnapshot(join(root, "target.sqlite"), unchecked, undefined, [
+          ...bases,
+        ]),
+      ).rejects.toThrow(message);
+      await expect(
+        readFile(join(unchecked, "directory.sqlite")),
+      ).rejects.toThrow("ENOENT");
+    }
+    const archivePath = join(root, "base", "directory.tsv.br");
     await writeFile(
-      join(root, "base", "directory.tsv.br"),
+      archivePath,
       compressDirectoryArchive(baseText.replace("図書館0001", "図書館9999")),
     );
-    await expect(
-      prepareContacts(root, "tampered", targetContacts, [join(root, "base")]),
-    ).rejects.toThrow("differs from its manifest");
+    await expect(source.read()).rejects.toThrow("differs from its manifest");
+    await expect(bundleDeltaSource(join(root, "base"))).rejects.toThrow(
+      "differs from its manifest",
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

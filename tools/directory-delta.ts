@@ -60,8 +60,15 @@ export interface DeltaArchive {
   readonly text: string;
 }
 
-/** Reads a prepared bundle's archive after checking it against the bundle's ready manifest. */
-export async function readDeltaBase(bundle: string): Promise<DeltaArchive> {
+/** A delta base whose snapshot is known before its archive is decoded. */
+export interface DeltaSource {
+  readonly snapshot: string;
+  readonly read: () => Promise<DeltaArchive>;
+}
+
+async function listedArchive(
+  bundle: string,
+): Promise<{ readonly snapshot: string; readonly bytes: Uint8Array }> {
   const manifest = v.parse(
     PreparedDatasetManifestSchema,
     JSON.parse(await readFile(join(bundle, "manifest.ready.json"), "utf8")),
@@ -78,25 +85,60 @@ export async function readDeltaBase(bundle: string): Promise<DeltaArchive> {
     throw new Error(
       `A delta base archive differs from its manifest: ${bundle}`,
     );
-  let decoded: Uint8Array;
-  try {
-    decoded = brotliDecompressSync(bytes, {
-      maxOutputLength: maximumDecodedArchiveBytes,
-    });
-  } catch (error) {
-    throw new Error(`A delta base archive can't be decoded: ${bundle}`, {
-      cause: error,
-    });
-  }
-  const text = decodeUtf8(decoded, "delta base archive");
-  if (requireDirectoryText(text).header.snapshot !== manifest.snapshot)
-    throw new Error(`A delta base archive names another snapshot: ${bundle}`);
+  return { snapshot: manifest.snapshot, bytes };
+}
+
+/**
+ * Checks a prepared bundle's archive against its ready manifest, and decodes it only when the delta is written, so preparation rejects a bad base first and holds one base at a time.
+ */
+export async function deltaSource(bundle: string): Promise<DeltaSource> {
+  const { snapshot } = await listedArchive(bundle);
   return {
-    snapshot: manifest.snapshot,
-    archiveSha256: listed.sha256,
-    archiveBytes: listed.bytes,
-    text,
+    snapshot,
+    async read(): Promise<DeltaArchive> {
+      const listed = await listedArchive(bundle);
+      if (listed.snapshot !== snapshot)
+        throw new Error(`A delta base changed during preparation: ${bundle}`);
+      let decoded: Uint8Array;
+      try {
+        decoded = brotliDecompressSync(listed.bytes, {
+          maxOutputLength: maximumDecodedArchiveBytes,
+        });
+      } catch (error) {
+        throw new Error(`A delta base archive can't be decoded: ${bundle}`, {
+          cause: error,
+        });
+      }
+      const text = decodeUtf8(decoded, "delta base archive");
+      if (requireDirectoryText(text).header.snapshot !== snapshot)
+        throw new Error(
+          `A delta base archive names another snapshot: ${bundle}`,
+        );
+      return {
+        snapshot,
+        archiveSha256: sha256Hex(listed.bytes),
+        archiveBytes: listed.bytes.byteLength,
+        text,
+      };
+    },
   };
+}
+
+/** Rejects more bases than the manifest keeps, a repeated base, and a base at the target snapshot. */
+export function requireDistinctSources(
+  sources: readonly Pick<DeltaSource, "snapshot">[],
+  target?: string,
+): void {
+  const snapshots = new Set(sources.map((source) => source.snapshot));
+  if (sources.length > maximumDirectoryDeltas)
+    throw new Error(
+      `At most ${maximumDirectoryDeltas} delta bases are allowed`,
+    );
+  if (
+    snapshots.size !== sources.length ||
+    (target !== undefined && snapshots.has(target))
+  )
+    throw new Error("Delta bases must be distinct earlier snapshots");
 }
 
 function identity(archive: DeltaArchive): {
@@ -118,22 +160,17 @@ function identity(archive: DeltaArchive): {
 export async function writeDirectoryDeltas(
   destination: string,
   target: DeltaArchive,
-  bases: readonly DeltaArchive[],
+  sources: readonly DeltaSource[],
   compress: (text: string) => Uint8Array,
 ): Promise<readonly DirectoryDeltaArtifact[]> {
-  const snapshots = new Set(bases.map((base) => base.snapshot));
-  if (bases.length > maximumDirectoryDeltas)
-    throw new Error(
-      `At most ${maximumDirectoryDeltas} delta bases are allowed`,
-    );
-  if (snapshots.size !== bases.length || snapshots.has(target.snapshot))
-    throw new Error("Delta bases must be distinct earlier snapshots");
+  requireDistinctSources(sources, target.snapshot);
   const targetText = requireDirectoryText(target.text);
   const targetIdentity = identity(target);
   const artifacts: DirectoryDeltaArtifact[] = [];
-  for (const base of bases.toSorted((left, right) =>
+  for (const source of sources.toSorted((left, right) =>
     left.snapshot < right.snapshot ? -1 : 1,
   )) {
+    const base = await source.read();
     const text = encodeDirectoryDelta(
       requireDirectoryText(base.text),
       targetText,

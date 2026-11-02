@@ -39,7 +39,11 @@ import { contactVCard } from "../src/core/vcard.ts";
 import { categorySources } from "./category-sources.ts";
 import { mergeContacts, readCollectionOverlay } from "./collection/overlay.ts";
 import { databaseSchema } from "./database-schema.ts";
-import { readDeltaBase, writeDirectoryDeltas } from "./directory-delta.ts";
+import {
+  deltaSource,
+  requireDistinctSources,
+  writeDirectoryDeltas,
+} from "./directory-delta.ts";
 import { importContact, importSource } from "./import-contact.ts";
 import { compressSearchIndex, readSearchIndex } from "./search-index.ts";
 
@@ -176,6 +180,10 @@ export async function prepareSnapshot(
   const destination = resolve(outputPath);
   if (source.startsWith(`${destination}/`))
     throw new Error("The source must be outside the output directory");
+  const deltaSources = await Promise.all(
+    deltaBases.map((base) => deltaSource(resolve(base))),
+  );
+  requireDistinctSources(deltaSources);
   await mkdir(destination, { recursive: false });
   const input = new DatabaseSync(source, { readOnly: true });
   const output = new DatabaseSync(join(destination, "directory.sqlite"));
@@ -420,7 +428,7 @@ export async function prepareSnapshot(
     const deltas = await writeDirectoryDeltas(
       destination,
       { snapshot, archiveSha256, archiveBytes, text: directoryText },
-      await Promise.all(deltaBases.map((base) => readDeltaBase(resolve(base)))),
+      deltaSources,
       compressDirectoryArchive,
     );
     const compressedIndex = compressSearchIndex(searchIndex);
