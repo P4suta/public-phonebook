@@ -234,12 +234,12 @@ They require source investigation and are preserved without speculative digit re
 The audit requires zero unparseable spellings, source/canonical disagreements, formatting round-trip disagreements, and duplicate numbers within a contact.
 
 The release gate checks the build and the device search with these entry points, which the candidate workflow can call.
-Run `mise x -- just build-budget` after a build.
+Run `mise x -- node tools/build-budget.ts` after a build.
 It requires the gzip size of the Worker's modules to stay under 1 MiB, well below Cloudflare's compressed upload limit, so an accidental bundle fails here first.
 It also requires exactly one search Worker script of at most 40 KiB.
 The national browser campaign keeps the search page's own scripts within 260 KiB transferred and 900 KiB decoded before the index loads.
 
-Run `mise x -- just search-parity BUNDLE` after `mise x -- just data-local BUNDLE` seeds the same bundle.
+Run `mise x -- node tools/search-parity.ts BUNDLE` after `mise x -- just data-local BUNDLE` seeds the same bundle.
 It loads the bundle's index through the service that the browser Worker runs, with its admission checks.
 It asks the actual API against the seeded D1 for the same queries.
 A fixed seed draws 2,000 substrings and 1,000 display names from the index, 1,000 listed telephone numbers in two spellings, and 200 valid numbers that no contact lists.
@@ -250,7 +250,7 @@ The run fails on any difference.
 It also requires two controls to differ: previews with their first two rows swapped, and an index whose adjacent same-name rows with different details are swapped.
 It writes `.local/search-parity.json`.
 
-Run `mise x -- just search-performance BUNDLE` with the build and the seeded state to record the device search's performance in `.local/search-performance.json`.
+Run `mise x -- node tools/search-performance.ts BUNDLE` with the build and the seeded state to record the device search's performance in `.local/search-performance.json`.
 It serves the build like the browser campaign, and runs Chromium with 4x CPU throttling, desktop WebKit, and the iPhone 13 profile.
 It records the transferred index bytes, the time until the index is ready, and the p50 and p95 of the Worker's search round trip for 40 queries.
 It also records input events of 16 ms or longer while typing, long tasks in Chromium, and the main-thread heap in Chromium.
