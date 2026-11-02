@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const browserWorkers = 2;
-const testOrigin = "http://127.0.0.1:8787";
+const testOrigin = "https://127.0.0.1:8787";
 const serverTimeoutMs = 120000;
 
 export default defineConfig({
@@ -18,6 +18,7 @@ export default defineConfig({
   outputDir: "test-results/browser",
   use: {
     baseURL: testOrigin,
+    ignoreHTTPSErrors: true,
     trace: "retain-on-failure",
     video: "retain-on-failure",
     screenshot: "only-on-failure",
@@ -48,6 +49,7 @@ export default defineConfig({
   webServer: {
     command: "npm run preview",
     url: `${testOrigin}/api`,
+    ignoreHTTPSErrors: true,
     reuseExistingServer: !process.env.CI,
     timeout: serverTimeoutMs,
   },
