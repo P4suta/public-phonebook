@@ -26,6 +26,15 @@
         "https://deb.debian.org/debian?suite=bookworm-updates&components=main&binaryArch=amd64",
         "https://security.debian.org/debian-security?suite=bookworm-security&components=main&binaryArch=amd64"
       ]
+    },
+    {
+      "matchFileNames": ["verification/linux/**"],
+      "matchDatasources": ["deb"],
+      "registryUrls": [
+        "https://ports.ubuntu.com/ubuntu-ports?suite=noble&components=main,universe&binaryArch=arm64",
+        "https://ports.ubuntu.com/ubuntu-ports?suite=noble-updates&components=main,universe&binaryArch=arm64",
+        "https://ports.ubuntu.com/ubuntu-ports?suite=noble-security&components=main,universe&binaryArch=arm64"
+      ]
     }
   ]
 }
