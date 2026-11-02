@@ -31,6 +31,11 @@ phone-quality bundle report:
 check:
     npm run check
 
+check-build:
+    npm run check:build
+
+assurance: check-build prove ios-prove ios-check
+
 [positional-arguments]
 test *args:
     node tools/test.ts "$@"

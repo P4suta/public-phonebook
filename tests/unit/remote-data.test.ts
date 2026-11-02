@@ -19,10 +19,12 @@ import {
 const digest = (text: string): string =>
   createHash("sha256").update(text).digest("hex");
 const snapshot = "1".repeat(64);
+const deltaFile = `directory-delta-${"2".repeat(64)}.tsv.br`;
 const files = {
   "contacts.csv.gz": "csv archive",
   "search-index.br": "index bytes",
   "directory.sqlite": "database bytes",
+  [deltaFile]: "delta bytes",
 };
 const manifest = JSON.stringify({
   snapshot,
@@ -39,6 +41,13 @@ const manifest = JSON.stringify({
     sha256: digest(files["search-index.br"]),
     bytes: files["search-index.br"].length,
   },
+  deltas: [
+    {
+      file: deltaFile,
+      sha256: digest(files[deltaFile] ?? ""),
+      bytes: files[deltaFile]?.length ?? 0,
+    },
+  ],
 });
 const manifestSha256 = digest(manifest);
 const held = { assertHeld: (): void => undefined };
@@ -149,6 +158,7 @@ describe("dataset archive writer", () => {
     expect(await writeArchives(bucket, bundle, held)).toEqual([
       `${snapshot}/${digest(files["contacts.csv.gz"])}/contacts.csv.gz`,
       `${snapshot}/${digest(files["search-index.br"])}/search-index.br`,
+      `${snapshot}/${digest(files[deltaFile] ?? "")}/${deltaFile}`,
       `${snapshot}/${manifestSha256}/manifest.json`,
     ]);
     expect(await writeArchives(bucket, bundle, held)).toEqual([]);

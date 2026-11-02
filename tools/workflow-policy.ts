@@ -24,6 +24,8 @@ export type WorkflowRule =
   | "script-interpolation"
   | "id-token-without-environment"
   | "id-token-outside-dispatch"
+  | "change-runner-not-linux"
+  | "change-release-check"
   | "release-environment-off-main"
   | "production-without-predecessor"
   | "publication-concurrency"
@@ -51,6 +53,21 @@ const credentialTriggers: readonly string[] = [
   "workflow_call",
 ];
 
+const changeEvents = [
+  "pull_request",
+  "pull_request_target",
+  "merge_group",
+  "push",
+];
+const releaseGateRecipes = ["assurance", "check-build", "prove", "e2e", "test"];
+const linuxRunner = /^ubuntu-/u;
+const releaseGateCommand = new RegExp(
+  `\\bjust\\s+(?:${releaseGateRecipes.join("|")}|ios-[a-z-]+)(?![\\w-])|\\bplaywright\\s+install\\b`,
+  "u",
+);
+const releaseGateWorkflow =
+  /^(?:\$|\.)\/\.github\/workflows\/assurance\.ya?ml$/u;
+
 const StepSchema = v.looseObject({
   uses: v.optional(v.string()),
   run: v.optional(v.string()),
@@ -59,6 +76,7 @@ const StepsSchema = v.optional(v.array(StepSchema));
 const JobSchema = v.looseObject({
   permissions: v.optional(v.unknown()),
   environment: v.optional(v.unknown()),
+  "runs-on": v.optional(v.unknown()),
   uses: v.optional(v.string()),
   steps: StepsSchema,
 });
@@ -87,12 +105,16 @@ const TriggerSchema = v.union([
   ),
 ]);
 
-export function startsOnlyByDispatchOrCall(triggers: unknown): boolean {
+function triggerEvents(triggers: unknown): readonly string[] {
   const parsed = v.safeParse(TriggerSchema, triggers);
+  return parsed.success ? parsed.output : [];
+}
+
+export function startsOnlyByDispatchOrCall(triggers: unknown): boolean {
+  const events = triggerEvents(triggers);
   return (
-    parsed.success &&
-    parsed.output.length > 0 &&
-    parsed.output.every((trigger) => credentialTriggers.includes(trigger))
+    events.length > 0 &&
+    events.every((trigger) => credentialTriggers.includes(trigger))
   );
 }
 const ActionSchema = v.looseObject({
@@ -146,6 +168,28 @@ function stepViolations(
         : []),
     ];
   });
+}
+
+function changeJobViolations(
+  file: string,
+  location: string,
+  job: v.InferOutput<typeof JobSchema>,
+): readonly WorkflowViolation[] {
+  const violations: WorkflowViolation[] = [];
+  const runner = job["runs-on"];
+  if (job.uses !== undefined) {
+    if (releaseGateWorkflow.test(job.uses))
+      violations.push({ file, location, rule: "change-release-check" });
+  } else if (typeof runner !== "string" || !linuxRunner.test(runner))
+    violations.push({ file, location, rule: "change-runner-not-linux" });
+  for (const [index, step] of (job.steps ?? []).entries())
+    if (step.run !== undefined && releaseGateCommand.test(step.run))
+      violations.push({
+        file,
+        location: `${location}.steps[${index}]`,
+        rule: "change-release-check",
+      });
+  return violations;
 }
 
 export const releaseEnvironments: readonly string[] = [
@@ -245,6 +289,9 @@ export function workflowViolations(
   document: unknown,
 ): readonly WorkflowViolation[] {
   const workflow = v.parse(WorkflowSchema, document);
+  const runsOnChange = triggerEvents(workflow.on).some((event) =>
+    changeEvents.includes(event),
+  );
   const violations: WorkflowViolation[] = [];
   if (!("permissions" in workflow))
     violations.push({
@@ -284,6 +331,8 @@ export function workflowViolations(
     if (job.uses !== undefined)
       violations.push(...referenceViolations(file, location, job.uses));
     violations.push(...stepViolations(file, location, job.steps));
+    if (runsOnChange)
+      violations.push(...changeJobViolations(file, location, job));
     violations.push(...releaseJobViolations(file, location, job));
   }
   return violations;

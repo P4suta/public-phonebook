@@ -11,11 +11,12 @@ mise install
 mise x -- npm ci --ignore-scripts
 mise x -- npm run browsers
 mise x -- just check
+mise x -- just check-build
 ```
 
-The fast check needs no Cloudflare account, secret, or national database.
-It creates an isolated fixture database and R2 bucket under `.local/check-state`.
-Its browser server uses port 8790 and cannot overwrite the national development state.
+The fast check and the build checks need no Cloudflare account, secret, or national database.
+The build checks create an isolated fixture database and R2 bucket under `.local/check-state`.
+Their browser server uses port 8790 and cannot overwrite the national development state.
 
 ## Prepare national data
 
@@ -48,6 +49,22 @@ Both development and preview run the native Cloudflare Workers runtime with loca
 Development serves HTTP through Vite, so WebKit doesn't receive the Brotli index there and the page searches on the server.
 Use development for a loopback HTTP origin, such as the iOS screenshot command, because simulators reject the preview's self-signed certificate.
 No Container is needed.
+
+### Snapshot deltas
+
+Name the retained earlier bundles when you prepare a new snapshot, and preparation writes a delta from each of them to the new archive.
+
+```sh
+mise x -- npm run data -- prepare /path/to/public-snapshot.sqlite .local/next --delta-base .local/phonebook --delta-base .local/previous
+```
+
+A delta base is a prepared bundle, such as one that `just data-fetch` restored for the active or the rollback dataset.
+Preparation checks each base archive with its own manifest before it starts, so a wrong base fails at once and leaves no output.
+It decodes one base at a time, applies each delta to its base, and requires the exact new archive before it records the delta.
+It skips a delta whose Brotli bytes exceed half of the complete archive, and it logs the sizes of every delta it considers.
+The ready manifest lists the published deltas, so the dataset digest covers them, and `just data-remote` uploads them with the other archives.
+The `just data-prepare` recipe doesn't take delta bases yet, so use the `npm run data` form for them.
+The hosted release can't generate deltas until `release.yml` exists, and that workflow needs to fetch the retained bundles before preparation.
 
 ## Environment boundaries
 
@@ -129,6 +146,7 @@ The publisher refuses a local `--stage`, `--verify-candidate`, `--promote`, `--d
 The bundle defaults to `.local/datasets/DATASET`, which `just data-fetch` fills.
 The publisher refuses a bundle whose manifest digest differs from the named dataset.
 The stages are `check`, `data`, `phones`, `prove`, and `e2e`, and each passing stage writes `.local/receipts/TREE/MANIFEST/STAGE.json`.
+The `check` stage runs `just check` and then `just check-build`, so the evidence keeps the build and the checks that pull requests skip.
 A run of every stage also writes the combined local receipt.
 In GitHub Actions, `--record` stores each passing stage as candidate evidence under `candidates/TREE/MANIFEST/`.
 A local run can't record candidate evidence, so a local receipt never stands in for the release gate.

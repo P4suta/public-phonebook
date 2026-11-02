@@ -9,8 +9,13 @@ import { expect, it } from "vitest";
 import {
   type PreparedDatasetManifest,
   PreparedDatasetManifestSchema,
+  publicDatasetManifest,
 } from "../../src/core/dataset-storage.ts";
 import { decodeDirectoryArchive } from "../../src/core/directory-archive.ts";
+import {
+  applyDirectoryDelta,
+  decodeDirectoryDelta,
+} from "../../src/core/directory-delta.ts";
 import {
   type Catalog,
   CatalogSchema,
@@ -26,7 +31,12 @@ import {
   searchIndexLimits,
 } from "../../src/core/search-index.ts";
 import { checkDataBundle } from "../../tools/check-data.ts";
+import { parsePrepareArguments } from "../../tools/data.ts";
 import { databaseSchema } from "../../tools/database-schema.ts";
+import {
+  deltaSource as bundleDeltaSource,
+  sha256Digest,
+} from "../../tools/directory-delta.ts";
 import { compressSearchIndex } from "../../tools/search-index.ts";
 import {
   compressDirectoryArchive,
@@ -489,4 +499,232 @@ it("numbers D1 rows by normalized name and identifier and rebuilds the search in
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+const deltaFixtureCount = 600;
+
+function deltaContacts(retrievedAt: string, prefix: string): Contact[] {
+  return Array.from({ length: deltaFixtureCount }, (_, index) => {
+    const digits = String(index).padStart(4, "0");
+    return v.parse(ContactSchema, {
+      id: `delta:${digits}`,
+      name: `${prefix}${digits}号館`,
+      category: index % 3 === 0 ? "library" : "medical",
+      prefectureCode: index % 2 === 0 ? "13" : "26",
+      municipalityCode: index % 2 === 0 ? "13101" : "26366",
+      address: `所在地${digits}番地`,
+      phones: [{ display: `03-3581-${digits}`, e164: `+8133581${digits}` }],
+      website: null,
+      sourceId: "source",
+      sourceRecordId: digits,
+      sourceUrls: [`https://example.go.jp/${index % 7}`],
+      license: "CC0",
+      licenseUrl: "https://example.go.jp/terms",
+      dataAsOf: "2026-10-01",
+      retrievedAt,
+      phoneConfirmed: false,
+      phoneConfirmationUrl: null,
+    });
+  });
+}
+
+function deltaSource(contacts: readonly Contact[]): Source {
+  return v.parse(SourceSchema, {
+    id: "source",
+    url: "https://example.go.jp/data.csv",
+    sha256: "a".repeat(64),
+    dataAsOf: "2026-10-01",
+    retrievedAt: contacts[0]?.retrievedAt ?? "2026-10-30T00:00:00Z",
+    indexUrl: null,
+    indexSha256: null,
+    licenseUrl: null,
+    licenseSha256: null,
+    artifacts: [],
+    rows: contacts.length,
+    accepted: contacts.length,
+    missingPhone: 0,
+    invalid: 0,
+    duplicate: 0,
+    issues: {},
+  });
+}
+
+const deltaCatalog = v.parse(CatalogSchema, {
+  snapshot: "b".repeat(64),
+  generatedAt: "2026-10-30T00:00:00Z",
+  contacts: deltaFixtureCount,
+  phones: deltaFixtureCount,
+  sourceCount: 1,
+  categories: [],
+  prefectures: [],
+  municipalities: [
+    { code: "13101", prefectureCode: "13", name: "千代田区" },
+    { code: "26366", prefectureCode: "26", name: "精華町" },
+  ],
+});
+
+async function prepareContacts(
+  root: string,
+  name: string,
+  contacts: readonly Contact[],
+  bases: readonly string[] = [],
+): Promise<PreparedDatasetManifest> {
+  const input = join(root, `${name}.sqlite`);
+  writeInput(input, contacts, deltaSource(contacts), {
+    ...deltaCatalog,
+    contacts: contacts.length,
+  });
+  await prepareSnapshot(input, join(root, name), undefined, bases);
+  return v.parse(
+    PreparedDatasetManifestSchema,
+    JSON.parse(await readFile(join(root, name, "manifest.ready.json"), "utf8")),
+  );
+}
+
+async function decoded(path: string): Promise<string> {
+  return brotliDecompressSync(await readFile(path)).toString("utf8");
+}
+
+it("publishes a verified delta from an earlier prepared bundle", async () => {
+  const root = await mkdtemp(join(tmpdir(), "phonebook-delta-"));
+  try {
+    const baseContacts = deltaContacts("2026-10-30T00:00:00Z", "図書館");
+    const base = await prepareContacts(root, "base", baseContacts);
+    expect(base.deltas).toEqual([]);
+    const [removed, ...kept] = deltaContacts("2026-11-30T00:00:00Z", "図書館");
+    expect(removed).toBeDefined();
+    const targetContacts = kept.map((contact, index) =>
+      index === 5 ? { ...contact, name: `${contact.name}分室` } : contact,
+    );
+    const target = await prepareContacts(
+      root,
+      "target",
+      [
+        ...targetContacts,
+        v.parse(ContactSchema, { ...baseContacts[1], id: "delta:new" }),
+      ],
+      [join(root, "base")],
+    );
+    const archive = (
+      manifest: PreparedDatasetManifest,
+    ): PreparedDatasetManifest["files"][number] | undefined =>
+      manifest.files.find((file) => file.file === "directory.tsv.br");
+    const [artifact] = target.deltas;
+    if (!artifact) throw new Error("The delta was not published");
+    expect(target.deltas).toHaveLength(1);
+    expect(artifact).toMatchObject({
+      file: `directory-delta-${base.snapshot}.tsv.br`,
+      base: base.snapshot,
+      baseArchiveSha256: archive(base)?.sha256,
+    });
+    expect(artifact.bytes * 2).toBeLessThanOrEqual(archive(target)?.bytes ?? 0);
+    expect(Object.keys(publicDatasetManifest(target))).not.toContain("deltas");
+    await checkDataBundle(join(root, "target"));
+
+    const baseText = await decoded(join(root, "base", "directory.tsv.br"));
+    const targetText = await decoded(join(root, "target", "directory.tsv.br"));
+    const deltaPath = join(root, "target", artifact.file);
+    const deltaText = await decoded(deltaPath);
+    const applied = applyDirectoryDelta(baseText, deltaText, sha256Digest);
+    expect(applied.admission).toBe("apply");
+    expect(applied.text).toBe(targetText);
+    const delta = decodeDirectoryDelta(deltaText);
+    if (!delta.ok) throw new Error(delta.error);
+    expect(delta.value.header).toMatchObject({
+      kept: deltaFixtureCount - 2,
+      added: 2,
+      removed: 2,
+    });
+
+    const manifestPath = join(root, "target", "manifest.ready.json");
+    const manifestText = await readFile(manifestPath, "utf8");
+    const deltaBytes = await readFile(deltaPath);
+    const altered = deltaText.replace("分室", "別室");
+    const alteredBytes = compressDirectoryArchive(altered);
+    await writeFile(deltaPath, alteredBytes);
+    await writeFile(
+      manifestPath,
+      JSON.stringify({
+        ...target,
+        deltas: [
+          {
+            ...artifact,
+            sha256: createHash("sha256").update(alteredBytes).digest("hex"),
+            bytes: alteredBytes.byteLength,
+            uncompressedSha256: createHash("sha256")
+              .update(altered)
+              .digest("hex"),
+            uncompressedBytes: new TextEncoder().encode(altered).byteLength,
+          },
+        ],
+      } satisfies PreparedDatasetManifest),
+    );
+    await expect(checkDataBundle(join(root, "target"))).rejects.toThrow(
+      "Directory delta differs",
+    );
+    await writeFile(deltaPath, deltaBytes);
+    await writeFile(manifestPath, manifestText);
+
+    const source = await bundleDeltaSource(join(root, "base"));
+    expect(source.snapshot).toBe(base.snapshot);
+    expect((await source.read()).text).toBe(baseText);
+    const unchecked = join(root, "unchecked");
+    for (const [bases, message] of [
+      [[join(root, "missing")], "ENOENT"],
+      [[join(root, "base"), join(root, "base")], "distinct earlier snapshots"],
+    ] as const) {
+      await expect(
+        prepareSnapshot(join(root, "target.sqlite"), unchecked, undefined, [
+          ...bases,
+        ]),
+      ).rejects.toThrow(message);
+      await expect(
+        readFile(join(unchecked, "directory.sqlite")),
+      ).rejects.toThrow("ENOENT");
+    }
+    const archivePath = join(root, "base", "directory.tsv.br");
+    await writeFile(
+      archivePath,
+      compressDirectoryArchive(baseText.replace("図書館0001", "図書館9999")),
+    );
+    await expect(source.read()).rejects.toThrow("differs from its manifest");
+    await expect(bundleDeltaSource(join(root, "base"))).rejects.toThrow(
+      "differs from its manifest",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("parses delta bases after the positional preparation arguments", () => {
+  expect(
+    parsePrepareArguments([
+      "prepare",
+      "source.sqlite",
+      "out",
+      "--delta-base",
+      "first",
+      "collection",
+      "--delta-base",
+      "second",
+    ]),
+  ).toEqual({
+    source: "source.sqlite",
+    output: "out",
+    collection: "collection",
+    deltaBases: ["first", "second"],
+  });
+  expect(parsePrepareArguments(["prepare", "source", "out", ""])).toEqual({
+    source: "source",
+    output: "out",
+    collection: undefined,
+    deltaBases: [],
+  });
+  for (const args of [
+    ["prepare", "source"],
+    ["prepare", "source", "out", "--delta-base"],
+    ["prepare", "source", "out", "collection", "extra"],
+    ["publish", "source", "out"],
+  ])
+    expect(() => parsePrepareArguments(args), args.join(" ")).toThrow("Usage");
 });

@@ -3,12 +3,6 @@ name: Checks
 on:
   pull_request:
   merge_group:
-  workflow_dispatch:
-    inputs:
-      assurance:
-        description: Run the complete native and formal assurance candidate checks
-        type: boolean
-        default: false
 
 permissions: {}
 
@@ -17,122 +11,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  changes:
-    name: Change scope
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    outputs:
-      proofs: ${{ steps.scope.outputs.proofs }}
-      ios: ${{ steps.scope.outputs.ios }}
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - uses: $/.github/actions/toolchain
-        with:
-          tools: node
-          dependencies: "false"
-      - id: scope
-        env:
-          CHANGE_EVENT: ${{ github.event_name }}
-          CHANGE_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
-          ASSURANCE: ${{ github.event_name == 'workflow_dispatch' && inputs.assurance }}
-        run: node tools/change-scope.ts
   verify:
     name: Verify
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
       contents: read
     env:
-      CARGO_BUILD_JOBS: "2"
+      # `mise x` would otherwise install every pinned tool, including Rust.
+      MISE_AUTO_INSTALL: "false"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
-      - run: mise x -- npm exec --no -- playwright install --with-deps chromium
+        with:
+          tools: node just biome actionlint zizmor gitleaks
       - run: mise x -- just check
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: failure()
-        with:
-          name: verification-failure-evidence
-          path: test-results
-          if-no-files-found: ignore
-          retention-days: 7
-  proofs:
-    name: Formal assurance
-    needs: [changes, verify]
-    if: needs.changes.outputs.proofs == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    permissions:
-      contents: read
-    env:
-      CARGO_BUILD_JOBS: "2"
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/toolchain
-      - run: mise x -- just prove
-      - run: mise x -- just ios-prove
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: failure()
-        with:
-          name: proof-failure-evidence
-          path: target/ios
-          if-no-files-found: ignore
-          retention-days: 7
-  ios:
-    name: Native assurance
-    needs: [changes, verify]
-    if: needs.changes.outputs.ios == 'true'
-    runs-on: xcode-27
-    timeout-minutes: 40
-    permissions:
-      contents: read
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
-      CARGO_BUILD_JOBS: "2"
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/toolchain
-      - run: mise x -- just ios-check
-      - if: github.event_name == 'workflow_dispatch' && inputs.assurance
-        run: mise x -- just ios-sanitize
-      - if: github.event_name == 'workflow_dispatch' && inputs.assurance
-        run: mise x -- just ios-mutate
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: failure() || cancelled()
-        with:
-          name: native-failure-evidence
-          path: target/ios
-          if-no-files-found: error
-          retention-days: 7
   gate:
     name: Checks
     if: always()
-    needs: [changes, verify, proofs, ios]
+    needs: [verify]
     runs-on: ubuntu-24.04
     timeout-minutes: 1
     permissions: {}
     steps:
       - name: Require successful verification
         env:
-          CHANGES_RESULT: ${{ needs.changes.result }}
           VERIFY_RESULT: ${{ needs.verify.result }}
-          PROOFS_REQUIRED: ${{ needs.changes.outputs.proofs }}
-          PROOFS_RESULT: ${{ needs.proofs.result }}
-          IOS_REQUIRED: ${{ needs.changes.outputs.ios }}
-          IOS_RESULT: ${{ needs.ios.result }}
-        run: |
-          test "$CHANGES_RESULT" = success
-          test "$VERIFY_RESULT" = success
-          test "$PROOFS_REQUIRED:$PROOFS_RESULT" = true:success || test "$PROOFS_REQUIRED:$PROOFS_RESULT" = false:skipped
-          test "$IOS_REQUIRED:$IOS_RESULT" = true:success || test "$IOS_REQUIRED:$IOS_RESULT" = false:skipped
+        run: test "$VERIFY_RESULT" = success

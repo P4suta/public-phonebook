@@ -9,6 +9,7 @@ import {
   prefectureNames,
 } from "../../src/core/catalog.ts";
 import {
+  DirectoryDeltaListingSchema,
   manifestObjectKey,
   PreparedDatasetManifestSchema,
   SearchIndexLocationSchema,
@@ -328,6 +329,136 @@ describe("native D1 public API", () => {
       ).status,
     ).toBe(503);
     expect(() => manifestObjectKey(snapshot, "../manifest")).toThrow();
+  });
+  it("lists directory deltas from the bound manifest and serves them immutably", async () => {
+    const bucket = await runtime.getR2Bucket("DATASETS");
+    const listing = {
+      snapshot,
+      generatedAt: "2026-10-30T00:00:00Z",
+      contacts: contacts.length,
+      phones: 1,
+      sourceCount: 1,
+      sourceDatabaseSha256: "1".repeat(64),
+      databaseSha256: "2".repeat(64),
+      files: [
+        "contacts.jsonl.gz",
+        "contacts.csv.gz",
+        "contacts.vcf.gz",
+        "directory.tsv.br",
+      ].map((file) => ({
+        file,
+        sha256: "3".repeat(64),
+        bytes: 1,
+        url: `/api/datasets/${snapshot}/${"3".repeat(64)}/${file}`,
+      })),
+    };
+    const searchIndex = {
+      file: "search-index.br",
+      sha256: "5".repeat(64),
+      bytes: 1,
+      uncompressedSha256: "6".repeat(64),
+      uncompressedBytes: 2,
+    };
+    const deltaBytes = new TextEncoder().encode("delta bytes");
+    const deltaSha256 = createHash("sha256").update(deltaBytes).digest("hex");
+    const base = "7a".repeat(32);
+    const file = `directory-delta-${base}.tsv.br`;
+    const artifact = {
+      base,
+      baseArchiveSha256: "8".repeat(64),
+      file,
+      sha256: deltaSha256,
+      bytes: deltaBytes.byteLength,
+      uncompressedSha256: "9".repeat(64),
+      uncompressedBytes: 40,
+    };
+    const manifest = JSON.stringify({
+      ...listing,
+      searchIndex,
+      deltas: [artifact],
+    });
+    const digest = await sha256(manifest);
+    await bucket.put(manifestObjectKey(snapshot, digest), manifest);
+    await bucket.put(`${snapshot}/${deltaSha256}/${file}`, deltaBytes);
+    const legacy = JSON.stringify({ ...listing, searchIndex });
+    const legacyDigest = await sha256(legacy);
+    await bucket.put(manifestObjectKey(snapshot, legacyDigest), legacy);
+    const fetch = async (
+      path: string,
+      manifestSha256 = digest,
+    ): Promise<Response> =>
+      api.fetch(new Request(`https://www.dial.page${path}`), {
+        ...bindings,
+        APP_ENV: "production",
+        DATASET_MANIFEST_SHA256: manifestSha256,
+      });
+
+    expect(await (await fetch("/api/datasets")).text()).toBe(
+      JSON.stringify(listing),
+    );
+    for (const prefix of ["/api", "/api/v1"]) {
+      const response = await fetch(
+        prefix === "/api/v1"
+          ? `${prefix}/dataset-deltas?snapshot=${snapshot}`
+          : `${prefix}/dataset-deltas`,
+      );
+      expect(response.status, prefix).toBe(200);
+      expect(response.headers.get("X-Dataset-Snapshot")).toBe(snapshot);
+      expect(response.headers.get("Cache-Control")).toContain("no-cache");
+      const url = `${prefix}/datasets/${snapshot}/${deltaSha256}/${file}`;
+      expect(
+        v.parse(DirectoryDeltaListingSchema, await response.json()),
+      ).toEqual({
+        snapshot,
+        archiveSha256: "3".repeat(64),
+        deltas: [{ ...artifact, url }],
+      });
+      const download = await fetch(url);
+      expect(download.status).toBe(200);
+      expect(download.headers.get("Content-Type")).toBe(
+        "application/octet-stream",
+      );
+      expect(download.headers.get("Cache-Control")).toBe(
+        "public, max-age=31536000, immutable",
+      );
+      expect(download.headers.get("Content-Disposition")).toBe(
+        `attachment; filename="${file}"`,
+      );
+      expect(download.headers.get("X-Dataset-Snapshot")).toBe(snapshot);
+      expect(new Uint8Array(await download.arrayBuffer())).toEqual(deltaBytes);
+      const etag = download.headers.get("ETag") ?? "";
+      expect(
+        (
+          await api.fetch(
+            new Request(`https://www.dial.page${url}`, {
+              headers: { "If-None-Match": etag },
+            }),
+            bindings,
+          )
+        ).status,
+      ).toBe(304);
+    }
+    expect(
+      (await fetch(`/api/v1/dataset-deltas?snapshot=${"0".repeat(64)}`)).status,
+    ).toBe(409);
+    expect((await fetch("/api/v1/dataset-deltas?snapshot=x")).status).toBe(400);
+    expect(
+      (await fetch(`/api/dataset-deltas?snapshot=${snapshot}`)).status,
+    ).toBe(400);
+    for (const name of [
+      `directory-delta-${base}.tsv`,
+      `directory-delta-${base.toUpperCase()}.tsv.br`,
+      "directory-delta-7.tsv.br",
+    ])
+      expect(
+        (await fetch(`/api/v1/datasets/${snapshot}/${deltaSha256}/${name}`))
+          .status,
+        name,
+      ).toBe(404);
+    expect(
+      await (await fetch("/api/v1/dataset-deltas", legacyDigest)).json(),
+    ).toEqual({ snapshot, archiveSha256: "3".repeat(64), deltas: [] });
+    expect((await fetch("/api/v1/dataset-deltas", "")).status).toBe(503);
   });
   it("rejects duplicate categories, foreign rows, mixed snapshots, and false group totals", async () => {
     const body: unknown = await (
