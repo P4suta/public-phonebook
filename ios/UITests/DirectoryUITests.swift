@@ -13,12 +13,12 @@ final class DirectoryUITests: XCTestCase {
   override func tearDown() async throws {
     await MainActor.run {
       let app = XCUIApplication()
-      if let run = testRun, run.totalFailureCount > 0, app.state == .runningForeground {
-        capture(app, name: "failure")
-        let hierarchy = XCTAttachment(string: app.debugDescription)
-        hierarchy.name = "failure-accessibility-tree"
-        hierarchy.lifetime = .keepAlways
-        add(hierarchy)
+      if let run = testRun, run.totalFailureCount > 0 {
+        attach(service?.log ?? "The fixture wasn't running.", name: "fixture-requests")
+        if app.state == .runningForeground {
+          capture(app, name: "failure")
+          attach(app.debugDescription, name: "failure-accessibility-tree")
+        }
       }
       XCUIDevice.shared.orientation = .portrait
       app.terminate()
@@ -39,7 +39,7 @@ final class DirectoryUITests: XCTestCase {
     app.buttons["onboarding-later"].tap()
     let finish = app.buttons["onboarding-finish"]
     XCTAssertTrue(finish.waitForExistence(timeout: 10))
-    waitUntil(finish.isEnabled, timeout: 60)
+    waitUntilSaved(finish, in: app, timeout: 60)
     capture(app, name: "onboarding-ready")
     finish.tap()
     XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 10))
@@ -60,7 +60,7 @@ final class DirectoryUITests: XCTestCase {
     capture(app, name: "grouped-results")
     let requests = try proxy().requests.count
     more.tap()
-    waitUntil(!more.exists, timeout: 10)
+    waitUntil("the more button disappears", !more.exists, timeout: 10)
     reveal(hidden, in: app)
     XCTAssertEqual(try proxy().requests.count, requests)
   }
@@ -131,14 +131,18 @@ final class DirectoryUITests: XCTestCase {
   func testPortraitLandscapeRoundTrip() throws {
     let app = prepared()
     XCUIDevice.shared.orientation = .landscapeLeft
-    waitUntil(app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
+    waitUntil(
+      "the window is landscape",
+      app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
     capture(app, name: "landscape-before-search")
     search("試験", in: app)
     app.buttons["contact-detail"].firstMatch.tap()
     XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
     capture(app, name: "landscape-detail")
     XCUIDevice.shared.orientation = .portrait
-    waitUntil(app.windows.firstMatch.frame.width < app.windows.firstMatch.frame.height)
+    waitUntil(
+      "the window is portrait",
+      app.windows.firstMatch.frame.width < app.windows.firstMatch.frame.height)
     reveal(app.buttons["source-link"], in: app)
     capture(app, name: "portrait-detail-after-rotation")
   }
@@ -170,7 +174,7 @@ final class DirectoryUITests: XCTestCase {
     app.buttons["onboarding-later"].tap()
     let finish = app.buttons["onboarding-finish"]
     XCTAssertTrue(finish.waitForExistence(timeout: 10))
-    waitUntil(finish.isEnabled, timeout: 60)
+    waitUntilSaved(finish, in: app, timeout: 60)
     XCTAssertFalse(problem.exists)
     XCTAssertEqual(try proxy().injected, 1)
   }
@@ -189,7 +193,9 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(app.descendants(matching: .any)["sync-progress"].exists)
     capture(app, name: "directory-downloading")
     cancel.tap()
-    waitUntil(!app.descendants(matching: .any)["sync-progress"].exists, timeout: 15)
+    waitUntil(
+      "the save progress disappears", !app.descendants(matching: .any)["sync-progress"].exists,
+      timeout: 15)
     XCTAssertEqual(saved.label, label)
     app.terminate()
     app.launch()
@@ -269,7 +275,8 @@ final class DirectoryUITests: XCTestCase {
   private func onboard(_ app: XCUIApplication, timeout: TimeInterval = 60) {
     let field = app.searchFields.firstMatch
     let start = app.buttons["onboarding-start"]
-    waitUntil(field.exists || start.exists, timeout: 15)
+    waitUntil(
+      "the search field or the start button appears", field.exists || start.exists, timeout: 15)
     guard start.exists else { return }
     start.tap()
     let later = app.buttons["onboarding-later"]
@@ -277,7 +284,7 @@ final class DirectoryUITests: XCTestCase {
     later.tap()
     let finish = app.buttons["onboarding-finish"]
     XCTAssertTrue(finish.waitForExistence(timeout: 10))
-    waitUntil(finish.isEnabled, timeout: timeout)
+    waitUntilSaved(finish, in: app, timeout: timeout)
     finish.tap()
     XCTAssertTrue(field.waitForExistence(timeout: 10))
   }
@@ -293,6 +300,13 @@ final class DirectoryUITests: XCTestCase {
     shot.name = name
     shot.lifetime = .keepAlways
     add(shot)
+  }
+
+  private func attach(_ text: String, name: String) {
+    let attachment = XCTAttachment(string: text)
+    attachment.name = name
+    attachment.lifetime = .keepAlways
+    add(attachment)
   }
 
   private func proxy() throws -> ServiceFixture {
@@ -322,16 +336,56 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(app.staticTexts["saved-date"].waitForExistence(timeout: 10))
   }
 
+  /// Waits as a named step and, on timeout, fails at the caller with the elapsed time.
   private func waitUntil(
-    _ condition: @autoclosure @escaping () -> Bool, timeout: TimeInterval = 10
+    _ description: String, _ condition: @autoclosure @escaping () -> Bool,
+    timeout: TimeInterval = 10, observed: () -> String = { "" },
+    file: StaticString = #filePath, line: UInt = #line
   ) {
-    let expected = XCTNSPredicateExpectation(
-      predicate: NSPredicate { _, _ in MainActor.assumeIsolated { condition() } }, object: nil)
-    XCTAssertEqual(XCTWaiter.wait(for: [expected], timeout: timeout), .completed)
+    XCTContext.runActivity(named: "Wait up to \(timeout) s until \(description)") { _ in
+      let started = ContinuousClock.now
+      let expected = XCTNSPredicateExpectation(
+        predicate: NSPredicate { _, _ in MainActor.assumeIsolated { condition() } }, object: nil)
+      let result = XCTWaiter.wait(for: [expected], timeout: timeout)
+      guard result != .completed else { return }
+      let elapsed = started.duration(to: .now).formatted(
+        .units(allowed: [.seconds], width: .narrow, fractionalPart: .show(length: 1)))
+      let ending = result == .timedOut ? "timed out" : "ended with result \(result.rawValue)"
+      XCTFail(
+        "Waiting until \(description) \(ending) after \(elapsed). \(observed())",
+        file: file, line: line)
+    }
   }
 
-  private func waitForLabel(_ element: XCUIElement, _ label: String, timeout: TimeInterval = 15) {
-    waitUntil(element.exists && element.label == label, timeout: timeout)
+  /// Waits for a completed save to enable the finish button, reporting the save state on timeout.
+  private func waitUntilSaved(
+    _ finish: XCUIElement, in app: XCUIApplication, timeout: TimeInterval,
+    file: StaticString = #filePath, line: UInt = #line
+  ) {
+    waitUntil(
+      "the saved directory enables the finish button", finish.isEnabled, timeout: timeout,
+      observed: { self.saveState(app) }, file: file, line: line)
+  }
+
+  /// Describes the save progress and save error that the screen shows.
+  private func saveState(_ app: XCUIApplication) -> String {
+    let progress = app.descendants(matching: .any)["sync-progress"]
+    let problem = app.staticTexts["sync-error"]
+    let saving =
+      progress.exists
+      ? "save progress \(progress.value as? String ?? "without a value")" : "no save progress"
+    let error = problem.exists ? "the save error “\(problem.label)”" : "no save error"
+    return "The screen shows \(saving) and \(error)."
+  }
+
+  private func waitForLabel(
+    _ element: XCUIElement, _ label: String, timeout: TimeInterval = 15,
+    file: StaticString = #filePath, line: UInt = #line
+  ) {
+    waitUntil(
+      "the element shows “\(label)”", element.exists && element.label == label, timeout: timeout,
+      observed: { element.exists ? "It shows “\(element.label)”." : "It doesn't exist." },
+      file: file, line: line)
   }
 
   private func reveal(

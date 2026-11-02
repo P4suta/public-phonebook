@@ -28,6 +28,7 @@ The `Checks` summary job is the required status check.
 A change-scope job lists the changed paths with Git and starts the formal and native assurance jobs only when their inputs change.
 `tools/change-scope.ts` declares those inputs, including the workflow, the shared toolchain action, `mise.toml`, and `justfile`.
 The formal job runs `just prove` and `just ios-prove`, and the native job runs `just ios-check` on the `xcode-27` runner.
+A failed or cancelled native job uploads `target/ios` with the [evidence of each failed UI scenario](ios.md) as a seven-day artifact.
 The manual `assurance` input starts both jobs for any change and adds the sanitizer and mutation campaigns.
 The national multi-browser campaign remains outside the per-change CI gate.
 The manual runner probe workflow reports the processor, memory, disk, Xcode versions, and simulators of the hosted runners.

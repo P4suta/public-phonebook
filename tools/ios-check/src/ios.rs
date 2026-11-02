@@ -11,10 +11,11 @@ use std::{
     path::{Path, PathBuf},
     process::{Child, Command, Output, Stdio},
     thread,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 mod build_number;
 mod distribution;
+mod failure;
 mod mutation;
 mod proof;
 mod receipts;
@@ -517,6 +518,7 @@ fn device(root: &Path) -> Result<Simulator> {
         "simulator-ready",
         Command::new("xcrun").args(["simctl", "bootstatus", simulator.id(), "-b"]),
     )?;
+    persist_app_trace(root, simulator.id())?;
     for (key, value) in [
         ("DidShowContinuousPathIntroduction", "true"),
         ("KeyboardContinuousPathEnabled", "false"),
@@ -538,6 +540,25 @@ fn device(root: &Path) -> Result<Simulator> {
         )?;
     }
     Ok(simulator)
+}
+
+/// Keeps the app's info-level directory trace in the simulator log until the simulator shuts down.
+fn persist_app_trace(root: &Path, identifier: &str) -> Result<Output> {
+    logged(
+        root,
+        "simulator-log-config",
+        Command::new("xcrun").args([
+            "simctl",
+            "spawn",
+            identifier,
+            "log",
+            "config",
+            "--subsystem",
+            failure::APP_SUBSYSTEM,
+            "--mode",
+            "level:info,persist:info",
+        ]),
+    )
 }
 
 fn ui_command(root: &Path, identifier: &str) -> Command {
@@ -725,6 +746,10 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
     if receipt.exists() {
         fs::remove_file(&receipt)?;
     }
+    let evidence = root.join(failure::EVIDENCE);
+    if evidence.exists() {
+        fs::remove_dir_all(&evidence)?;
+    }
     let sources = source_hashes(root)?;
     let _fixture = if live {
         None
@@ -770,9 +795,35 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
         selected.iter().map(String::as_str).collect()
     };
     let mut completed = Vec::new();
+    let mut recoveries = Vec::new();
+    let mut previous = SystemTime::now();
     for name in names {
         {
             let case = name.to_owned();
+            let state = failure::simulator_state(&identifier, &failure::Xcode)?;
+            if state != failure::BOOTED {
+                let evidence = failure::keep_host_state(
+                    root,
+                    &format!("simulator-before-{case}"),
+                    previous,
+                    &failure::Xcode,
+                )?;
+                println!(
+                    "iOS check: the simulator was {state} before {case}; host evidence: {evidence}"
+                );
+                recoveries.push(json!({"before":case,"state":state,"evidence":evidence}));
+                ensure!(
+                    recoveries.len() <= failure::MAX_SIMULATOR_RECOVERIES,
+                    "The simulator left the booted state {} times; inspect {evidence}",
+                    recoveries.len()
+                );
+                logged(
+                    root,
+                    "recover-simulator",
+                    Command::new("xcrun").args(["simctl", "bootstatus", &identifier, "-b"]),
+                )?;
+                persist_app_trace(root, &identifier)?;
+            }
             if !completed.is_empty() {
                 logged(
                     root,
@@ -788,6 +839,8 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
                     .arg(&application),
             )?;
             let result = directory.join(format!("{case}.xcresult"));
+            let started = SystemTime::now();
+            previous = started;
             let execution = logged(
                 root,
                 &case,
@@ -813,16 +866,43 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
                 require_ui_case(&read_result("summary")?, &read_result("tests")?, name)
             });
             let error = verdict.as_ref().err().map(|error| format!("{error:#}"));
+            let evidence = error.as_ref().map(|error| {
+                println!("FAIL: {case}: {error}");
+                let scenario = failure::Scenario {
+                    root,
+                    simulator: &identifier,
+                    name,
+                    bundle: &result,
+                    started,
+                };
+                match failure::keep(&scenario, &failure::Xcode) {
+                    Ok(kept) => {
+                        for failed in &kept.failures {
+                            println!("  failure: {}", failed.text);
+                            for location in &failed.locations {
+                                println!("    at {location}");
+                            }
+                        }
+                        for gap in &kept.errors {
+                            println!("  evidence gap: {gap}");
+                        }
+                        println!("  evidence: {}", kept.directory);
+                        kept.record()
+                    }
+                    Err(error) => {
+                        println!("  evidence was not kept: {error:#}");
+                        json!({"error":format!("{error:#}")})
+                    }
+                }
+            });
+            if error.is_none() {
+                println!("PASS: {case}");
+            }
             completed.push(json!({
                 "test":name,
                 "result":if verdict.is_ok() { "passed" } else { "failed" },
-                "error":error,"bundle":result
+                "error":error,"bundle":result,"evidence":evidence
             }));
-            if let Some(error) = error {
-                println!("FAIL: {case}: {error}");
-            } else {
-                println!("PASS: {case}");
-            }
         }
     }
     require_current_sources(root, &sources)?;
@@ -836,7 +916,7 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
         "result":if failed == 0 { "passed" } else { "failed" }, "complete_controlled_inventory":selected.is_empty() && !live,
         "api_environment":if live { "configured public service" } else { "controlled real service fixture" },
         "live_api_origin":if live { Some(plist_string(&application.join("Info.plist"), "PhonebookAPIOrigin")?) } else { None },
-            "tests":completed, "source_sha256":source_records(&sources),
+            "tests":completed, "simulator_recoveries":recoveries, "source_sha256":source_records(&sources),
             "state_isolation":"dedicated erased simulator; application reinstalled before every scenario",
             "simulator_runtime":RUNTIME, "simulator_device":DEVICE_TYPE,
             "physical_device":"not run", "background_scope":"foreground/background UI transitions, not discretionary BGTaskScheduler delivery"
@@ -844,8 +924,8 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
     )?;
     ensure!(
         failed == 0,
-        "{failed} native iOS UI scenarios failed; {}",
-        directory.display()
+        "{failed} native iOS UI scenarios failed; inspect {}",
+        evidence.display()
     );
     println!(
         "PASS: {} native iOS UI scenarios; {}",
