@@ -160,7 +160,8 @@ Conditional writes keep one writer per object: a create sends `If-None-Match: *`
 | --- | --- | --- |
 | `blobs/sha256/DIGEST` | Databases and archives | Once |
 | `datasets/MANIFEST/` | Ready manifest and catalog for verification | Once |
-| `collections/REPORT/`, `collection-cache/` | Collection reports and cached sources | Once |
+| `collections/REPORT/` | Collection outputs, source artifact list, and prepared dataset link | Once |
+| `collection-cache/DIGEST` | Source bytes of a collection | Once |
 | `candidates/TREE/MANIFEST/STAGE.json` | Candidate evidence per stage | Once |
 | `journals/ENV/head.json` | Current publication journal | Conditional replacement |
 | `journals/ENV/history/SEQUENCE.json` | Every journal record | Append-only, bucket lock |
@@ -173,6 +174,7 @@ Verification reads the manifest and catalog from `datasets/MANIFEST/`, so the jo
 Each publication command holds the environment's lease, which lasts 10 minutes, renews every 60 seconds, and expires by R2's response time.
 A second publisher is refused while the lease is live and can take it over after it expires.
 The [control bucket decision](adr/keep-release-records-in-a-conditionally-written-control-bucket.md) explains the format and the lease.
+The `Collect` workflow writes the collection keys and a prepared dataset from the `data` environment, as [data sources](data-sources.md#collection-in-github-actions) describes.
 
 Import the owner's format 1 records once, after checking the plan.
 

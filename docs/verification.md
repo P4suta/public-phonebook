@@ -21,6 +21,8 @@ The typed policy in `tools/workflow-policy.ts` also checks every workflow and lo
 It requires explicit permissions on every workflow and job, and every top-level block must be empty.
 It allows only `actions/checkout`, `actions/cache`, `actions/upload-artifact`, `actions/download-artifact`, `dopplerhq/secrets-fetch-action`, and `jdx/mise-action`, each pinned to a full commit SHA.
 It rejects `inputs` or `github.event` expressions inside a `run:` script, which must receive those values through `env:`.
+It admits `id-token: write` only in a job that names an environment or calls a reusable workflow.
+A workflow with such a job may start only from `workflow_dispatch` or `workflow_call`.
 Its unit tests keep a violating workflow for every rule as a negative control.
 
 CI runs the same command on Linux with pinned tools, immutable action revisions, and no secrets.

@@ -26,6 +26,14 @@ import {
   readHtmlTables,
   readWorkbookTables,
 } from "./read-tables.ts";
+import {
+  type CollectionFile,
+  collectionFiles,
+  collectionReportFile,
+  encodeCollectionReport,
+  fileIdentity,
+  type PlanReport,
+} from "./report.ts";
 import { SchoolRegistry } from "./school-registry.ts";
 
 const sourceHashWidth = 32;
@@ -121,7 +129,7 @@ export async function collectDirectories(input: {
   const candidates = new Map<string, Contact[]>();
   const conflicts: { id: string; sources: string[] }[] = [];
   const sources: Source[] = [];
-  const reports: unknown[] = [];
+  const reports: PlanReport[] = [];
   const failures: { id: string; error: string }[] = [];
   const plans = manifest.sources.filter(
     (source) => !input.only || new RegExp(input.only, "u").test(source.id),
@@ -303,14 +311,20 @@ export async function collectDirectories(input: {
   const ordered = Array.from(contacts.values()).sort((a, b) =>
     a.id.localeCompare(b.id),
   );
-  await writeFile(
-    join(input.output, "contacts.jsonl"),
-    ordered.map((contact) => JSON.stringify(contact)).join("\n") + "\n",
-  );
-  await writeFile(
-    join(input.output, "sources.json"),
-    JSON.stringify(sources, null, jsonIndentation) + "\n",
-  );
+  const encoder = new TextEncoder();
+  const outputs: Record<CollectionFile, Uint8Array> = {
+    "contacts.jsonl": encoder.encode(
+      ordered.map((contact) => JSON.stringify(contact)).join("\n") + "\n",
+    ),
+    "sources.json": encoder.encode(
+      JSON.stringify(sources, null, jsonIndentation) + "\n",
+    ),
+    "artifacts.json": encoder.encode(
+      JSON.stringify(await store.artifacts(), null, jsonIndentation) + "\n",
+    ),
+  };
+  for (const file of collectionFiles)
+    await writeFile(join(input.output, file), outputs[file]);
   const coverage = new Map<string, number>();
   for (const contact of ordered)
     coverage.set(
@@ -318,22 +332,22 @@ export async function collectDirectories(input: {
       (coverage.get(`${contact.prefectureCode}:${contact.category}`) ?? 0) + 1,
     );
   await writeFile(
-    join(input.output, "collection-report.json"),
-    JSON.stringify(
+    join(input.output, collectionReportFile),
+    encodeCollectionReport(
       {
-        complete: failures.length === 0,
         registrySchools: registry.schools.length,
         contacts: contacts.size,
         conflicts,
-        coverage: Object.fromEntries(
-          Array.from(coverage).sort(([a], [b]) => a.localeCompare(b)),
-        ),
+        coverage,
         plans: reports,
         failures,
       },
-      null,
-      jsonIndentation,
-    ) + "\n",
+      {
+        "contacts.jsonl": fileIdentity(outputs["contacts.jsonl"]),
+        "sources.json": fileIdentity(outputs["sources.json"]),
+        "artifacts.json": fileIdentity(outputs["artifacts.json"]),
+      },
+    ),
   );
   console.info(
     JSON.stringify({
