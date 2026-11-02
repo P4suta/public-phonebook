@@ -6,6 +6,8 @@ import { expect, test } from "./fixtures.ts";
 
 const redirectFree = 0;
 const layoutShiftLimit = 0.1;
+// Enough inserted header copies to push the reference at least a viewport down.
+const insertedHeaders = 4;
 
 async function knownContactPath(request: APIRequestContext): Promise<string> {
   const raw: unknown = await (
@@ -16,25 +18,42 @@ async function knownContactPath(request: APIRequestContext): Promise<string> {
   return `/contacts/${encodeURIComponent(contact.id)}`;
 }
 
-async function referenceLayoutShift(page: Page): Promise<number> {
+async function referenceLayoutShift(
+  page: Page,
+  moveReference: boolean,
+): Promise<number> {
   await page.goto("/developers");
-  await expect(page.locator("[data-api-reference]")).toHaveAttribute(
-    "data-ready",
-    "true",
-  );
+  await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
   return page.evaluate(
-    () =>
+    ({ move, copies }) =>
       new Promise<number>((resolve) => {
         let total = 0;
-        new PerformanceObserver((entries) => {
-          for (const entry of entries.getEntries())
+        function add(entries: readonly PerformanceEntry[]): void {
+          for (const entry of entries)
             if (!("hadRecentInput" in entry && entry.hadRecentInput))
               total += "value" in entry ? Number(entry.value) : 0;
-        }).observe({ type: "layout-shift", buffered: true });
+        }
+        const observer = new PerformanceObserver((list) =>
+          add(list.getEntries()),
+        );
+        observer.observe({ type: "layout-shift", buffered: true });
+        const header = document.querySelector("main > header");
+        if (!header) throw new Error("The reference header is missing");
+        for (let index = 0; move && index < copies; index += 1) {
+          const copy = header.cloneNode(true);
+          if (!(copy instanceof Element))
+            throw new Error("The reference header copy is missing");
+          header.insertAdjacentElement("afterend", copy);
+        }
         requestAnimationFrame(() =>
-          requestAnimationFrame(() => resolve(total)),
+          requestAnimationFrame(() => {
+            add(observer.takeRecords());
+            observer.disconnect();
+            resolve(total);
+          }),
         );
       }),
+    { move: moveReference, copies: insertedHeaders },
   );
 }
 
@@ -87,25 +106,16 @@ test.describe("API reference loading", () => {
   test("the API reference doesn't move visible content while it loads", async ({
     page,
   }) => {
-    expect(await referenceLayoutShift(page)).toBeLessThan(layoutShiftLimit);
+    expect(await referenceLayoutShift(page, false)).toBeLessThan(
+      layoutShiftLimit,
+    );
   });
 
-  test("the layout-shift measurement detects a reference that enters the page flow early", async ({
+  test("the layout-shift measurement detects content inserted above the reference", async ({
     page,
   }) => {
-    await page.addInitScript(() => {
-      document.addEventListener("DOMContentLoaded", () => {
-        const nonce = document.querySelector<HTMLMetaElement>(
-          'meta[property="csp-nonce"]',
-        )?.content;
-        if (!nonce) throw new Error("The document nonce is missing");
-        const sheet = document.createElement("style");
-        sheet.nonce = nonce;
-        sheet.textContent =
-          '[data-api-reference][data-ready="false"] { position: static !important; visibility: visible !important; }';
-        document.head.appendChild(sheet);
-      });
-    });
-    expect(await referenceLayoutShift(page)).toBeGreaterThan(layoutShiftLimit);
+    expect(await referenceLayoutShift(page, true)).toBeGreaterThan(
+      layoutShiftLimit,
+    );
   });
 });

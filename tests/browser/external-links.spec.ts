@@ -64,11 +64,6 @@ async function stubOtherSites(
 async function openPage(page: Page, path: string): Promise<void> {
   await page.goto(path);
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
-  if (path === "/developers")
-    await expect(page.locator("[data-api-reference]")).toHaveAttribute(
-      "data-ready",
-      "true",
-    );
 }
 
 function confirmation(page: Page): Locator {
@@ -145,18 +140,25 @@ test("every external link type confirms its destination before opening a tab", a
       description: destinations.cloudflarePrivacy,
     },
     {
-      path: "/developers",
-      link: (): Locator =>
-        page
-          .locator('[data-api-reference] a[target="_blank"]')
-          .filter({ visible: true }),
+      path: "/privacy",
+      link: (): Locator => page.locator("#undeclared-destination"),
       description: destinations.other,
+      prepare: async (): Promise<void> =>
+        page
+          .locator('a[data-external-destination="cloudflarePrivacy"]')
+          .evaluate((source) => {
+            const copy = source.cloneNode(true);
+            if (!(copy instanceof HTMLAnchorElement))
+              throw new Error("The undeclared destination fixture is missing");
+            copy.id = "undeclared-destination";
+            delete copy.dataset.externalDestination;
+            source.insertAdjacentElement("afterend", copy);
+          }),
     },
   ];
-  for (const { path, link: find, description } of cases) {
+  for (const { path, link: find, description, ...fixture } of cases) {
     await openPage(page, path);
-    const menu = page.getByRole("button", { name: "APIの一覧を開く" });
-    if (path === "/developers" && (await menu.isVisible())) await menu.click();
+    if ("prepare" in fixture) await fixture.prepare();
     const link = find().first();
     const href = await linkHref(link);
     const dialog = confirmation(page);
@@ -344,11 +346,6 @@ test("every screen preserves external navigation and the gate rejects missing pr
     "/missing-page",
   ]) {
     await page.goto(route);
-    if (route === "/developers")
-      await expect(page.locator("[data-api-reference]")).toHaveAttribute(
-        "data-ready",
-        "true",
-      );
     expect(await page.locator("a[href]").count(), route).toBeGreaterThan(0);
     expect(await externalLinkIssues(page), route).toEqual([]);
     expect(await externalScriptIssues(page), route).toEqual([]);

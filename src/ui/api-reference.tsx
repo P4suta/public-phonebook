@@ -1,323 +1,477 @@
-import { ApiReferenceReact } from "@scalar/api-reference-react";
+import { type FormEvent, type ReactElement, useRef, useState } from "react";
 import {
-  type ComponentProps,
-  type ReactElement,
-  useEffect,
-  useRef,
-} from "react";
-import "@scalar/api-reference-react/style.css";
+  codeExamples,
+  exampleValues,
+  operationSearchKey,
+  planReferenceRequest,
+  type ReferenceModel,
+  type ReferenceOperation,
+  type ReferenceParameter,
+  type ReferenceSearch,
+  type ReferenceValues,
+  requestValues,
+} from "../core/api-reference.ts";
+import * as css from "./api-reference.css.ts";
+import {
+  referenceCopy,
+  showsContractText,
+  statusMeaning,
+} from "./api-reference-copy.ts";
+import { CopyButton } from "./components.tsx";
 import { Icon } from "./icons.tsx";
-import { enhanceReference } from "./reference-accessibility.ts";
+import {
+  attemptPlan,
+  browserSender,
+  displayLimitKibibytes,
+  type ReferenceAttempt,
+} from "./reference-request.ts";
+import * as styles from "./styles.css.ts";
 
-export default function ApiReference({
-  content,
-  onReady,
+function japaneseSummary(operation: ReferenceOperation): string {
+  return referenceCopy.summaries[operation.id] ?? operation.summary;
+}
+
+function operationName(operation: ReferenceOperation): string {
+  return `${operation.method} ${operation.path}`;
+}
+
+function Navigation({
+  model,
 }: {
-  readonly content: string;
-  readonly onReady: () => void;
+  readonly model: ReferenceModel;
 }): ReactElement {
-  const externalIcon = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    function enhanceLinks(): void {
-      enhanceReference(document);
-      const icon = externalIcon.current?.querySelector("svg");
-      if (!icon) return;
-      for (const link of document.querySelectorAll("a[href]")) {
-        if (!(link instanceof HTMLAnchorElement)) continue;
-        const url = new URL(link.href);
-        if (
-          !["http:", "https:"].includes(url.protocol) ||
-          url.origin === location.origin
-        )
-          continue;
-        link.target = "_blank";
-        link.relList.add("noopener", "noreferrer");
-        const label =
-          link.getAttribute("aria-label") ??
-          link.textContent?.trim() ??
-          "外部のページ";
-        if (!label.includes("新しいタブ"))
-          link.setAttribute("aria-label", `${label}（新しいタブ）`);
-        if (!link.querySelector('svg[data-icon="external-link"]'))
-          link.appendChild(icon.cloneNode(true));
-      }
-    }
-    const observer = new MutationObserver(enhanceLinks);
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: [
-        "role",
-        "aria-controls",
-        "aria-expanded",
-        "aria-label",
-        "contenteditable",
-      ],
-    });
-    enhanceLinks();
-    return (): void => observer.disconnect();
-  }, []);
-  const configuration: ComponentProps<
-    typeof ApiReferenceReact
-  >["configuration"] = {
-    url: "/api/openapi.json",
-    content,
-    layout: "modern",
-    theme: "none",
-    withDefaultFonts: false,
-    telemetry: false,
-    forceDarkModeState: "light",
-    hideDarkModeToggle: true,
-    hideClientButton: true,
-    showDeveloperTools: "never",
-    agent: { disabled: true },
-    proxyUrl: "",
-    defaultHttpClient: { targetKey: "js", clientKey: "fetch" },
-    featuredClients: ["js/fetch", "shell/curl", "python/requests"],
-    documentDownloadType: "none",
-    defaultOpenAllTags: true,
-    customFetch: (input, init) =>
-      fetch(input, {
-        ...init,
-        credentials: "omit",
-      }),
-    onLoaded: () => {
-      onReady();
-    },
-    localization: {
-      locale: "ja",
-      direction: "ltr",
-      translations: {
-        common: {
-          description: "説明",
-          httpMethod: "HTTPメソッド",
-          path: "パス",
-          copyDefault: "はじめの値をコピー",
-          copyExample: "値の例をコピー",
-        },
-        search: {
-          label: "APIをさがす",
-          inputLabel: "さがす言葉",
-          open: "APIをさがす",
-          placeholder: "APIをさがす",
-          clear: "入れた言葉を消す",
-          noResults: "見つかりませんでした",
-          results: "APIの検索結果",
-          keyboardShortcut: "キーボードで開く",
-          navigate: "項目を選ぶ",
-          select: "項目を開く",
-          instructions:
-            "上下の矢印で選び、Enterキーで開きます。文字を入れると、しぼれます。",
-          entryHeading: "見出し",
-          entryOperation: "API",
-          entryTag: "グループ",
-          entryTagGroup: "グループ",
-        },
-        navigation: {
-          introduction: "APIについて",
-          openMenu: "APIの一覧を開く",
-          closeMenu: "APIの一覧を閉じる",
-          operations: "APIの一覧",
-          mainContent: "{name}の説明",
-          sidebarFor: "{name}の一覧",
-          closeGroup: "グループを閉じる",
-          openGroup: "グループを開く",
-          endpoints: "{name}のAPI",
-          showAllEndpoints: "{name}のAPIをすべて見る",
-          collapsed: "閉じています",
-        },
-        server: { label: "接続先", select: "接続先を選ぶ" },
-        clientLibraries: {
-          heading: "コード例",
-          more: "ほかの言語",
-          selectAll: "言語を選ぶ",
-          searchLabel: "言語をさがす",
-          changeClient: "コード例の言語を変える",
-        },
-        operation: {
-          testRequest: "リクエストを試す",
-          codeSample: "コード例",
-          queryParameters: "検索の条件",
-          pathParameters: "URLに入れる値",
-          responses: "応答",
-          headers: "ヘッダー",
-          body: "データ",
-          requestBody: "送るデータ",
-          cookies: "Cookie",
-          codeSampleUnavailable: "このAPIにはコード例がありません。",
-          selectedContentType: "選んだデータ形式",
-        },
-        response: {
-          exampleResponses: "応答の例",
-          noBody: "データはありません",
-          showSchema: "データの形を見る",
-          status: "状態",
-        },
-        actions: {
-          copyLink: "リンクをコピー",
-          copyLinkTo: "{name}のリンクをコピー",
-          copyToClipboard: "リンクをコピー",
-          copyEndpointUrl: "URLをコピー",
-          copied: "コピーしました",
-          showMore: "もっと見る",
-          copyAsMarkdown: "Markdownをコピー",
-        },
-        models: { label: "データの形" },
-        schema: {
-          example: "例",
-          examples: "例",
-          default: "はじめの値",
-          schema: "データの形",
-          emptyObject: "空のデータ",
-          showAdditionalProperties: "ほかの項目を見る",
-          showOneMoreProperty: "あと1項目を見る",
-          showMoreProperties: "あと{count}項目を見る",
-          forName: "{name}の値",
-          showSchemaDetails: "データの形をくわしく見る",
-          propertyCount: "項目数：{count}",
-          headerCount: "ヘッダー数：{count}",
-          recursiveReference: "{name}をくり返し使います",
-          additionalProperties: "ほかの項目",
-          deprecated: "今後使わなくなる項目",
-          format: "形式",
-          greaterThan: "より大きい値",
-          lessThan: "より小さい値",
-          max: "最大",
-          min: "最小",
-          maxLength: "最大の文字数",
-          minLength: "最小の文字数",
-          multipleOf: "の倍数",
-          nullable: "nullも使えます",
-          pattern: "文字のパターン",
-          copyPattern: "文字のパターンをコピー",
-          readOnly: "読み取り専用",
-          required: "必須",
-          hideValues: "値を閉じる",
-          showAllValues: "値をすべて見る",
-          type: "型",
-          unique: "重複なし",
-          values: "使える値",
-          writeOnly: "書き込み専用",
-          typeInteger: "整数です。",
-        },
-        authentication: {
-          title: "認証",
-          detailsRequired: "認証が必要です",
-          detailsOptional: "認証はなくても使えます",
-          optional: "認証は任意",
-          required: "認証が必要",
-        },
-        apiClient: {
-          modalClientContainer: { label: "APIを試す" },
-          header: {
-            closeClient: "APIを試す画面を閉じる",
-            operationSettings: "APIの設定",
-          },
-          sidebarToggle: { show: "APIの一覧を開く", hide: "APIの一覧を閉じる" },
-          serverDropdown: {
-            server: "接続先：",
-            unknownServer: "接続先がわかりません",
-          },
-          addressBar: {
-            send: "リクエストを送る",
-            sendRequest: "リクエストを送信（{method}）",
-            path: "パス",
-            copyUrl: "URLをコピー",
-            urlPlaceholder: "URLを入れる",
-          },
-          requestBlock: {
-            authentication: "認証",
-            headers: "ヘッダー",
-            queryParameters: "検索の条件",
-            requestBody: "送るデータ",
-            variables: "変数",
-            cookies: "Cookie",
-            label: "リクエスト：{name}",
-            requestName: "リクエスト名",
-          },
-          responseBlock: {
-            response: "応答",
-            requestFailed: "送信できませんでした",
-            networkErrorHelp: "通信を確認して、もう一度送信してください。",
-            requestHeaders: "送信のヘッダー",
-            responseHeaders: "応答のヘッダー",
-            body: "データ",
-          },
-          responseEmpty: { sendRequest: "送信" },
-          sectionFilter: {
-            all: "すべて",
-            headers: "ヘッダー",
-            body: "データ",
-            cookies: "Cookie",
-            query: "検索の条件",
-          },
-          codeInput: {
-            required: "必須",
-            exitHint: "{escape}キーのあとに{tab}キーを押すと、入力欄から出ます",
-          },
-          codeInputLite: { required: "必須" },
-          requestTable: { enabled: "使う", key: "名前", value: "値" },
-          requestTableRow: {
-            key: "名前",
-            value: "値",
-            delete: "消す",
-            include: "{name}をリクエストに入れる",
-            keyLabel: "項目の名前",
-            valueLabel: "項目の値",
-            deleteRow: "{name}を消す",
-            row: "この行",
-          },
-          requestTableTooltip: {
-            min: "最小：",
-            max: "最大：",
-            default: "はじめの値：",
-            invalid: "値が正しくありません",
-            moreInformation: "くわしく見る",
-          },
-          dataTableInput: {
-            clearValue: "値を消す",
-            resetValue: "はじめの値に戻す",
-            showPassword: "パスワードを表示",
-            hidePassword: "パスワードを隠す",
-          },
-          dataTableInputSelect: { value: "値", addValue: "値を足す" },
-          collapsibleSection: {
-            collapsed: "（閉じています）",
-            item: "項目",
-            items: "項目",
-          },
-          requestCodeSnippet: {
-            codeSnippet: "コード例",
-            unavailable: "このAPIにはコード例がありません。",
-          },
-          headers: {
-            headerKey: "ヘッダーの名前",
-            headerValue: "ヘッダーの値",
-            noHeaders: "ヘッダーはありません",
-          },
-          responseBodyToggle: { preview: "見やすく表示", raw: "そのまま表示" },
-          responseBodyVirtual: {
-            body: "データ",
-            largeBodyHint: "データが大きいため、そのまま表示しています。",
-          },
-          responseCookies: {
-            cookies: "Cookie",
-            cookieName: "Cookieの名前",
-            cookieValue: "Cookieの値",
-            noCookies: "Cookieはありません",
-          },
-          responseLoadingOverlay: { cancel: "送信をやめる" },
-        },
-      },
-    },
-  };
+  return (
+    <nav aria-label={referenceCopy.navigation} className={css.navigation}>
+      {model.groups.map((group, index) => (
+        <div key={group.tag} className={css.navigationGroup}>
+          <p id={`navigation-${index}`} className={css.navigationLabel}>
+            {referenceCopy.tags[group.tag] ?? group.tag}
+          </p>
+          <ul className={css.list} aria-labelledby={`navigation-${index}`}>
+            {group.operations.map((operation) => (
+              <li key={operation.id}>
+                <a href={`#${operation.id}`} className={css.navigationLink}>
+                  <span>{japaneseSummary(operation)}</span>
+                  <code>{operationName(operation)}</code>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+function parameterNote(parameter: ReferenceParameter): string {
+  return `${referenceCopy.location[parameter.location]}、${parameter.required ? referenceCopy.required : referenceCopy.optional}`;
+}
+
+function Parameters({
+  operation,
+}: {
+  readonly operation: ReferenceOperation;
+}): ReactElement {
+  const heading = `${operation.id}-parameters`;
+  const columns = referenceCopy.parameterColumns;
   return (
     <>
-      <span ref={externalIcon} hidden>
-        <Icon name="external-link" />
-      </span>
-      <ApiReferenceReact configuration={configuration} />
+      <h4 id={heading} className={css.subheading}>
+        {referenceCopy.parameters}
+      </h4>
+      {operation.parameters.length === 0 ? (
+        <p className={css.body}>{referenceCopy.noParameters}</p>
+      ) : (
+        <table className={css.table} aria-labelledby={heading}>
+          <thead>
+            <tr>
+              <th scope="col">{columns.name}</th>
+              <th scope="col">{columns.value}</th>
+              <th scope="col">{columns.description}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {operation.parameters.map((parameter) => (
+              <tr key={parameter.name}>
+                <th scope="row">
+                  <code>{parameter.name}</code>
+                  <span className={css.cellNote}>
+                    {parameterNote(parameter)}
+                  </span>
+                </th>
+                <td>
+                  <code>{parameter.type}</code>
+                  {parameter.choices.length > 0 && (
+                    <span className={css.cellNote}>
+                      {referenceCopy.choices(parameter.choices.length)}
+                    </span>
+                  )}
+                  {parameter.constraints.map((constraint) => (
+                    <span key={constraint.kind} className={css.cellNote}>
+                      {referenceCopy.constraints[constraint.kind]}：
+                      <code>{constraint.value}</code>
+                    </span>
+                  ))}
+                </td>
+                <td lang="en">{parameter.description}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </>
+  );
+}
+
+function Responses({
+  operation,
+}: {
+  readonly operation: ReferenceOperation;
+}): ReactElement {
+  const heading = `${operation.id}-responses`;
+  const columns = referenceCopy.responseColumns;
+  return (
+    <>
+      <h4 id={heading} className={css.subheading}>
+        {referenceCopy.responses}
+      </h4>
+      <table className={css.table} aria-labelledby={heading}>
+        <thead>
+          <tr>
+            <th scope="col">{columns.status}</th>
+            <th scope="col">{columns.description}</th>
+            <th scope="col">{columns.media}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {operation.responses.map((response) => (
+            <tr key={response.status}>
+              <th scope="row">
+                <code>{response.status}</code>
+                <span className={css.cellNote}>
+                  {statusMeaning(Number(response.status))}
+                </span>
+              </th>
+              <td lang="en">{response.description}</td>
+              <td>
+                {response.mediaTypes.length === 0
+                  ? referenceCopy.noBody
+                  : response.mediaTypes.map((mediaType) => (
+                      <code key={mediaType} className={css.cellNote}>
+                        {mediaType}
+                      </code>
+                    ))}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
+function Examples({
+  operation,
+  origin,
+}: {
+  readonly operation: ReferenceOperation;
+  readonly origin: string;
+}): ReactElement {
+  const examples = codeExamples(origin, operation);
+  return (
+    <>
+      <h4 className={css.subheading}>{referenceCopy.examples}</h4>
+      {examples.placeholders && (
+        <p className={css.body}>{referenceCopy.placeholders}</p>
+      )}
+      {(
+        [
+          ["curl", examples.curl],
+          ["JavaScript", examples.javascript],
+        ] as const
+      ).map(([language, code]) => (
+        <figure key={language} className={css.example}>
+          <figcaption className={css.exampleLabel}>{language}</figcaption>
+          <pre className={styles.code}>
+            <code>{code}</code>
+          </pre>
+          <CopyButton
+            value={code}
+            label={referenceCopy.copyExample(language)}
+            subject={`${language}のコード例`}
+            accessibleLabel={`${referenceCopy.copyExample(language)}（${operationName(operation)}）`}
+          />
+        </figure>
+      ))}
+    </>
+  );
+}
+
+function Field({
+  operation,
+  parameter,
+  value,
+}: {
+  readonly operation: ReferenceOperation;
+  readonly parameter: ReferenceParameter;
+  readonly value: string;
+}): ReactElement {
+  const id = `${operation.id}-field-${parameter.name}`;
+  return (
+    <div className={css.field}>
+      <label htmlFor={id} className={css.label}>
+        <code>{parameter.name}</code>
+        <span>（{parameterNote(parameter)}）</span>
+      </label>
+      {parameter.choices.length > 0 ? (
+        <span className={css.selection}>
+          <select
+            id={id}
+            name={parameter.name}
+            defaultValue={value}
+            required={parameter.required}
+            className={css.select}
+          >
+            <option value="">{referenceCopy.attempt.unspecified}</option>
+            {parameter.choices.map((choice) => (
+              <option key={choice} value={choice}>
+                {choice}
+              </option>
+            ))}
+          </select>
+          <Icon name="chevron-down" className={css.chevron} />
+        </span>
+      ) : (
+        <input
+          id={id}
+          name={parameter.name}
+          type="text"
+          defaultValue={value}
+          required={parameter.required}
+          inputMode={parameter.type === "integer" ? "numeric" : undefined}
+          autoComplete="off"
+          spellCheck={false}
+          className={css.control}
+        />
+      )}
+    </div>
+  );
+}
+
+function statusLine(
+  attempt: ReferenceAttempt | null,
+  sending: boolean,
+): string {
+  if (sending) return referenceCopy.attempt.sending;
+  switch (attempt?.outcome) {
+    case undefined:
+      return "";
+    case "response":
+      return referenceCopy.attempt.status(attempt.status);
+    case "failed":
+      return referenceCopy.attempt.failed;
+    case "unknown_operation":
+      return referenceCopy.attempt.unknownOperation;
+    case "incomplete_path":
+      return referenceCopy.attempt.incompletePath;
+  }
+}
+
+function AttemptBody({
+  attempt,
+}: {
+  readonly attempt: Extract<ReferenceAttempt, { outcome: "response" }>;
+}): ReactElement {
+  const { body } = attempt;
+  return (
+    <>
+      <p className={css.meta}>
+        {referenceCopy.attempt.media}：
+        <code>{attempt.contentType || referenceCopy.noBody}</code>
+      </p>
+      {body.kind === "binary" ? (
+        <p className={css.body}>{referenceCopy.attempt.binary(body.bytes)}</p>
+      ) : body.text === "" ? (
+        <p className={css.body}>{referenceCopy.noBody}</p>
+      ) : (
+        <figure className={css.example}>
+          <figcaption className={css.meta}>
+            {referenceCopy.attempt.body}
+          </figcaption>
+          <pre className={styles.code}>
+            <code>{body.text}</code>
+          </pre>
+          {body.truncated && (
+            <p className={css.body}>
+              {referenceCopy.attempt.truncated(displayLimitKibibytes)}
+            </p>
+          )}
+        </figure>
+      )}
+    </>
+  );
+}
+
+function RequestForm({
+  operation,
+  values,
+  initial,
+}: {
+  readonly operation: ReferenceOperation;
+  readonly values: ReferenceValues;
+  readonly initial: ReferenceAttempt | null;
+}): ReactElement {
+  const [attempt, setAttempt] = useState(initial);
+  const [sending, setSending] = useState(false);
+  const latest = useRef<symbol | null>(null);
+  const heading = `${operation.id}-attempt`;
+  const result = `${operation.id}-response`;
+  async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const request = Symbol();
+    latest.current = request;
+    const search: Record<string, string> = {};
+    for (const [name, value] of new FormData(event.currentTarget))
+      if (typeof value === "string") search[name] = value;
+    setSending(true);
+    const outcome = await attemptPlan(
+      planReferenceRequest([operation], search),
+      browserSender,
+    );
+    if (latest.current !== request) return;
+    setSending(false);
+    setAttempt(outcome);
+  }
+  return (
+    <>
+      <h4 id={heading} className={css.subheading}>
+        {referenceCopy.attempt.heading}
+      </h4>
+      <form
+        method="get"
+        action={`/developers#${result}`}
+        aria-labelledby={heading}
+        className={css.form}
+        onSubmit={(event) => {
+          void submit(event);
+        }}
+      >
+        <input type="hidden" name={operationSearchKey} value={operation.id} />
+        {operation.parameters.map((parameter) => (
+          <Field
+            key={parameter.name}
+            operation={operation}
+            parameter={parameter}
+            value={values[parameter.name] ?? ""}
+          />
+        ))}
+        <div className={`${styles.actions} ${css.submit}`}>
+          <button
+            type="submit"
+            className={`${styles.button} ${styles.solid}`}
+            aria-label={`${referenceCopy.attempt.submit}（${operationName(operation)}）`}
+          >
+            <Icon name="chevron-right" />
+            {referenceCopy.attempt.submit}
+          </button>
+        </div>
+      </form>
+      <div id={result} className={css.attempt}>
+        <output className={css.attemptStatus}>
+          {statusLine(attempt, sending)}
+        </output>
+        {!sending && attempt?.outcome === "response" && (
+          <AttemptBody attempt={attempt} />
+        )}
+      </div>
+    </>
+  );
+}
+
+function Operation({
+  operation,
+  origin,
+  search,
+  attempt,
+}: {
+  readonly operation: ReferenceOperation;
+  readonly origin: string;
+  readonly search: ReferenceSearch;
+  readonly attempt: ReferenceAttempt | null;
+}): ReactElement {
+  const submitted = search[operationSearchKey] === operation.id;
+  return (
+    <section
+      id={operation.id}
+      aria-labelledby={`${operation.id}-heading`}
+      className={css.operation}
+    >
+      <h3 id={`${operation.id}-heading`} className={css.operationHeading}>
+        <span>{operation.method}</span>
+        <code>{operation.path}</code>
+      </h3>
+      <p className={css.body}>{japaneseSummary(operation)}</p>
+      {showsContractText && (
+        <div lang="en" className={css.contract}>
+          <p className={css.body}>{operation.summary}</p>
+          {operation.description && (
+            <p className={css.body}>{operation.description}</p>
+          )}
+        </div>
+      )}
+      <Parameters operation={operation} />
+      <Responses operation={operation} />
+      <Examples operation={operation} origin={origin} />
+      <RequestForm
+        operation={operation}
+        values={
+          submitted
+            ? requestValues(operation, search)
+            : exampleValues(operation)
+        }
+        initial={attempt?.operation === operation.id ? attempt : null}
+      />
+    </section>
+  );
+}
+
+/** Renders the reference from the OpenAPI model, usable without JavaScript. */
+export function ApiReference({
+  model,
+  origin,
+  search,
+  attempt,
+}: {
+  readonly model: ReferenceModel;
+  readonly origin: string;
+  readonly search: ReferenceSearch;
+  readonly attempt: ReferenceAttempt | null;
+}): ReactElement {
+  return (
+    <div className={css.reference} data-api-reference="">
+      <Navigation model={model} />
+      <div className={css.content}>
+        {model.groups.map((group, index) => (
+          <section
+            key={group.tag}
+            aria-labelledby={`group-${index}`}
+            className={css.group}
+          >
+            <h2 id={`group-${index}`} className={css.groupHeading}>
+              {referenceCopy.tags[group.tag] ?? group.tag}
+            </h2>
+            {group.operations.map((operation) => (
+              <Operation
+                key={operation.id}
+                operation={operation}
+                origin={origin}
+                search={search}
+                attempt={attempt}
+              />
+            ))}
+          </section>
+        ))}
+      </div>
+    </div>
   );
 }

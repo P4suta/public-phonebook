@@ -257,7 +257,7 @@ The upload creates a version without applying triggers, so custom domains and ot
 HTML responses use `no-store, no-transform` to prevent Cloudflare from adding scripts to the document.
 Browser checks reject scripts from other origins and verify that an inserted external script is detected.
 The publisher hashes build output before the upload and after it.
-Public Playwright checks exercise desktop and narrow search, telephone formatting, detail and provenance navigation, the interactive Scalar client, accessibility, security-policy failures, and the 512-byte query boundary.
+Public Playwright checks exercise desktop and narrow search, telephone formatting, detail and provenance navigation, the API reference's request form, accessibility, security-policy failures, and the 512-byte query boundary.
 They also download every archive through HTTPS and compare its byte length and SHA-256 with the checked manifest.
 Failure evidence stays under `test-results`.
 
@@ -329,6 +329,7 @@ Read the [recovery decision](adr/recover-complete-worker-and-dataset-publication
 ## Dependency updates
 
 Renovate merges minor and patch updates on its own once the required checks pass, except for the ones a publication depends on.
+A Cargo update changes `tools/ios-check`, so the Rust job of the required checks compiles, lints, tests, and audits that crate first.
 The `deployment dependencies` group holds updates that change the deployed Worker, its build, or a release path, and labels them `release-rehearsal`.
 It covers cf, Miniflare, `@cloudflare/*`, TanStack Start with the router release it pins, Vite and its plugins, vanilla-extract, PostCSS, and aws4fetch.
 It also covers the `node`, `just`, `doppler`, `rust`, and `xcodegen` tools and the GitHub Actions of the TestFlight workflow, the release workflows, and the toolchain action.

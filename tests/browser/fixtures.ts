@@ -48,7 +48,7 @@ export async function externalLinkIssues(
   );
 }
 
-/** Lists rendered symbols that don't draw a named master from the document's one sprite; the third-party API reference draws its own. */
+/** Lists rendered symbols that don't draw a named master from the document's one sprite. */
 export async function symbolIssues(page: Page): Promise<readonly string[]> {
   return page.locator("svg").evaluateAll(
     (symbols, { prefix, excerpt }) => {
@@ -57,7 +57,6 @@ export async function symbolIssues(page: Page): Promise<readonly string[]> {
         if (symbol.hasAttribute("data-icon-sprite"))
           return sprites.length === 1 ? [] : ["sprite: not exactly one"];
         const name = symbol.getAttribute("data-icon");
-        if (!name && symbol.closest("[data-api-reference]")) return [];
         const target = `${prefix}${name ?? ""}`;
         const use = symbol.querySelector(":scope > use");
         return name &&
@@ -79,7 +78,6 @@ export async function actionIconIssues(page: Page): Promise<readonly string[]> {
       actions.flatMap((action) => {
         if (
           !(action instanceof HTMLElement) ||
-          action.closest("[data-api-reference]") ||
           action.getClientRects().length === 0
         )
           return [];

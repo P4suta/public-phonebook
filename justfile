@@ -34,6 +34,9 @@ check:
 check-build:
     npm run check:build
 
+check-rust:
+    node tools/check-rust.ts
+
 assurance: check-build prove ios-prove ios-check
 
 [positional-arguments]

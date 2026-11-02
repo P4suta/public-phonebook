@@ -44,42 +44,26 @@ test("published search, telephone normalization, detail, and source navigation w
   expect((await auditDesign(page)).violations).toEqual([]);
 });
 
-test("the published Scalar client sends requests under the live security policy", async ({
+test("the published reference sends requests under the live security policy", async ({
   page,
 }) => {
-  await page.goto("/developers");
-  await expect(page.locator("[data-api-reference]")).toHaveAttribute(
-    "data-ready",
-    "true",
-  );
-  if ((page.viewportSize()?.width ?? 1440) < 1024)
-    await page
-      .getByRole("button", { name: "APIの一覧を開く", exact: true })
-      .click();
-  const summary =
-    "Search facilities by name, telephone number, category, and region";
-  await page
-    .getByRole("link", { name: `${summary} HTTPメソッド: GET`, exact: true })
-    .click();
-  await page
-    .getByRole("region", { name: summary, exact: true })
-    .getByRole("button", {
-      name: "リクエストを試す (get /api/contacts)",
-      exact: true,
-    })
-    .click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
+  await page.goto("/developers#searchContacts");
+  await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
+  const operation = page.locator("section#searchContacts");
+  await expect(operation).toBeInViewport();
   const sent = page.waitForResponse(
     (response) => new URL(response.url()).pathname === "/api/contacts",
   );
-  await dialog
-    .getByRole("button", { name: "リクエストを送信（get）", exact: true })
+  await operation
+    .getByRole("button", {
+      name: "リクエストを試す（GET /api/contacts）",
+      exact: true,
+    })
     .click();
   expect((await sent).status()).toBe(200);
   await expect(
-    dialog.getByRole("region", { name: "応答", exact: true }),
-  ).toContainText("200");
+    operation.locator("#searchContacts-response").getByRole("status"),
+  ).toHaveText("応答：200 成功");
   expect((await auditDesign(page)).violations).toEqual([]);
   expect(
     (
@@ -88,8 +72,4 @@ test("the published Scalar client sends requests under the live security policy"
         .analyze()
     ).violations,
   ).toEqual([]);
-  await dialog
-    .getByRole("button", { name: "APIを試す画面を閉じる", exact: true })
-    .click();
-  await expect(dialog).toHaveCount(0);
 });

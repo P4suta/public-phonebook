@@ -18,6 +18,7 @@ import {
 const checkout = "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803";
 const commitShaLength = 40;
 const imageDigestLength = 64;
+const unboundedExtraJobs = 7;
 
 function rules(source: string): readonly WorkflowRule[] {
   const document: unknown = parse(source);
@@ -310,6 +311,7 @@ it("keeps release-gate checks out of change workflows", () => {
   for (const script of [
     "mise x -- just check",
     "mise x -- just check-linux",
+    "mise x -- just check-rust",
     "mise x -- just typecheck",
     "mise x -- just lint",
     "echo prove",
@@ -367,6 +369,288 @@ it("rejects the assurance workflow when a pull request triggers it", async () =>
   expect(planted).toContain("jobs.native.steps[2] change-release-check");
   expect(planted).toContain("jobs.proofs.steps[2] change-release-check");
   expect(planted).toContain("jobs.build.steps[3] change-release-check");
+});
+
+const verifyCheck = 'test "$VERIFY_RESULT" = success';
+const rustCheck =
+  'test "$RUST_REQUIRED:$RUST_RESULT" = true:success || test "$RUST_REQUIRED:$RUST_RESULT" = false:skipped';
+const boundRustGate = `${verifyCheck}\n${rustCheck}`;
+
+function summaryJob(
+  run: string,
+  needs = "[verify, rust]",
+  condition = "    if: always()\n",
+): string {
+  return `${condition}    needs: ${needs}
+    steps:
+      - name: Require successful verification
+        env:
+          VERIFY_RESULT: \${{ needs.verify.result }}
+          RUST_REQUIRED: \${{ needs.verify.outputs.rust }}
+          RUST_RESULT: \${{ needs.rust.result }}
+        run: ${JSON.stringify(run)}`;
+}
+
+function checksWorkflow(summary: string, extraJobs = ""): string {
+  return `on:
+  pull_request:
+  merge_group:
+permissions: {}
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-24.04
+    permissions: {}
+    outputs:
+      rust: \${{ steps.scope.outputs.rust }}
+    steps: []
+  rust:
+    name: Rust
+    needs: [verify]
+    if: needs.verify.outputs.rust == 'true'
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps: []
+${extraJobs}  gate:
+    name: Checks
+    runs-on: ubuntu-24.04
+    permissions: {}
+${summary}`;
+}
+
+function located(source: string): readonly string[] {
+  const document: unknown = parse(source);
+  return workflowViolations("fixture.yml", document).map(
+    ({ location, rule }) => `${location} ${rule}`,
+  );
+}
+
+it("admits a Checks job that always runs, needs every job, and accepts a skip only from the rust job", () => {
+  expect(located(checksWorkflow(summaryJob(boundRustGate)))).toEqual([]);
+  expect(
+    located(
+      checksWorkflow(
+        summaryJob(
+          'test "$VERIFY_RESULT" = success\ntest "$RUST_RESULT" = success || test "$RUST_RESULT" = skipped',
+          "[rust, verify]",
+          "    if: ${{ always() }}\n",
+        ),
+      ),
+    ),
+  ).toEqual([]);
+});
+
+it("rejects a Checks job that skips with a failed job or misses a job", () => {
+  for (const condition of [
+    "",
+    "    if: success()\n",
+    '    if: "!cancelled()"\n',
+    "    if: always() && needs.verify.result == 'success'\n",
+  ])
+    expect(
+      located(
+        checksWorkflow(summaryJob(boundRustGate, "[verify, rust]", condition)),
+      ),
+      condition,
+    ).toEqual(["jobs.gate gate-not-always"]);
+  expect(
+    located(
+      checksWorkflow(`    if: always()
+    needs: verify
+    steps:
+      - env:
+          VERIFY_RESULT: \${{ needs.verify.result }}
+        run: ${verifyCheck}`),
+    ),
+  ).toEqual(["jobs.gate gate-needs-incomplete"]);
+});
+
+it("rejects a Checks job that ignores a failed or cancelled rust job", () => {
+  for (const run of [
+    verifyCheck,
+    `${verifyCheck}\ntest "$RUST_RESULT" = success || test "$RUST_RESULT" = failure`,
+    `${verifyCheck}\ntest "$RUST_REQUIRED:$RUST_RESULT" = true:success || test "$RUST_REQUIRED:$RUST_RESULT" = true:cancelled`,
+    `${verifyCheck}\ntest "$RUST_REQUIRED:$RUST_RESULT" = true:success || test "$RUST_REQUIRED:$RUST_RESULT" = maybe:failure`,
+    `${verifyCheck}\ntest "$RUST_RESULT" = success || test "$RUST_REQUIRED" = ignored`,
+  ])
+    expect(located(checksWorkflow(summaryJob(run))), run).toEqual([
+      "jobs.gate.needs.rust gate-accepts-unsuccessful",
+    ]);
+  expect(
+    located(
+      checksWorkflow(
+        summaryJob(`${verifyCheck} || test "$RUST_RESULT" = success`),
+      ),
+    ),
+  ).toEqual([
+    "jobs.gate.needs.verify gate-accepts-unsuccessful",
+    "jobs.gate.needs.rust gate-accepts-unsuccessful",
+  ]);
+});
+
+it("rejects a Checks job that accepts a skip from any job but rust", () => {
+  expect(
+    located(
+      checksWorkflow(
+        summaryJob(
+          `${verifyCheck} || test "$VERIFY_RESULT" = skipped\n${rustCheck}`,
+        ),
+      ),
+    ),
+  ).toEqual(["jobs.gate.needs.verify gate-accepts-unsuccessful"]);
+  expect(
+    located(
+      checksWorkflow(
+        `    if: always()
+    needs: [verify, rust, lint]
+    steps:
+      - env:
+          VERIFY_RESULT: \${{ needs.verify.result }}
+          RUST_REQUIRED: \${{ needs.verify.outputs.rust }}
+          RUST_RESULT: \${{ needs.rust.result }}
+          LINT_RESULT: \${{ needs.lint.result }}
+        run: ${JSON.stringify(`${boundRustGate}\ntest "$LINT_RESULT" = success || test "$LINT_RESULT" = skipped`)}`,
+        `  lint:
+    needs: [verify]
+    if: needs.verify.outputs.rust == 'true'
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps: []
+`,
+      ),
+    ),
+  ).toEqual(["jobs.gate.needs.lint gate-accepts-unsuccessful"]);
+});
+
+it("rejects a Checks job whose script or shell the policy can't interpret", () => {
+  for (const run of [
+    'test "$RUST_RESULT" != failure',
+    '[ "$VERIFY_RESULT" = success ]',
+    'test "$VERIFY_RESULT" = success && test "$RUST_RESULT" = success',
+    'test "$UNDECLARED" = success',
+    "true",
+    "",
+  ])
+    expect(located(checksWorkflow(summaryJob(run))), run).toEqual([
+      "jobs.gate.steps[0] gate-script-unrecognized",
+    ]);
+  for (const step of [
+    `      - shell: bash {0}
+        env:
+          VERIFY_RESULT: \${{ needs.verify.result }}
+        run: test "$VERIFY_RESULT" = success`,
+    `      - continue-on-error: true
+        env:
+          VERIFY_RESULT: \${{ needs.verify.result }}
+        run: test "$VERIFY_RESULT" = success`,
+    `      - env:
+          VERIFY_RESULT: \${{ github.event_name }}
+        run: test "$VERIFY_RESULT" = success`,
+    `      - uses: ${checkout}`,
+  ])
+    expect(
+      located(
+        checksWorkflow(`    if: always()
+    needs: [verify, rust]
+    steps:
+      - env:
+          RUST_REQUIRED: \${{ needs.verify.outputs.rust }}
+          RUST_RESULT: \${{ needs.rust.result }}
+        run: ${JSON.stringify(rustCheck)}
+${step}`),
+      ),
+      step,
+    ).toContain("jobs.gate.steps[1] gate-script-unrecognized");
+  for (const setting of [
+    "    continue-on-error: true\n",
+    "    defaults:\n      run:\n        shell: bash {0}\n",
+  ])
+    expect(
+      located(
+        checksWorkflow(`    if: always()
+${setting}${summaryJob(boundRustGate, "[verify, rust]", "")}`),
+      ),
+      setting,
+    ).toEqual(["jobs.gate gate-script-unrecognized"]);
+  expect(
+    located(
+      checksWorkflow(summaryJob(boundRustGate)).replace(
+        "permissions: {}\njobs:",
+        "permissions: {}\ndefaults:\n  run:\n    shell: bash {0}\njobs:",
+      ),
+    ),
+  ).toEqual(["jobs.gate gate-script-unrecognized"]);
+});
+
+it("refuses to evaluate a Checks job with more result combinations than its bound", () => {
+  const extra = Array.from(
+    { length: unboundedExtraJobs },
+    (_, index) => `extra${index}`,
+  );
+  expect(
+    located(
+      checksWorkflow(
+        summaryJob(boundRustGate, `[verify, rust, ${extra.join(", ")}]`),
+        extra
+          .map(
+            (id) => `  ${id}:
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps: []
+`,
+          )
+          .join(""),
+      ),
+    ),
+  ).toEqual(["jobs.gate gate-script-unrecognized"]);
+});
+
+it("rejects planted gate defects in the repository's Checks workflow", async () => {
+  const source = await readFile(".github/workflows/checks.yml", "utf8");
+  expect(located(source)).toEqual([]);
+  const checks = v.parse(
+    v.looseObject({
+      jobs: v.looseObject({
+        rust: v.looseObject({}),
+        gate: v.looseObject({
+          needs: v.array(v.string()),
+          steps: v.tuple([
+            v.looseObject({
+              env: v.record(v.string(), v.string()),
+              run: v.string(),
+            }),
+          ]),
+        }),
+      }),
+    }),
+    parse(source),
+  );
+  const { gate } = checks.jobs;
+  const [step] = gate.steps;
+  function planted(change: object): readonly string[] {
+    return workflowViolations("checks.yml", {
+      ...checks,
+      jobs: { ...checks.jobs, gate: { ...gate, ...change } },
+    }).map(({ location, rule }) => `${location} ${rule}`);
+  }
+  expect(planted({ needs: ["verify"] })).toEqual([
+    "jobs.gate gate-needs-incomplete",
+    "jobs.gate.steps[0] gate-script-unrecognized",
+  ]);
+  expect(
+    planted({
+      steps: [
+        {
+          ...step,
+          run: step.run
+            .split("\n")
+            .filter((line) => !line.includes("RUST"))
+            .join("\n"),
+        },
+      ],
+    }),
+  ).toEqual(["jobs.gate.needs.rust gate-accepts-unsuccessful"]);
+  expect(planted({ if: "success()" })).toEqual(["jobs.gate gate-not-always"]);
 });
 
 it("applies the step rules to composite actions", () => {

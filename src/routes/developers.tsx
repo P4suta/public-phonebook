@@ -1,26 +1,21 @@
-import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { createClientOnlyFn, createIsomorphicFn } from "@tanstack/react-start";
-import { type ReactElement, useCallback, useEffect, useState } from "react";
-import { config as configureZod } from "zod/v4/core";
-import * as referenceCss from "../ui/api-reference.css.ts";
+import { createIsomorphicFn } from "@tanstack/react-start";
+import type { ReactElement } from "react";
 import {
-  BackButton,
-  CopyButton,
-  LinkButton,
-  LoadingError,
-} from "../ui/components.tsx";
+  planReferenceRequest,
+  referenceModel,
+  referenceOperations,
+  validateReferenceSearch,
+} from "../core/api-reference.ts";
+import * as referenceCss from "../ui/api-reference.css.ts";
+import { ApiReference } from "../ui/api-reference.tsx";
+import { referenceCopy, showsContractText } from "../ui/api-reference-copy.ts";
+import { BackButton, CopyButton, LinkButton } from "../ui/components.tsx";
+import { attemptPlan, browserSender } from "../ui/reference-request.ts";
 import * as css from "../ui/styles.css.ts";
 
-type ReferenceComponent = typeof import("../ui/api-reference.tsx").default;
-const loadReference = createClientOnlyFn(async () => {
-  configureZod({ jitless: true });
-  return import("../ui/api-reference.tsx");
-});
-export const Route = createFileRoute("/developers")({
-  loader: async () => ({ origin: await readOrigin() }),
-  component: DevelopersPage,
-});
+const openApiPath = "/api/openapi.json";
+
 const readOrigin = createIsomorphicFn()
   .client((): string => window.location.origin)
   .server(async (): Promise<string> => {
@@ -29,81 +24,80 @@ const readOrigin = createIsomorphicFn()
       .origin;
   });
 
-function DevelopersPage(): ReactElement {
-  const { origin } = Route.useLoaderData();
-  const [Reference, setReference] = useState<ReferenceComponent | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [ready, setReady] = useState(false);
-  const onReady = useCallback((): void => setReady(true), []);
-  const document = useQuery({
-    queryKey: ["openapi-reference"],
-    enabled: Reference !== null,
-    retry: false,
-    queryFn: async ({ signal }): Promise<string> => {
-      const response = await fetch("/api/openapi.json", {
-        signal,
-        credentials: "omit",
-      });
-      if (!response.ok) throw new Error("The API description is unavailable");
-      return response.text();
-    },
+/** Sends a reference request: the server answers it in process, with the visitor's accepted content codings. */
+const sendReferenceRequest = createIsomorphicFn()
+  .client(browserSender)
+  .server(async (target: string): Promise<Response> => {
+    const [{ env }, { api }, { getRequestHeader }] = await Promise.all([
+      import("cloudflare:workers"),
+      import("../server/api.ts"),
+      import("@tanstack/react-start/server"),
+    ]);
+    const encodings = getRequestHeader("accept-encoding");
+    return api.fetch(
+      new Request(new URL(target, env.PUBLIC_ORIGIN), {
+        headers: encodings ? { "Accept-Encoding": encodings } : {},
+      }),
+      env,
+    );
   });
-  useEffect(() => {
-    let current = true;
-    void loadReference()
-      .then((module) => {
-        if (current) setReference(() => module.default);
-      })
-      .catch(() => {
-        if (current) setFailed(true);
-      });
-    return (): void => {
-      current = false;
-    };
-  }, []);
+
+export const Route = createFileRoute("/developers")({
+  validateSearch: validateReferenceSearch,
+  loaderDeps: ({ search }) => ({ search }),
+  loader: async ({ deps }) => {
+    const [origin, document] = await Promise.all([
+      readOrigin(),
+      sendReferenceRequest(openApiPath),
+    ]);
+    if (!document.ok) throw new Error("The API description is unavailable");
+    const model = referenceModel(await document.json());
+    const attempt = await attemptPlan(
+      planReferenceRequest(referenceOperations(model), deps.search),
+      sendReferenceRequest,
+    );
+    return { origin, model, attempt };
+  },
+  component: DevelopersPage,
+});
+
+function DevelopersPage(): ReactElement {
+  const { origin, model, attempt } = Route.useLoaderData();
+  const search = Route.useSearch();
   return (
-    <div id="main" className={referenceCss.page}>
-      <nav aria-label="APIドキュメントの操作" className={css.actions}>
+    <main id="main" className={referenceCss.page}>
+      <nav aria-label={referenceCopy.pageActions} className={css.actions}>
         <BackButton />
-        <LinkButton href="/api/openapi.json" icon="file">
-          OpenAPI（JSON）を見る
+        <LinkButton href={openApiPath} icon="file">
+          {referenceCopy.openapi}
         </LinkButton>
         <CopyButton
-          value={new URL("/api/openapi.json", origin).href}
-          label="API仕様書のURLをコピー"
-          subject="API仕様書のURL"
+          value={new URL(openApiPath, origin).href}
+          label={referenceCopy.copyOpenapi}
+          subject={referenceCopy.openapiSubject}
         />
       </nav>
-      {(!ready || failed || document.isError) && (
-        <main>
-          <h1 className={css.heading}>Public Phonebook API</h1>
-          {failed || document.isError ? (
-            <LoadingError
-              subject="APIの説明"
-              retry={() => {
-                if (failed) window.location.reload();
-                else void document.refetch();
-              }}
-            />
-          ) : (
-            <p className={referenceCss.loading}>
-              APIの説明を読みこんでいます。
-            </p>
-          )}
-          <noscript>
-            <p>APIの説明を操作するには、JavaScriptを有効にしてください。</p>
-          </noscript>
-        </main>
-      )}
-      <div
-        className={referenceCss.reference}
-        data-api-reference=""
-        data-ready={ready}
-      >
-        {Reference && document.data && !document.isError && (
-          <Reference content={document.data} onReady={onReady} />
+      <header className={referenceCss.header}>
+        <h1 className={css.heading}>{model.title}</h1>
+        <p className={referenceCss.body}>{referenceCopy.intro}</p>
+        {showsContractText && model.description && (
+          <p className={referenceCss.body} lang="en">
+            {model.description}
+          </p>
         )}
-      </div>
-    </div>
+        <p className={referenceCss.meta}>
+          {referenceCopy.server}：<code>{origin}</code>
+        </p>
+        <p className={referenceCss.meta}>
+          {referenceCopy.version}：<code>{model.version}</code>
+        </p>
+      </header>
+      <ApiReference
+        model={model}
+        origin={origin}
+        search={search}
+        attempt={attempt}
+      />
+    </main>
   );
 }

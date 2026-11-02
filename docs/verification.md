@@ -13,7 +13,8 @@ It requires no owner-specific service, credentials, or national archive.
 
 Before every push, run `mise x -- just check-linux` as well.
 It's the local equivalent of the Verify job, as the [Linux gate](#linux-equivalent-of-verify) section describes.
-Before pushing a change to the build, the browser checks, or Rust code, also run `mise x -- just check-build`, because pull requests don't run it.
+Before pushing a change to the build or the browser checks, also run `mise x -- just check-build`, because pull requests don't run it.
+Before pushing a change to a Rust input, run `mise x -- just check-rust`, the Cargo part of `just check-build`.
 
 The workflow checks run actionlint over every workflow and zizmor offline with the pedantic persona over `.github`.
 Offline mode leaves out zizmor's online audits, so the result doesn't depend on network access or a token.
@@ -27,12 +28,20 @@ A workflow that `pull_request`, `pull_request_target`, `merge_group`, or `push` 
 Each of its jobs must name a literal `ubuntu-` runner.
 No job may run `just assurance`, `just check-build`, `just prove`, `just e2e`, `just test`, or a `just ios-` recipe.
 No job may install Playwright browsers or call `assurance.yml` either.
+The `Checks` job of a change workflow must run with `if: always()` and need every other job.
+The policy evaluates its result checks over every combination of job results and scope outputs.
+They may accept only `success`, except that they may also accept `skipped` from the `rust` job.
+The policy rejects a check script outside its `test` grammar, a custom shell, and `continue-on-error` in that job.
 Its unit tests keep a violating workflow for every rule as a negative control.
 
-Pull requests and merge groups run only this fast gate.
+Pull requests and merge groups run this fast gate, plus the Cargo checks when a Rust input changes.
 The Verify job of the Checks workflow runs `just check` on Linux with pinned tools, immutable action revisions, and no secrets.
 It installs only Node.js, just, Biome, actionlint, zizmor, and gitleaks, and it turns off mise's automatic installation of the other pinned tools.
+Before that, it lists the files that differ between the event's base commit and the checked-out head.
+The Rust inputs are `tools/ios-check`, `tools/check-rust.ts`, `mise.toml`, any `rust-toolchain` file, the toolchain action, and `checks.yml`.
+When one of them changed, the Rust job installs Rust, just, Node.js, and cargo-audit and runs `just check-rust`.
 The `Checks` summary job is the required status check.
+It requires Verify to succeed, and it accepts a skipped Rust job only when no Rust input changed.
 The [release gate decision](adr/run-only-the-fast-gate-on-pull-requests-and-verify-at-the-release-gate.md) records why the heavier checks moved.
 The manual runner probe workflow reports the processor, memory, disk, Xcode versions, and simulators of the hosted runners.
 
@@ -42,6 +51,7 @@ Run `mise x -- just assurance` on a Mac for the heavy checks that gate a release
 It runs `just check-build`, `just prove`, `just ios-prove`, and `just ios-check` in that order.
 `just check-build` builds the client and Worker and checks the `tools/ios-check` crate.
 The crate checks are rustfmt, strict Clippy, its tests, the icon consistency check, and the pinned RustSec advisory snapshot.
+`just check-rust` runs the same crate checks alone.
 It then runs the built-browser checks.
 The browser check creates a separate local D1 and R2 fixture with three contacts and uses port 8790.
 It covers the design, contact, API reference, external-link, information, CSP, privacy, row page, local search, search, search-trigger, and startup cases that need no national archive.
@@ -148,12 +158,13 @@ Each public check refuses a response whose `x-dial-version` names another versio
 Revisit this boundary if Cloudflare changes version overrides, gradual deployments, or the Worker and version API responses.
 
 Run `mise x -- just prove`.
-LemmaScript 0.6.5 translates the actual annotated search, search-trigger, copy, reference-style, publication, collection, snapshot, row locator, and directory delta policy implementations to Dafny.
+LemmaScript 0.6.5 translates the actual annotated search, search-trigger, copy, reference-request, publication, collection, snapshot, row locator, and directory delta policy implementations to Dafny.
 The gate requires unmodified generated output and every function listed in `tools/prove.ts`.
-Dafny 4.11.0 checks its expected nonempty unit and postcondition inventory for the supported search, search-trigger, copy, styling, publication, school-evidence, unique-candidate, source-accounting, versioned-API snapshot, and row locator decisions.
+Dafny 4.11.0 checks its expected nonempty unit and postcondition inventory for the supported search, search-trigger, copy, reference-request, publication, school-evidence, unique-candidate, source-accounting, versioned-API snapshot, and row locator decisions.
+The reference-request policy partitions idle, unknown-operation, incomplete-path, and send decisions over the full Boolean domain.
 The copy policy partitions current success, current failure, and superseded completion over the full Boolean domain.
 The browser adapter uses fresh symbol identities and suppresses superseded state and announcements.
-Separate negative controls accept limit 101, ignore a municipality when choosing a catalog total, store a failure status, reverse the completion guard, reverse the trusted-click guard, and retain reference opacity while retaining their contracts.
+Separate negative controls accept limit 101, ignore a municipality when choosing a catalog total, store a failure status, reverse the completion guard, reverse the trusted-click guard, and send a reference request with an incomplete path while retaining their contracts.
 Each must fail verification.
 Search-trigger controls ignore composition, search an incomplete telephone number, and pause after one keystroke interval, and each must fail verification too.
 A conflicting import identity also has a source-mutating negative control that must fail verification.
@@ -348,12 +359,13 @@ The console and CSP gates remain enabled, and no context bypasses CSP.
 WebKit reports a fetch that a navigation cancelled as an access-control failure, so the console gate ignores that report only for same-origin URLs, which can't fail access control.
 The page also stops an unfinished index load when it's hidden and starts it again when it's shown.
 The [native-select compatibility decision](adr/hashed-native-select-style-compatibility.md) records the search-page style-attribute hash and its positive and negative controls.
-The [interactive reference decision](adr/openapi-driven-interactive-reference.md) records the separate API-page style policy, dependency configuration, and rendering boundaries.
-Generated-reference tests compare the operation list with the live OpenAPI document, send successful and invalid requests, inspect native responses, search with the keyboard, and check failure recovery.
-Recovery includes failed background refreshes after a simulated reconnect with a controlled clock.
-Client checks require visible close and checkbox controls, distinct checkbox states, and checkbox cells that contain their touch targets without overlapping adjacent fields.
-They also exercise native code copying, direct operation links and reload, JavaScript-free access to the raw contract, and deferred loading of the reference bundle.
-The reference adapter preserves native button semantics, labels read-only response editors, exposes collapsed combobox state, and restores keyboard access to response scrolling.
+The [server-rendered reference decision](adr/server-rendered-api-reference.md) records how `/developers` renders the OpenAPI document and handles its request forms.
+Reference unit tests read the generated document and require every operation, a Japanese summary for each, and a meaning for each documented status.
+They also cover request planning, path encoding, code examples, and bounded response reading.
+Reference browser tests compare the rendered operations and navigation with the live OpenAPI document.
+They follow direct operation links through a reload and copy each code example.
+They send successful and invalid requests from the form with JavaScript and through a plain submission without it, including a binary download.
+The API page keeps the strict CSP of every other page, and its CSP tests plant a style attribute, a stylesheet, and a script.
 The palette gate covers CSS and SVG opacity as well as masks, gradients, shadows, filters, blending, and paint colors.
 Its negative controls run inside the live reference page as well as isolated fixtures.
 CSV fixtures independently parse serializer output and cover embedded commas, quotes, newlines, empty values, and all ten guarded formula prefixes in every free-text column.

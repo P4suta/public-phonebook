@@ -3,7 +3,6 @@ import type { Page } from "@playwright/test";
 export interface DesignAudit {
   readonly rules: number;
   readonly elements: number;
-  readonly runtimeRules: number;
   readonly violations: readonly string[];
 }
 
@@ -95,18 +94,7 @@ export async function auditDesign(page: Page): Promise<DesignAudit> {
         if (rule instanceof CSSGroupingRule) visit(rule.cssRules);
       }
     }
-    let runtimeRules = 0;
-    for (const sheet of document.styleSheets) {
-      if (
-        document.querySelector("[data-api-reference]") &&
-        sheet.ownerNode instanceof HTMLStyleElement &&
-        !sheet.ownerNode.nonce
-      ) {
-        runtimeRules += sheet.cssRules.length;
-        continue;
-      }
-      visit(sheet.cssRules);
-    }
+    for (const sheet of document.styleSheets) visit(sheet.cssRules);
     let elements = 0;
     for (const element of document.body.querySelectorAll("*")) {
       if (element === host || element.getClientRects().length === 0) continue;
@@ -125,6 +113,6 @@ export async function auditDesign(page: Page): Promise<DesignAudit> {
         );
     }
     host.remove();
-    return { rules, elements, runtimeRules, violations };
+    return { rules, elements, violations };
   });
 }
