@@ -39,7 +39,10 @@ A cancelled update keeps the saved generation and downloads nothing more.
 Search runs on the device and sends nothing.
 The search field matches facility names and complete Japanese telephone numbers, with the website's normalization and exact, prefix, and substring ranking.
 Results appear while the reader types, under category headings with three previews each, and each category expands in place.
-Result cards show the name, the prefecture and municipality, and each telephone number, and the detail screen shows the full address and the source information from the saved data.
+Result cards show the name as heading text, the prefecture and municipality, and each telephone number, and the detail screen shows the full address and the source information from the saved data.
+Below the telephone actions, one outline button opens the detail screen.
+Its label is `住所などを見る` when the facility has an address and `くわしい情報を見る` when it has none.
+VoiceOver reads the facility name before that label.
 The about screens, privacy notes, data sources, and licenses are part of the app, and only facility, map, and source pages open in the browser after a confirmation.
 
 The actual Hono handlers produce the shared provider corpus with the discovery document, the dataset listing, and the archive.

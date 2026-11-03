@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures.ts";
-import { waitForLocalSearch } from "./search-sources.ts";
+import { detailActionName, waitForLocalSearch } from "./search-sources.ts";
 
 test("the page uses local assets and a fresh, server-controlled CSP nonce", async ({
   page,
@@ -47,7 +47,7 @@ test("the browser keeps only screen positions for the tab, no index copy, and ne
   await page.getByRole("searchbox").fill(query);
   const result = page.locator("article").first();
   await expect(result).toBeVisible();
-  await result.getByRole("link", { name: /の情報を見る$/u }).click();
+  await result.getByRole("link", { name: detailActionName }).click();
   await expect(page).toHaveURL(/\/contacts\/[^/?]+\?from=/u);
   await expect(
     page.getByRole("heading", { level: 1, name: query }),

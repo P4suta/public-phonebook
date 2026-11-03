@@ -49,6 +49,10 @@ test("after the index loads, searching sends no term and no contact request", as
   }
   const first = page.locator("article").first();
   await expect(first.getByRole("heading")).toHaveText(query);
+  await expect(first.getByRole("heading").getByRole("link")).toHaveCount(0);
+  await expect(
+    first.getByRole("link", { name: `${query}の住所などを見る`, exact: true }),
+  ).toHaveText("住所などを見る");
   await expect(
     first.getByText("東京都千代田区", { exact: true }),
   ).toBeVisible();

@@ -3,7 +3,11 @@ import type { Page } from "@playwright/test";
 import * as v from "valibot";
 import { GroupedSearchResponseSchema } from "../../src/core/models.ts";
 import { expect, test } from "./fixtures.ts";
-import { saveData, waitForLocalSearch } from "./search-sources.ts";
+import {
+  detailActionName,
+  saveData,
+  waitForLocalSearch,
+} from "./search-sources.ts";
 
 test.use({ video: "on", screenshot: "off" });
 
@@ -140,10 +144,9 @@ test("on the device, a continuation adds 30 cards without a request and focuses 
   await page.goto("/?q=図書館");
   await waitForLocalSearch(page);
   const library = page.locator('[data-result-category="library"]');
-  await expect(library.locator("article a").first()).toHaveAttribute(
-    "href",
-    /^\/contacts\/row\//u,
-  );
+  await expect(
+    library.getByRole("link", { name: detailActionName }).first(),
+  ).toHaveAttribute("href", /^\/contacts\/row\//u);
   const requests: string[] = [];
   page.on("request", (request) => requests.push(request.url()));
   const before = await library.locator("article").count();
@@ -152,9 +155,9 @@ test("on the device, a continuation adds 30 cards without a request and focuses 
     .click();
   await expect(library.locator("article")).toHaveCount(before + 30);
   const first = library.locator("article").nth(before);
-  await expect(
-    first.getByRole("link", { name: /の情報を見る$/u }),
-  ).toBeFocused();
+  const heading = first.getByRole("heading");
+  await expect(heading).toBeFocused();
+  await expect(heading).toHaveAttribute("tabindex", "-1");
   expect(requests).toEqual([]);
   expect(new URL(page.url()).searchParams.has("category")).toBe(false);
 });

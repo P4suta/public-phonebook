@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { foundation } from "../../src/ui/foundations.ts";
 import { expect, test } from "./fixtures.ts";
-import { waitForLocalSearch } from "./search-sources.ts";
+import { detailActionName, waitForLocalSearch } from "./search-sources.ts";
 
 const centerTolerance = 2;
 const edgeTolerance = 1;
@@ -144,9 +144,13 @@ test("typing searches, exact names rank first, and contact actions work", async 
   await expect(first.getByRole("link", { name: /の地図を開く/u })).toHaveCount(
     0,
   );
-  await first
-    .getByRole("link", { name: "国立国会図書館の情報を見る", exact: true })
-    .click();
+  await expect(first.getByRole("heading").getByRole("link")).toHaveCount(0);
+  const detail = first.getByRole("link", {
+    name: "国立国会図書館の住所などを見る",
+    exact: true,
+  });
+  await expect(detail).toHaveText("住所などを見る");
+  await detail.click();
   await expect(
     page.getByRole("heading", { name: "電話番号のもとの情報", exact: true }),
   ).toBeVisible();
@@ -163,6 +167,54 @@ test("typing searches, exact names rank first, and contact actions work", async 
   await page.getByRole("link", { name: "施設の情報にもどる" }).click();
   await page.getByRole("link", { name: "検索結果にもどる" }).click();
   await expect(page.getByRole("searchbox")).toHaveValue("国立国会図書館");
+});
+
+test("each result keeps its name as heading text and names its one detail action without JavaScript", async ({
+  browser,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("The test server URL is required");
+  const context = await browser.newContext({
+    javaScriptEnabled: false,
+    baseURL,
+  });
+  try {
+    const page = await context.newPage();
+    const cases = [
+      { facility: "国立国会図書館", label: "住所などを見る" },
+      { facility: "いなべ警察署　東員交番", label: "くわしい情報を見る" },
+    ] as const;
+    for (const { facility, label } of cases) {
+      await page.goto(`/?q=${encodeURIComponent(facility)}`);
+      const card = page.locator("article").first();
+      await expect(card.getByRole("heading")).toHaveText(facility);
+      await expect(card.getByRole("heading").getByRole("link")).toHaveCount(0);
+      await expect(card.locator('a[href^="/contacts/"]')).toHaveCount(1);
+      const detail = card.getByRole("link", { name: detailActionName });
+      await expect(detail).toHaveText(label);
+      await expect(detail).toHaveAttribute(
+        "aria-label",
+        `${facility}の${label}`,
+      );
+      await expect(detail).toHaveAttribute(
+        "href",
+        /^\/contacts\/[^/?]+\?from=/u,
+      );
+    }
+    await page
+      .locator("article")
+      .first()
+      .getByRole("link", { name: detailActionName })
+      .click();
+    await expect(
+      page.getByRole("heading", { level: 1, name: cases[1].facility }),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: /の地図を開く/u })).toHaveCount(
+      0,
+    );
+  } finally {
+    await context.close();
+  }
 });
 
 for (const reducedMotion of ["no-preference", "reduce"] as const) {
