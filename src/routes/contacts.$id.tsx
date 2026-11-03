@@ -1,11 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import {
-  BackButton,
-  ContactCard,
-  LinkButton,
-  OfficialLink,
-} from "../ui/components.tsx";
+import { BackButton, ContactCard, LinkButton } from "../ui/components.tsx";
 import { uiCopy } from "../ui/copy.ts";
 import { getRouteContact } from "../ui/route-data.ts";
 import * as css from "../ui/styles.css.ts";
@@ -37,18 +32,11 @@ function ContactPage(): ReactElement {
       <div className={css.stack}>
         <BackButton href={from}>検索結果にもどる</BackButton>
         <ContactCard contact={contact} />
-        {contact.website && (
-          <div className={css.actions}>
-            <OfficialLink href={contact.website} destination="facility">
-              施設のページを開く
-            </OfficialLink>
-          </div>
-        )}
         <h2 className={css.subheading}>{uiCopy.sourceTitle}</h2>
         {/^\d{4}-\d{2}-\d{2}$/u.test(contact.dataAsOf) && (
           <p>データの日付：{formatDate(contact.dataAsOf)}</p>
         )}
-        <div className={css.actions}>
+        <div className={css.actionColumn}>
           <LinkButton href={sourcePath} icon="file-search">
             {uiCopy.sourceAction}
           </LinkButton>

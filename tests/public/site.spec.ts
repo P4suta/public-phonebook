@@ -21,9 +21,7 @@ test("published search, telephone normalization, detail, and source navigation w
   const detailLabel = `${contact.name}の住所などを見る`;
   const card = page.getByRole("article", { name: contact.name, exact: true });
   await expect(card).toBeVisible();
-  await expect(card.locator("[data-phone] > span").first()).toHaveText(
-    "088-844-0111",
-  );
+  await expect(card.locator("[data-phone]").first()).toHaveText("088-844-0111");
   await expect(card.locator('a[href="tel:+81888440111"]')).toBeVisible();
   expect((await auditDesign(page)).violations).toEqual([]);
   expect(

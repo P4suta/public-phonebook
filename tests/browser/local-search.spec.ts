@@ -248,7 +248,7 @@ test("the server sends the stored Brotli bytes, and the browser admits the decod
   await waitForLocalSearch(page);
 });
 
-test("the visible count updates at once and is announced after typing stops", async ({
+test("the total count has no visible line and is announced after typing stops", async ({
   page,
 }) => {
   await page.clock.install({ time: loadedAt });
@@ -262,9 +262,9 @@ test("the visible count updates at once and is announced after typing stops", as
     "href",
     /^\/contacts\/row\//u,
   );
-  await expect(page.locator("main p[aria-hidden=true]")).toHaveText(
-    /件 見つかりました$/u,
-  );
+  await expect(
+    page.locator("main :not(output)", { hasText: /見つかりました/u }),
+  ).toHaveCount(0);
   await page.clock.runFor(announcementDelay - 1);
   await expect(status).toHaveText("");
   await page.clock.runFor(1);

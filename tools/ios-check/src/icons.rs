@@ -52,7 +52,7 @@ const INSTALL_ICON_SIZES: [u32; 2] = [192, 512];
 const CATEGORY_FALLBACK_ICON: &str = "file";
 
 const SITE_NAME: &str = "Public Phonebook";
-const SITE_DESCRIPTION: &str = "施設や窓口の電話番号をさがせます。";
+const SITE_DESCRIPTION: &str = "施設の電話番号をさがせます。";
 const SITE_LANGUAGE: &str = "ja";
 const SITE_START: &str = "/";
 const SITE_DISPLAY: &str = "standalone";

@@ -100,13 +100,13 @@ test("every external link type confirms its destination before opening a tab", a
         page
           .locator("article")
           .first()
-          .getByRole("link", { name: /の地図を開く（新しいタブ）$/u }),
+          .getByRole("link", { name: /を地図で見る（新しいタブ）$/u }),
       description: destinations.address,
     },
     {
       path: contact,
       link: (): Locator =>
-        page.getByRole("link", { name: /^施設のページを開く/u }),
+        page.getByRole("link", { name: /^施設のホームページを開く/u }),
       description: destinations.facility,
     },
     {

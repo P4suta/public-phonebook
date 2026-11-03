@@ -81,7 +81,7 @@ The retained Figma layout audit checks all four existing pages and preserves a k
 Native Figma text measurement and browser layout remain external rendering boundaries.
 The geometry checks establish properties of the captured records, not all possible layouts or unexported Figma changes.
 Contact checks bind related target edges and enforce one primary framed call action per telephone number.
-They require number copying to remain separate from calling and preserve alignment after successful and denied copying.
+They require each number to stay plain text apart from its call action, and they reject any button in a result card.
 The browser detector must reject deliberately displaced actions and redundant framed navigation with the expected rule names.
 It covers Unicode tokenization, name normalization, cursor encoding, vCard byte folding, malformed input, literal SQL metacharacters, region compatibility, and spreadsheet formula guards.
 The external-link confirmation decision is checked over all 32 combinations of its five Boolean inputs and isn't part of the proof inventory.
@@ -162,14 +162,12 @@ The budget clamps a request time from a faster clock to the current time, so the
 Revisit this boundary if Cloudflare changes version overrides, gradual deployments, or the Worker and version API responses.
 
 Run `mise x -- just prove`.
-LemmaScript 0.6.5 translates the actual annotated search, search-trigger, copy, site request, publication, collection, snapshot, row locator, and directory delta policy implementations to Dafny.
+LemmaScript 0.6.5 translates the actual annotated search, search-trigger, site request, publication, collection, snapshot, row locator, and directory delta policy implementations to Dafny.
 The gate requires unmodified generated output and every function listed in `tools/prove.ts`.
-Dafny 4.11.0 checks its expected nonempty unit and postcondition inventory for the supported search, search-trigger, copy, site request, publication, school-evidence, unique-candidate, source-accounting, versioned-API snapshot, and row locator decisions.
+Dafny 4.11.0 checks its expected nonempty unit and postcondition inventory for the supported search, search-trigger, site request, publication, school-evidence, unique-candidate, source-accounting, versioned-API snapshot, and row locator decisions.
 The site request policy refuses a site-route request exactly when its `Sec-Fetch-Site` header is present and differs from `same-origin`, over the full Boolean domain.
 It also admits search page sizes from 1 through 30, the page size that the site requests.
-The copy policy partitions current success, current failure, and superseded completion over the full Boolean domain.
-The browser adapter uses fresh symbol identities and suppresses superseded state and announcements.
-Separate negative controls accept limit 101, ignore a municipality when choosing a catalog total, store a failure status, reverse the completion guard, reverse the trusted-click guard, admit a site-route request from another site, and accept a 31-row site page while retaining their contracts.
+Separate negative controls accept limit 101, ignore a municipality when choosing a catalog total, store a failure status, admit a site-route request from another site, and accept a 31-row site page while retaining their contracts.
 Each must fail verification.
 Search-trigger controls ignore composition, search an incomplete telephone number, and pause after one keystroke interval, and each must fail verification too.
 A conflicting import identity also has a source-mutating negative control that must fail verification.
@@ -223,19 +221,7 @@ Those operations are outside the translator's supported decision semantics.
 The checked alternative uses explicit input alphabets, matching source/canonical fields, known numbering examples, 2,000 fixed-seed digit round trips, native D1 queries, and complete snapshot reconciliation.
 Unknown metadata never authorizes changing digits or deleting source records.
 Revisit this boundary when the translator supports these native operations or the numbering metadata or admitted input domain changes.
-The browser tests execute native clipboard writes in addition to mocked success and denial.
-The native Chromium success case explicitly grants only clipboard writing for the test origin; WebKit and Firefox use their gesture-based defaults.
-Native failure diagnostics retain focus, visibility, user activation, and the browser error without reading clipboard contents.
-The [WebKit clipboard contract](https://webkit.org/blog/10855/async-clipboard-api/) requires a secure context and a user gesture.
-A [reported WebKit regression](https://bugs.webkit.org/show_bug.cgi?id=324512) consumes real transient activation during JavaScript evaluation around a click.
-The compatibility adapter chooses synchronous selection copying for a trusted click with unavailable activation or an absent asynchronous clipboard API.
-The deprecated selection-copy command remains isolated in that adapter and is not a fallback for an explicit asynchronous clipboard denial.
-Native fault injection consumes activation with a popup before React receives the first click and checks the actual selection-copy event rather than a replacement clipboard implementation.
-WebKit must copy on that first click.
-Chromium and Firefox reject that native write after popup activation loss; their cases require readable failure followed by successful copying on the next trusted click.
-An additional case removes the asynchronous API and checks native copying of a telephone number.
-Untrusted synthetic clicks must leave both write paths untouched.
-These checks cover DOM events, focus, and browser behavior through native tests rather than translator proofs.
+Telephone numbers render as plain selectable text, and the site draws no copy control, so no clipboard adapter remains to verify.
 Headless WebKit evidence does not certify every released Safari build or its native data detectors.
 
 Category previews with a name, telephone, or region term use a parameterized SQLite window query over narrow sortable columns and retrieve payloads only for the selected previews.
@@ -366,7 +352,7 @@ After a complete run, the command records the search performance as an observati
 Admission never reads the observation, a failed measurement only logs why it recorded nothing, and a rerun keeps the first observation.
 The workflow keeps both search reports as artifacts for 90 days.
 The browser campaign uses the built client and Worker output from the `check` stage.
-It covers automatic search, Japanese composition, early input, on-device search and its switch from server results, offline search, old URL redirects, exact-name ranking, call/map/detail/source actions, external-link confirmation, denied clipboard access, native no-JavaScript continuation, retries, changed snapshots, untrusted result text, local assets, nonce handling, HTTP contracts, and complete-download hashes.
+It covers automatic search, Japanese composition, early input, on-device search and its switch from server results, offline search, old URL redirects, exact-name ranking, call/map/detail/source actions, external-link confirmation, the absence of copy controls, native no-JavaScript continuation, retries, changed snapshots, untrusted result text, local assets, nonce handling, HTTP contracts, and complete-download hashes.
 It also queries every prefecture and category against native D1.
 Browser failures retain screenshots, videos, traces, and structured diagnostics under `test-results`.
 Design cases retain native video even on success.

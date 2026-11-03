@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import * as v from "valibot";
 import { GroupedSearchResponseSchema } from "../../src/core/models.ts";
+import { foundation } from "../../src/ui/foundations.ts";
 import { expect, test } from "./fixtures.ts";
 import {
   detailActionName,
@@ -10,6 +11,10 @@ import {
 } from "./search-sources.ts";
 
 test.use({ video: "on", screenshot: "off" });
+
+const headingWidths = [320, 1440] as const;
+const viewportHeight = 900;
+const edgeTolerance = 1;
 
 async function cardsWithoutCategoryHeading(
   page: Page,
@@ -46,16 +51,34 @@ test("an exact facility name leads its own category under the category heading",
     "library",
   ]);
   const university = groups.first();
-  await expect(
-    university.getByRole("heading", {
-      level: 2,
-      name: "大学 1件",
-      exact: true,
-    }),
-  ).toBeVisible();
+  const heading = university.getByRole("heading", {
+    level: 2,
+    name: "大学 1件",
+    exact: true,
+  });
+  await expect(heading).toBeVisible();
+  for (const width of headingWidths) {
+    await page.setViewportSize({ width, height: viewportHeight });
+    const [label, count] = await heading
+      .locator(":scope > span")
+      .evaluateAll((spans) =>
+        spans.map((span) => {
+          const box = span.getBoundingClientRect();
+          return { left: box.left, right: box.right, text: span.textContent };
+        }),
+      );
+    expect(label?.text, `${width}px`).toBe("大学");
+    expect(count?.text, `${width}px`).toBe("1件");
+    expect(
+      Math.abs(
+        (count?.left ?? 0) - (label?.right ?? 0) - foundation.space["8"],
+      ),
+      `The count follows its label at ${width}px`,
+    ).toBeLessThan(edgeTolerance);
+  }
   const exact = university.locator("article").first();
   await expect(exact.getByRole("heading", { level: 3 })).toHaveText("高知大学");
-  await expect(exact.locator("[data-phone] > span").first()).toHaveText(
+  await expect(exact.locator("[data-phone]").first()).toHaveText(
     "088-844-0111",
   );
   await expect(

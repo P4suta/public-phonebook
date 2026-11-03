@@ -161,23 +161,24 @@ export const solid = style({
     "&:hover": { color: tokens.color.ink, background: tokens.color.paper },
   },
 });
-export const searchGroup = style({
-  display: "flex",
-  flexDirection: "column",
-  gap: tokens.space["8"],
-});
 export const fieldLabel = style({ ...typography("rowHeading") });
-export const searchHint = style({
-  ...typography("body"),
-  whiteSpace: "pre-line",
-});
+/** Puts the search action beside the field on wide screens and below it on narrow screens. */
 export const searchField = style({
-  position: "relative",
   display: "flex",
+  alignItems: "center",
+  gap: tokens.space["8"],
   width: "100%",
   "@media": {
-    [viewport.compact]: { flexDirection: "column", gap: tokens.space["8"] },
+    [viewport.compact]: { flexDirection: "column", alignItems: "flex-start" },
   },
+});
+/** Holds the field and its loading bar, so the bar spans the field and not the action. */
+export const searchInput = style({
+  position: "relative",
+  display: "flex",
+  flex: "1 1 0",
+  alignSelf: "stretch",
+  minWidth: 0,
 });
 export const indexProgress = style({
   position: "absolute",
@@ -207,7 +208,6 @@ export const input = style({
   borderRadius: 0,
   background: tokens.color.paper,
   ...typography("label"),
-  "@media": { [viewport.compact]: { flex: "none" } },
   selectors: {
     "&:focus-visible": {
       outline: `${tokens.control.focus} solid ${tokens.color.ink}`,
@@ -215,17 +215,7 @@ export const input = style({
     },
   },
 });
-export const searchButton = style([
-  button,
-  solid,
-  {
-    flexShrink: 0,
-    height: tokens.control.searchHeight,
-    paddingInline: tokens.space["16"],
-    "@media": { [viewport.compact]: { width: "100%" } },
-  },
-]);
-export const toolbar = style([actions, { justifyContent: "space-between" }]);
+export const searchButton = style([button, { flexShrink: 0 }]);
 export const results = style({
   display: "flex",
   flexDirection: "column",
@@ -246,18 +236,17 @@ export const resultGroup = style({
   gap: tokens.space["8"],
   minWidth: 0,
 });
+/** Puts the category's count right after its label, on the label's baseline. */
 export const resultGroupHeading = style({
   display: "flex",
-  alignItems: "center",
+  alignItems: "baseline",
   gap: tokens.space["8"],
   ...typography("section"),
   overflowWrap: "anywhere",
 });
-globalStyle(`${resultGroupHeading} > span:first-of-type`, {
-  flex: 1,
-  minWidth: 0,
-});
+globalStyle(`${resultGroupHeading} > span:first-of-type`, { minWidth: 0 });
 globalStyle(`${resultGroupHeading} > svg`, {
+  alignSelf: "center",
   width: tokens.control.categoryIcon,
   height: tokens.control.categoryIcon,
   flexShrink: 0,
@@ -267,6 +256,10 @@ globalStyle(`${resultGroupHeading} > span:last-of-type`, {
   flexShrink: 0,
   whiteSpace: "nowrap",
 });
+/**
+ * Lays a wide result card out in two columns and three rows: the name beside the number, the region beside the call action, and the detail action below the region.
+ * Dense placement fills each column in source order, so the source order stays name, region, number, call, and details for narrow screens and assistive technology.
+ */
 export const card = style({
   display: "grid",
   gap: tokens.space["16"],
@@ -278,184 +271,104 @@ export const card = style({
       selectors: {
         '&[data-layout="result"]': {
           gridTemplateColumns: `minmax(0, 1fr) minmax(0, ${px(foundation.layout.phoneColumn)})`,
+          gridAutoFlow: "row dense",
+          alignItems: "center",
           columnGap: tokens.space["32"],
+          rowGap: tokens.space["8"],
         },
       },
     },
   },
 });
+const wideResult = `${card}[data-layout="result"] &`;
+const contents = {
+  "@media": {
+    [viewport.columns]: {
+      selectors: { [wideResult]: { display: "contents" } },
+    },
+  },
+} as const;
+const resultColumn = (gridColumn: "1" | "2") =>
+  ({
+    "@media": {
+      [viewport.columns]: { selectors: { [wideResult]: { gridColumn } } },
+    },
+  }) as const;
 export const contactHeader = style({
   display: "flex",
   flexDirection: "column",
   gap: tokens.space["4"],
   minWidth: 0,
+  ...contents,
 });
 export const contactName = style({
   ...typography("facility"),
   overflowWrap: "anywhere",
+  ...resultColumn("1"),
 });
 export const region = style({
   ...typography("meta"),
   overflowWrap: "anywhere",
+  ...resultColumn("1"),
 });
 export const contactNumbers = style({
   display: "flex",
   flexDirection: "column",
   gap: tokens.space["16"],
   minWidth: 0,
-  "@media": {
-    [viewport.columns]: {
-      selectors: {
-        [`${card}[data-layout="result"] &`]: {
-          gridColumn: "2",
-          gridRow: "1 / span 2",
-          alignSelf: "stretch",
-          paddingTop: tokens.space["24"],
-        },
-        [`${card}[data-layout="result"][data-grouped="true"] &`]: {
-          paddingTop: 0,
-        },
-      },
-    },
-  },
+  ...contents,
 });
 export const contactLocation = style({
   display: "flex",
   flexDirection: "column",
   gap: tokens.space["8"],
   minWidth: 0,
-  "@media": {
-    [viewport.columns]: {
-      selectors: {
-        [`${card}[data-layout="result"] &`]: {
-          gridColumn: "1",
-          gridRow: "2",
-          alignSelf: "end",
-        },
-      },
-    },
-  },
 });
-export const group = style({
+export const contactAddress = style({
+  display: "flex",
+  flexDirection: "column",
+  gap: tokens.space["4"],
+  minWidth: 0,
+});
+export const addressHeading = style({ ...typography("rowHeading") });
+const group = style({
   display: "flex",
   flexDirection: "column",
   gap: tokens.space["8"],
   minWidth: 0,
 });
-export const phoneGroup = style([
+/** Stacks actions at the telephone column's width, which reaches 360 pixels on wide screens. */
+export const actionColumn = style([
   group,
-  {
-    "@media": {
-      [viewport.columns]: {
-        selectors: {
-          [`${card}[data-layout="result"] &`]: {
-            flex: 1,
-            justifyContent: "space-between",
-          },
-        },
-      },
-    },
-  },
+  { width: "100%", maxWidth: px(foundation.layout.phoneColumn), ...contents },
 ]);
-/** Keeps the result's detail action at its label's width below the telephone actions, in the telephone column on wide screens. */
+globalStyle(`${card}[data-layout="result"] ${actionColumn} > *`, {
+  "@media": { [viewport.columns]: { gridColumn: "2" } },
+});
+export const phoneGroup = style([group, contents]);
+/** Keeps the result's detail action at its label's width below the telephone actions, and below the region on wide screens. */
 export const detailAction = style([
   button,
-  {
-    justifySelf: "start",
-    "@media": {
-      [viewport.columns]: {
-        selectors: {
-          [`${card}[data-layout="result"] &`]: { gridColumn: "2" },
-        },
-      },
-    },
-  },
+  { justifySelf: "start", ...resultColumn("1") },
 ]);
-export const contactLink = style({
-  display: "flex",
-  alignItems: "center",
-  gap: tokens.space["8"],
-  minWidth: tokens.control.height,
-  minHeight: tokens.control.height,
-  color: tokens.color.ink,
-  textDecoration: "underline",
-  textUnderlineOffset: "0.18em",
-  overflowWrap: "anywhere",
-});
-globalStyle(`${contactLink} > span`, { minWidth: 0, flex: 1 });
-export const trailingIcon = style({
-  width: tokens.control.icon,
-  height: tokens.control.icon,
-  marginInlineStart: tokens.space["4"],
-  verticalAlign: "middle",
-});
-globalStyle(`${contactLink} > svg`, {
-  width: tokens.control.icon,
-  height: tokens.control.icon,
-  flexShrink: 0,
-});
-export const cardFeedback = style({
-  gridColumn: "1 / -1",
-  ...typography("meta"),
-  overflowWrap: "anywhere",
-});
 export const category = style({
   display: "flex",
   alignItems: "center",
   gap: tokens.space["4"],
   ...typography("meta"),
 });
+/** Shows a telephone number as plain selectable text in a row as tall as an action. */
 export const telephone = style({
   display: "flex",
   alignItems: "center",
-  alignSelf: "flex-start",
-  flexWrap: "wrap",
-  gap: tokens.space["8"],
-  maxWidth: "100%",
   minHeight: tokens.control.height,
-  padding: 0,
-  border: 0,
-  appearance: "none",
-  color: tokens.color.ink,
-  background: tokens.color.paper,
-  cursor: "copy",
-  userSelect: "text",
-  textAlign: "left",
   ...typography("phone"),
   fontVariantNumeric: "tabular-nums",
   overflowWrap: "anywhere",
   selectors: {
     [`${card}[data-layout="detail"] &`]: { ...typography("phoneDetail") },
-    [`${card}[data-layout="result"] &`]: {
-      width: "100%",
-      justifyContent: "space-between",
-    },
-    "&:hover:not(:focus-visible)": {
-      outline: rule,
-      outlineOffset: `calc(-1 * ${tokens.control.border})`,
-    },
   },
-});
-globalStyle(`${telephone} > span:first-child`, {
-  minWidth: 0,
-  overflowWrap: "anywhere",
-});
-export const numberCopyHint = style({
-  display: "inline-flex",
-  alignItems: "center",
-  gap: tokens.space["4"],
-  flexShrink: 0,
-  marginInlineStart: "auto",
-  whiteSpace: "nowrap",
-  ...typography("action"),
-});
-globalStyle(`${card}[data-layout="result"] ${phoneGroup} a[href^="tel:"]`, {
-  width: "100%",
-});
-globalStyle(`${numberCopyHint} > svg`, {
-  width: tokens.control.icon,
-  height: tokens.control.icon,
-  flexShrink: 0,
+  ...resultColumn("2"),
 });
 export const section = style([stack, { paddingTop: tokens.space["24"] }]);
 export const dialog = style({

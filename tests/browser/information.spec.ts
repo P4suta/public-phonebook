@@ -5,18 +5,17 @@ import { auditDesign } from "./design-policy.ts";
 import { expect, test } from "./fixtures.ts";
 import { knownContact } from "./known-contact.ts";
 
-test("the initial screen gives a complete instruction and one project-information action", async ({
+test("the initial screen labels the search without a hint and offers one project-information action", async ({
   page,
 }) => {
   await page.goto("/");
   const searchbox = page.getByRole("searchbox");
   await expect(searchbox).not.toHaveAttribute("placeholder");
-  await expect(searchbox).toHaveAccessibleName("施設や窓口の名前");
-  await expect(searchbox).toHaveAccessibleDescription(
-    "病院や役所、学校などの名前を入れてください。 名前の一部でも、さがせます。",
-  );
+  await expect(searchbox).toHaveAccessibleName("施設の名前か電話番号");
+  await expect(searchbox).toHaveAccessibleDescription("");
+  await expect(page.getByText(/名前の一部でも/u)).toHaveCount(0);
   await expect(
-    page.getByText("施設や窓口の名前", { exact: true }),
+    page.getByText("施設の名前か電話番号", { exact: true }),
   ).toBeVisible();
   await expect(searchbox).toHaveAttribute("enterkeyhint", "search");
   await expect(
@@ -33,7 +32,7 @@ test("the initial screen gives a complete instruction and one project-informatio
     [
       link,
       page.getByRole("heading", { level: 1 }),
-      page.getByText("施設や窓口の名前", { exact: true }),
+      page.getByText("施設の名前か電話番号", { exact: true }),
     ].map(async (item) => item.boundingBox()),
   );
   if (!box || !heading || !label)

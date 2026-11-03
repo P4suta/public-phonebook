@@ -1,27 +1,15 @@
-import {
-  type MouseEvent,
-  type ReactElement,
-  type ReactNode,
-  useRef,
-  useState,
-} from "react";
+import type { MouseEvent, ReactElement, ReactNode } from "react";
 import { categoryDefinitions } from "../core/catalog.ts";
-import { copyCompletion } from "../core/copy-policy.ts";
 import { mapSearchUrl } from "../core/map-link.ts";
 import type { Contact } from "../core/models.ts";
 import { formatPhone } from "../core/phone.ts";
 import { cleanAddress } from "../core/search.ts";
-import { copyText } from "./clipboard.ts";
 import { type ExternalDestination, uiCopy } from "./copy.ts";
 import type { IconName } from "./icon-catalog.ts";
 import { CategoryIcon, Icon } from "./icons.tsx";
 import { opensNewTab } from "./links.ts";
 import type { ResultCardView } from "./result-cards.ts";
 import * as css from "./styles.css.ts";
-
-function copyFeedback(outcome: "copied" | "failed", subject: string): string {
-  return outcome === "copied" ? uiCopy.copied(subject) : uiCopy.copyFailed;
-}
 
 export function LinkButton({
   href,
@@ -80,102 +68,12 @@ export function BackButton({
   );
 }
 
-export function CopyButton({
-  value,
-  label,
-  subject,
-  accessibleLabel,
-  feedback,
-  presentation = "button",
-}: {
-  readonly value: string;
-  readonly label: string;
-  readonly subject: string;
-  readonly accessibleLabel?: string;
-  readonly presentation?: "button" | "telephone";
-  readonly feedback?: {
-    readonly id: string;
-    readonly requests: { current: symbol | null };
-    readonly announce: (message: string) => void;
-  };
-}): ReactElement {
-  const [state, setState] = useState<"ready" | "copied" | "failed">("ready");
-  const latest = useRef<symbol | null>(null);
-  const requests = feedback?.requests ?? latest;
-  const icon =
-    state === "copied" ? <Icon name="check" /> : <Icon name="copy" />;
-  async function copy(trusted: boolean): Promise<void> {
-    const request = Symbol();
-    requests.current = request;
-    const succeeded = await copyText(value, trusted, css.srOnly);
-    const outcome = copyCompletion(request === requests.current, succeeded);
-    if (outcome === "superseded") return;
-    setState(outcome);
-    feedback?.announce(copyFeedback(outcome, subject));
-  }
-  return (
-    <div className={css.group}>
-      <button
-        type="button"
-        className={presentation === "telephone" ? css.telephone : css.button}
-        data-phone={presentation === "telephone" ? "" : undefined}
-        aria-label={accessibleLabel}
-        aria-describedby={feedback?.id}
-        onClick={(event) => {
-          event.currentTarget.focus({ preventScroll: true });
-          void copy(event.nativeEvent.isTrusted);
-        }}
-      >
-        {presentation === "telephone" ? (
-          <>
-            <span>{label}</span>{" "}
-            <span className={css.numberCopyHint} aria-hidden="true">
-              {icon}
-              {uiCopy.copy}
-            </span>
-          </>
-        ) : (
-          <>
-            {icon}
-            {label}
-          </>
-        )}
-      </button>
-      {!feedback && (
-        <output className={state === "ready" ? css.srOnly : css.status}>
-          {state === "ready" ? "" : copyFeedback(state, subject)}
-        </output>
-      )}
-    </div>
-  );
-}
-
-interface CopyFeedback {
-  readonly id: string;
-  readonly message: string;
-  readonly control: {
-    readonly id: string;
-    readonly requests: { current: symbol | null };
-    readonly announce: (message: string) => void;
-  };
-}
-
-function useCopyFeedback(key: string): CopyFeedback {
-  const [message, setMessage] = useState("");
-  const requests = useRef<symbol | null>(null);
-  const id = `contact-feedback-${key}`;
-  return { id, message, control: { id, requests, announce: setMessage } };
-}
-
+/** Shows each number as selectable text above its call action, and offers contact saving once. */
 function PhoneActions({
   phones,
-  name,
-  feedback,
   vcard,
 }: {
   readonly phones: readonly string[];
-  readonly name: string;
-  readonly feedback: CopyFeedback;
   readonly vcard?: string;
 }): ReactElement {
   return (
@@ -184,15 +82,10 @@ function PhoneActions({
         const display = formatPhone(e164);
         return (
           <div className={css.phoneGroup} key={e164}>
-            <CopyButton
-              value={display}
-              label={display}
-              subject="電話番号"
-              accessibleLabel={`${display} コピーする（${name}の電話番号）`}
-              feedback={feedback.control}
-              presentation="telephone"
-            />
-            <div className={css.actions}>
+            <p className={css.telephone} data-phone="">
+              {display}
+            </p>
+            <div className={css.actionColumn}>
               <LinkButton
                 href={`tel:${e164}`}
                 primary
@@ -214,21 +107,6 @@ function PhoneActions({
   );
 }
 
-function FeedbackRow({
-  feedback,
-}: {
-  readonly feedback: CopyFeedback;
-}): ReactElement {
-  return (
-    <output
-      id={feedback.id}
-      className={feedback.message ? css.cardFeedback : css.srOnly}
-    >
-      {feedback.message}
-    </output>
-  );
-}
-
 function plainActivation(event: MouseEvent<HTMLAnchorElement>): boolean {
   return (
     event.button === 0 &&
@@ -247,7 +125,6 @@ export function ResultCard({
   readonly card: ResultCardView;
   readonly onOpenRow: (card: ResultCardView) => void;
 }): ReactElement {
-  const feedback = useCopyFeedback(card.key);
   const headingId = `contact-${card.key}`;
   const detail = uiCopy.resultDetail.label(card.hasAddress);
   return (
@@ -263,7 +140,7 @@ export function ResultCard({
         </h3>
         {card.region && <p className={css.region}>{card.region}</p>}
       </div>
-      <PhoneActions phones={card.phones} name={card.name} feedback={feedback} />
+      <PhoneActions phones={card.phones} />
       <a
         className={css.detailAction}
         href={card.href}
@@ -277,17 +154,19 @@ export function ResultCard({
         <Icon name="chevron-right" />
         {detail}
       </a>
-      <FeedbackRow feedback={feedback} />
     </article>
   );
 }
 
+/**
+ * Shows a facility's category, name, and telephone actions, then its address as plain text above a map action.
+ * The facility's homepage action closes the card.
+ */
 export function ContactCard({
   contact,
 }: {
   readonly contact: Contact;
 }): ReactElement {
-  const feedback = useCopyFeedback(contact.id);
   const category = categoryDefinitions.find(
     (item) => item.id === contact.category,
   );
@@ -310,35 +189,35 @@ export function ContactCard({
       </div>
       <PhoneActions
         phones={contact.phones.map((phone) => phone.e164)}
-        name={contact.name}
-        feedback={feedback}
         vcard={`/api/contacts/${encodeURIComponent(contact.id)}/contact.vcf`}
       />
       {address && (
         <div className={css.contactLocation}>
-          {map ? (
-            <a
-              className={css.contactLink}
-              href={map}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-external-destination={
-                "address" satisfies ExternalDestination
-              }
-              aria-label={`${address}の地図を開く（新しいタブ）`}
-            >
-              <Icon name="map-pin" />
-              <span>
-                {address}
-                <Icon name="external-link" className={css.trailingIcon} />
-              </span>
-            </a>
-          ) : (
-            <p>{address}</p>
+          <div className={css.contactAddress}>
+            <h2 className={css.addressHeading}>{uiCopy.address.heading}</h2>
+            <p className={css.body}>{address}</p>
+          </div>
+          {map && (
+            <div className={css.actionColumn}>
+              <LinkButton
+                href={map}
+                icon="map-pin"
+                destination="address"
+                accessibleLabel={uiCopy.address.mapName(contact.name)}
+              >
+                {uiCopy.address.map}
+              </LinkButton>
+            </div>
           )}
         </div>
       )}
-      <FeedbackRow feedback={feedback} />
+      {contact.website && (
+        <div className={css.actionColumn}>
+          <OfficialLink href={contact.website} destination="facility">
+            {uiCopy.facilityHomepage}
+          </OfficialLink>
+        </div>
+      )}
     </article>
   );
 }
