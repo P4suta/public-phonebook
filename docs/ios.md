@@ -41,11 +41,25 @@ A cancelled update keeps the saved generation and downloads nothing more.
 
 Search runs on the device and sends nothing.
 The search field matches facility names and complete Japanese telephone numbers, with the website's normalization and exact, prefix, and substring ranking.
+The start screen asks for a facility name or a telephone number in one sentence.
+While iOS reports the Call Directory extension as off, a rule, two sentences, and an outline button that opens the app's iPhone settings follow that hint.
+The sentences say what the feature shows and ask the reader to grant the app permission in the iPhone settings.
+The prompt stays hidden while the state is on, unknown, or still unread, and `PhonebookCore.CallerStatus` holds that decision.
+The app reads the state again whenever it returns to the foreground.
+The simulator reports no extension state, so debug builds read `PHONEBOOK_CALLER_STATUS` for the UI scenario that draws the on and off states.
 Results appear while the reader types, under category headings with three previews each, and each category expands in place.
+Each heading shows its category's count, and no line repeats the total.
+VoiceOver announces the total once, 0.6 seconds after the results stop changing, like the website's status.
+Empty results show `あてはまる施設は0件です` and suggest part of a name or another word.
 Result cards show the name as heading text, the prefecture and municipality, and each telephone number, and the detail screen shows the full address and the source information from the saved data.
+Each telephone number is large selectable text over a full-width call button, and the app draws no copy control.
 Below the telephone actions, one outline button opens the detail screen.
 Its label is `住所などを見る` when the facility has an address and `くわしい情報を見る` when it has none.
 VoiceOver reads the facility name before that label.
+The detail screen shows the address as selectable text, and an outline `地図で見る` button below it opens Apple Maps after a confirmation.
+VoiceOver reads that button as the facility name followed by `の地図を見る`, and a facility without an address has no map button.
+Settings holds the caller section, which shows a filled check circle with `許可しています` or an empty circle with `まだ許可していません`.
+The About screen shows the date that the app saved its data.
 The about screens, privacy notes, data sources, and licenses are part of the app, and only facility, map, and source pages open in the browser after a confirmation.
 
 The actual Hono handlers produce the shared provider corpus with the dataset listing and the archive.

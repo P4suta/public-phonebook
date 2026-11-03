@@ -57,10 +57,8 @@ struct IconLabel: View {
 
 struct PhoneActions: View {
   let phone: Phone
-  let name: String
   var large = false
   @Environment(\.openURL) private var openURL
-  @State private var copied: Bool?
 
   private var display: String {
     SearchInput.nationalDisplay(phone.display, e164: phone.e164.rawValue)
@@ -68,22 +66,9 @@ struct PhoneActions: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      Button {
-        UIPasteboard.general.string = display
-        copied = UIPasteboard.general.string == display
-      } label: {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-          Text(display).font(large ? .largeTitle.bold() : .title.bold()).monospacedDigit()
-          Text("コピーする").font(.caption).underline()
-        }
-      }
-      .buttonStyle(.plain)
-      .accessibilityLabel("\(display) コピーする（\(name)の電話番号）")
-      .accessibilityIdentifier("phone-copy")
-      if let copied {
-        Text(copied ? "電話番号をコピーしました。" : "コピーできませんでした。文字をえらんでコピーしてください。")
-          .font(.footnote).accessibilityIdentifier("copy-feedback")
-      }
+      Text(display).font(large ? .largeTitle.bold() : .title.bold()).monospacedDigit()
+        .textSelection(.enabled)
+        .accessibilityIdentifier("phone-number")
       Button {
         if let url = URL(string: "tel:" + phone.e164.rawValue) { openURL(url) }
       } label: {
@@ -131,7 +116,8 @@ struct ExternalLink<Label: View>: View {
   }
 }
 
-struct AddressLink: View {
+/// Opens the facility in Apple Maps after a confirmation, beneath the address that stays plain selectable text.
+struct MapButton: View {
   let name: String
   let address: String
   @State private var confirming = false
@@ -142,16 +128,12 @@ struct AddressLink: View {
     Button {
       confirming = true
     } label: {
-      HStack(alignment: .firstTextBaseline, spacing: 6) {
-        DesignIcon(name: "location", size: 16)
-        Text(address).font(.callout).underline().multilineTextAlignment(.leading)
-        DesignIcon(name: "external", size: 14)
-      }
+      IconLabel(icon: "location", text: "地図で見る")
     }
-    .buttonStyle(.plain)
+    .buttonStyle(MonoButtonStyle())
     .disabled(opening)
-    .accessibilityLabel("\(address) マップで開く")
-    .accessibilityIdentifier("address-link")
+    .accessibilityLabel("\(name)の地図を見る")
+    .accessibilityIdentifier("map-button")
     .alert("マップで開きます", isPresented: $confirming) {
       Button("開く") {
         opening = true

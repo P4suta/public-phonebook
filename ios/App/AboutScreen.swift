@@ -4,6 +4,7 @@ import SwiftUI
 /// Explains the app, its data, privacy, and how to reach the developer without leaving the app.
 struct AboutScreen: View {
   let model: DirectoryModel
+  let integration: IntegrationModel
   @Environment(\.openURL) private var openURL
 
   var body: some View {
@@ -15,13 +16,17 @@ struct AboutScreen: View {
         Text("国や自治体の公式アプリではありません。")
 
         section("使い方")
-        Text("検索欄に施設や窓口の名前か、電話番号を入れます。名前の一部でも、さがせます。")
-        Text("「設定」で、着信に施設の名前を出す機能をオンにできます。")
+        Text("検索欄に施設の名前か、電話番号を入れます。")
+        Text("電話の相手が分かるようにするには、「設定」から\(AppIdentity.displayName)を許可します。")
         Text("電話をかけたり受けたりするのは、いつもの電話アプリです。")
 
         section("データについて")
-        Text("全国の施設や窓口が公開した電話番号のデータを、アプリの中に受け取って使います。")
+        Text("全国の施設が公開した電話番号のデータを、アプリの中に受け取って使います。")
         Text("新しいデータは、月に1回くらい自動で受け取ります。")
+        if let manifest = integration.manifest {
+          Text("データの日付：\(manifest.updatedAt.formatted(date: .long, time: .omitted))")
+            .accessibilityIdentifier("data-date")
+        }
         NavigationLink {
           SourcesScreen(categories: model.categories)
         } label: {
@@ -34,9 +39,9 @@ struct AboutScreen: View {
         Text("検索した言葉は、このiPhoneの中だけで使います。サービスには送りません。")
         Text("自分の連絡先や通話の履歴を読んだり、変えたり、サービスに送ったりすることはありません。")
         Text("データを受け取るときは、IPアドレスなどの接続の情報を使います。配信にはCloudflareを使っています。")
-        Text("着信に名前を出す機能をオンにすると、受け取った公開データをiOSに渡します。")
+        Text("iPhoneの設定で\(AppIdentity.displayName)を許可すると、受け取った公開データをiOSに渡します。")
         Text("アカウントの登録、広告、行動の追跡はありません。受け取ったデータは、アプリを削除すると消えます。")
-        Text("住所からAppleのマップを開くときは、場所を探すために施設の名前と住所をAppleに送ります。")
+        Text("「地図で見る」からAppleのマップを開くときは、場所を探すために施設の名前と住所をAppleに送ります。")
         Text("施設のページなど、ほかのサイトやアプリを開いたときは、そのサイトやアプリの決まりが使われます。")
 
         section("開発者に声を伝える")
@@ -80,7 +85,7 @@ private struct SourcesScreen: View {
   var body: some View {
     ScrollView {
       LazyVStack(alignment: .leading, spacing: 0) {
-        Text("施設や窓口の種類ごとに、データを公開している組織と、使うときの決まりです。")
+        Text("施設の種類ごとに、データを公開している組織と、使うときの決まりです。")
           .padding(.bottom, 12)
         ForEach(categories) { category in
           VStack(alignment: .leading, spacing: 4) {

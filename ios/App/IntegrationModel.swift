@@ -70,8 +70,8 @@ struct SavedGenerationReceipts: GenerationReceipts {
 @Observable @MainActor
 final class IntegrationModel {
   var manifest: SnapshotManifest?
-  var callerEnabled = false
-  var callerState = "確認しています"
+  private(set) var callerStatus = CallerStatus.checking
+  var callerEnabled: Bool { callerStatus.isOn }
   /// The saved share of an update from 0 to 1, or `nil` when no update runs.
   private(set) var progress: Double?
   /// When the running download started, for its remaining-time estimate.
@@ -86,6 +86,10 @@ final class IntegrationModel {
     /// Lets a UI scenario make the saved data due once without waiting a month.
     @ObservationIgnored private var forcedDue =
       ProcessInfo.processInfo.environment["PHONEBOOK_REFRESH_DUE"] == "1"
+    /// Lets a UI scenario draw a caller state that the simulator doesn't report.
+    @ObservationIgnored private let forcedCallerStatus = ProcessInfo.processInfo.environment[
+      "PHONEBOOK_CALLER_STATUS"
+    ].flatMap(CallerStatus.init(rawValue:))
   #endif
   @ObservationIgnored private let sync: SyncEngine
   @ObservationIgnored private let store: SnapshotStore
@@ -215,9 +219,16 @@ final class IntegrationModel {
 
   private func readExtensionStates() async {
     do {
-      callerEnabled = try await ExtensionOperations.callerEnabled()
-      callerState = callerEnabled ? "オン" : "オフ"
-    } catch { callerState = "確認できません" }
+      show(try await ExtensionOperations.callerEnabled() ? .on : .off)
+    } catch { show(.unknown) }
+  }
+
+  private func show(_ status: CallerStatus) {
+    #if DEBUG
+      callerStatus = forcedCallerStatus ?? status
+    #else
+      callerStatus = status
+    #endif
   }
 
   private func notifyExtensions(_ manifest: SnapshotManifest, force: Set<SnapshotConsumer> = [])
@@ -232,18 +243,15 @@ final class IntegrationModel {
       notifier: NativeExtensionNotifier(), receipts: SavedGenerationReceipts(), force: force,
       trace: SystemTraceSink())
     for result in results {
-      let enabled = [.current, .notified, .failed].contains(result.state)
-      let state: String
+      let status: CallerStatus
       switch result.state {
-      case .disabled: state = "オフ"
-      case .current, .notified: state = "オン"
-      case .failed: state = "オン・反映できませんでした。次に開いたときにやり直します"
-      case .unavailable: state = "このiPhoneでは使えません"
+      case .disabled: status = .off
+      case .current, .notified: status = .on
+      case .failed: status = .onRetrying
+      case .unavailable: status = .unknown
       }
       switch result.consumer {
-      case .caller:
-        callerState = state
-        callerEnabled = enabled
+      case .caller: show(status)
       }
     }
   }

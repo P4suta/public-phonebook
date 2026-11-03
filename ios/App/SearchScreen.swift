@@ -6,6 +6,7 @@ struct SearchScreen: View {
   @Bindable var model: DirectoryModel
   @Bindable var integration: IntegrationModel
   @State private var path: [Contact] = []
+  @State private var announced: [String] = []
 
   var body: some View {
     NavigationStack(path: $path) {
@@ -24,10 +25,13 @@ struct SearchScreen: View {
       )
       .onChange(of: model.query) { model.search() }
       .onSubmit(of: .search) { model.search() }
+      .task(id: announcement) { await announce() }
       .toolbar {
         ToolbarItem(placement: .topBarTrailing) {
           Menu {
-            NavigationLink("Public Phonebookについて") { AboutScreen(model: model) }
+            NavigationLink("Public Phonebookについて") {
+              AboutScreen(model: model, integration: integration)
+            }
             NavigationLink("設定") { SettingsScreen(model: integration) }
           } label: {
             DesignIcon(name: "menu").frame(minWidth: 44, minHeight: 44)
@@ -41,11 +45,31 @@ struct SearchScreen: View {
     .tint(.black)
   }
 
+  /// What the total announcement depends on, so each keystroke restarts its wait.
+  private var announcement: [String] {
+    guard let results = model.results else { return [] }
+    return [model.query, results.query, String(results.total)]
+  }
+
+  /// Announces the total once the results stop changing, after the same pause as the website's status.
+  /// Returning from a contact shows the same results, so it announces nothing new.
+  private func announce() async {
+    let key = announcement
+    guard !key.isEmpty else {
+      announced = []
+      return
+    }
+    guard key != announced else { return }
+    do { try await Task.sleep(for: .milliseconds(600)) } catch { return }
+    guard let results = model.results, !model.searching, announcement == key else { return }
+    announced = key
+    AccessibilityAnnouncement.post("\(results.total)件 見つかりました")
+  }
+
   @ViewBuilder private var content: some View {
     if model.results == nil, !model.searching, !model.failed {
       VStack(alignment: .leading, spacing: 8) {
-        Text("施設や窓口の名前か、電話番号を入れてください。")
-        Text("名前の一部でも、さがせます。")
+        Text("施設の名前か、電話番号を入れてください。")
         if integration.progress != nil {
           SaveProgress(percent: integration.percent, remaining: integration.remainingSeconds)
             .padding(.top, 16)
@@ -58,6 +82,23 @@ struct SearchScreen: View {
       }
       .accessibilityElement(children: .contain)
       .accessibilityIdentifier("search-hint")
+      if integration.callerStatus.promptsForSettings {
+        Rectangle().fill(.black).frame(height: 1).padding(.top, 24)
+        VStack(alignment: .leading, spacing: 12) {
+          Text("病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前を出せます。")
+          Text("iPhoneの設定で、\(AppIdentity.displayName)を許可してください。")
+          Button {
+            integration.openCallerSettings()
+          } label: {
+            IconLabel(icon: "settings", text: "iPhoneの設定を開く")
+          }
+          .buttonStyle(MonoButtonStyle())
+          .accessibilityIdentifier("caller-prompt-settings")
+        }
+        .padding(.top, 24)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("caller-prompt")
+      }
     } else if model.failed {
       Text("さがせませんでした").font(.headline).accessibilityIdentifier("search-error")
       Button {
@@ -67,11 +108,11 @@ struct SearchScreen: View {
       }
       .buttonStyle(MonoButtonStyle()).padding(.vertical, 12)
     } else if let results = model.results {
-      Text("\(results.total)件 見つかりました").font(.headline)
-        .accessibilityIdentifier("directory-total")
       if results.total == 0 {
-        Text("施設や窓口が見つかりませんでした").font(.title2.bold()).padding(.vertical, 12)
-        Text("名前の一部だけを入れてみてください。")
+        Text("あてはまる施設は0件です").font(.title2.bold()).padding(.vertical, 12)
+          .accessibilityAddTraits(.isHeader)
+          .accessibilityIdentifier("empty-results")
+        Text("名前の一部を入れるか、別の言葉でさがしてください。")
       }
       ForEach(results.groups) { group in groupView(group) }
     }
@@ -84,7 +125,10 @@ struct SearchScreen: View {
       Text("\(group.total)件")
     }
     .font(.title3).padding(.top, 24).padding(.bottom, 8)
-    .accessibilityElement(children: .combine).accessibilityAddTraits(.isHeader)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("\(group.label) \(group.total)件")
+    .accessibilityAddTraits(.isHeader)
+    .accessibilityIdentifier("group-\(group.key)")
     Rectangle().fill(.black).frame(height: 2)
     let visible = model.visible(group)
     ForEach(visible) { contact in
@@ -118,7 +162,7 @@ private struct ContactCard: View {
       if !contact.region.isEmpty {
         Text(contact.region).font(.callout).accessibilityIdentifier("contact-region")
       }
-      ForEach(contact.phones, id: \.e164) { PhoneActions(phone: $0, name: contact.name) }
+      ForEach(contact.phones, id: \.e164) { PhoneActions(phone: $0) }
       // The one control that opens the details names its action, so the name stays plain heading text.
       Button(action: detail) {
         IconLabel(icon: "next", text: detailLabel)
