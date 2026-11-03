@@ -39,6 +39,8 @@ struct SettingsScreen: View {
           Text("着信に施設の名前を出す").font(.headline).accessibilityAddTraits(.isHeader)
           Text("iPhoneの設定で\(AppIdentity.displayName)をオンにすると、施設や窓口からの着信に名前を出します。")
             .font(.callout)
+          Text("オンにしてから使えるようになるまで、20秒ほどかかります。")
+            .font(.callout)
           Text("いまの状態：\(model.callerState)").accessibilityIdentifier("caller-state")
           Button {
             model.openCallerSettings()

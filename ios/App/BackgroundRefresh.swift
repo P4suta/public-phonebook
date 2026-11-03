@@ -62,6 +62,7 @@ private final class BackgroundRequest: @unchecked Sendable {
       let api = try APIClient(origin: origin, trace: SystemTraceSink())
       let result = try await SyncEngine(api: api, store: store, trace: SystemTraceSink())
         .synchronize(progress: { _ in })
+      try await store.ensureCallerFile(generation: result.generation)
       _ = await ExtensionNotifications.refresh(
         generation: result.generation,
         notifier: NativeExtensionNotifier(), receipts: SavedGenerationReceipts(),
