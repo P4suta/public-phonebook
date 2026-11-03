@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import fc from "fast-check";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   controlKeys,
@@ -15,6 +16,7 @@ import type {
 import {
   assembleRecord,
   checkSbom,
+  nameBasedUuid,
   npmPurl,
   parseSha256Sums,
   productionApprovers,
@@ -86,6 +88,49 @@ const actions: RunProvenance = {
 };
 
 describe("SBOM", () => {
+  it("carries the fields that actions/attest requires to recognize CycloneDX, with a content-derived serial number", () => {
+    expect(
+      nameBasedUuid("6ba7b810-9dad-11d1-80b4-00c04fd430c8", "www.example.com"),
+    ).toBe("2ed6657d-e927-568b-95e1-2665a8aea6a2");
+    const bom = productionSbom(lock, { name: "fixture", version: tree });
+    // actions/attest 59d89421 src/sbom.ts checkIsCycloneDX
+    expect(Boolean(bom.bomFormat && bom.serialNumber && bom.specVersion)).toBe(
+      true,
+    );
+    expect(bom.serialNumber).toMatch(
+      /^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
+    );
+    expect(productionSbom(lock, { name: "fixture", version: tree })).toEqual(
+      bom,
+    );
+    expect(
+      productionSbom(lock, { name: "fixture", version: "b".repeat(40) })
+        .serialNumber,
+    ).not.toBe(bom.serialNumber);
+    const { serialNumber: _, ...unnumbered } = bom;
+    expect(() =>
+      checkSbom(unnumbered, { name: "fixture", dependencies: {} }),
+    ).toThrow();
+  });
+
+  it("derives a well-formed, repeatable version 5 identifier for every namespace and name", () => {
+    fc.assert(
+      fc.property(
+        fc.uuid(),
+        fc.string({ unit: "grapheme" }),
+        (namespace, name) => {
+          const identifier = nameBasedUuid(namespace, name);
+          expect(identifier).toMatch(
+            /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
+          );
+          expect(nameBasedUuid(namespace, name)).toBe(identifier);
+          expect(nameBasedUuid(namespace, `${name}.`)).not.toBe(identifier);
+        },
+      ),
+      { seed: 410_331, numRuns: 500 },
+    );
+  });
+
   it("names npm packages with their purl, encoding a scope", () => {
     expect(npmPurl("alpha", "1.0.0")).toBe("pkg:npm/alpha@1.0.0");
     expect(npmPurl("@scope/beta", "2.0.0")).toBe("pkg:npm/%40scope/beta@2.0.0");
