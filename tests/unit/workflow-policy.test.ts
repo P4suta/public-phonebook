@@ -105,6 +105,7 @@ it("rejects actions and reusable workflows outside the allowed list", () => {
     `actions/setup-node@${revision}`,
     `actions/checkout-fork/checkout@${revision}`,
     `evil/actions-checkout@${revision}`,
+    `actions/attest-sbom@${revision}`,
     `docker://alpine@sha256:${"0".repeat(imageDigestLength)}`,
   ])
     expect(

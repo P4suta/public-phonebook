@@ -114,7 +114,7 @@ jobs:
           subject-path: target/release/worker-build.tar
       - name: Describe the locked production dependencies
         run: node tools/release-record.ts sbom target/release/sbom.cdx.json --version "$GITHUB_SHA"
-      - uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e
+      - uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
         with:
           subject-path: target/release/worker-build.tar
           sbom-path: target/release/sbom.cdx.json
