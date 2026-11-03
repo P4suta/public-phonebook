@@ -14,7 +14,11 @@ Development uses the loopback provider fixture at http://127.0.0.1:3100, which `
 Each environment has its own bundle identifier, App Group, background task identifier, name, and icon.
 Debug maps to development and Release maps to production.
 The verification scheme uses VerificationDebug for tests and VerificationRelease for archives.
-DevelopmentRelease and ProductionDebug make environment independent of optimization.
+DevRelease and ProductionDebug make environment independent of optimization.
+Swift Build compiles the Swift packages with their Debug configuration when a configuration name contains `debug` or `development` in any case, and with their Release configuration otherwise.
+Every debug configuration name therefore contains `Debug`, no release configuration name contains either word, and the generator rejects a name that breaks that rule.
+DevRelease and VerificationRelease compile the packages with `-O` and debug information, like Release.
+A DevRelease simulator build for one simulator needs no `ONLY_ACTIVE_ARCH` override, because the app and its packages build the same architectures.
 Override PHONEBOOK_API_ORIGIN only for an explicitly selected test build.
 The generator inspects all six actual Xcode configurations and rejects missing or incorrect environment fields.
 
