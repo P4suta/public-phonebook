@@ -84,6 +84,7 @@ async function bundleModules(root: string): Promise<Modules> {
 export async function serveBuiltWorker(options: {
   readonly port: number;
   readonly state: string;
+  readonly tls?: { readonly key: string; readonly cert: string };
 }): Promise<Miniflare> {
   const root = resolve(buildOutput);
   const decoded: unknown = JSON.parse(
@@ -97,7 +98,9 @@ export async function serveBuiltWorker(options: {
   const runtime = new Miniflare({
     host: developmentHost,
     port: options.port,
-    https: true,
+    ...(options.tls
+      ? { httpsKey: options.tls.key, httpsCert: options.tls.cert }
+      : { https: true }),
     resourcePersistencePath: resolve(options.state, persistenceVersion),
     resourceTmpPath: resolve(".cloudflare/tmp"),
     telemetry: { enabled: false },

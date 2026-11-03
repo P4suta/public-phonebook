@@ -44,6 +44,12 @@ export interface ProbeBudget {
   take(): Promise<void>;
 }
 
+/** Waits out a refusal and logs it, so a slow check shows whether the budget held its requests. */
+async function holdFor(clock: ProbeClock, waitMs: number): Promise<void> {
+  console.info(JSON.stringify({ operation: "probe.hold", waitMs }));
+  await clock.sleep(waitMs);
+}
+
 export function memoryBudget(clock: ProbeClock = systemClock): ProbeBudget {
   let sent: readonly number[] = [];
   return {
@@ -52,7 +58,7 @@ export function memoryBudget(clock: ProbeClock = systemClock): ProbeBudget {
         const admission = probeAdmission(sent, clock.now());
         sent = admission.recent;
         if (admission.admitted) return;
-        await clock.sleep(admission.waitMs);
+        await holdFor(clock, admission.waitMs);
       }
     },
   };
@@ -95,7 +101,7 @@ export function ledgerBudget(
           await unlock();
         }
         if (admission.admitted) return;
-        await clock.sleep(admission.waitMs);
+        await holdFor(clock, admission.waitMs);
       }
     },
   };

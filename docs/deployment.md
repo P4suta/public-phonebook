@@ -195,7 +195,19 @@ Every check sends its requests from Node and refuses a response whose `x-dial-ve
 The browser checks route each same-origin request through the same client, so pages, assets, and API calls all carry the override.
 Before the checks start, three consecutive requests must reach the expected version.
 The checks share a ledger that counts requests in a sliding 10-second window and holds any request that would be the 40th.
+A held request waits up to one window and logs its wait as `probe.hold`, so each wait in the checks allows three windows.
 Failure artifacts never contain the candidate's version ID, and the artifact audit refuses any that do.
+
+Rehearse the public checks before a change to them or to the pages they visit reaches a workflow.
+
+```sh
+mise x -- just public-rehearsal .local/phonebook
+```
+
+The rehearsal builds the site, seeds `.local/rehearsal-state` from the bundle, and serves the build on `https://127.0.0.1:8791`.
+Node verifies the preview through a one-day loopback certificate instead of skipping TLS verification.
+The checks keep their workers, probe budget, routing, and version check, and the request client admits the loopback origin only in a rehearsal.
+Only the version override and production's network stay outside the rehearsal.
 
 The tools refuse a candidate whose built configuration changes domains, routes, cron triggers, `runWorkerFirst`, `workers.dev`, or preview URLs.
 They compare the build with the live Worker's domains and subdomain settings and the serving version's Worker-first routing.
@@ -226,6 +238,7 @@ The publisher refuses a local `--stage`, `--verify-candidate`, `--promote`, `--d
 | `just withdraw production` | None | Withdraws a candidate that never took traffic |
 | `just release-verify TAG DIRECTORY` | Release tag, target directory | Downloads a published release record and checks its digests and attestations |
 | `just data-fetch DATASET DIRECTORY` | Dataset digest, target directory | Restores the bundle from the control store and checks every file |
+| `just public-rehearsal BUNDLE` | Bundle | Runs the public checks on the built preview with the bundle's data |
 | `just test --bundle DIRECTORY --stage STAGE` | Bundle, stages | Runs selected stages of the gate and writes one receipt per stage |
 
 The bundle defaults to `.local/datasets/DATASET`, which `just data-fetch` fills.
