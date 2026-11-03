@@ -1,9 +1,16 @@
 import { resolve } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
-import { environments } from "../../src/core/environment.ts";
+import { probeWindowMs } from "../../tools/probe-budget.ts";
+import {
+  admittedOrigin,
+  rehearsalRequested,
+} from "../../tools/public-request.ts";
 
-const origin = process.env.DIAL_PUBLIC_ORIGIN;
-if (origin !== environments.production.origin)
+// The budget holds a request for up to one probe window, and a page settles after its document, its scripts, and its data.
+const settleTimeoutMs = 3 * probeWindowMs;
+const testTimeoutMs = 6 * settleTimeoutMs;
+const origin = process.env.DIAL_PUBLIC_ORIGIN ?? "";
+if (!admittedOrigin(origin, rehearsalRequested()))
   throw new Error(
     "Public verification requires an exact configured HTTPS origin",
   );
@@ -14,7 +21,8 @@ export default defineConfig({
   retries: 0,
   workers: 2,
   maxFailures: 1,
-  timeout: 60000,
+  timeout: testTimeoutMs,
+  expect: { timeout: settleTimeoutMs },
   reporter: [
     ["list"],
     ["json", { outputFile: resolve("test-results/public-production.json") }],
@@ -22,6 +30,8 @@ export default defineConfig({
   outputDir: resolve("test-results/public-production"),
   use: {
     baseURL: origin,
+    actionTimeout: settleTimeoutMs,
+    navigationTimeout: settleTimeoutMs,
     ...(proxy ? { proxy: { server: proxy } } : {}),
     trace: "retain-on-failure",
     video: "retain-on-failure",

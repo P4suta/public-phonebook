@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ledgerBudget,
   memoryBudget,
@@ -73,5 +73,22 @@ describe("probe budget", () => {
     expect(clock.slept).toEqual([]);
     await first.take();
     expect(clock.slept).toEqual([probeWindowMs]);
+  });
+
+  it("logs one line with the wait for each held request", async () => {
+    const clock = fakeClock();
+    const lines: string[] = [];
+    const log = vi.spyOn(console, "info").mockImplementation((line) => {
+      lines.push(String(line));
+    });
+    try {
+      const budget = memoryBudget(clock);
+      for (let index = 0; index < probeLimit; index += 1) await budget.take();
+    } finally {
+      log.mockRestore();
+    }
+    expect(lines.map((line): unknown => JSON.parse(line))).toEqual([
+      { operation: "probe.hold", waitMs: probeWindowMs },
+    ]);
   });
 });

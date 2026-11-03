@@ -57,6 +57,9 @@ check-linux *args:
 e2e *args:
     npm run e2e -- "$@"
 
+public-rehearsal bundle:
+    node tools/public-rehearsal.ts {{ quote(bundle) }}
+
 prove:
     npm run prove
 

@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { memoryBudget, type ProbeClock } from "../../tools/probe-budget.ts";
 import {
+  admittedOrigin,
   answersExpectedVersion,
   awaitExpectedVersion,
   checkedFetch,
   consecutiveVersionAnswers,
   type PublicAccess,
   publicAccess,
+  rehearsalOrigin,
+  rehearsalRequested,
   VersionMismatch,
   versionOverride,
   versionOverrideHeader,
@@ -21,7 +24,7 @@ const clock: ProbeClock = {
 };
 
 function access(version: PublicAccess["version"]): PublicAccess {
-  return { origin, version, budget: memoryBudget(clock) };
+  return { origin, rehearsal: false, version, budget: memoryBudget(clock) };
 }
 
 function answering(version: string | null): typeof fetch {
@@ -145,6 +148,47 @@ describe("public verification requests", () => {
         DIAL_PUBLIC_VERSION_MODE: "override",
       }).version,
     ).toEqual({ id: candidate, mode: "override" });
+  });
+
+  it("admits the loopback preview only in a rehearsal and the public site only outside one", async () => {
+    let calls = 0;
+    const transport: typeof fetch = async (): Promise<Response> => {
+      calls += 1;
+      return new Response();
+    };
+    expect(admittedOrigin(origin, false)).toBe(true);
+    expect(admittedOrigin(rehearsalOrigin, true)).toBe(true);
+    expect(admittedOrigin(rehearsalOrigin, false)).toBe(false);
+    expect(admittedOrigin(origin, true)).toBe(false);
+    expect(admittedOrigin("https://localhost:8791", true)).toBe(false);
+    await expect(
+      checkedFetch(
+        "/api",
+        {},
+        { ...access(null), origin: rehearsalOrigin },
+        transport,
+      ),
+    ).rejects.toThrow("exact configured public origin");
+    await expect(
+      checkedFetch("/api", {}, { ...access(null), rehearsal: true }, transport),
+    ).rejects.toThrow("exact configured public origin");
+    expect(calls).toBe(0);
+    await checkedFetch(
+      "/api",
+      {},
+      { ...access(null), origin: rehearsalOrigin, rehearsal: true },
+      transport,
+    );
+    expect(calls).toBe(1);
+    expect(rehearsalRequested({})).toBe(false);
+    expect(rehearsalRequested({ DIAL_PUBLIC_REHEARSAL: "preview" })).toBe(true);
+    expect(() => rehearsalRequested({ DIAL_PUBLIC_REHEARSAL: "1" })).toThrow();
+    expect(
+      publicAccess({
+        DIAL_PUBLIC_ORIGIN: rehearsalOrigin,
+        DIAL_PUBLIC_REHEARSAL: "preview",
+      }).rehearsal,
+    ).toBe(true);
   });
 
   it("waits for consecutive candidate answers before the checks start", async () => {

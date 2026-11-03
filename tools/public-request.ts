@@ -17,6 +17,9 @@ const versionWarmupPauseMs = 1000;
 export const consecutiveVersionAnswers = 3;
 export const versionOverrideHeader = "Cloudflare-Workers-Version-Overrides";
 const publicTarget = environments.production;
+/** The loopback origin where `tools/public-rehearsal.ts` serves the built preview. */
+export const rehearsalOrigin = "https://127.0.0.1:8791";
+const RehearsalSchema = v.optional(v.literal("preview"));
 
 export const VersionModeSchema = v.picklist([
   "override",
@@ -30,6 +33,7 @@ export interface ExpectedVersion {
 }
 export interface PublicAccess {
   readonly origin: string;
+  readonly rehearsal: boolean;
   readonly version: ExpectedVersion | null;
   readonly budget: ProbeBudget;
 }
@@ -53,6 +57,19 @@ function sharedBudget(ledger: string): ProbeBudget {
   return budget;
 }
 
+export function rehearsalRequested(
+  variables: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return (
+    v.parse(RehearsalSchema, variables.DIAL_PUBLIC_REHEARSAL) === "preview"
+  );
+}
+
+/** Production checks reach only the public site, and a rehearsal reaches only the loopback preview. */
+export function admittedOrigin(origin: string, rehearsal: boolean): boolean {
+  return origin === (rehearsal ? rehearsalOrigin : publicTarget.origin);
+}
+
 export function publicAccess(
   variables: NodeJS.ProcessEnv = process.env,
 ): PublicAccess {
@@ -60,6 +77,7 @@ export function publicAccess(
   const processBudget = sharedBudget(variables.DIAL_PROBE_LEDGER ?? "");
   return {
     origin: variables.DIAL_PUBLIC_ORIGIN ?? "",
+    rehearsal: rehearsalRequested(variables),
     version: id
       ? {
           id: v.parse(v.pipe(v.string(), v.uuid()), id),
@@ -89,7 +107,7 @@ export async function checkedFetch(
   access: PublicAccess = publicAccess(),
   transport: typeof fetch = fetch,
 ): Promise<Response> {
-  if (access.origin !== publicTarget.origin)
+  if (!admittedOrigin(access.origin, access.rehearsal))
     throw new Error("An exact configured public origin is required");
   const url = new URL(path, access.origin);
   if (url.origin !== access.origin || url.username || url.password)
