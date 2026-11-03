@@ -4,196 +4,7 @@ import { expect, test } from "./fixtures.ts";
 
 test.use({ video: "on", screenshot: "off" });
 
-test("a programmatic click cannot write to either clipboard path", async ({
-  page,
-}) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, "clipboard", {
-      value: {
-        writeText(): Promise<void> {
-          document.documentElement.dataset.untrustedWrite = "true";
-          return Promise.resolve();
-        },
-      },
-    });
-    document.addEventListener("copy", () => {
-      document.documentElement.dataset.untrustedWrite = "true";
-    });
-  });
-  await page.goto("/?q=高知大学");
-  await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
-  const card = page.locator("article").first();
-  await card.locator("[data-phone]").evaluate((node) => {
-    if (node instanceof HTMLButtonElement) node.click();
-  });
-  await expect(card.getByRole("status")).toHaveText(
-    "コピーできませんでした。文字をえらんでコピーしてください。",
-  );
-  expect(
-    await page.locator("html").getAttribute("data-untrusted-write"),
-  ).toBeNull();
-});
-
-test("the native selection path copies a telephone number when the async clipboard is absent", async ({
-  page,
-}) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, "clipboard", { value: undefined });
-    window.addEventListener("copy", (event: ClipboardEvent) => {
-      document.documentElement.dataset.selectionCopy =
-        event.clipboardData?.getData("text/plain") ?? "";
-    });
-  });
-  await page.goto("/?q=国立国会図書館");
-  await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
-  const card = page.locator("article").first();
-  const button = card.getByRole("button", {
-    name: "03-3581-2331 コピーする（国立国会図書館の電話番号）",
-    exact: true,
-  });
-  await button.click();
-  await expect(card.getByRole("status")).toHaveText(
-    "電話番号をコピーしました。",
-  );
-  await expect(page.locator("html")).toHaveAttribute(
-    "data-selection-copy",
-    "03-3581-2331",
-  );
-  await expect(button).toBeFocused();
-  await expect(page.locator("textarea")).toHaveCount(0);
-});
-
-test("native activation loss uses WebKit compatibility and preserves recovery elsewhere", async ({
-  page,
-  context,
-  browserName,
-  baseURL,
-}) => {
-  if (browserName === "chromium") {
-    if (!baseURL)
-      throw new Error("The native clipboard test needs its server origin");
-    await context.grantPermissions(["clipboard-write"], { origin: baseURL });
-  }
-  await page.addInitScript(() => {
-    let consumed = false;
-    document.addEventListener(
-      "click",
-      (event: MouseEvent) => {
-        if (
-          !(event.target instanceof Element) ||
-          !event.target.closest("[data-phone]") ||
-          consumed
-        )
-          return;
-        consumed = true;
-        const popup = window.open("about:blank");
-        if (!popup)
-          throw new Error(
-            "The activation-consumption control could not open its popup",
-          );
-        popup.close();
-        document.documentElement.dataset.transientActivation = String(
-          navigator.userActivation.isActive,
-        );
-      },
-      { capture: true },
-    );
-    window.addEventListener("copy", (event: ClipboardEvent) => {
-      document.documentElement.dataset.selectionCopy =
-        event.clipboardData?.getData("text/plain") ?? "";
-    });
-  });
-  await page.goto("/");
-  await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
-  await page.getByRole("searchbox").fill("高知大学");
-  const card = page.locator("article").first();
-  const number = card.locator("[data-phone]").first();
-  await number.locator(":scope > span").first().click();
-  await expect(page.locator("html")).toHaveAttribute(
-    "data-transient-activation",
-    "false",
-  );
-  if (browserName === "webkit") {
-    await expect(card.getByRole("status")).toHaveText(
-      "電話番号をコピーしました。",
-    );
-    await expect(page.locator("html")).toHaveAttribute(
-      "data-selection-copy",
-      "088-844-0111",
-    );
-  } else {
-    await expect(card.getByRole("status")).toHaveText(
-      "コピーできませんでした。文字をえらんでコピーしてください。",
-    );
-    expect(
-      await page.locator("html").getAttribute("data-selection-copy"),
-    ).toBeNull();
-    await number.click();
-    await expect(card.getByRole("status")).toHaveText(
-      "電話番号をコピーしました。",
-    );
-  }
-  await expect(number).toBeFocused();
-  await expect(page.locator("textarea")).toHaveCount(0);
-});
-
-test("native clipboard accepts clicks on both the number and the copy hint", async ({
-  page,
-  context,
-  browserName,
-  baseURL,
-}) => {
-  if (browserName === "chromium") {
-    if (!baseURL)
-      throw new Error("The native clipboard test needs its server origin");
-    await context.grantPermissions(["clipboard-write"], { origin: baseURL });
-  }
-  await page.addInitScript(() => {
-    const writeText = navigator.clipboard.writeText.bind(navigator.clipboard);
-    navigator.clipboard.writeText = (value: string): Promise<void> => {
-      const context = {
-        focused: document.hasFocus(),
-        visible: document.visibilityState,
-        active: navigator.userActivation.isActive,
-      };
-      return writeText(value).catch((error: unknown) => {
-        document.documentElement.dataset.clipboardFailure = JSON.stringify({
-          ...context,
-          error:
-            error instanceof Error
-              ? `${error.name}: ${error.message}`
-              : String(error),
-        });
-        throw error;
-      });
-    };
-  });
-  await page.goto("/");
-  await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
-  await page.getByRole("searchbox").fill("高知大学");
-  const card = page.locator("article").first();
-  const number = card.locator("[data-phone]").first();
-  await number.locator(":scope > span").first().click();
-  await expect(card.getByRole("status")).not.toBeEmpty();
-  await expect(
-    card.getByRole("status"),
-    (await page.locator("html").getAttribute("data-clipboard-failure")) ??
-      "Native clipboard write",
-  ).toHaveText("電話番号をコピーしました。");
-  await expect(number).toBeFocused();
-  await expect(number.locator(":scope > span").first()).toHaveText(
-    "088-844-0111",
-  );
-  await number.locator(":scope > span").last().click();
-  await expect(card.getByRole("status")).toHaveText(
-    "電話番号をコピーしました。",
-  );
-  await number.locator(":scope > span").first().dblclick();
-  await expect(card.getByRole("status")).toHaveText(
-    "電話番号をコピーしました。",
-  );
-});
+const knownAddress = "東京都千代田区永田町1-10-1";
 
 test("the detail page's map opens in a new tab after confirmation and preserves the current page", async ({
   page,
@@ -214,7 +25,27 @@ test("the detail page's map opens in a new tab after confirmation and preserves 
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
   const before = page.url();
   const card = page.locator("article").first();
-  const map = card.getByRole("link", { name: /の地図を開く（新しいタブ）$/u });
+  await expect(
+    card.getByRole("heading", { level: 2, name: "住所", exact: true }),
+  ).toBeVisible();
+  const address = card.getByText(knownAddress, { exact: true });
+  await expect(address).toBeVisible();
+  expect(
+    await address.evaluate((node) => node.closest("a, button") === null),
+  ).toBe(true);
+  await expect(address.locator("svg")).toHaveCount(0);
+  expect(
+    await address.evaluate((node) => getComputedStyle(node).textDecorationLine),
+  ).toBe("none");
+  const map = card.getByRole("link", {
+    name: `${contact.name}の地図を見る（新しいタブ）`,
+    exact: true,
+  });
+  await expect(map).toHaveText("地図で見る");
+  await expect(map.locator("svg").first()).toHaveAttribute(
+    "data-icon",
+    "map-pin",
+  );
   await map.click();
   const popupEvent = page.waitForEvent("popup");
   await page
@@ -224,7 +55,7 @@ test("the detail page's map opens in a new tab after confirmation and preserves 
   const popup = await popupEvent;
   await popup.waitForLoadState("domcontentloaded");
   expect(new URL(popup.url()).searchParams.get("query")).toBe(
-    `${contact.name},東京都千代田区永田町1-10-1`,
+    `${contact.name},${knownAddress}`,
   );
   expect(await popup.evaluate(() => window.opener === null)).toBe(true);
   expect(page.url()).toBe(before);
@@ -232,96 +63,30 @@ test("the detail page's map opens in a new tab after confirmation and preserves 
   await popup.close();
 });
 
-test("an older clipboard rejection cannot replace a newer successful copy", async ({
+test("result cards and the detail page offer no copy control", async ({
   page,
 }) => {
-  await page.addInitScript(() => {
-    let rejectFirst: ((reason: Error) => void) | undefined;
-    let attempts = 0;
-    document.addEventListener("test-reject-first-write", () => {
-      rejectFirst?.(new DOMException("Superseded", "NotAllowedError"));
-    });
-    Object.defineProperty(navigator, "clipboard", {
-      value: {
-        writeText(): Promise<void> {
-          attempts += 1;
-          if (attempts > 1) return Promise.resolve();
-          return new Promise<void>((_resolve, reject) => {
-            rejectFirst = reject;
-          });
-        },
-      },
-    });
-  });
   await page.goto("/?q=国立国会図書館");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
   const card = page.locator("article").first();
-  const number = card.locator("[data-phone]").first();
-  await number.locator(":scope > span").first().click();
-  await number.locator(":scope > span").last().click();
-  await expect(card.getByRole("status")).toHaveText(
-    "電話番号をコピーしました。",
-  );
-  await page.evaluate(async () => {
-    document.dispatchEvent(new Event("test-reject-first-write"));
-    await new Promise<void>((resolve) =>
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-    );
-  });
-  await expect(card.getByRole("status")).toHaveText(
-    "電話番号をコピーしました。",
-  );
-});
-
-test("telephone copies use the complete displayed value", async ({ page }) => {
-  await page.addInitScript(() => {
-    let copied = "";
-    Object.defineProperty(navigator, "clipboard", {
-      value: {
-        async writeText(value: string): Promise<void> {
-          copied = value;
-        },
-        async readText(): Promise<string> {
-          return copied;
-        },
-      },
-    });
-  });
-  await page.goto("/?q=国立国会図書館");
-  await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
-  await page
-    .locator("article")
-    .first()
-    .getByRole("button", {
-      name: "03-3581-2331 コピーする（国立国会図書館の電話番号）",
-      exact: true,
-    })
-    .click();
-  expect(await page.evaluate(async () => navigator.clipboard.readText())).toBe(
-    "03-3581-2331",
-  );
-});
-
-test("clipboard denial has a readable recovery message", async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, "clipboard", {
-      value: {
-        async writeText(): Promise<void> {
-          throw new DOMException("Denied", "NotAllowedError");
-        },
-      },
-    });
-  });
-  await page.goto("/?q=国立国会図書館");
-  await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
-  const card = page.locator("article").first();
+  await expect(card.locator("[data-phone]").first()).toHaveText("03-3581-2331");
+  await expect(card.getByRole("button")).toHaveCount(0);
+  await expect(page.locator("main").getByText(/コピー/u)).toHaveCount(0);
   await card
-    .getByRole("button", {
-      name: "03-3581-2331 コピーする（国立国会図書館の電話番号）",
-      exact: true,
-    })
+    .getByRole("link", { name: "国立国会図書館の住所などを見る", exact: true })
     .click();
-  await expect(card.getByRole("status")).toHaveText(
-    "コピーできませんでした。文字をえらんでコピーしてください。",
-  );
+  await expect(
+    page.getByRole("heading", { level: 1, name: "国立国会図書館" }),
+  ).toBeVisible();
+  const main = page.locator("main");
+  await expect(main.getByText(/コピー/u)).toHaveCount(0);
+  await expect(main.getByRole("button")).toHaveCount(0);
+  await expect(main.getByRole("status")).toHaveCount(0);
+  await expect(main.locator("[data-phone]").first()).toHaveText("03-3581-2331");
+  expect(
+    await main
+      .locator("[data-phone]")
+      .first()
+      .evaluate((node) => node.closest("a, button") === null),
+  ).toBe(true);
 });

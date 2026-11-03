@@ -5,6 +5,7 @@ import { detailActionName, waitForLocalSearch } from "./search-sources.ts";
 
 const centerTolerance = 2;
 const edgeTolerance = 1;
+const searchAction = "電話番号をさがす";
 
 interface Box {
   readonly x: number;
@@ -17,8 +18,9 @@ async function initialLayout(page: Page): Promise<{
   readonly heading: Box;
   readonly link: Box;
   readonly label: Box;
-  readonly hint: Box;
   readonly field: Box;
+  readonly input: Box;
+  readonly button: Box;
   readonly padding: number;
   readonly scrollable: boolean;
 }> {
@@ -38,8 +40,9 @@ async function initialLayout(page: Page): Promise<{
         .getByRole("link"),
     ),
     label: await box(page.locator('label[for="directory-search"]')),
-    hint: await box(page.locator("#directory-search-hint")),
-    field: await box(searchbox.locator("..")),
+    field: await box(page.getByRole("search").locator("form > div")),
+    input: await box(searchbox),
+    button: await box(page.getByRole("button", { name: searchAction })),
     padding: await page
       .locator("main")
       .evaluate((main) => Number.parseFloat(getComputedStyle(main).paddingTop)),
@@ -85,13 +88,37 @@ for (const size of [
     expect(
       Math.abs(
         layout.field.y -
-          (layout.hint.y + layout.hint.height) -
+          (layout.label.y + layout.label.height) -
           foundation.space["8"],
       ),
     ).toBeLessThan(edgeTolerance);
     expect(layout.label.y).toBeGreaterThanOrEqual(
       layout.link.y + layout.link.height + foundation.space["48"],
     );
+    const { input, button } = layout;
+    expect(button.height).toBe(foundation.control.height);
+    if (size.width > foundation.layout.compactUntil) {
+      expect(
+        Math.abs(button.x - (input.x + input.width) - foundation.space["8"]),
+        "The search action sits 8 pixels beside the field",
+      ).toBeLessThan(edgeTolerance);
+      expect(
+        Math.abs(button.y + button.height / 2 - (input.y + input.height / 2)),
+      ).toBeLessThan(edgeTolerance);
+    } else {
+      expect(
+        Math.abs(button.y - (input.y + input.height) - foundation.space["8"]),
+        "The search action sits 8 pixels below the field",
+      ).toBeLessThan(edgeTolerance);
+      expect(Math.abs(button.x - input.x)).toBeLessThan(edgeTolerance);
+      expect(button.width).toBeLessThan(input.width);
+    }
+    expect(
+      await page
+        .getByRole("button", { name: searchAction })
+        .evaluate((node) => getComputedStyle(node).backgroundColor),
+      "The search action is an outline action",
+    ).toBe("rgb(255, 255, 255)");
   });
 
 for (const size of [
@@ -112,8 +139,7 @@ for (const size of [
     const order = [
       [layout.heading, layout.link, foundation.space["16"]],
       [layout.link, layout.label, foundation.space["48"]],
-      [layout.label, layout.hint, foundation.space["8"]],
-      [layout.hint, layout.field, foundation.space["8"]],
+      [layout.label, layout.field, foundation.space["8"]],
     ] as const;
     for (const [above, below, gap] of order)
       expect(Math.abs(below.y - (above.y + above.height) - gap)).toBeLessThan(
@@ -141,7 +167,7 @@ test("typing searches, exact names rank first, and contact actions work", async 
   await expect(
     first.getByText("東京都千代田区", { exact: true }),
   ).toBeVisible();
-  await expect(first.getByRole("link", { name: /の地図を開く/u })).toHaveCount(
+  await expect(first.getByRole("link", { name: /の地図を見る/u })).toHaveCount(
     0,
   );
   await expect(first.getByRole("heading").getByRole("link")).toHaveCount(0);
@@ -158,7 +184,10 @@ test("typing searches, exact names rank first, and contact actions work", async 
     page.getByRole("link", { name: "電話帳に入れる" }),
   ).toHaveAttribute("href", /contact\.vcf$/);
   await expect(
-    page.getByRole("link", { name: /の地図を開く（新しいタブ）$/u }),
+    page.getByRole("link", {
+      name: "国立国会図書館の地図を見る（新しいタブ）",
+      exact: true,
+    }),
   ).toHaveAttribute("href", /google\.com\/maps\/search/);
   await page.getByRole("link", { name: "電話番号のもとの情報を見る" }).click();
   await expect(
@@ -209,9 +238,12 @@ test("each result keeps its name as heading text and names its one detail action
     await expect(
       page.getByRole("heading", { level: 1, name: cases[1].facility }),
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: /の地図を開く/u })).toHaveCount(
+    await expect(page.getByRole("link", { name: /の地図を見る/u })).toHaveCount(
       0,
     );
+    await expect(
+      page.getByRole("heading", { name: "住所", exact: true }),
+    ).toHaveCount(0);
   } finally {
     await context.close();
   }

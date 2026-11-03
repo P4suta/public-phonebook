@@ -9,8 +9,8 @@ import { fileDigest } from "./snapshot.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 43;
-const declaredPostconditionCount = 83;
+const verifiedUnitCount = 41;
+const declaredPostconditionCount = 77;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -29,8 +29,6 @@ const expected = [
   "totalSource",
   "storesSearch",
   "searchTrigger",
-  "copyCompletion",
-  "copyMethod",
   "siteRequestAdmission",
   "fitsSitePage",
   "importDecision",
@@ -136,7 +134,6 @@ const boundFiles = [
   "src/core/phone.ts",
   "tests/unit/search-trigger.test.ts",
   "tests/browser/search-trigger.spec.ts",
-  "src/core/copy-policy.ts",
   "src/core/site-request-policy.ts",
   "src/core/publication-policy.ts",
   "tools/cloudflare.ts",
@@ -156,7 +153,6 @@ const boundFiles = [
   "src/server.ts",
   "vite.config.ts",
   "src/ui/components.tsx",
-  "src/ui/clipboard.ts",
   "src/ui/group-results.tsx",
   "src/ui/search-page.tsx",
   "src/server/database.ts",
@@ -216,7 +212,6 @@ const proofSources = [
   "src/core/collection-policy.ts",
   "src/core/search-policy.ts",
   "src/core/search-trigger-policy.ts",
-  "src/core/copy-policy.ts",
   "src/core/site-request-policy.ts",
   "src/core/publication-policy.ts",
   "src/core/snapshot-policy.ts",
@@ -463,42 +458,6 @@ async function main(): Promise<void> {
         );
       const path = `proof/negative/${control.name}.ts`;
       await writeFile(`${proofRoot}/${path}`, brokenTrigger);
-      await generateModel(path);
-      const rejected = await verifyModel(image, [
-        `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
-      ]);
-      if (
-        rejected.code === 0 ||
-        !/[1-9][0-9]* error/u.test(rejected.output) ||
-        !/could not be proved|could not prove/u.test(rejected.output)
-      )
-        throw new Error(
-          `The ${control.name} negative control was inconclusive: ${rejected.output}`,
-        );
-    }
-    const copySource = await readFile(
-      `${proofRoot}/src/core/copy-policy.ts`,
-      "utf8",
-    );
-    for (const control of [
-      {
-        name: "copy-completion",
-        from: 'if (!current) return "superseded";',
-        to: 'if (current) return "superseded";',
-      },
-      {
-        name: "copy-trust",
-        from: 'if (!trusted) return "blocked";',
-        to: 'if (trusted) return "blocked";',
-      },
-    ]) {
-      const brokenCopy = copySource.replace(control.from, control.to);
-      if (brokenCopy === copySource)
-        throw new Error(
-          `The ${control.name} negative control did not mutate the implementation`,
-        );
-      const path = `proof/negative/${control.name}.ts`;
-      await writeFile(`${proofRoot}/${path}`, brokenCopy);
       await generateModel(path);
       const rejected = await verifyModel(image, [
         `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
@@ -861,7 +820,7 @@ async function main(): Promise<void> {
           semantics:
             "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
           negativeControl:
-            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, reversed copy guards, an admitted cross-origin site request, a 31-row site page, conflicting import identities, promotion of an unverified, displaced, or different candidate, withdrawal of a foreign candidate, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a substring ranked at the second position, a reflexive result order, a loading index searched on the device, a 31-row continuation, an index admitted without its digest, an off-by-one row range, a snapshot-blind row locator, a delta budget of the whole archive, an off-by-one copy range, and a delta admitted without its digest rejected",
+            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, an admitted cross-origin site request, a 31-row site page, conflicting import identities, promotion of an unverified, displaced, or different candidate, withdrawal of a foreign candidate, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a substring ranked at the second position, a reflexive result order, a loading index searched on the device, a 31-row continuation, an index admitted without its digest, an off-by-one row range, a snapshot-blind row locator, a delta budget of the whole archive, an off-by-one copy range, and a delta admitted without its digest rejected",
           result: "verified",
         },
         null,

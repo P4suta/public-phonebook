@@ -1,4 +1,4 @@
-import type { APIResponse, Page } from "@playwright/test";
+import type { APIResponse, Locator, Page } from "@playwright/test";
 import * as v from "valibot";
 import { ContactSchema } from "../../src/core/models.ts";
 import { uiCopy } from "../../src/ui/copy.ts";
@@ -246,13 +246,21 @@ test("each server render inlines one sprite with exactly the symbols its routes 
 test("symbols draw from the sprite in the foreground color of plain and solid controls", async ({
   page,
 }) => {
-  await page.goto("/");
   const controls = [
-    page.getByRole("link", { name: uiCopy.about }),
-    page.getByRole("button", { name: uiCopy.search.action }),
-  ];
+    ["/", (): Locator => page.getByRole("link", { name: uiCopy.about })],
+    [
+      "/?q=国立国会図書館",
+      (): Locator =>
+        page
+          .locator("article")
+          .first()
+          .getByRole("link", { name: /に電話をかける$/u }),
+    ],
+  ] as const;
   const colors = new Set<string>();
-  for (const control of controls) {
+  for (const [path, find] of controls) {
+    await page.goto(path);
+    const control = find();
     const symbol = control.locator("svg[data-icon]");
     await expect(symbol).toHaveCount(1);
     await expect

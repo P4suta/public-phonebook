@@ -322,14 +322,9 @@ export function SearchPage(): ReactElement {
               </nav>
             </div>
           )}
-          <div className={css.searchGroup}>
-            <label className={css.fieldLabel} htmlFor="directory-search">
-              {uiCopy.search.label}
-            </label>
-            <p id="directory-search-hint" className={css.searchHint}>
-              {uiCopy.search.hint.join("\n")}
-            </p>
-          </div>
+          <label className={css.fieldLabel} htmlFor="directory-search">
+            {uiCopy.search.label}
+          </label>
         </div>
         <search
           className={css.searchArea}
@@ -344,62 +339,58 @@ export function SearchPage(): ReactElement {
             onSubmit={submit}
           >
             <div className={css.searchField}>
-              <input
-                id="directory-search"
-                name="q"
-                className={css.input}
-                aria-describedby="directory-search-hint"
-                enterKeyHint="search"
-                value={input}
-                onFocus={() => {
-                  keystrokes.current = [];
-                }}
-                onChange={(event) => {
-                  keystrokes.current.push(performance.now());
-                  const native = event.nativeEvent;
-                  edit(
-                    event.target.value,
-                    native instanceof InputEvent
-                      ? insertionEvent(native.inputType, native.data)
-                      : "change",
-                  );
-                }}
-                onBlur={() =>
-                  setDraft((previous) => ({ ...previous, event: "blur" }))
-                }
-                onCompositionStart={() => setComposing(true)}
-                onCompositionEnd={(event) => {
-                  setComposing(false);
-                  edit(event.currentTarget.value, "change");
-                }}
-                autoComplete="off"
-                type="search"
-              />
+              <div className={css.searchInput}>
+                <input
+                  id="directory-search"
+                  name="q"
+                  className={css.input}
+                  enterKeyHint="search"
+                  value={input}
+                  onFocus={() => {
+                    keystrokes.current = [];
+                  }}
+                  onChange={(event) => {
+                    keystrokes.current.push(performance.now());
+                    const native = event.nativeEvent;
+                    edit(
+                      event.target.value,
+                      native instanceof InputEvent
+                        ? insertionEvent(native.inputType, native.data)
+                        : "change",
+                    );
+                  }}
+                  onBlur={() =>
+                    setDraft((previous) => ({ ...previous, event: "blur" }))
+                  }
+                  onCompositionStart={() => setComposing(true)}
+                  onCompositionEnd={(event) => {
+                    setComposing(false);
+                    edit(event.currentTarget.value, "change");
+                  }}
+                  autoComplete="off"
+                  type="search"
+                />
+                {index.status === "loading" && (
+                  <span className={css.indexProgress} aria-hidden="true">
+                    <span
+                      className={css.indexProgressFill[index.progress] ?? ""}
+                    />
+                  </span>
+                )}
+              </div>
               <button className={css.searchButton} type="submit">
                 <Icon name="search" />
                 {uiCopy.search.action}
               </button>
-              {index.status === "loading" && (
-                <span className={css.indexProgress} aria-hidden="true">
-                  <span
-                    className={css.indexProgressFill[index.progress] ?? ""}
-                  />
-                </span>
-              )}
             </div>
           </form>
         </search>
         {active && (
           <>
-            <div className={css.toolbar}>
-              <h1 className={css.srOnly}>検索結果</h1>
-              <p className={css.body} aria-hidden="true">
-                {countText}
-              </p>
-              <output id="search-status" className={css.srOnly}>
-                {announced}
-              </output>
-            </div>
+            <h1 className={css.srOnly}>検索結果</h1>
+            <output id="search-status" className={css.srOnly}>
+              {announced}
+            </output>
             {rowUpdatedFor === search.q && (
               <section className={css.stack}>
                 <h2 className={css.subheading}>{uiCopy.rowUpdated.title}</h2>

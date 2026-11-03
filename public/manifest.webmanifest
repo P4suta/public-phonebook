@@ -1,6 +1,6 @@
 {
   "background_color": "#ffffff",
-  "description": "施設や窓口の電話番号をさがせます。",
+  "description": "施設の電話番号をさがせます。",
   "display": "standalone",
   "icons": [
     {

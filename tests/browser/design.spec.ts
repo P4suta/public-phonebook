@@ -200,13 +200,14 @@ for (const width of [320, 390, 1440]) {
       if (name === "home") {
         const searchbox = page.getByRole("searchbox");
         await expect(searchbox).not.toHaveAttribute("placeholder");
-        const hint = page.locator("#directory-search-hint");
-        await expect(hint).toBeVisible();
+        await expect(searchbox).not.toHaveAttribute("aria-describedby");
+        const label = page.locator('label[for="directory-search"]');
+        await expect(label).toBeVisible();
         expect(
-          await hint.evaluate(
+          await label.evaluate(
             (element) => element.scrollWidth <= element.clientWidth,
           ),
-          "The persistent search hint must not be clipped",
+          "The search label must not be clipped",
         ).toBe(true);
         const [field, button] = await Promise.all(
           [
@@ -356,14 +357,14 @@ test("the text-spacing gate detects clipped text", async ({ page }) => {
   expect(await clippedText(page)).toEqual([]);
   await page.evaluate(() => {
     const planted = document.createElement("p");
-    planted.textContent = "施設や窓口の名前";
+    planted.textContent = "施設の名前か電話番号";
     planted.style.height = "1em";
     planted.style.overflow = "hidden";
     planted.style.lineHeight = "3";
     document.querySelector("main")?.appendChild(planted);
   });
   expect(await clippedText(page)).toEqual([
-    expect.stringMatching(/^P "施設や窓口の名前"/u),
+    expect.stringMatching(/^P "施設の名前か電話番号"/u),
   ]);
 });
 

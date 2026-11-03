@@ -37,28 +37,53 @@ const fixtureLicenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/";
 const fixtureArchiveUrl = "https://example.org/data.csv";
 const prefectureCodeWidth = 2;
 const digestCharacterCount = 64;
-const fixtureContactCount = 3;
+const fixtureAddress = "東京都千代田区永田町1-10-1";
+const fixtureContactCount = 4;
 const fixtureServerPort = 8790;
 
+/** Lists the libraries with an address, and a police box that the national data also lists without one. */
 export function checkFixtureContacts(): Contact[] {
   return [
-    ["国立国会図書館", "13", "13101", "03-3581-2331", "+81335812331"],
-    [
-      "国立国会図書館国際子ども図書館",
-      "13",
-      "13106",
-      "03-3827-2053",
-      "+81338272053",
-    ],
-    ["国立国会図書館関西館", "26", "26366", "0774-98-1200", "+81774981200"],
-  ].map(([name, prefectureCode, municipalityCode, display, e164], index) =>
-    v.parse(ContactSchema, {
-      id: `fixture:${index}`,
-      name,
+    {
+      name: "国立国会図書館",
       category: "library",
-      prefectureCode,
-      municipalityCode,
-      address: "東京都千代田区永田町1-10-1",
+      prefectureCode: "13",
+      municipalityCode: "13101",
+      address: fixtureAddress,
+      display: "03-3581-2331",
+      e164: "+81335812331",
+    },
+    {
+      name: "国立国会図書館国際子ども図書館",
+      category: "library",
+      prefectureCode: "13",
+      municipalityCode: "13106",
+      address: fixtureAddress,
+      display: "03-3827-2053",
+      e164: "+81338272053",
+    },
+    {
+      name: "国立国会図書館関西館",
+      category: "library",
+      prefectureCode: "26",
+      municipalityCode: "26366",
+      address: fixtureAddress,
+      display: "0774-98-1200",
+      e164: "+81774981200",
+    },
+    {
+      name: "いなべ警察署　東員交番",
+      category: "police_station",
+      prefectureCode: "24",
+      municipalityCode: null,
+      address: "",
+      display: "0594-76-7410",
+      e164: "+81594767410",
+    },
+  ].map(({ display, e164, ...row }, index) =>
+    v.parse(ContactSchema, {
+      ...row,
+      id: `fixture:${index}`,
       phones: [{ display, e164 }],
       website: fixtureWebsite,
       sourceId: "fixture",
@@ -74,7 +99,7 @@ export function checkFixtureContacts(): Contact[] {
   );
 }
 
-/** Writes a complete three-contact bundle that passes the data check. */
+/** Writes a complete four-contact bundle that passes the data check. */
 export async function writeCheckFixture(directory: string): Promise<void> {
   await rm(directory, { recursive: true, force: true });
   await mkdir(directory, { recursive: true });

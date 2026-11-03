@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import * as v from "valibot";
 import { SearchResponseSchema } from "../../src/core/models.ts";
 import { foundation } from "../../src/ui/foundations.ts";
@@ -153,20 +153,26 @@ async function designIssues(
             detail: `${chrome.length} framed actions for ${phones.length} phone numbers and one detail action`,
           });
         const lastCall = phones.at(-1);
-        if (detail && lastCall) {
+        if (detail && lastCall && region) {
           const box = detail.getBoundingClientRect();
-          const above = lastCall.getBoundingClientRect();
-          if (box.top < above.bottom || Math.abs(box.left - above.left) > 1)
+          const above = region.getBoundingClientRect();
+          const wide = innerWidth >= columnsAt;
+          if (
+            box.top < above.bottom ||
+            Math.abs(box.left - above.left) > 1 ||
+            (!wide && box.top < lastCall.getBoundingClientRect().bottom) ||
+            (wide && box.right > lastCall.getBoundingClientRect().left)
+          )
             issues.push({
               rule: "detail-placement",
               detail:
-                "The detail action follows the telephone actions on their left edge",
+                "The detail action sits below the region on its left edge, below the call action on narrow screens and left of it on wide screens",
             });
         }
-        if (buttons.length !== phones.length)
+        if (buttons.length !== 0)
           issues.push({
-            rule: "copy-count",
-            detail: "Each phone needs exactly one copy button",
+            rule: "copy-control",
+            detail: "Result cards draw no copy or other button control",
           });
         for (const phone of phones) {
           if (
@@ -182,13 +188,14 @@ async function designIssues(
         if (
           values.length !== phones.length ||
           values.some(
-            (value) => value.closest("a[href]") || value.tagName !== "BUTTON",
+            (value) =>
+              value.closest("a[href], button") || value.tagName !== "P",
           )
         )
           issues.push({
-            rule: "separate-call-and-copy",
+            rule: "plain-number",
             detail:
-              "Telephone values copy; calling needs the separate explicit action",
+              "Telephone values stay plain text; calling needs the separate explicit action",
           });
         for (const link of links) {
           if (
@@ -259,9 +266,8 @@ async function designIssues(
         }
         const call = phones[0];
         const number = values[0];
-        const column = card.querySelector('[data-contact-part="phones"]');
-        if (column) {
-          const bounds = column.getBoundingClientRect();
+        if (number) {
+          const bounds = number.getBoundingClientRect();
           for (const control of [...phones, ...values]) {
             const box = control.getBoundingClientRect();
             if (
@@ -347,12 +353,17 @@ test("the contact design gate detects displaced actions and duplicate framed nav
     const style = document.createElement("style");
     style.nonce = nonce;
     style.textContent =
-      'article [data-contact-part="phones"] { align-self: start !important; } article [data-phone] { border: 1px solid black !important; } article a[href^="tel:"] { width: 50% !important; } article :is(h2,h3) + p { margin-inline-start: 2rem !important; } article a[href^="/contacts/"] { margin-inline-start: 2rem !important; }';
+      'article [data-contact-part="phones"] { align-self: start !important; } article a[href*="google.com/maps/"] { border: 1px solid black !important; } article a[href^="tel:"] { width: 50% !important; } article :is(h2,h3) + p { margin-inline-start: 2rem !important; } article a[href^="/contacts/"] { margin-inline-start: 4rem !important; }';
     document.head.appendChild(style);
     const map = document.createElement("a");
     map.href = "https://www.google.com/maps/search/?api=1&query=planted";
     map.textContent = "planted";
     document.querySelector("article")?.appendChild(map);
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.dataset.phone = "";
+    copy.textContent = "03-0000-0000";
+    document.querySelector("article")?.appendChild(copy);
     const heading = document.querySelector("article :is(h2,h3)");
     if (!heading) throw new Error("Missing facility heading");
     const named = document.createElement("a");
@@ -368,6 +379,8 @@ test("the contact design gate detects displaced actions and duplicate framed nav
   expect(rules).toContain("result-address");
   expect(rules).toContain("detail-placement");
   expect(rules).toContain("facility-navigation");
+  expect(rules).toContain("copy-control");
+  expect(rules).toContain("plain-number");
   await page.locator('article a[href*="google.com/maps/"]').evaluate((map) => {
     map.remove();
   });
@@ -393,63 +406,96 @@ for (const width of [320, 1440]) {
   });
 }
 
-test("telephone values copy without initiating calls and keyboard feedback preserves action alignment", async ({
+test("telephone values stay selectable text, and the call action precedes the details in focus order", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.addInitScript(() => {
-    let attempts = 0;
-    let copied = "";
-    Object.defineProperty(navigator, "clipboard", {
-      value: {
-        async writeText(value: string): Promise<void> {
-          attempts += 1;
-          if (attempts > 2) throw new DOMException("Denied", "NotAllowedError");
-          copied = value;
-        },
-        async readText(): Promise<string> {
-          return copied;
-        },
-      },
-    });
-  });
   await installResult(page, cases[0]);
   const card = page.locator("article");
   const value = card.locator("[data-phone]");
+  await expect(value).toHaveText("047-321-4055");
   expect(
     await value.evaluate(
-      (node) => node.tagName === "BUTTON" && node.closest("a[href]") === null,
+      (node) =>
+        node.tagName === "P" &&
+        node.closest("a[href], button") === null &&
+        getComputedStyle(node).userSelect !== "none",
     ),
   ).toBe(true);
+  expect(
+    await card.evaluate((node) => {
+      const call = node.querySelector('a[href^="tel:"]');
+      const detail = node.querySelector('a[href^="/contacts/"]');
+      return (
+        call !== null &&
+        detail !== null &&
+        (call.compareDocumentPosition(detail) &
+          Node.DOCUMENT_POSITION_FOLLOWING) !==
+          0 &&
+        node.querySelector('[tabindex]:not([tabindex="-1"])') === null
+      );
+    }),
+    "Source order puts the call action before the details, with no tab index override",
+  ).toBe(true);
+  const call = card.getByRole("link", { name: /に電話をかける$/u });
+  await page.keyboard.press("Shift");
+  await call.focus();
+  await expect(call).toBeFocused();
+  expect(
+    await call.evaluate((node) =>
+      Number.parseFloat(getComputedStyle(node).outlineWidth),
+    ),
+  ).toBeGreaterThanOrEqual(foundation.control.focus);
   const before = page.url();
   await value.click();
   expect(page.url()).toBe(before);
-  await expect(card.getByRole("status")).toHaveText(
-    "電話番号をコピーしました。",
+  await expect(card.getByRole("status")).toHaveCount(0);
+  expect(await designIssues(page)).toEqual([]);
+});
+
+test("a wide result card puts the details below the region on the left and the call action on the right", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await installResult(page, cases[0]);
+  const card = page.locator("article");
+  const box = async (
+    locator: Locator,
+  ): Promise<{ x: number; y: number; width: number; height: number }> => {
+    const bounds = await locator.boundingBox();
+    if (!bounds) throw new Error("A result card part is hidden");
+    return bounds;
+  };
+  const [name, region, number, call, detail] = await Promise.all(
+    [
+      card.getByRole("heading", { level: 3 }),
+      card.locator("h3 + p"),
+      card.locator("[data-phone]"),
+      card.getByRole("link", { name: /に電話をかける$/u }),
+      card.getByRole("link", { name: /の住所などを見る$/u }),
+    ].map(box),
   );
-  expect(await page.evaluate(async () => navigator.clipboard.readText())).toBe(
-    "047-321-4055",
-  );
-  await card.getByRole("link", { name: /に電話をかける$/u }).focus();
-  await page.keyboard.press("Shift+Tab");
-  const copy = value;
-  await expect(copy).toBeFocused();
+  if (!name || !region || !number || !call || !detail)
+    throw new Error("The result card is incomplete");
+  const sameRow = (a: typeof name, b: typeof name): boolean =>
+    a.y < b.y + b.height && b.y < a.y + a.height;
+  expect(Math.abs(region.x - name.x)).toBeLessThan(1);
   expect(
-    await copy.evaluate((node) =>
-      Number.parseFloat(getComputedStyle(node).outlineWidth),
-    ),
-  ).toBeGreaterThanOrEqual(3);
-  await page.keyboard.press("Space");
-  await expect(card.getByRole("status")).toHaveText(
-    "電話番号をコピーしました。",
+    Math.abs(detail.x - name.x),
+    "The details sit in the left column",
+  ).toBeLessThan(1);
+  expect(detail.y, "The details sit below the region").toBeGreaterThanOrEqual(
+    region.y + region.height,
   );
-  await expect(copy).toBeFocused();
-  expect(await designIssues(page)).toEqual([]);
-  await page.keyboard.press("Enter");
-  await expect(card.getByRole("status")).toHaveText(
-    "コピーできませんでした。文字をえらんでコピーしてください。",
+  expect(
+    call.x,
+    "The call action sits in the right column",
+  ).toBeGreaterThanOrEqual(name.x + name.width);
+  expect(Math.abs(call.x - number.x)).toBeLessThan(1);
+  expect(Math.abs(call.width - foundation.layout.phoneColumn)).toBeLessThan(1);
+  expect(sameRow(name, number), "The name sits beside the number").toBe(true);
+  expect(sameRow(region, call), "The region sits beside the call action").toBe(
+    true,
   );
-  await expect(card.getByRole("status")).toBeVisible();
-  await expect(copy).toBeFocused();
-  expect(await designIssues(page)).toEqual([]);
+  expect(detail.y).toBeGreaterThanOrEqual(call.y + call.height);
 });

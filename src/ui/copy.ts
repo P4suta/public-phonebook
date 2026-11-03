@@ -5,18 +5,15 @@ type Statement = `${string}ます。`;
 
 export const uiCopy = {
   search: {
-    label: "施設や窓口の名前",
-    hint: [
-      "病院や役所、学校などの名前を入れてください。" satisfies Instruction,
-      "名前の一部でも、さがせます。",
-    ],
+    label: "施設の名前か電話番号",
     action: "電話番号をさがす" satisfies Action,
     searching: "電話番号をさがしています。",
     found: (total: string): `${string}件 見つかりました` =>
       `${total}件 見つかりました`,
-    none: "施設や窓口が見つかりませんでした",
+    none: "あてはまる施設は0件です",
     invalid: "さがす名前をたしかめてください" satisfies Instruction,
-    empty: "名前の一部だけを入れるか、別の言葉でさがしてください。",
+    empty:
+      "名前の一部を入れるか、別の言葉でさがしてください。" satisfies Instruction,
   },
   about: "Public Phonebookについてくわしく知る" satisfies Action,
   searchReturn: "さがす画面にもどる" satisfies Action,
@@ -31,12 +28,14 @@ export const uiCopy = {
       hasAddress ? "住所などを見る" : "くわしい情報を見る",
     name: (facility: string, label: Action): Action => `${facility}の${label}`,
   },
+  address: {
+    heading: "住所",
+    map: "地図で見る" satisfies Action,
+    mapName: (facility: string): Action => `${facility}の地図を見る`,
+  },
+  facilityHomepage: "施設のホームページを開く" satisfies Action,
   sourceTitle: "電話番号のもとの情報",
   sourceAction: "電話番号のもとの情報を見る" satisfies Action,
-  copy: "コピーする" satisfies Action,
-  copied: (subject: string): `${string}をコピーしました。` =>
-    `${subject}をコピーしました。`,
-  copyFailed: "コピーできませんでした。文字をえらんでコピーしてください。",
   loadFailed: (subject: string): `${string}を読みこめませんでした` =>
     `${subject}を読みこめませんでした`,
   reloadFromStart: (subject: string): Action =>
@@ -46,7 +45,7 @@ export const uiCopy = {
     heading: "ほかのサイトを開きます",
     destinations: {
       address: "この住所を、Googleマップで表示します。" satisfies Statement,
-      facility: "この施設のページを開きます。" satisfies Statement,
+      facility: "この施設のホームページを開きます。" satisfies Statement,
       publication:
         "このデータを公開しているページを開きます。" satisfies Statement,
       license:
