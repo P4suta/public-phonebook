@@ -157,6 +157,8 @@ Withdrawal removes only the candidate that the journal's release owns, and only 
 Cloudflare's version routing, the override header, the deployment API, and the zone's rate limit cross verifier semantics.
 Their checked alternatives are fake-provider tests of staging, withdrawal, promotion, rollback, and the withdrawal drill through the same lifecycle and provider code.
 Each public check refuses a response whose `x-dial-version` names another version, and unit tests cover the request budget and the refused Worker-wide settings.
+`probeHold` proves that the budget holds a refused request for more than 0 and at most one probe window, and the public checks' waits derive from that bound.
+The budget clamps a request time from a faster clock to the current time, so the proof's precondition holds for every ledger.
 `just public-rehearsal BUNDLE` runs the same public checks on the built preview with the same budget, so only the override and production's network wait for a workflow.
 Revisit this boundary if Cloudflare changes version overrides, gradual deployments, or the Worker and version API responses.
 

@@ -47,6 +47,23 @@ describe("probe budget", () => {
     expect(probeAdmission(admitted.recent, probeWindowMs).admitted).toBe(true);
   });
 
+  it("never holds a request longer than one window, even after a time from a faster clock", () => {
+    const future = probeWindowMs * 3;
+    const sent = [
+      ...Array.from({ length: probeLimit - 2 }, (_, index) => index),
+      future,
+    ];
+    const refused = probeAdmission(sent, probeLimit);
+    expect(refused.admitted).toBe(false);
+    expect(refused.waitMs).toBeGreaterThan(0);
+    expect(refused.waitMs).toBeLessThanOrEqual(probeWindowMs);
+    const ahead = probeAdmission(
+      Array.from({ length: probeLimit - 1 }, () => future),
+      0,
+    );
+    expect(ahead).toMatchObject({ admitted: false, waitMs: probeWindowMs });
+  });
+
   it("holds requests until the window clears instead of sending a 40th", async () => {
     const clock = fakeClock();
     const budget = memoryBudget(clock);
