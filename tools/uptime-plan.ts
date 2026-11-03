@@ -1,4 +1,10 @@
 import * as v from "valibot";
+import {
+  type Declaration,
+  declaredPlan,
+  type PlanAction,
+  planAction,
+} from "./declared-plan.ts";
 
 /** One Better Stack keyword check, in the field names its monitors API reads and returns. */
 export interface UptimeCheck {
@@ -69,12 +75,8 @@ export const CheckPage = v.object({
   pagination: v.object({ next: v.nullable(v.string()) }),
 });
 
-export type CheckAction = "create" | "update" | "keep";
-
-export function checkAction(found: boolean, equal: boolean): CheckAction {
-  if (!found) return "create";
-  return equal ? "keep" : "update";
-}
+export type CheckAction = PlanAction;
+export const checkAction = planAction;
 
 export type PlannedCheck =
   | { readonly action: "create"; readonly check: UptimeCheck }
@@ -100,22 +102,16 @@ export interface UptimePlan {
   readonly unmanaged: readonly UnmanagedCheck[];
 }
 
-export function changedFields(
-  check: UptimeCheck,
-  existing: ExistingCheck,
-): UptimeField[] {
-  return uptimeFields.filter(
-    (field) => existing.attributes[field] !== check[field],
-  );
-}
+const uptimeDeclaration: Declaration<UptimeCheck> = {
+  name: (check) => check.pronounceable_name,
+  fields: (check) =>
+    Object.fromEntries(uptimeFields.map((field) => [field, check[field]])),
+  noun: "checks",
+  service: "Better Stack",
+};
 
-function uniqueNames(names: readonly string[], source: string): void {
-  const seen = new Set<string>();
-  for (const name of names) {
-    if (seen.has(name))
-      throw new Error(`${source} hold two checks named "${name}".`);
-    seen.add(name);
-  }
+function isUptimeField(field: string): field is UptimeField {
+  return uptimeFields.some((known) => known === field);
 }
 
 /** Matches declared and existing checks by name; it never plans a deletion. */
@@ -123,37 +119,26 @@ export function uptimePlan(
   declared: readonly UptimeCheck[],
   existing: readonly ExistingCheck[],
 ): UptimePlan {
-  uniqueNames(
-    declared.map((check) => check.pronounceable_name),
-    "The declarations",
-  );
-  const declaredNames = new Set(
-    declared.map((check) => check.pronounceable_name),
-  );
-  uniqueNames(
-    existing
-      .map((check) => check.attributes.pronounceable_name)
-      .filter((name) => declaredNames.has(name)),
-    "Better Stack",
-  );
-  const byName = new Map(
-    existing.map((check) => [check.attributes.pronounceable_name, check]),
-  );
-  const checks = declared.map((check): PlannedCheck => {
-    const match = byName.get(check.pronounceable_name);
-    const changed = match === undefined ? [] : changedFields(check, match);
-    const action = checkAction(match !== undefined, changed.length === 0);
-    if (match === undefined || action === "create")
-      return { action: "create", check };
-    return action === "keep"
-      ? { action, id: match.id, check }
-      : { action, id: match.id, check, changed };
-  });
-  const unmanaged = existing
-    .filter((check) => !declaredNames.has(check.attributes.pronounceable_name))
-    .map((check) => ({
+  const plan = declaredPlan(
+    declared,
+    existing.map((check) => ({
       id: check.id,
       name: check.attributes.pronounceable_name,
-    }));
-  return { checks, unmanaged };
+      fields: check.attributes,
+    })),
+    uptimeDeclaration,
+  );
+  const checks = plan.planned.map((planned): PlannedCheck => {
+    if (planned.action === "create")
+      return { action: "create", check: planned.declared };
+    if (planned.action === "keep")
+      return { action: "keep", id: planned.id, check: planned.declared };
+    return {
+      action: "update",
+      id: planned.id,
+      check: planned.declared,
+      changed: planned.changed.filter(isUptimeField),
+    };
+  });
+  return { checks, unmanaged: plan.unmanaged };
 }

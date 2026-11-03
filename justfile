@@ -139,5 +139,9 @@ monitors *flags:
     doppler run --project public-phonebook --config prd --only-secrets BETTER_STACK_API_TOKEN --no-fallback -- node tools/uptime.ts "$@"
 
 [positional-arguments]
+cloudflare-alerts *flags:
+    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --only-secrets CLOUDFLARE_ALERT_EMAIL --no-fallback -- node tools/cloudflare-alerts.ts "$@"
+
+[positional-arguments]
 control-import directory *flags:
     node tools/control-import.ts "$@"
