@@ -108,7 +108,7 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertFalse(app.buttons["contact-address"].exists)
     let map = app.buttons["map-button"]
     reveal(map, in: app)
-    XCTAssertEqual(map.label, "\(name)の地図を見る")
+    XCTAssertEqual(map.label, "\(name)を地図で見る")
     capture(app, name: "contact-address")
     map.tap()
     let alert = app.alerts["マップで開きます"]

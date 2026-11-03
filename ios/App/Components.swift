@@ -132,7 +132,7 @@ struct MapButton: View {
     }
     .buttonStyle(MonoButtonStyle())
     .disabled(opening)
-    .accessibilityLabel("\(name)の地図を見る")
+    .accessibilityLabel("\(name)を地図で見る")
     .accessibilityIdentifier("map-button")
     .alert("マップで開きます", isPresented: $confirming) {
       Button("開く") {
