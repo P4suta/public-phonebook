@@ -2,6 +2,7 @@ import { copyFile, mkdir, readFile, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import * as v from "valibot";
 import { command, requireCommand } from "./process.ts";
+import { StepTimer } from "./step-timing.ts";
 import { requireWorkflowPolicy } from "./workflow-policy.ts";
 
 const minimumScanFiles = 20;
@@ -46,30 +47,44 @@ async function scanSecrets(): Promise<void> {
   console.info(JSON.stringify({ operation: "secrets", files }));
 }
 
-for (const script of ["typecheck", "lint", "test", "audit"])
-  await requireCommand("npm", ["run", script]);
-const decoded: unknown = JSON.parse(
-  await readFile("test-results/unit.json", "utf8"),
-);
-const results = v.parse(
-  v.object({ numPassedTests: v.number(), numFailedTests: v.literal(0) }),
-  decoded,
-);
-if (results.numPassedTests < minimumBehavioralTests)
-  throw new Error("The behavioral test inventory is incomplete");
-await scanSecrets();
-await requireCommand("actionlint", []);
-await requireCommand("zizmor", [
-  "--offline",
-  "--persona=pedantic",
-  "--strict-collection",
-  ".github",
-]);
-await requireWorkflowPolicy(".");
-console.info(
-  JSON.stringify({
-    operation: "check",
-    unitTests: results.numPassedTests,
-    result: "passed",
-  }),
-);
+const timer = new StepTimer();
+try {
+  for (const [step, script] of [
+    ["typecheck", "typecheck"],
+    ["lint", "lint"],
+    ["unit tests", "test"],
+    ["audit", "audit"],
+  ] as const)
+    await timer.time(step, () => requireCommand("npm", ["run", script]));
+  const decoded: unknown = JSON.parse(
+    await readFile("test-results/unit.json", "utf8"),
+  );
+  const results = v.parse(
+    v.object({ numPassedTests: v.number(), numFailedTests: v.literal(0) }),
+    decoded,
+  );
+  if (results.numPassedTests < minimumBehavioralTests)
+    throw new Error("The behavioral test inventory is incomplete");
+  await timer.time("secrets", scanSecrets);
+  await timer.time("actionlint", () => requireCommand("actionlint", []));
+  await timer.time("zizmor", () =>
+    requireCommand("zizmor", [
+      "--offline",
+      "--persona=pedantic",
+      "--strict-collection",
+      ".github",
+    ]),
+  );
+  await timer.time("workflow policy", () => requireWorkflowPolicy("."));
+  console.info(
+    JSON.stringify({
+      operation: "check",
+      unitTests: results.numPassedTests,
+      result: "passed",
+      totalMs: timer.totalMs(),
+      steps: timer.steps(),
+    }),
+  );
+} finally {
+  console.error(timer.table("check"));
+}
