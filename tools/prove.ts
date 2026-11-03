@@ -1,10 +1,28 @@
 import { randomUUID } from "node:crypto";
-import { chmod, mkdir, open, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  open,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import * as v from "valibot";
 import type { Result } from "../src/core/result.ts";
 import { type CommandResult, command, requireCommand } from "./process.ts";
+import {
+  digestOrNull,
+  observeProof,
+  type ProofInventory,
+  proofReceiptFormat,
+  provedOrReused,
+  readProofReceipt,
+  staleProof,
+} from "./proof-receipt.ts";
 import { fileDigest } from "./snapshot.ts";
+import { StepTimer } from "./step-timing.ts";
 
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
@@ -175,6 +193,10 @@ const boundFiles = [
   "tools/prove.ts",
   "tools/process.ts",
   "tools/snapshot.ts",
+  "tools/proof-receipt.ts",
+  "tools/step-timing.ts",
+  "tests/unit/proof-receipt.test.ts",
+  "tests/unit/step-timing.test.ts",
   "src/core/directory-archive.ts",
   "tests/unit/directory-archive.test.ts",
   "src/core/search-index.ts",
@@ -222,8 +244,64 @@ const proofSources = [
 const modelPaths = proofSources.map(
   (path) => `${proofRoot}/proof/generated/${path.replace(/\.ts$/u, ".dfy")}`,
 );
+const receiptPath = ".local/proof-receipt.json";
+const negativeSources = "proof/negative/";
+const inventory: ProofInventory = {
+  boundFiles,
+  inputRoot: proofRoot,
+  modelPaths,
+  contracts: expected,
+  verifiedUnits: provenUnitCount,
+  postconditions: provenPostconditionCount,
+};
+const timer = new StepTimer();
 
-async function generateModel(path: string): Promise<void> {
+function generateModel(path: string): Promise<void> {
+  return timer.time(
+    path.startsWith(negativeSources) ? "negative models" : "models",
+    () => runGenerator(path),
+  );
+}
+
+function verifyModel(
+  image: string,
+  models: readonly string[],
+): Promise<CommandResult> {
+  return timer.time(
+    models.every((model) => model.includes(`/${negativeSources}`))
+      ? "negative proofs"
+      : "proof",
+    () => runVerifier(image, models),
+  );
+}
+
+async function verifierImage(): Promise<string> {
+  const build = await command(
+    "docker",
+    [
+      "build",
+      "--platform=linux/amd64",
+      // A provenance attestation carries its build time, so each cached build would get a new image ID.
+      "--provenance=false",
+      "--quiet",
+      "--file",
+      `${proofRoot}/proof/Dockerfile`,
+      proofRoot,
+    ],
+    true,
+  );
+  const image = build.output.trim().split("\n").at(-1) ?? "";
+  if (build.code !== 0 || !/^sha256:[a-f0-9]{64}$/u.test(image))
+    throw new Error(`Verifier image build failed: ${build.output}`);
+  return image;
+}
+
+/** Hashes npm's record of the installed package tree, which holds the model generator. */
+function installedPackages(): Promise<string | null> {
+  return digestOrNull("node_modules/.package-lock.json");
+}
+
+async function runGenerator(path: string): Promise<void> {
   const metadata: unknown = JSON.parse(
     await readFile("node_modules/lemmascript/package.json", "utf8"),
   );
@@ -243,7 +321,7 @@ async function generateModel(path: string): Promise<void> {
   );
 }
 
-async function verifyModel(
+async function runVerifier(
   image: string,
   models: readonly string[],
 ): Promise<CommandResult> {
@@ -299,30 +377,41 @@ async function verifyModel(
   return result.value;
 }
 
-async function main(): Promise<void> {
-  await mkdir(".local", { recursive: true });
-  const lock = await open(".local/proof.lock", "wx");
+/** Copies every bound file into the read-only input snapshot and checks the declared postcondition inventory. */
+async function copyInputs(): Promise<ProofSourceBinding[]> {
+  await rm("proof/generated", { recursive: true, force: true });
+  await rm(proofRoot, { recursive: true, force: true });
+  const bindings: ProofSourceBinding[] = [];
+  for (const file of boundFiles) {
+    const input = `${proofRoot}/${file}`;
+    await mkdir(dirname(input), { recursive: true });
+    await writeFile(input, await readFile(file), { mode: immutableFileMode });
+    bindings.push({ file, input, sha256: await fileDigest(input) });
+  }
+  const declarations = await Promise.all(
+    proofSources.map((path) => readFile(`${proofRoot}/${path}`, "utf8")),
+  );
+  if (
+    declarations.reduce(
+      (sum, source) =>
+        sum + [...source.matchAll(/^\s*\/\/@ ensures /gm)].length,
+      0,
+    ) !== provenPostconditionCount
+  )
+    throw new Error("The declared postcondition inventory changed");
+  return bindings;
+}
+
+/** Runs every proof, negative control, and receipt control, and records the tools only after all of them pass. */
+async function proveCompletely(): Promise<void> {
+  await rm(receiptPath, { force: true });
+  const generator = {
+    node: process.version,
+    packages: await installedPackages(),
+  };
+  let complete = false;
   try {
-    await rm("proof/generated", { recursive: true, force: true });
-    await rm(proofRoot, { recursive: true, force: true });
-    const bindings: ProofSourceBinding[] = [];
-    for (const file of boundFiles) {
-      const input = `${proofRoot}/${file}`;
-      await mkdir(dirname(input), { recursive: true });
-      await writeFile(input, await readFile(file), { mode: immutableFileMode });
-      bindings.push({ file, input, sha256: await fileDigest(input) });
-    }
-    const declarations = await Promise.all(
-      proofSources.map((path) => readFile(`${proofRoot}/${path}`, "utf8")),
-    );
-    if (
-      declarations.reduce(
-        (sum, source) =>
-          sum + [...source.matchAll(/^\s*\/\/@ ensures /gm)].length,
-        0,
-      ) !== provenPostconditionCount
-    )
-      throw new Error("The declared postcondition inventory changed");
+    const bindings = await timer.time("inputs", copyInputs);
     for (const path of proofSources) await generateModel(path);
     const models: string[] = [];
     for (const path of modelPaths) {
@@ -347,21 +436,7 @@ async function main(): Promise<void> {
       )
         throw new Error(`Missing proof: ${name}`);
     }
-    const build = await command(
-      "docker",
-      [
-        "build",
-        "--platform=linux/amd64",
-        "--quiet",
-        "--file",
-        `${proofRoot}/proof/Dockerfile`,
-        proofRoot,
-      ],
-      true,
-    );
-    const image = build.output.trim().split("\n").at(-1) ?? "";
-    if (build.code !== 0 || !/^sha256:[a-f0-9]{64}$/u.test(image))
-      throw new Error(`Verifier image build failed: ${build.output}`);
+    const image = await timer.time("image", verifierImage);
     const positive = await verifyModel(image, modelPaths);
     console.info(positive.output);
     if (
@@ -793,140 +868,141 @@ async function main(): Promise<void> {
           `The ${control.name} negative control was inconclusive: ${rejected.output}`,
         );
     }
-    for (const binding of bindings) {
-      if (
-        (await fileDigest(binding.file)) !== binding.sha256 ||
-        (await fileDigest(binding.input)) !== binding.sha256
-      )
-        throw new Error(
-          `Proof input changed during verification: ${binding.file}`,
-        );
-    }
-    for (const binding of modelBindings)
-      if ((await fileDigest(binding.path)) !== binding.sha256)
-        throw new Error(
-          `Proof model changed during verification: ${binding.path}`,
-        );
-    await writeFile(
-      ".local/proof-receipt.json",
-      JSON.stringify(
-        {
-          bindings,
-          image,
-          models: modelBindings,
-          contracts: expected,
-          verifiedUnits: provenUnitCount,
-          postconditions: provenPostconditionCount,
-          semantics:
-            "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
-          negativeControl:
-            "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, an admitted cross-origin site request, a 31-row site page, conflicting import identities, promotion of an unverified, displaced, or different candidate, withdrawal of a foreign candidate, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a substring ranked at the second position, a reflexive result order, a loading index searched on the device, a 31-row continuation, an index admitted without its digest, an off-by-one row range, a snapshot-blind row locator, a delta budget of the whole archive, an off-by-one copy range, and a delta admitted without its digest rejected",
-          result: "verified",
-        },
-        null,
-        jsonIndentation,
-      ),
-    );
-    for (const control of [
-      {
-        path: `${proofRoot}/src/core/search-policy.ts`,
-        message: "Stale proof input:",
-        mode: immutableFileMode,
-      },
-      {
-        path: modelPaths[0],
-        message: "Stale proof model:",
-        mode: writableFileMode,
-      },
-    ]) {
-      if (!control.path)
-        throw new Error("The proof receipt control has no target");
-      const bytes = await readFile(control.path);
-      try {
-        await chmod(control.path, writableFileMode);
-        const altered = new Uint8Array(bytes.length + 1);
-        altered.set(bytes);
-        altered[bytes.length] = lineFeedByte;
-        await writeFile(control.path, altered);
-        const stale = await command(
-          process.execPath,
-          ["tools/prove.ts", "--check-receipt"],
-          true,
-        );
-        if (stale.code === 0 || !stale.output.includes(control.message))
+    const receipt = {
+      formatVersion: proofReceiptFormat,
+      bindings,
+      image,
+      models: modelBindings,
+      contracts: expected,
+      verifiedUnits: provenUnitCount,
+      postconditions: provenPostconditionCount,
+      semantics:
+        "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
+      negativeControl:
+        "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, an admitted cross-origin site request, a 31-row site page, conflicting import identities, promotion of an unverified, displaced, or different candidate, withdrawal of a foreign candidate, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a substring ranked at the second position, a reflexive result order, a loading index searched on the device, a 31-row continuation, an index admitted without its digest, an off-by-one row range, a snapshot-blind row locator, a delta budget of the whole archive, an off-by-one copy range, and a delta admitted without its digest rejected",
+      result: "verified",
+    };
+    await timer.time("receipt", async () => {
+      for (const binding of bindings) {
+        if (
+          (await fileDigest(binding.file)) !== binding.sha256 ||
+          (await fileDigest(binding.input)) !== binding.sha256
+        )
           throw new Error(
-            `The receipt control was inconclusive: ${stale.output}`,
+            `Proof input changed during verification: ${binding.file}`,
           );
-      } finally {
-        await writeFile(control.path, bytes);
-        await chmod(control.path, control.mode);
       }
+      for (const binding of modelBindings)
+        if ((await fileDigest(binding.path)) !== binding.sha256)
+          throw new Error(
+            `Proof model changed during verification: ${binding.path}`,
+          );
+      if ((await installedPackages()) !== generator.packages)
+        throw new Error("The installed packages changed during verification");
+      await writeFile(
+        receiptPath,
+        JSON.stringify(receipt, null, jsonIndentation),
+      );
+    });
+    await timer.time("receipt controls", receiptControls);
+    const final = `${receiptPath}.${randomUUID()}`;
+    await writeFile(
+      final,
+      JSON.stringify({ ...receipt, tools: generator }, null, jsonIndentation),
+    );
+    await rename(final, receiptPath);
+    complete = true;
+  } finally {
+    if (!complete) await rm(receiptPath, { force: true });
+  }
+}
+
+/** Requires the receipt check to reject an altered input copy and an altered model, then to accept the restored files. */
+async function receiptControls(): Promise<void> {
+  for (const control of [
+    {
+      path: `${proofRoot}/src/core/search-policy.ts`,
+      message: "Stale proof input:",
+      mode: immutableFileMode,
+    },
+    {
+      path: modelPaths[0],
+      message: "Stale proof model:",
+      mode: writableFileMode,
+    },
+  ]) {
+    if (!control.path)
+      throw new Error("The proof receipt control has no target");
+    const bytes = await readFile(control.path);
+    try {
+      await chmod(control.path, writableFileMode);
+      const altered = new Uint8Array(bytes.length + 1);
+      altered.set(bytes);
+      altered[bytes.length] = lineFeedByte;
+      await writeFile(control.path, altered);
+      const stale = await command(
+        process.execPath,
+        ["tools/prove.ts", "--check-receipt"],
+        true,
+      );
+      if (stale.code === 0 || !stale.output.includes(control.message))
+        throw new Error(
+          `The receipt control was inconclusive: ${stale.output}`,
+        );
+    } finally {
+      await writeFile(control.path, bytes);
+      await chmod(control.path, control.mode);
     }
-    await requireCommand(process.execPath, [
-      "tools/prove.ts",
-      "--check-receipt",
-    ]);
+  }
+  await requireCommand(process.execPath, ["tools/prove.ts", "--check-receipt"]);
+}
+
+async function main(): Promise<void> {
+  await mkdir(".local", { recursive: true });
+  const lock = await open(".local/proof.lock", "wx");
+  try {
+    const outcome = await provedOrReused(inventory, {
+      receipt: () => readProofReceipt(receiptPath),
+      observe: () => timer.time("receipt check", () => observeProof(inventory)),
+      tools: () =>
+        timer.time("image", async () => ({
+          image: await verifierImage(),
+          node: process.version,
+          packages: await installedPackages(),
+        })),
+      prove: proveCompletely,
+    });
     console.info(
       JSON.stringify({
         operation: "proof",
         verifiedUnits: provenUnitCount,
         postconditions: provenPostconditionCount,
-        negativeControl: "rejected",
-        receiptControls: "rejected",
-        result: "verified",
+        ...(outcome.result === "reused"
+          ? { result: "reused", receipt: receiptPath }
+          : {
+              negativeControl: "rejected",
+              receiptControls: "rejected",
+              result: "verified",
+              reason: outcome.reason,
+            }),
+        totalMs: timer.totalMs(),
+        steps: timer.steps(),
       }),
     );
   } finally {
     await lock.close();
     await rm(".local/proof.lock");
+    console.error(timer.table("proof"));
   }
 }
 
 if (process.argv[commandArgumentOffset] === "--check-receipt") {
-  const receipt: unknown = JSON.parse(
-    await readFile(".local/proof-receipt.json", "utf8"),
+  const stale = staleProof(
+    await readProofReceipt(receiptPath),
+    inventory,
+    await observeProof(inventory),
   );
-  const parsed = v.parse(
-    v.object({
-      bindings: v.array(
-        v.object({ file: v.string(), input: v.string(), sha256: v.string() }),
-      ),
-      models: v.array(v.object({ path: v.string(), sha256: v.string() })),
-      contracts: v.array(v.string()),
-      verifiedUnits: v.literal(provenUnitCount),
-      postconditions: v.literal(provenPostconditionCount),
-      result: v.literal("verified"),
-    }),
-    receipt,
-  );
-  if (parsed.bindings.length !== boundFiles.length)
-    throw new Error("Incomplete proof source binding");
-  for (const file of boundFiles)
-    if (
-      parsed.bindings.find((item) => item.file === file)?.sha256 !==
-      (await fileDigest(file))
-    )
-      throw new Error(`Stale proof: ${file}`);
-  for (const file of boundFiles) {
-    const binding = parsed.bindings.find((item) => item.file === file);
-    if (
-      !binding ||
-      binding.input !== `${proofRoot}/${file}` ||
-      (await fileDigest(binding.input)) !== binding.sha256
-    )
-      throw new Error(`Stale proof input: ${file}`);
-  }
-  if (
-    parsed.models.length !== modelPaths.length ||
-    JSON.stringify(parsed.contracts) !== JSON.stringify(expected)
-  )
-    throw new Error("Incomplete proof model inventory");
-  for (const path of modelPaths)
-    if (
-      parsed.models.find((model) => model.path === path)?.sha256 !==
-      (await fileDigest(path))
-    )
-      throw new Error(`Stale proof model: ${path}`);
+  if (stale) throw new Error(stale);
 } else {
   if (process.argv.length !== commandArgumentOffset)
     throw new Error("Usage: npm run prove [-- --check-receipt]");
