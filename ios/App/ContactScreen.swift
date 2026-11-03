@@ -13,20 +13,21 @@ struct ContactScreen: View {
         }.font(.subheadline)
         Text(contact.name).font(.largeTitle.bold()).textSelection(.enabled)
           .accessibilityAddTraits(.isHeader)
-        ForEach(contact.phones, id: \.e164) {
-          PhoneActions(phone: $0, name: contact.name, large: true)
-        }
-        VStack(alignment: .leading, spacing: 6) {
-          Text("住所").font(.headline)
-          if contact.address.isEmpty {
-            Text(contact.region)
-          } else {
-            AddressLink(name: contact.name, address: contact.address)
+        ForEach(contact.phones, id: \.e164) { PhoneActions(phone: $0, large: true) }
+        VStack(alignment: .leading, spacing: 12) {
+          VStack(alignment: .leading, spacing: 6) {
+            Text("住所").font(.headline)
+            Text(contact.address.isEmpty ? contact.region : contact.address).font(.callout)
+              .textSelection(.enabled)
+              .accessibilityIdentifier("contact-address")
+          }
+          if !contact.address.isEmpty {
+            MapButton(name: contact.name, address: contact.address)
           }
         }
         if let raw = contact.website, let url = WebAddress.url(raw) {
           ExternalLink(url: url, destination: .facility) {
-            IconLabel(icon: "external", text: "施設のページを開く")
+            IconLabel(icon: "external", text: "施設のホームページを開く")
           }.buttonStyle(MonoButtonStyle())
         }
         Rectangle().fill(.black).frame(height: 1)

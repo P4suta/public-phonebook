@@ -50,26 +50,27 @@ struct OnboardingScreen: View {
       heading(AppIdentity.displayName)
       Text("学校や役所、病院などの電話番号を、iPhoneの中でさがせるアプリです。")
       Feature(
-        icon: "phone", title: "着信に施設の名前が出ます",
-        detail: "役所や病院などからの電話に、着信画面で名前を出せます。")
+        icon: "phone", title: "電話の相手が分かります",
+        detail: "病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前が出ます。")
       Feature(
         icon: "search", title: "通信なしで、すぐにさがせます",
         detail: "アプリで使うデータを先に受け取っておくので、電波がなくてもさがせます。")
     case .caller:
-      heading("着信に施設の名前を出す")
-      Text("役所や病院などから電話がかかってきたとき、着信画面に施設の名前を出します。")
+      heading("電話の相手が分かるようにする")
+      Text("病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前が出ます。")
       if integration.callerEnabled {
-        Done(text: "オンになっています。")
+        Done(text: "許可しています。")
       } else {
-        Text("「iPhoneの設定を開く」を押し、\(AppIdentity.displayName)をオンにしてから、このアプリにもどってください。")
+        Text("iPhoneの設定で、\(AppIdentity.displayName)を許可してください。")
+        Text("許可したら、このアプリにもどってください。")
       }
     case .ready:
       heading(
         integration.manifest != nil
           ? "準備ができました"
           : integration.progress == nil ? "データを受け取れませんでした" : "データを受け取っています")
-      Text("施設や窓口の名前か電話番号を入れると、さがせます。")
-      Text("着信に名前を出す設定は、あとから「設定」で変えられます。")
+      Text("施設の名前か電話番号を入れると、さがせます。")
+      Text("電話の相手が分かるようにする設定は、あとから「設定」で変えられます。")
     }
     if let problem = integration.problem {
       Text(problem).fixedSize(horizontal: false, vertical: true)
