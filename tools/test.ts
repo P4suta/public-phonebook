@@ -3,20 +3,17 @@ import { resolve } from "node:path";
 import * as v from "valibot";
 import { requireBuildBudget } from "./build-budget.ts";
 import { checkDataBundle } from "./check-data.ts";
-import { controlStoreFromEnvironment } from "./control-store.ts";
 import { defaultBundle, localBundleVariable } from "./local-bundle.ts";
 import { command, requireCommand } from "./process.ts";
 import {
   type CandidateEvidence,
   type CandidateStage,
   candidateStages,
-  type RunProvenance,
-  recordCandidateEvidence,
-  recordCandidateObservation,
   releaseLock,
   runProvenance,
 } from "./release-store.ts";
 import { fileDigest } from "./snapshot.ts";
+import { stageInputDigest, stageInputs, trackedFiles } from "./stage-inputs.ts";
 import {
   cleanTree,
   saveStageReceipt,
@@ -24,23 +21,27 @@ import {
 } from "./verification-receipt.ts";
 
 const commandArgumentOffset = 2;
-const evidenceFormat = 1;
+const stageEvidenceFormat = 2;
+const iosCheckManifest = [
+  "run",
+  "--locked",
+  "--manifest-path",
+  "tools/ios-check/Cargo.toml",
+  "--",
+] as const;
 
 export interface TestArguments {
   readonly bundle: string;
   readonly stages: readonly CandidateStage[];
-  readonly record: boolean;
 }
 
 export function parseTestArguments(args: readonly string[]): TestArguments {
   let bundle = defaultBundle;
   const stages: CandidateStage[] = [];
-  let record = false;
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
     const value = args[index + 1];
-    if (flag === "--record") record = true;
-    else if (flag === "--bundle" && value) {
+    if (flag === "--bundle" && value) {
       bundle = value;
       index += 1;
     } else if (flag === "--stage" && value) {
@@ -51,7 +52,7 @@ export function parseTestArguments(args: readonly string[]): TestArguments {
       index += 1;
     } else
       throw new Error(
-        `Usage: test [--bundle DIRECTORY] [--stage ${candidateStages.join("|")}]... [--record]`,
+        `Usage: test [--bundle DIRECTORY] [--stage ${candidateStages.join("|")}]...`,
       );
   }
   return {
@@ -59,7 +60,6 @@ export function parseTestArguments(args: readonly string[]): TestArguments {
     stages: stages.length
       ? candidateStages.filter((stage) => stages.includes(stage))
       : candidateStages,
-    record,
   };
 }
 
@@ -108,10 +108,12 @@ export function stageRunner(
     prove: () => requireCommand("npm", ["run", "prove"]),
     e2e: () =>
       requireCommand("npm", ["run", "e2e"], undefined, e2eEnvironment(bundle)),
+    "ios-prove": () => requireCommand("cargo", [...iosCheckManifest, "prove"]),
+    "ios-check": () => requireCommand("cargo", [...iosCheckManifest, "check"]),
   };
 }
 
-/** Measures search performance after a complete run; a failed measurement leaves the verdict alone and says so. */
+/** Measures search performance after the parity stage; a failed measurement leaves the verdict alone and says so. */
 export async function observePerformance(
   bundle: string,
 ): Promise<Record<string, unknown> | null> {
@@ -131,28 +133,19 @@ export async function observePerformance(
   return v.parse(v.record(v.string(), v.unknown()), report);
 }
 
-export function recordingAuthority(
-  record: boolean,
-  provenance: RunProvenance,
-  sourceTree: string | null,
-): void {
-  if (!record) return;
-  if (provenance.kind !== "github-actions")
-    throw new Error("Only a GitHub Actions run records candidate evidence");
-  if (!sourceTree)
-    throw new Error("Candidate evidence requires a clean committed tree");
-}
-
+/** Runs the selected stages and writes a local receipt per stage; the candidate workflow records evidence in its own job. */
 async function main(args: readonly string[]): Promise<void> {
   const options = parseTestArguments(args);
   const manifestPath = resolve(options.bundle, "manifest.ready.json");
+  const readsDataset = options.stages.some(
+    (stage) => stageInputs[stage].dataset,
+  );
   const provenance = runProvenance();
   const unlock = await releaseLock("build");
   try {
     const tree = await cleanTree();
-    recordingAuthority(options.record, provenance, tree);
-    const store = options.record ? controlStoreFromEnvironment() : null;
-    const manifest = await fileDigest(manifestPath);
+    const files = tree ? await trackedFiles() : null;
+    const manifest = readsDataset ? await fileDigest(manifestPath) : null;
     const complete = options.stages.length === candidateStages.length;
     if (complete)
       await rm(resolve(".local/test-receipt.json"), { force: true });
@@ -160,37 +153,28 @@ async function main(args: readonly string[]): Promise<void> {
     const passed: CandidateEvidence[] = [];
     for (const stage of options.stages) {
       await run[stage]();
-      if (tree)
+      if (tree && files) {
+        const stageManifest = stageInputs[stage].dataset ? manifest : null;
         passed.push({
-          formatVersion: evidenceFormat,
+          formatVersion: stageEvidenceFormat,
           stage,
+          inputsSha256: stageInputDigest(stage, files, stageManifest),
+          manifestSha256: stageManifest,
           sourceTree: tree,
-          manifestSha256: manifest,
           result: "passed",
           provenance,
         });
+      }
     }
-    if (manifest !== (await fileDigest(manifestPath)))
+    if (manifest && manifest !== (await fileDigest(manifestPath)))
       throw new Error("The verification dataset changed during testing");
     if (tree && tree !== (await cleanTree()))
       throw new Error("The committed source changed during testing");
-    for (const evidence of passed) {
-      await saveStageReceipt(evidence);
-      if (store) await recordCandidateEvidence(store, evidence);
-    }
-    if (tree && complete) await saveVerificationReceipt(tree, manifest);
-    const observation = complete
-      ? await observePerformance(options.bundle)
-      : null;
-    if (store && tree && observation)
-      await recordCandidateObservation(store, {
-        formatVersion: evidenceFormat,
-        name: "search-performance",
-        sourceTree: tree,
-        manifestSha256: manifest,
-        provenance,
-        report: observation,
-      });
+    for (const evidence of passed) await saveStageReceipt(evidence);
+    if (tree && complete && manifest)
+      await saveVerificationReceipt(tree, manifest);
+    if (options.stages.includes("parity"))
+      await observePerformance(options.bundle);
     console.info(
       JSON.stringify({
         operation: "test",
@@ -198,7 +182,6 @@ async function main(args: readonly string[]): Promise<void> {
         manifestSha256: manifest,
         stages: options.stages,
         receipt: tree ? "recorded" : "dirty-source",
-        evidence: store ? "recorded" : "local",
         result: "passed",
       }),
     );

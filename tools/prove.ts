@@ -602,6 +602,11 @@ async function main(): Promise<void> {
         from: '  if (signer !== expectedSigner) return "different-signer";\n',
         to: "",
       },
+      {
+        name: "evidence-inputs",
+        from: '  if (inputs !== expectedInputs) return "stale-inputs";\n',
+        to: "",
+      },
     ]) {
       const brokenPublication = publicationSource.replace(
         control.from,

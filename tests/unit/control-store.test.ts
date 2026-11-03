@@ -35,8 +35,8 @@ describe("control keys", () => {
     expect(controlKeys.dataset(digest, "catalog.json")).toBe(
       `datasets/${digest}/catalog.json`,
     );
-    expect(controlKeys.candidate(tree, digest, "e2e")).toBe(
-      `candidates/${tree}/${digest}/e2e.json`,
+    expect(controlKeys.candidate(digest, "ios-check")).toBe(
+      `candidates/${digest}/ios-check.json`,
     );
     expect(controlKeys.observation(tree, digest, "search-performance")).toBe(
       `observations/${tree}/${digest}/search-performance.json`,
@@ -49,7 +49,7 @@ describe("control keys", () => {
       [controlKeys.dataset(digest, "manifest.ready.json")]: "write-once",
       [controlKeys.collection(digest, "report.json")]: "write-once",
       [controlKeys.collectionCache(digest)]: "write-once",
-      [controlKeys.candidate(tree, digest, "check")]: "write-once",
+      [controlKeys.candidate(digest, "check")]: "write-once",
       [controlKeys.observation(tree, digest, "search-performance")]:
         "write-once",
       [controlKeys.journalHead("production")]: "conditional",
@@ -68,7 +68,7 @@ describe("control keys", () => {
     ])
       expect(() => writePolicy(unsafe), unsafe).toThrow();
     expect(() => controlKeys.blob("short")).toThrow();
-    expect(() => controlKeys.candidate("tree", digest, "e2e")).toThrow();
+    expect(() => controlKeys.candidate(tree, "e2e")).toThrow();
     expect(() => controlKeys.journalHistory("production", 0)).toThrow();
   });
 });

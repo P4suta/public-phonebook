@@ -33,6 +33,11 @@ import {
   type StageAdmission,
 } from "./release-store.ts";
 import { fileDigest } from "./snapshot.ts";
+import {
+  stageExpectations,
+  type TrackedFile,
+  trackedFiles,
+} from "./stage-inputs.ts";
 
 export const recordFiles = {
   build: "worker-build.tar",
@@ -399,13 +404,13 @@ export async function assembleRecord(
   store: ControlStore,
   directory: string,
   tag: string,
-  tree: string,
+  source: { readonly tree: string; readonly files: readonly TrackedFile[] },
   provenance: RunProvenance,
 ): Promise<ReleaseEvidence> {
   const head = await loadRelease(store, "production");
   if (!head) throw new Error("There is no production journal");
   const { candidate } = head.journal;
-  if (candidate.sourceTree !== tree)
+  if (candidate.sourceTree !== source.tree)
     throw new Error("The verified release was built from another source tree");
   const verification = await materializeVerificationDataset(
     store,
@@ -429,8 +434,7 @@ export async function assembleRecord(
     provenance,
     stages: await candidateEvidenceAdmission(
       store,
-      tree,
-      candidate.manifestSha256,
+      stageExpectations(source.files, candidate.manifestSha256),
     ),
     approvers: productionApprovers(
       JSON.parse(await readFile(join(directory, recordFiles.approval), "utf8")),
@@ -577,7 +581,7 @@ async function main(args: readonly string[]): Promise<void> {
       controlStoreFromEnvironment(),
       first,
       value,
-      await sourceTree(),
+      { tree: await sourceTree(), files: await trackedFiles() },
       runProvenance(),
     );
     await writeFile(notes, releaseNotes(evidence));

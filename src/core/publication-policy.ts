@@ -132,15 +132,16 @@ export function leaseAdmission(
 export type EvidenceAdmission =
   | "admit"
   | "missing-stage"
-  | "stale-tree"
+  | "stale-inputs"
   | "different-manifest"
   | "different-signer"
   | "failed-stage";
 
+/** Admits a stage's evidence only for the exact digest of the files it reads, its dataset, an accepted signer, and a pass. */
 export function evidenceAdmission(
   present: boolean,
-  tree: string,
-  expectedTree: string,
+  inputs: string,
+  expectedInputs: string,
   manifest: string,
   expectedManifest: string,
   signer: string,
@@ -149,13 +150,13 @@ export function evidenceAdmission(
 ): EvidenceAdmission {
   //@ verify
   //@ ensures (\result === "missing-stage") === !present
-  //@ ensures (\result === "stale-tree") === (present && tree !== expectedTree)
-  //@ ensures (\result === "different-manifest") === (present && tree === expectedTree && manifest !== expectedManifest)
-  //@ ensures (\result === "different-signer") === (present && tree === expectedTree && manifest === expectedManifest && signer !== expectedSigner)
-  //@ ensures (\result === "failed-stage") === (present && tree === expectedTree && manifest === expectedManifest && signer === expectedSigner && !passed)
-  //@ ensures (\result === "admit") === (present && tree === expectedTree && manifest === expectedManifest && signer === expectedSigner && passed)
+  //@ ensures (\result === "stale-inputs") === (present && inputs !== expectedInputs)
+  //@ ensures (\result === "different-manifest") === (present && inputs === expectedInputs && manifest !== expectedManifest)
+  //@ ensures (\result === "different-signer") === (present && inputs === expectedInputs && manifest === expectedManifest && signer !== expectedSigner)
+  //@ ensures (\result === "failed-stage") === (present && inputs === expectedInputs && manifest === expectedManifest && signer === expectedSigner && !passed)
+  //@ ensures (\result === "admit") === (present && inputs === expectedInputs && manifest === expectedManifest && signer === expectedSigner && passed)
   if (!present) return "missing-stage";
-  if (tree !== expectedTree) return "stale-tree";
+  if (inputs !== expectedInputs) return "stale-inputs";
   if (manifest !== expectedManifest) return "different-manifest";
   if (signer !== expectedSigner) return "different-signer";
   if (!passed) return "failed-stage";

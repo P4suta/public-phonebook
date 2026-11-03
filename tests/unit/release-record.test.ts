@@ -36,6 +36,8 @@ import {
   releaseSigner,
   storeVerificationDataset,
 } from "../../tools/release-store.ts";
+import { stageExpectations } from "../../tools/stage-inputs.ts";
+import { passingEvidence } from "./stage-evidence-fixture.ts";
 
 const integrity = "sha512-AAEC";
 const lock = {
@@ -270,6 +272,7 @@ const verified: ReleaseJournal = {
 describe("release evidence", () => {
   const stages = candidateStages.map((stage) => ({
     stage,
+    inputsSha256: "e".repeat(64),
     decision: "admit" as const,
   }));
 
@@ -312,7 +315,13 @@ describe("release evidence", () => {
       releaseEvidence({
         ...input,
         journal: verified,
-        stages: [{ stage: "check", decision: "stale-tree" }],
+        stages: [
+          {
+            stage: "check",
+            inputsSha256: "e".repeat(64),
+            decision: "stale-inputs",
+          },
+        ],
       }),
     ).toThrow("every stage");
   });
@@ -330,15 +339,21 @@ describe("release evidence", () => {
       ...verified,
       candidate,
     });
+    const files = [
+      { mode: "100644", object: "1".repeat(40), path: "ios/App.swift" },
+      { mode: "100644", object: "2".repeat(40), path: "src/ui/page.tsx" },
+    ];
+    const expected = stageExpectations(files, manifestSha256);
     for (const stage of candidateStages)
-      await recordCandidateEvidence(store, {
-        formatVersion: 1,
-        stage,
-        sourceTree: tree,
-        manifestSha256,
-        result: "passed",
-        provenance: { ...actions, workflow: candidateSigner },
-      });
+      await recordCandidateEvidence(
+        store,
+        passingEvidence(
+          stage,
+          expected[stage],
+          { ...actions, workflow: candidateSigner },
+          tree,
+        ),
+      );
     const record = join(directory, "record");
     await mkdir(record);
     await writeFile(join(record, recordFiles.build), "tar");
@@ -362,7 +377,7 @@ describe("release evidence", () => {
       store,
       record,
       "v2026.1102.15",
-      tree,
+      { tree, files },
       actions,
     );
     expect(evidence.approvers).toEqual(["P4suta"]);
@@ -381,7 +396,13 @@ describe("release evidence", () => {
     );
     expect(stored).not.toBeNull();
     await expect(
-      assembleRecord(store, record, "v2026.1102.15", "c".repeat(40), actions),
+      assembleRecord(
+        store,
+        record,
+        "v2026.1102.15",
+        { tree: "c".repeat(40), files },
+        actions,
+      ),
     ).rejects.toThrow("another source tree");
   });
 });

@@ -30,6 +30,7 @@ import {
   releaseSigner,
   requireCandidateEvidence,
 } from "../../tools/release-store.ts";
+import { expectedStages, passingEvidence } from "./stage-evidence-fixture.ts";
 
 const dataset = "a".repeat(64);
 const release = "11111111-1111-4111-8111-111111111111";
@@ -198,49 +199,39 @@ describe("candidate evidence signers", () => {
     const directory = await mkdtemp(join(tmpdir(), "phonebook-evidence-"));
     try {
       const store = fileControlStore(join(directory, "store"));
-      const tree = "d".repeat(40);
+      const expected = expectedStages("main", dataset);
       expect(evidenceSigners).toEqual([candidateSigner, releaseSigner]);
       for (const [index, stage] of candidateStages.entries())
-        await recordCandidateEvidence(store, {
-          formatVersion: 1,
-          stage,
-          sourceTree: tree,
-          manifestSha256: dataset,
-          result: "passed",
-          provenance: {
+        await recordCandidateEvidence(
+          store,
+          passingEvidence(stage, expected[stage], {
             ...releaseRun,
             workflow: index % 2 ? candidateSigner : releaseSigner,
-          },
-        });
+          }),
+        );
       await expect(
-        requireCandidateEvidence(store, tree, dataset),
+        requireCandidateEvidence(store, expected),
       ).resolves.toBeUndefined();
       expect(
         (
-          await candidateEvidenceAdmission(store, tree, dataset, [
-            candidateSigner,
-          ])
+          await candidateEvidenceAdmission(store, expected, [candidateSigner])
         ).map((admission) => admission.decision),
       ).toEqual(
         candidateStages.map((_, index) =>
           index % 2 ? "admit" : "different-signer",
         ),
       );
-      const forked = "e".repeat(40);
-      await recordCandidateEvidence(store, {
-        formatVersion: 1,
-        stage: "check",
-        sourceTree: forked,
-        manifestSha256: dataset,
-        result: "passed",
-        provenance: {
+      const forked = expectedStages("feature", dataset);
+      await recordCandidateEvidence(
+        store,
+        passingEvidence("check", forked.check, {
           ...releaseRun,
           workflow:
             "P4suta/public-phonebook/.github/workflows/release.yml@refs/heads/feature",
-        },
-      });
+        }),
+      );
       expect(
-        (await candidateEvidenceAdmission(store, forked, dataset))[0]?.decision,
+        (await candidateEvidenceAdmission(store, forked))[0]?.decision,
       ).toBe("different-signer");
     } finally {
       await rm(directory, { recursive: true, force: true });

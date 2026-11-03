@@ -58,6 +58,7 @@ import {
   storeVerificationDataset,
 } from "./release-store.ts";
 import { fileDigest } from "./snapshot.ts";
+import { stageExpectations, trackedFiles } from "./stage-inputs.ts";
 import { auditVerificationArtifacts } from "./verification-artifacts.ts";
 import {
   readCandidateWorkerSettings,
@@ -499,7 +500,10 @@ async function admitCandidate(
   );
   if (manifestSha256 !== options.dataset)
     throw new Error("The bundle's manifest differs from the --dataset digest");
-  await requireCandidateEvidence(store, sourceTree, manifestSha256);
+  await requireCandidateEvidence(
+    store,
+    stageExpectations(await trackedFiles(), manifestSha256),
+  );
   const previous = verifiedPredecessor(journal);
   const catalog: unknown = JSON.parse(
     await readFile(join(options.bundle, "catalog.json"), "utf8"),
@@ -567,7 +571,10 @@ async function checkEvidence(
       await readFile(join(verification, "manifest.ready.json"), "utf8"),
     ),
   );
-  await requireCandidateEvidence(store, sourceTree, options.dataset);
+  await requireCandidateEvidence(
+    store,
+    stageExpectations(await trackedFiles(), options.dataset),
+  );
   await exportOutputs({
     "database-sha256": manifest.databaseSha256,
     "manifest-sha256": options.dataset,

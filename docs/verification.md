@@ -344,7 +344,8 @@ The command invalidates its preceding test receipt before execution and records 
 Production rejects a receipt for another dataset, source tree, format, or incomplete result.
 Dirty development checkouts can run the same checks but produce no publication receipt.
 Production admits a candidate on candidate evidence from `candidate.yml` rather than on a local receipt.
-The candidate stages run in this order: `check`, `data`, `parity`, `phones`, `prove`, and `e2e`.
+The candidate stages run in this order: `check`, `data`, `parity`, `phones`, `prove`, `e2e`, `ios-prove`, and `ios-check`.
+Each stage's evidence binds to the files it reads, as the [stage inputs decision](adr/bind-candidate-evidence-to-the-files-each-stage-reads.md) records.
 Production requires passing evidence for every stage, so evidence without `parity` is refused as a missing stage.
 The `check` stage runs the build checks after the fast gate, and then the build budget.
 The `parity` stage runs the search parity comparison on the candidate's dataset, which the workflow seeds into the local D1 first.
