@@ -221,7 +221,7 @@ test("the detail page's map opens in a new tab after confirmation and preserves 
   const popup = await popupEvent;
   await popup.waitForLoadState("domcontentloaded");
   expect(new URL(popup.url()).searchParams.get("query")).toBe(
-    "東京都千代田区永田町1-10-1",
+    `${contact.name},東京都千代田区永田町1-10-1`,
   );
   expect(await popup.evaluate(() => window.opener === null)).toBe(true);
   expect(page.url()).toBe(before);
