@@ -187,7 +187,11 @@ A tool error, timeout, missing condition, or empty inventory cannot count as tha
 
 The verifier uses a pinned base-image digest and a checked upstream archive digest.
 Each run copies its bound source, configuration, and lockfiles into a read-only input snapshot under `proof/input` before generating any models.
-The generator and verifier consume that snapshot, and the gate rejects changed production inputs or model bytes before recording a result.
+The generator reads a per-run copy of that snapshot in a new temporary directory outside the checkout, so the TypeScript project it builds finds no installed packages.
+Before generating, the gate requires every proof source to type-check with only the snapshot and the ES2023 library.
+The pinned type packages only add members to `ErrorConstructor` and `ImportMeta` among ES2023 declarations, so the copy translates such a source exactly as the checkout would.
+A control requires that check to refuse a planted package import and a planted ambient type.
+The generated models and negative sources return to the snapshot, the verifier consumes it, and the gate rejects changed production inputs or model bytes before recording a result.
 Each run records the resulting immutable image ID, source and lockfile hashes, input paths, generator configuration, model hashes, expected inventory, and result in `.local/proof-receipt.json`.
 `npm run prove -- --check-receipt` rejects stale production sources, copied inputs, generated models, and incomplete contract inventories.
 Separate receipt controls alter a copied source and a generated model, require the expected stale-input rejection, restore the original bytes, and check the complete receipt again.
@@ -199,8 +203,10 @@ Any difference, a missing receipt, or a receipt from an unfinished run starts th
 A reused result starts no verifier container and runs no negative control, because no proof runs.
 A failed run removes the receipt, and deleting `.local/proof-receipt.json` forces a complete run.
 Each workflow job starts from a fresh checkout without receipts, so its proof always runs in full.
-The final JSON line reports `verified` with the reason for a complete run, or `reused`, and the milliseconds of every step.
-Docker execution has no network, a read-only project mount, a 2 GiB memory limit, no swap allowance, two CPUs, 256 processes, and a 900-second safety stop.
+The final JSON line reports `verified` with the reason and the negative-control count for a complete run, or `reused`, and the milliseconds of every step.
+A complete run starts one Docker container with no network, a read-only project mount, a 2 GiB memory limit, no swap allowance, two CPUs, 256 processes, and a 900-second safety stop.
+It runs the positive proof, then each negative control as its own Dafny process, two at a time to match its CPUs.
+Each control keeps its own exit status, output, and expected failure check, and a failure names the control.
 Each condition also has a fixed solver resource limit.
 A safety stop is inconclusive.
 
