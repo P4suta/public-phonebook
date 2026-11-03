@@ -117,11 +117,14 @@ it("shows every telephone action and one contact-save action for a multi-number 
       expect(markup).toMatch(
         /<a[^>]*contact\.vcf[^>]*><svg[^>]*data-icon="book-user"/u,
       );
-    if (detail)
+    if (detail) {
       expect(markup).toMatch(
         /<a[^>]*data-external-destination="address"[^>]*><svg[^>]*data-icon="map-pin"[^>]*>.*?<\/svg><span>Tokyo<svg[^>]*data-icon="external-link"/u,
       );
-    else {
+      expect(markup).toContain(
+        'href="https://www.google.com/maps/search/?api=1&amp;query=Public%20library%2CTokyo"',
+      );
+    } else {
       expect(markup).not.toContain("Tokyo");
       expect(markup).not.toContain("google.com/maps");
       expect(markup).toContain('<p class="region">東京都千代田区</p>');
