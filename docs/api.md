@@ -45,6 +45,10 @@ Use each returned URL directly.
 The URL includes both the contact snapshot and the archive digest, so a changed representation gets a different immutable URL.
 Validate the downloaded byte length and SHA-256 before processing it.
 Downloads contain the complete directory.
+Every file URL answers a single `Range: bytes=` range with 206, `Content-Range`, and `Accept-Ranges: bytes`, so an interrupted download can resume.
+A first-byte position at or past the end, or a zero-length suffix, returns 416 with `Content-Range: bytes */SIZE`.
+A malformed or multiple range, or an `If-Range` that doesn't match the ETag, returns the whole file with 200.
+Check the SHA-256 over all the bytes once the resumed file is complete.
 Source-specific reuse terms remain attached to every record.
 CSV records carry the columns `id`, `name`, `category`, `prefecture_code`, `municipality_code`, `address`, `phone_numbers`, `website`, `source_id`, `source_url`, `license`, `license_url`, and `data_as_of`.
 A `phone_numbers` cell holds the contact's E.164 numbers unescaped and separated by semicolons, the same values as `e164` in JSON Lines and `TEL` in vCard.

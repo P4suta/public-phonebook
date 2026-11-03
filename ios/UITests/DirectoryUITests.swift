@@ -32,7 +32,12 @@ final class DirectoryUITests: XCTestCase {
     app.launch()
     let start = app.buttons["onboarding-start"]
     XCTAssertTrue(start.waitForExistence(timeout: 15))
+    let notice = app.descendants(matching: .any)["data-size-notice"]
+    XCTAssertTrue(notice.waitForExistence(timeout: 5))
+    XCTAssertTrue(notice.label.contains("受け取るデータは約1MBです。"))
+    XCTAssertTrue(notice.label.contains("Wi-Fiなどの速い回線につなぐと、早く終わります。"))
     capture(app, name: "onboarding-welcome")
+    XCTAssertEqual(try datasetFiles(), 0)
     start.tap()
     XCTAssertTrue(app.buttons["onboarding-caller"].waitForExistence(timeout: 10))
     capture(app, name: "onboarding-caller")
@@ -40,6 +45,7 @@ final class DirectoryUITests: XCTestCase {
     let finish = app.buttons["onboarding-finish"]
     XCTAssertTrue(finish.waitForExistence(timeout: 10))
     waitUntilSaved(finish, in: app, timeout: 60)
+    XCTAssertTrue(app.staticTexts["準備ができました"].exists)
     capture(app, name: "onboarding-ready")
     finish.tap()
     XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 10))
@@ -229,19 +235,105 @@ final class DirectoryUITests: XCTestCase {
     waitForGroup("dental", "1件", in: app)
   }
 
+  /// The download starts at the start button, not at launch, and the welcome names the size boldly on a costly path.
+  func testFirstDownloadWaitsForTheStartButton() throws {
+    let app = application()
+    app.launchEnvironment["PHONEBOOK_NETWORK_COST"] = "costly"
+    app.launch()
+    let start = app.buttons["onboarding-start"]
+    XCTAssertTrue(start.waitForExistence(timeout: 15))
+    XCTAssertTrue(app.descendants(matching: .any)["data-size-notice"].waitForExistence(timeout: 5))
+    waitUntil(
+      "the welcome reads the size from the listing",
+      (try? self.proxy().requests.contains("/api/datasets")) == true, timeout: 10)
+    capture(app, name: "onboarding-welcome-costly")
+    app.terminate()
+    app.launch()
+    XCTAssertTrue(start.waitForExistence(timeout: 15))
+    XCTAssertEqual(try datasetFiles(), 0)
+    start.tap()
+    waitUntil(
+      "the start button starts the transfer", (try? self.datasetFiles()) == 1, timeout: 15,
+      observed: { (try? self.proxy().log) ?? "" })
+  }
+
+  /// A slow transfer shows the three steps with a countdown under the current one, then the done state.
+  func testFirstDownloadShowsItsStepsWhileReceiving() throws {
+    let app = application()
+    try proxy().failNext(.dataset, with: .drip(bytes: 256, interval: .seconds(1)))
+    app.launch()
+    let start = app.buttons["onboarding-start"]
+    XCTAssertTrue(start.waitForExistence(timeout: 15))
+    start.tap()
+    let later = app.buttons["onboarding-later"]
+    XCTAssertTrue(later.waitForExistence(timeout: 10))
+    later.tap()
+    let progress = app.descendants(matching: .any)["sync-progress"]
+    XCTAssertTrue(progress.waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["アプリで使うデータを受け取っています"].exists)
+    waitUntil(
+      "the time line counts down in seconds",
+      (progress.value as? String).map { $0.contains("、あと") && $0.hasSuffix("秒") } == true,
+      timeout: 20, observed: { "It reads “\(progress.value as? String ?? "")”." })
+    let value = progress.value as? String ?? ""
+    XCTAssertTrue(value.contains("パーセント、データを受け取る、あと"), value)
+    capture(app, name: "onboarding-receiving")
+    let finish = app.buttons["onboarding-finish"]
+    XCTAssertFalse(finish.isEnabled)
+    waitUntilSaved(finish, in: app, timeout: 60)
+    XCTAssertTrue(app.staticTexts["準備ができました"].exists)
+    XCTAssertEqual(try proxy().injected, 1)
+  }
+
+  /// A transfer that stops partway reports a weak signal, says when it retries, and resumes from the kept bytes.
+  func testFirstDownloadResumesAfterAWeakSignalAndAStop() throws {
+    let app = application()
+    try proxy().failNext(.dataset, with: .stall(bytes: 1_000, hold: .seconds(13)))
+    app.launch()
+    let start = app.buttons["onboarding-start"]
+    XCTAssertTrue(start.waitForExistence(timeout: 15))
+    start.tap()
+    let later = app.buttons["onboarding-later"]
+    XCTAssertTrue(later.waitForExistence(timeout: 10))
+    later.tap()
+    let progress = app.descendants(matching: .any)["sync-progress"]
+    XCTAssertTrue(progress.waitForExistence(timeout: 10))
+    waitUntil(
+      "the time line reports a weak signal",
+      (progress.value as? String)?.contains("電波が弱いようです、つながると、続きから受け取ります。") == true,
+      timeout: 20, observed: { "It reads “\(progress.value as? String ?? "")”." })
+    capture(app, name: "onboarding-weak-signal")
+    let problem = app.staticTexts["sync-error"]
+    XCTAssertTrue(problem.waitForExistence(timeout: 20))
+    XCTAssertTrue(app.staticTexts["データの受け取りが止まりました"].exists)
+    XCTAssertEqual(problem.label, "5秒後に、自動でもう一度受け取ります。")
+    capture(app, name: "onboarding-download-stopped")
+    let finish = app.buttons["onboarding-finish"]
+    waitUntilSaved(finish, in: app, timeout: 60)
+    let fixture = try proxy()
+    let files = zip(zip(fixture.requests, fixture.ranges), fixture.outcomes).filter {
+      $0.0.0.hasPrefix("/api/datasets/")
+    }
+    XCTAssertEqual(files.map(\.0.1), [nil, "bytes=1000-"], fixture.log)
+    XCTAssertTrue(files.last?.1?.hasPrefix("206 with 1303 bytes") == true, fixture.log)
+  }
+
   func testDirectoryFailureRecoversWithoutATap() throws {
     let app = application()
     try proxy().failNext(.dataset)
     app.launch()
     let start = app.buttons["onboarding-start"]
     XCTAssertTrue(start.waitForExistence(timeout: 15))
+    start.tap()
+    let later = app.buttons["onboarding-later"]
+    XCTAssertTrue(later.waitForExistence(timeout: 10))
+    later.tap()
     let problem = app.staticTexts["sync-error"]
     XCTAssertTrue(problem.waitForExistence(timeout: 20))
-    XCTAssertTrue(problem.label.contains("自動でもう一度受け取ります"))
+    XCTAssertTrue(app.staticTexts["データの受け取りが止まりました"].exists)
+    XCTAssertEqual(problem.label, "5秒後に、自動でもう一度受け取ります。")
     capture(app, name: "directory-failure")
     XCTAssertFalse(app.buttons["sync-retry"].exists)
-    start.tap()
-    app.buttons["onboarding-later"].tap()
     let finish = app.buttons["onboarding-finish"]
     XCTAssertTrue(finish.waitForExistence(timeout: 10))
     waitUntilSaved(finish, in: app, timeout: 60)
@@ -379,6 +471,11 @@ final class DirectoryUITests: XCTestCase {
 
   private func proxy() throws -> ServiceFixture {
     try XCTUnwrap(service)
+  }
+
+  /// The dataset file requests that the fixture received, which the listing request doesn't count among.
+  private func datasetFiles() throws -> Int {
+    try proxy().requests.filter { $0.hasPrefix("/api/datasets/") }.count
   }
 
   private func search(_ text: String, in app: XCUIApplication) {

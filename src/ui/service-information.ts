@@ -103,7 +103,7 @@ export const serviceInformation = [
       {
         title: "iPhoneアプリで、電話の相手が分かるようにする",
         paragraphs: [
-          "アプリをはじめて開くと、アプリで使うデータを自動で受け取ります。",
+          "「はじめる」を押すと、アプリで使うデータを受け取ります。",
           "iPhoneの設定で、Public Phonebookを許可します。",
           "病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前が出ます。",
         ],

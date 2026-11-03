@@ -14,6 +14,8 @@ Consult the actual receipt and logs for the current candidate's results.
 | Delta admission | Lean theorems for the verdict order and the copy range guard, bound to the exact Swift source, and all 13,896 finite cases checked natively | The digest check, not a proof, decides whether a rebuilt archive is right |
 | Publication and cancellation | Shared 25-transition contract, production Swift refinement, Lean theorems for arbitrary finite traces, and independent fresh kernel replay | Foundation, SQLite, process crash, and power-loss durability remain external trust boundaries |
 | Receive budget | Lean integer bounds and overflow theorems bound to the exact guarded Int64 expression | Integration tests cover callers and actual I/O |
+| First download wait | Lean theorems for every finite trace that the countdown never rises, the line changes at most once a second, no countdown reaches zero, and steps hold for 0.6 seconds, bound to the Swift file's digest, ten Swift traces replayed by the kernel, three planted defects, and 2,000 seeded traces checked natively | The Swift tests record the traces, so the kernel replay is the cross-implementation evidence; Euclidean and truncating division agree because every numerator is nonnegative; the estimate's accuracy on a device remains unmeasured |
+| Resumable transfer | Range resume, a server that ignores the range, a changed digest, a wrong `Content-Range`, a 416 reply, a verified kept file, and a cut synchronization against loopback servers, with the Worker's ranges checked on workerd R2 and the range arithmetic verified in Dafny | Suspension on a device and a natural network loss remain separate observations |
 | Required nullable wire fields | Missing-key regression tests for contact, source, page metadata, and continuation | Each provider deployment still needs compatibility checks |
 | Request concurrency | Controlled transport ordering, cancellation, stale completion, and retry schedules | Finite schedules rather than exhaustive OS scheduling |
 | Search experience | Local search ranks and normalization compared with the website rules, a classifier and phone table taken from the website implementation, per-category previews, and in-place continuation | Search time on a device remains unmeasured |
@@ -23,7 +25,8 @@ Consult the actual receipt and logs for the current candidate's results.
 | Shared icons | Figma node and digest inventory, SVG allowlist, exact derived assets, mask safe area, browser metadata, and sprite checks | Semantic clarity and brand recognition remain design judgments |
 | Dependency and secret boundaries | npm audit, pinned RustSec advisory snapshot, gitleaks over a nonempty publishable inventory | RustSec snapshot excludes newer advisories and registry yank status |
 
-Lean checks 21 named theorems and rejects a false active-deletion claim and a false digest-mismatch admission.
+Lean checks 32 named theorems and rejects a false active-deletion claim and a false digest-mismatch admission.
+It also rejects three planted defects in the wait model inside the theorems that they break: a rising countdown, a line that changes within a second, and a countdown that reaches zero.
 The TypeScript proof gate checks its full declared contract inventory and deliberate broken implementations.
 Neither result proves the entire app.
 The proof gate rejects unsupported proof escapes and stale source or generated-model receipts.

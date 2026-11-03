@@ -498,8 +498,11 @@ export async function directoryFixture(
       APP_ENV: "development",
       PUBLIC_ORIGIN: fixtureOrigin,
       DATASETS: {
-        get: async (key) => {
-          const object = await bucket.get(key);
+        get: async (key, options) => {
+          const object = await bucket.get(
+            key,
+            options?.range ? { range: options.range } : {},
+          );
           if (!object) return null;
           const bytes = new Uint8Array(await object.arrayBuffer());
           const body = new ReadableStream<Uint8Array>({
@@ -509,6 +512,10 @@ export async function directoryFixture(
             },
           });
           return { body, size: object.size, httpEtag: object.httpEtag };
+        },
+        head: async (key) => {
+          const object = await bucket.head(key);
+          return object && { size: object.size, httpEtag: object.httpEtag };
         },
       },
     };

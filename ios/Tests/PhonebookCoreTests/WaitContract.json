@@ -1,0 +1,1338 @@
+{
+  "traces" : [
+    {
+      "inputs" : [
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 0,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 0
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 300,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 3000000,
+          "now" : 900,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 3800000,
+          "now" : 1100,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 8000000,
+          "now" : 2100,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 2700,
+          "rows" : 667696,
+          "stage" : 1,
+          "total" : 667696
+        },
+        {
+          "complete" : false,
+          "done" : 100000,
+          "now" : 3200,
+          "rows" : 667696,
+          "stage" : 1,
+          "total" : 667696
+        },
+        {
+          "complete" : false,
+          "done" : 300000,
+          "now" : 4200,
+          "rows" : 667696,
+          "stage" : 1,
+          "total" : 667696
+        },
+        {
+          "complete" : false,
+          "done" : 500000,
+          "now" : 5200,
+          "rows" : 667696,
+          "stage" : 1,
+          "total" : 667696
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 6000,
+          "rows" : 667696,
+          "stage" : 2,
+          "total" : 1
+        },
+        {
+          "complete" : true,
+          "done" : 0,
+          "now" : 7400,
+          "rows" : 667696,
+          "stage" : 2,
+          "total" : 1
+        }
+      ],
+      "name" : "A Wi-Fi run counts down, follows a faster estimate, and ends after its steps",
+      "views" : [
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 1100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 9,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 2100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 8,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 2100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 8,
+          "shown" : 1
+        },
+        {
+          "changedAt" : 3200,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 5,
+          "shown" : 1
+        },
+        {
+          "changedAt" : 4200,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 4,
+          "shown" : 1
+        },
+        {
+          "changedAt" : 5200,
+          "fast" : false,
+          "finished" : false,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 1
+        },
+        {
+          "changedAt" : 5200,
+          "fast" : false,
+          "finished" : false,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 2
+        },
+        {
+          "changedAt" : 5200,
+          "fast" : false,
+          "finished" : true,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 2
+        }
+      ]
+    },
+    {
+      "inputs" : [
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 0,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 0
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 200,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 100000,
+          "now" : 1200,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 200000,
+          "now" : 2300,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 12000000,
+          "now" : 12000,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 12900000,
+          "now" : 13000,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 13428507,
+          "now" : 15100,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 16200,
+          "rows" : 667696,
+          "stage" : 1,
+          "total" : 667696
+        },
+        {
+          "complete" : false,
+          "done" : 200000,
+          "now" : 17300,
+          "rows" : 667696,
+          "stage" : 1,
+          "total" : 667696
+        },
+        {
+          "complete" : true,
+          "done" : 300000,
+          "now" : 18000,
+          "rows" : 667696,
+          "stage" : 1,
+          "total" : 667696
+        }
+      ],
+      "name" : "A slow transfer gives coarse minutes and counts down again after a stable short estimate",
+      "views" : [
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 1200,
+          "fast" : false,
+          "finished" : false,
+          "line" : "longer",
+          "number" : 2,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 1200,
+          "fast" : false,
+          "finished" : false,
+          "line" : "longer",
+          "number" : 2,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 1200,
+          "fast" : false,
+          "finished" : false,
+          "line" : "longer",
+          "number" : 2,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 1200,
+          "fast" : false,
+          "finished" : false,
+          "line" : "longer",
+          "number" : 2,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 15100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 7,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 16200,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 6,
+          "shown" : 1
+        },
+        {
+          "changedAt" : 17300,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 5,
+          "shown" : 1
+        },
+        {
+          "changedAt" : 17300,
+          "fast" : false,
+          "finished" : true,
+          "line" : "countdown",
+          "number" : 5,
+          "shown" : 1
+        }
+      ]
+    },
+    {
+      "inputs" : [
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 0,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 0
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 100,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 5000000,
+          "now" : 1100,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 5200000,
+          "now" : 2200,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 5300000,
+          "now" : 3300,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 5400000,
+          "now" : 4400,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 6000000,
+          "now" : 15000,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 6100000,
+          "now" : 70000,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        }
+      ],
+      "name" : "A countdown that falls behind its deadline turns into coarse minutes that change slowly",
+      "views" : [
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 1100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 9,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 2200,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 8,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 3300,
+          "fast" : false,
+          "finished" : false,
+          "line" : "longer",
+          "number" : 1,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 3300,
+          "fast" : false,
+          "finished" : false,
+          "line" : "longer",
+          "number" : 1,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 3300,
+          "fast" : false,
+          "finished" : false,
+          "line" : "longer",
+          "number" : 1,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 70000,
+          "fast" : false,
+          "finished" : false,
+          "line" : "longer",
+          "number" : 2,
+          "shown" : 0
+        }
+      ]
+    },
+    {
+      "inputs" : [
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 0,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 0
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 100,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 4000000,
+          "now" : 1200,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 4000000,
+          "now" : 5000,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 4000000,
+          "now" : 11300,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 4500000,
+          "now" : 13000,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 6000000,
+          "now" : 14100,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 9000000,
+          "now" : 15200,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 13428507,
+          "now" : 18300,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        }
+      ],
+      "name" : "A stalled transfer reports a weak signal and measures again once data flows",
+      "views" : [
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 1200,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 10,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 5000,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 6,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 11300,
+          "fast" : false,
+          "finished" : false,
+          "line" : "weakSignal",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 13000,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 14100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "longer",
+          "number" : 1,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 14100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "longer",
+          "number" : 1,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 14100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "longer",
+          "number" : 1,
+          "shown" : 0
+        }
+      ]
+    },
+    {
+      "inputs" : [
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 0,
+          "rows" : 241,
+          "stage" : 0,
+          "total" : 0
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 40,
+          "rows" : 241,
+          "stage" : 0,
+          "total" : 9000
+        },
+        {
+          "complete" : false,
+          "done" : 9000,
+          "now" : 60,
+          "rows" : 241,
+          "stage" : 0,
+          "total" : 9000
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 80,
+          "rows" : 241,
+          "stage" : 1,
+          "total" : 241
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 120,
+          "rows" : 241,
+          "stage" : 2,
+          "total" : 1
+        },
+        {
+          "complete" : true,
+          "done" : 0,
+          "now" : 150,
+          "rows" : 241,
+          "stage" : 2,
+          "total" : 1
+        }
+      ],
+      "name" : "A run that ends at once goes straight to done",
+      "views" : [
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : true,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : true,
+          "finished" : true,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        }
+      ]
+    },
+    {
+      "inputs" : [
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 0,
+          "rows" : 20000,
+          "stage" : 0,
+          "total" : 0
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 100,
+          "rows" : 20000,
+          "stage" : 0,
+          "total" : 200000
+        },
+        {
+          "complete" : false,
+          "done" : 150000,
+          "now" : 700,
+          "rows" : 20000,
+          "stage" : 0,
+          "total" : 200000
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 900,
+          "rows" : 20000,
+          "stage" : 1,
+          "total" : 20000
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 1300,
+          "rows" : 20000,
+          "stage" : 2,
+          "total" : 1
+        },
+        {
+          "complete" : true,
+          "done" : 0,
+          "now" : 1500,
+          "rows" : 20000,
+          "stage" : 2,
+          "total" : 1
+        }
+      ],
+      "name" : "A run predicted to end within the fast time keeps its first screen",
+      "views" : [
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : true,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : true,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : true,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : true,
+          "finished" : true,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        }
+      ]
+    },
+    {
+      "inputs" : [
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 0,
+          "rows" : 20000,
+          "stage" : 0,
+          "total" : 0
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 100,
+          "rows" : 20000,
+          "stage" : 0,
+          "total" : 200000
+        },
+        {
+          "complete" : false,
+          "done" : 150000,
+          "now" : 700,
+          "rows" : 20000,
+          "stage" : 0,
+          "total" : 200000
+        },
+        {
+          "complete" : false,
+          "done" : 160000,
+          "now" : 2000,
+          "rows" : 20000,
+          "stage" : 0,
+          "total" : 200000
+        },
+        {
+          "complete" : false,
+          "done" : 170000,
+          "now" : 4100,
+          "rows" : 20000,
+          "stage" : 0,
+          "total" : 200000
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 4200,
+          "rows" : 20000,
+          "stage" : 1,
+          "total" : 20000
+        },
+        {
+          "complete" : false,
+          "done" : 10000,
+          "now" : 4900,
+          "rows" : 20000,
+          "stage" : 1,
+          "total" : 20000
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 5000,
+          "rows" : 20000,
+          "stage" : 2,
+          "total" : 1
+        },
+        {
+          "complete" : true,
+          "done" : 0,
+          "now" : 5300,
+          "rows" : 20000,
+          "stage" : 2,
+          "total" : 1
+        },
+        {
+          "complete" : true,
+          "done" : 0,
+          "now" : 5700,
+          "rows" : 20000,
+          "stage" : 2,
+          "total" : 1
+        }
+      ],
+      "name" : "A fast prediction that misses shows the steps, each for its hold",
+      "views" : [
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : true,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : true,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 4100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 4100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 1
+        },
+        {
+          "changedAt" : 4100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 1
+        },
+        {
+          "changedAt" : 4100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 2
+        },
+        {
+          "changedAt" : 4100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 2
+        },
+        {
+          "changedAt" : 4100,
+          "fast" : false,
+          "finished" : true,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 2
+        }
+      ]
+    },
+    {
+      "inputs" : [
+        {
+          "complete" : false,
+          "done" : -5,
+          "now" : -50,
+          "rows" : -3,
+          "stage" : -1,
+          "total" : -10
+        },
+        {
+          "complete" : false,
+          "done" : 999999999999,
+          "now" : 300,
+          "rows" : 999999999999,
+          "stage" : 7,
+          "total" : 999999999999
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 200,
+          "rows" : 0,
+          "stage" : 0,
+          "total" : 0
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 1300,
+          "rows" : 999999999999,
+          "stage" : 2,
+          "total" : 999999999999
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 99999999999,
+          "rows" : 999999999999,
+          "stage" : 2,
+          "total" : 999999999999
+        },
+        {
+          "complete" : true,
+          "done" : 0,
+          "now" : 99999999999,
+          "rows" : 999999999999,
+          "stage" : 2,
+          "total" : 999999999999
+        }
+      ],
+      "name" : "Samples outside their ranges clamp, and an older sample changes nothing",
+      "views" : [
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 1300,
+          "fast" : false,
+          "finished" : false,
+          "line" : "longer",
+          "number" : 13,
+          "shown" : 1
+        },
+        {
+          "changedAt" : 2147483647,
+          "fast" : false,
+          "finished" : false,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 2
+        },
+        {
+          "changedAt" : 2147483647,
+          "fast" : false,
+          "finished" : false,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 2
+        }
+      ]
+    },
+    {
+      "inputs" : [
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 0,
+          "rows" : 241,
+          "stage" : 0,
+          "total" : 0
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 100,
+          "rows" : 241,
+          "stage" : 0,
+          "total" : 9000
+        },
+        {
+          "complete" : false,
+          "done" : 3000,
+          "now" : 1100,
+          "rows" : 241,
+          "stage" : 0,
+          "total" : 9000
+        },
+        {
+          "complete" : false,
+          "done" : 3000,
+          "now" : 6000,
+          "rows" : 241,
+          "stage" : 0,
+          "total" : 9000
+        },
+        {
+          "complete" : false,
+          "done" : 3000,
+          "now" : 11200,
+          "rows" : 241,
+          "stage" : 0,
+          "total" : 9000
+        },
+        {
+          "complete" : false,
+          "done" : 6000,
+          "now" : 12500,
+          "rows" : 241,
+          "stage" : 0,
+          "total" : 9000
+        },
+        {
+          "complete" : false,
+          "done" : 9000,
+          "now" : 13600,
+          "rows" : 241,
+          "stage" : 0,
+          "total" : 9000
+        }
+      ],
+      "name" : "A transfer that stalls after the line said almost done reports a weak signal",
+      "views" : [
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 1100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 1100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 11200,
+          "fast" : false,
+          "finished" : false,
+          "line" : "weakSignal",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 12500,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 13600,
+          "fast" : false,
+          "finished" : false,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 0
+        }
+      ]
+    },
+    {
+      "inputs" : [
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 0,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 0
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 100,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 6000000,
+          "now" : 1100,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 1700,
+          "rows" : 667696,
+          "stage" : 1,
+          "total" : 667696
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 2100,
+          "rows" : 667696,
+          "stage" : 1,
+          "total" : 667696
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 12000,
+          "rows" : 667696,
+          "stage" : 1,
+          "total" : 667696
+        }
+      ],
+      "name" : "Between stages the countdown ticks toward its deadline, and a passed deadline says almost done",
+      "views" : [
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 1100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 8,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 1100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 8,
+          "shown" : 1
+        },
+        {
+          "changedAt" : 2100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 7,
+          "shown" : 1
+        },
+        {
+          "changedAt" : 12000,
+          "fast" : false,
+          "finished" : false,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 1
+        }
+      ]
+    }
+  ]
+}

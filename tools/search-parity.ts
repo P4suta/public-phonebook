@@ -546,7 +546,10 @@ async function main(): Promise<void> {
   try {
     const server = new ServerSearch({
       DB: await runtime.getD1Database("DB"),
-      DATASETS: { get: async (): Promise<null> => null },
+      DATASETS: {
+        get: async (): Promise<null> => null,
+        head: async (): Promise<null> => null,
+      },
       APP_ENV: "development",
       PUBLIC_ORIGIN: environments.development.origin,
     });

@@ -129,6 +129,11 @@ public actor SnapshotStore {
     #endif
   }
 
+  /// Where downloads keep their received bytes until a generation activates, so an interrupted download resumes.
+  public nonisolated var transfers: URL {
+    root.appendingPathComponent("transfers", isDirectory: true)
+  }
+
   private static let generationExtensions = ["sqlite", "names", "kinds"]
   /// A generation saved before the caller file existed still opens, so the file isn't one of the required extensions.
   private static let callerExtension = "callers"

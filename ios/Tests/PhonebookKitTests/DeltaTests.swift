@@ -302,7 +302,7 @@ private func synchronizationAppliesDeltasAndFallsBackToTheCompleteArchive(_ mode
   let engine = SyncEngine(api: try APIClient(origin: server.origin), store: store)
   let operation = Task {
     try await engine.synchronize { value in
-      if mode == .cancelled, value > 0 { withUnsafeCurrentTask { $0?.cancel() } }
+      if mode == .cancelled, value.fraction > 0 { withUnsafeCurrentTask { $0?.cancel() } }
     }
   }
   let requested = { requests.received }

@@ -145,4 +145,5 @@ final class RequestLog: Sendable {
   private let paths = Mutex<[String]>([])
   func record(_ path: String) { paths.withLock { $0.append(path) } }
   var received: Set<String> { paths.withLock { Set($0) } }
+  var ordered: [String] { paths.withLock { $0 } }
 }

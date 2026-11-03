@@ -14,11 +14,18 @@ final class ServiceFixture: Sendable {
     }
   }
 
-  enum Fault: Sendable { case unavailable, incomplete }
+  enum Fault: Sendable {
+    case unavailable, incomplete
+    /// Sends the upstream reply in pieces of `bytes` bytes, one every `interval`.
+    case drip(bytes: Int, interval: Duration)
+    /// Sends the head and the first `bytes` bytes, waits `hold`, and then closes the connection.
+    case stall(bytes: Int, hold: Duration)
+  }
 
-  /// One proxied request: when it arrived after the fixture started and how it ended.
+  /// One proxied request: when it arrived after the fixture started, the range it asked for, and how it ended.
   private struct Exchange {
     let target: String
+    let range: String?
     let received: Duration
     var outcome: String?
   }
@@ -84,19 +91,28 @@ final class ServiceFixture: Sendable {
 
   var injected: Int { state.value.withLock { $0.injected } }
   var requests: [String] { state.value.withLock { $0.exchanges.map(\.target) } }
+  /// The `Range` header of each request, or nil for a request without one.
+  var ranges: [String?] { state.value.withLock { $0.exchanges.map(\.range) } }
+  var outcomes: [String?] { state.value.withLock { $0.exchanges.map(\.outcome) } }
 
-  /// Every request with its arrival time, upstream status or error, and upstream duration.
+  /// Every request with its arrival time, range, upstream status or error, and upstream duration.
   var log: String {
     let exchanges = state.value.withLock { $0.exchanges }
     guard !exchanges.isEmpty else { return "The fixture received no requests." }
     return exchanges.map {
-      "+\(Self.seconds($0.received)) GET \($0.target) -> \($0.outcome ?? "no response yet")"
+      "+\(Self.seconds($0.received)) GET \($0.target)\($0.range.map { " (\($0))" } ?? "") -> \($0.outcome ?? "no response yet")"
     }.joined(separator: "\n")
   }
 
   private static func seconds(_ duration: Duration) -> String {
     duration.formatted(
       .units(allowed: [.seconds], width: .narrow, fractionalPart: .show(length: 3)))
+  }
+
+  private static func header(_ name: String, in request: String) -> String? {
+    request.components(separatedBy: "\r\n").first {
+      $0.lowercased().hasPrefix(name.lowercased() + ":")
+    }.map { String($0.dropFirst(name.count + 1)).trimmingCharacters(in: .whitespaces) }
   }
 
   private static func receive(
@@ -124,9 +140,11 @@ final class ServiceFixture: Sendable {
         return
       }
       let target = String(parts[1])
+      let range = header("Range", in: request)
       let received = ContinuousClock.now
       let (index, fault): (Int, Fault?) = state.value.withLock { value in
-        value.exchanges.append(Exchange(target: target, received: started.duration(to: received)))
+        value.exchanges.append(
+          Exchange(target: target, range: range, received: started.duration(to: received)))
         let index = value.exchanges.count - 1
         guard let next = value.next, next.0.matches(target) else { return (index, nil) }
         value.next = nil
@@ -136,32 +154,29 @@ final class ServiceFixture: Sendable {
       let finish: @Sendable (String) -> Void = { outcome in
         state.value.withLock { $0.exchanges[index].outcome = outcome }
       }
-      if let fault {
-        finish("injected \(fault)")
-        switch fault {
-        case .unavailable:
-          send(connection, status: 503, headers: ["Content-Type": "application/json"], body: Data())
-        case .incomplete:
-          connection.send(
-            content: Data(
-              "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 1048576\r\nConnection: close\r\n\r\n["
-                .utf8),
-            completion: .contentProcessed { _ in })
-        }
+      switch fault {
+      case .unavailable:
+        finish("injected unavailable")
+        send(connection, status: 503, headers: ["Content-Type": "application/json"], body: Data())
         return
+      case .incomplete:
+        finish("injected incomplete")
+        connection.send(
+          content: Data(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 1048576\r\nConnection: close\r\n\r\n["
+              .utf8),
+          completion: .contentProcessed { _ in })
+        return
+      case .drip, .stall, nil: break
       }
       var forwarded = URLRequest(url: url)
-      if let host = request.components(separatedBy: "\r\n").first(where: {
-        $0.lowercased().hasPrefix("host:")
-      }) {
-        forwarded.setValue(
-          "http://" + host.dropFirst(5).trimmingCharacters(in: .whitespaces),
-          forHTTPHeaderField: "X-Fixture-Origin")
+      if let host = header("Host", in: request) {
+        forwarded.setValue("http://" + host, forHTTPHeaderField: "X-Fixture-Origin")
       }
-      if let accept = request.components(separatedBy: "\r\n").first(where: {
-        $0.lowercased().hasPrefix("accept:")
-      }) {
-        forwarded.setValue(String(accept.dropFirst(7)), forHTTPHeaderField: "Accept")
+      for name in ["Accept", "Range", "If-Range"] {
+        if let value = header(name, in: request) {
+          forwarded.setValue(value, forHTTPHeaderField: name)
+        }
       }
       session.dataTask(with: forwarded) { body, response, error in
         let upstream = Self.seconds(received.duration(to: .now))
@@ -173,27 +188,62 @@ final class ServiceFixture: Sendable {
           send(connection, status: 502, headers: [:], body: Data())
           return
         }
-        finish("\(response.statusCode) with \(body.count) bytes after \(upstream) upstream")
+        let shaped = fault.map { " shaped by \($0)" } ?? ""
+        finish(
+          "\(response.statusCode) with \(body.count) bytes after \(upstream) upstream\(shaped)")
         var headers: [String: String] = [:]
         for field in [
-          "Content-Type", "X-Dataset-Snapshot", "Retry-After",
+          "Content-Type", "X-Dataset-Snapshot", "Retry-After", "Content-Range", "Accept-Ranges",
+          "ETag",
         ] {
           if let value = response.value(forHTTPHeaderField: field) { headers[field] = value }
         }
-        send(connection, status: response.statusCode, headers: headers, body: body)
+        switch fault {
+        case .drip(let bytes, let interval):
+          Task {
+            connection.send(
+              content: head(status: response.statusCode, headers: headers, length: body.count),
+              completion: .contentProcessed { _ in })
+            var offset = 0
+            while offset < body.count {
+              try? await Task.sleep(for: interval)
+              let end = min(offset + bytes, body.count)
+              connection.send(content: body[offset..<end], completion: .contentProcessed { _ in })
+              offset = end
+            }
+            connection.send(
+              content: nil, isComplete: true,
+              completion: .contentProcessed { _ in connection.cancel() })
+          }
+        case .stall(let bytes, let hold):
+          Task {
+            connection.send(
+              content: head(status: response.statusCode, headers: headers, length: body.count)
+                + body.prefix(bytes),
+              completion: .contentProcessed { _ in })
+            try? await Task.sleep(for: hold)
+            connection.cancel()
+          }
+        default:
+          send(connection, status: response.statusCode, headers: headers, body: body)
+        }
       }.resume()
     }
+  }
+
+  private static func head(status: Int, headers: [String: String], length: Int) -> Data {
+    let fields = headers.sorted(by: { $0.key < $1.key }).map { "\($0.key): \($0.value)\r\n" }
+      .joined()
+    return Data(
+      "HTTP/1.1 \(status) Test\r\n\(fields)Content-Length: \(length)\r\nConnection: close\r\n\r\n"
+        .utf8)
   }
 
   private static func send(
     _ connection: NWConnection, status: Int, headers: [String: String], body: Data
   ) {
-    let fields = headers.sorted(by: { $0.key < $1.key }).map { "\($0.key): \($0.value)\r\n" }
-      .joined()
-    let head =
-      "HTTP/1.1 \(status) Test\r\n\(fields)Content-Length: \(body.count)\r\nConnection: close\r\n\r\n"
     connection.send(
-      content: Data(head.utf8) + body,
+      content: head(status: status, headers: headers, length: body.count) + body,
       completion: .contentProcessed { _ in connection.cancel() })
   }
 

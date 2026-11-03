@@ -13,6 +13,7 @@ import {
   PreparedDatasetManifestSchema,
   SearchIndexLocationSchema,
 } from "../../src/core/dataset-storage.ts";
+import { httpStatus } from "../../src/core/http-status.ts";
 import { normalizeName } from "../../src/core/identity.ts";
 import {
   CatalogSchema,
@@ -36,6 +37,13 @@ const prefectureCodeWidth = 2;
 const fixturePrefecture = "13";
 const digestLength = 64;
 const fixtureNames = ["図書館", "市役所", "公民館", "体育館", "美術館"];
+const archiveLength = 1000;
+const byteValues = 256;
+const byteStride = 7;
+const archiveBytes = Uint8Array.from(
+  { length: archiveLength },
+  (_, position) => (position * byteStride) % byteValues,
+);
 
 interface RawResponse {
   readonly status: number;
@@ -89,6 +97,7 @@ const contacts: Contact[] = fixtureNames.map((name, position) =>
 const snapshot = sha256(
   contacts.map((contact) => `${JSON.stringify(contact)}\n`).join(""),
 );
+const archiveKey = `${snapshot}/${"c".repeat(digestLength)}/directory.tsv.br`;
 const catalog = v.parse(CatalogSchema, {
   snapshot,
   generatedAt: "2026-10-29T00:00:00Z",
@@ -215,6 +224,7 @@ beforeAll(async () => {
     compressed,
   );
   await bucket.put(`${snapshot}/manifest.json`, JSON.stringify(manifest));
+  await bucket.put(archiveKey, archiveBytes);
   origin = await runtime.ready;
 });
 
@@ -292,4 +302,69 @@ describe("API responses from workerd", () => {
       JSON.stringify(datasetFileListing(manifest)),
     );
   });
+
+  it("answers byte ranges of a dataset file from R2", async () => {
+    const path = `/api/${archiveKey.replace(`${snapshot}/`, `datasets/${snapshot}/`)}`;
+    const whole = await request(path);
+    expect(whole.status).toBe(httpStatus.ok);
+    expect(whole.headers["accept-ranges"]).toBe("bytes");
+    expect(whole.headers["content-length"]).toBe(String(archiveLength));
+    expect(whole.body).toEqual(archiveBytes);
+    const etag = String(whole.headers.etag);
+    for (const [range, served] of [
+      ["bytes=100-199", "bytes 100-199/1000"],
+      ["bytes=900-", "bytes 900-999/1000"],
+      ["bytes=990-5000", "bytes 990-999/1000"],
+      ["bytes=-100", "bytes 900-999/1000"],
+      ["bytes=-5000", "bytes 0-999/1000"],
+    ] as const) {
+      const response = await request(path, { Range: range });
+      const [first, last] = servedBytes(served);
+      expect(response.status, range).toBe(httpStatus.partialContent);
+      expect(response.headers["content-range"], range).toBe(served);
+      expect(response.headers["content-length"], range).toBe(
+        String(last - first + 1),
+      );
+      expect(response.headers["accept-ranges"], range).toBe("bytes");
+      expect(response.headers.etag, range).toBe(etag);
+      expect(response.headers["x-dataset-snapshot"], range).toBe(snapshot);
+      expect(response.body, range).toEqual(archiveBytes.slice(first, last + 1));
+    }
+    for (const range of ["bytes=1000-", "bytes=-0"]) {
+      const response = await request(path, { Range: range });
+      expect(response.status, range).toBe(httpStatus.rangeNotSatisfiable);
+      expect(response.headers["content-range"], range).toBe("bytes */1000");
+      expect(response.body.byteLength, range).toBe(0);
+    }
+    for (const range of [
+      "bytes=abc",
+      "bytes=5-2",
+      "items=0-1",
+      "bytes=0-1,5-6",
+    ]) {
+      const response = await request(path, { Range: range });
+      expect(response.status, range).toBe(httpStatus.ok);
+      expect(response.body, range).toEqual(archiveBytes);
+    }
+    const ranged = { Range: "bytes=100-199" };
+    expect(
+      (await request(path, { ...ranged, "If-Range": '"another"' })).status,
+    ).toBe(httpStatus.ok);
+    expect((await request(path, { ...ranged, "If-Range": etag })).status).toBe(
+      httpStatus.partialContent,
+    );
+    expect(
+      (await request(path, { ...ranged, "If-None-Match": etag })).status,
+    ).toBe(httpStatus.notModified);
+    const missing = path.replace("directory.tsv.br", "contacts.csv.gz");
+    expect((await request(missing, ranged)).status).toBe(httpStatus.notFound);
+  });
 });
+
+/** The first and last byte that a `Content-Range` value names. */
+function servedBytes(value: string): readonly [number, number] {
+  const [first = "", last = ""] = value
+    .slice("bytes ".length, value.indexOf("/"))
+    .split("-");
+  return [Number(first), Number(last)];
+}

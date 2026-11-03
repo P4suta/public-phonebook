@@ -70,14 +70,19 @@ struct SearchScreen: View {
     if model.results == nil, !model.searching, !model.failed {
       VStack(alignment: .leading, spacing: 8) {
         Text("施設の名前か、電話番号を入れてください。")
-        if integration.progress != nil {
-          SaveProgress(percent: integration.percent, remaining: integration.remainingSeconds)
+        // Only a first download shows here, because monthly updates stay silent.
+        if integration.receiving, let wait = integration.wait {
+          FirstDownloadProgress(wait: wait, fraction: integration.fraction, showsHeading: true)
             .padding(.top, 16)
         }
-        if !model.ready, integration.progress == nil, integration.manifest == nil,
-          let problem = integration.problem
-        {
-          Text(problem).padding(.top, 16).accessibilityIdentifier("sync-error")
+        if !model.ready, integration.manifest == nil, let stopped = integration.stopped {
+          VStack(alignment: .leading, spacing: 8) {
+            Text("データの受け取りが止まりました").font(.headline)
+            Text(stopped)
+          }
+          .padding(.top, 16)
+          .accessibilityElement(children: .combine)
+          .accessibilityIdentifier("sync-error")
         }
       }
       .accessibilityElement(children: .contain)

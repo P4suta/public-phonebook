@@ -1,6 +1,7 @@
 import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
 import * as v from "valibot";
+import { type ByteRange, byteRange } from "../core/byte-range.ts";
 import {
   admitsContentCoding,
   matchesEntityTag,
@@ -60,6 +61,7 @@ const maximumUrlBytes = 8192;
 const problemTypeBase = "https://www.dial.page/api/problems/";
 const mutableCache = "public, no-cache, must-revalidate";
 const immutableCache = "public, max-age=31536000, immutable";
+const byteRangeUnit = "bytes";
 const searchIndexCoding = "br";
 const searchIndexMediaType = "application/octet-stream";
 const rowPosition = /^(?:0|[1-9][0-9]*)$/u;
@@ -331,22 +333,69 @@ function openDataApi(): Hono<ApiEnvironment> {
       (!complete && !delta)
     )
       return problem(c, "not_found", httpStatus.notFound);
-    const object = await c.env.DATASETS.get(`${snapshot}/${digest}/${name}`);
-    if (!object) return problem(c, "not_found", httpStatus.notFound);
-    const headers = new Headers({
-      "Content-Type":
-        delta || name === "directory.tsv.br"
-          ? "application/octet-stream"
-          : "application/gzip",
-      "Content-Length": String(object.size),
-      ETag: object.httpEtag,
-      "Cache-Control": immutableCache,
-      "Content-Disposition": `attachment; filename="${name}"`,
-      "X-Dataset-Snapshot": snapshot,
-    });
-    if (c.req.header("If-None-Match") === object.httpEtag)
+    const key = `${snapshot}/${digest}/${name}`;
+    const fileHeaders = (size: number, etag: string): Headers =>
+      new Headers({
+        "Content-Type":
+          delta || name === "directory.tsv.br"
+            ? "application/octet-stream"
+            : "application/gzip",
+        "Content-Length": String(size),
+        "Accept-Ranges": byteRangeUnit,
+        ETag: etag,
+        "Cache-Control": immutableCache,
+        "Content-Disposition": `attachment; filename="${name}"`,
+        "X-Dataset-Snapshot": snapshot,
+      });
+    const requested = c.req.header("Range");
+    if (requested === undefined) {
+      const object = await c.env.DATASETS.get(key);
+      if (!object) return problem(c, "not_found", httpStatus.notFound);
+      const headers = fileHeaders(object.size, object.httpEtag);
+      if (c.req.header("If-None-Match") === object.httpEtag)
+        return new Response(null, { status: httpStatus.notModified, headers });
+      return new Response(object.body, { headers });
+    }
+    // A Range request reads the size first, so the reply can name the served bytes before they stream.
+    const metadata = await c.env.DATASETS.head(key);
+    if (!metadata) return problem(c, "not_found", httpStatus.notFound);
+    const headers = fileHeaders(metadata.size, metadata.httpEtag);
+    if (c.req.header("If-None-Match") === metadata.httpEtag)
       return new Response(null, { status: httpStatus.notModified, headers });
-    return new Response(object.body, { headers });
+    const validator = c.req.header("If-Range");
+    const range: ByteRange =
+      validator === undefined || validator === metadata.httpEtag
+        ? byteRange(requested, metadata.size)
+        : { kind: "whole" };
+    if (range.kind === "unsatisfiable")
+      return new Response(null, {
+        status: httpStatus.rangeNotSatisfiable,
+        headers: {
+          "Accept-Ranges": byteRangeUnit,
+          "Content-Range": `${byteRangeUnit} */${metadata.size}`,
+          "Cache-Control": "no-store",
+          "X-Dataset-Snapshot": snapshot,
+        },
+      });
+    if (range.kind === "whole") {
+      const object = await c.env.DATASETS.get(key);
+      if (!object) return problem(c, "not_found", httpStatus.notFound);
+      return new Response(object.body, { headers });
+    }
+    const length = range.end - range.start + 1;
+    const object = await c.env.DATASETS.get(key, {
+      range: { offset: range.start, length },
+    });
+    if (!object) return problem(c, "not_found", httpStatus.notFound);
+    headers.set("Content-Length", String(length));
+    headers.set(
+      "Content-Range",
+      `${byteRangeUnit} ${range.start}-${range.end}/${metadata.size}`,
+    );
+    return new Response(object.body, {
+      status: httpStatus.partialContent,
+      headers,
+    });
   });
   return router;
 }
