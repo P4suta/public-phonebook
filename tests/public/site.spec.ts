@@ -39,6 +39,8 @@ test("published search, telephone normalization, detail, and source navigation w
   await expect(
     page.getByRole("link", { name: "電話帳に入れる", exact: true }),
   ).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
+  await page.waitForLoadState("load");
   await page.goto(`/contacts/${encodeURIComponent(contact.id)}/source`);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   expect((await auditDesign(page)).violations).toEqual([]);

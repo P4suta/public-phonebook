@@ -104,7 +104,8 @@ export async function checkedFetch(
       headers.delete(name);
     if (access.version?.mode === "override")
       headers.set(versionOverrideHeader, versionOverride(access.version.id));
-    headers.set("Accept-Encoding", "identity");
+    if (!headers.has("Accept-Encoding"))
+      headers.set("Accept-Encoding", "identity");
     response = await transport(url, {
       ...init,
       headers,
