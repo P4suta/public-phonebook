@@ -75,6 +75,7 @@ jobs:
   build:
     name: Build and attest the Worker
     needs: [evidence]
+    if: ${{ !cancelled() && needs.evidence.result == 'success' }}
     runs-on: ubuntu-24.04
     environment: candidate
     timeout-minutes: 20
@@ -128,6 +129,7 @@ jobs:
   stage:
     name: Prepare the data and deploy the candidate at 0%
     needs: [evidence, build]
+    if: ${{ !cancelled() && needs.evidence.result == 'success' && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04
     environment: release-candidate
     timeout-minutes: 120
@@ -200,6 +202,7 @@ jobs:
   verify:
     name: Check the candidate through the version override
     needs: [stage]
+    if: ${{ !cancelled() && needs.stage.result == 'success' }}
     runs-on: ubuntu-24.04
     environment: observe
     timeout-minutes: 90
@@ -288,6 +291,7 @@ jobs:
   promote:
     name: Move traffic to the approved candidate
     needs: [stage, verify]
+    if: ${{ !cancelled() && needs.stage.result == 'success' && needs.verify.result == 'success' }}
     runs-on: ubuntu-24.04
     environment: production
     timeout-minutes: 90
@@ -337,6 +341,7 @@ jobs:
   record:
     name: Publish the release record
     needs: [promote]
+    if: ${{ !cancelled() && needs.promote.result == 'success' }}
     runs-on: ubuntu-24.04
     environment: observe
     timeout-minutes: 30

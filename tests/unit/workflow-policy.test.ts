@@ -450,8 +450,13 @@ it("admits a Checks job that always runs, needs every job, and accepts a skip on
 });
 
 it("rejects a Checks job that skips with a failed job or misses a job", () => {
+  expect(
+    located(checksWorkflow(summaryJob(boundRustGate, gateNeeds, ""))),
+  ).toEqual([
+    "jobs.gate gate-not-always",
+    "jobs.gate skipped-predecessor-unguarded",
+  ]);
   for (const condition of [
-    "",
     "    if: success()\n",
     '    if: "!cancelled()"\n',
     "    if: always() && needs.verify.result == 'success'\n",
@@ -938,4 +943,60 @@ ${dopplerStep("ci_production")}
       ),
     ),
   ).toEqual(["doppler-config-mismatch"]);
+});
+
+it("rejects a job without a condition that needs a conditional job with needs of its own", async () => {
+  const dispatch = (jobs: string): string => `on: workflow_dispatch
+permissions: {}
+jobs:
+${jobs}`;
+  const optionalChain = `  optional:
+    if: inputs.run
+    runs-on: ubuntu-24.04
+    permissions: {}
+  tolerant:
+    needs: [optional]
+    if: always() && needs.optional.result != 'failure'
+    runs-on: ubuntu-24.04
+    permissions: {}
+`;
+  expect(
+    rules(
+      dispatch(`${optionalChain}  after:
+    needs: [tolerant]
+    runs-on: ubuntu-24.04
+    permissions: {}
+`),
+    ),
+  ).toEqual(["skipped-predecessor-unguarded"]);
+  expect(
+    rules(
+      dispatch(`${optionalChain}  after:
+    needs: [tolerant]
+    if: "!cancelled() && needs.tolerant.result == 'success'"
+    runs-on: ubuntu-24.04
+    permissions: {}
+`),
+    ),
+  ).toEqual([]);
+  expect(
+    rules(
+      dispatch(`  inspect:
+    if: inputs.restore
+    runs-on: ubuntu-24.04
+    permissions: {}
+  restore:
+    needs: [inspect]
+    runs-on: ubuntu-24.04
+    permissions: {}
+`),
+    ),
+  ).toEqual([]);
+  const release = await readFile(".github/workflows/release.yml", "utf8");
+  const guard =
+    "    if: ${{ !cancelled() && needs.evidence.result == 'success' }}\n";
+  expect(release).toContain(guard);
+  expect(rules(release.replace(guard, ""))).toEqual([
+    "skipped-predecessor-unguarded",
+  ]);
 });
