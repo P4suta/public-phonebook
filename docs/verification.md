@@ -10,6 +10,8 @@ It runs strict TypeScript checking, Biome, type-aware Oxlint, and deterministic 
 It also runs npm dependency auditing, a publishable-file secret scan, and workflow checks.
 It needs no build, Rust toolchain, browser, container, or macOS host.
 It requires no owner-specific service, credentials, or national archive.
+Its final JSON line lists the milliseconds of every step, and a table on standard error repeats them.
+The durations only report where the time goes, and no verdict reads them.
 
 Before every push, run `mise x -- just check-linux` as well.
 It's the local equivalent of the Verify job, as the [Linux gate](#linux-equivalent-of-verify) section describes.
@@ -189,6 +191,15 @@ The generator and verifier consume that snapshot, and the gate rejects changed p
 Each run records the resulting immutable image ID, source and lockfile hashes, input paths, generator configuration, model hashes, expected inventory, and result in `.local/proof-receipt.json`.
 `npm run prove -- --check-receipt` rejects stale production sources, copied inputs, generated models, and incomplete contract inventories.
 Separate receipt controls alter a copied source and a generated model, require the expected stale-input rejection, restore the original bytes, and check the complete receipt again.
+Only after every negative and receipt control passes does the run add the Node.js version and the SHA-256 of npm's installed package record to the receipt.
+A later `just prove` reuses that result only while every bound source, input copy, and model keeps its recorded SHA-256.
+The verifier image ID, the Node.js version, and the package record must match too.
+The image build omits a provenance attestation, so an unchanged cached build keeps its image ID.
+Any difference, a missing receipt, or a receipt from an unfinished run starts the complete proof with every negative and receipt control.
+A reused result starts no verifier container and runs no negative control, because no proof runs.
+A failed run removes the receipt, and deleting `.local/proof-receipt.json` forces a complete run.
+Each workflow job starts from a fresh checkout without receipts, so its proof always runs in full.
+The final JSON line reports `verified` with the reason for a complete run, or `reused`, and the milliseconds of every step.
 Docker execution has no network, a read-only project mount, a 2 GiB memory limit, no swap allowance, two CPUs, 256 processes, and a 900-second safety stop.
 Each condition also has a fixed solver resource limit.
 A safety stop is inconclusive.
