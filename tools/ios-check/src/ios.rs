@@ -65,8 +65,8 @@ const UI_TESTS: [&str; 12] = [
     "testPhoneNumberCopyShowsFeedback",
     "testPortraitLandscapeRoundTrip",
     "testBackgroundForegroundPreservesSearchAndDetail",
-    "testDirectoryFailureShowsRetryAndRecovers",
-    "testUpdateCancellationKeepsTheSavedDirectory",
+    "testDirectoryFailureRecoversWithoutATap",
+    "testFailedAutomaticUpdateKeepsTheSavedDirectory",
     "testLandscapeLargeTextSettings",
     "testAboutStaysInTheAppAndLicenseIsReadable",
 ];
