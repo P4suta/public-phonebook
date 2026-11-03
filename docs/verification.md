@@ -266,6 +266,15 @@ A Doppler step must keep its secrets out of the job environment and fetch `ci_` 
 Only a step that continues on error may request another environment's config, which is how a refusal control works.
 The unit tests keep a violating fixture for each rule.
 
+`tools/workflow-schedule.ts` models how GitHub schedules jobs: `needs`, job conditions, the status functions, the implicit `success()`, and skips that propagate through ancestors.
+For the release, recovery, candidate, and pipeline control workflows, the policy visits every dispatch input value, every outcome of every job that runs, and both values of each unknown output predicate.
+In every such scenario it checks declared properties, such as promotion only after a verified stage and withdrawal exactly when a staged candidate's checks fail.
+For each input value it also requires the jobs that a fully successful run reaches.
+This exhaustive check covers the model's whole finite domain, so it decides those properties for the model rather than sampling them.
+The model's fidelity to GitHub is a trust boundary, which the unit tests check against release runs 41599950592 and 41600886131.
+The tests also plant a defect in each workflow and require the property that it breaks to fail.
+A condition outside the supported grammar fails the policy, so a new construct needs a model first.
+
 `pipeline-controls.yml` fails unless each refusal happens for its expected reason.
 - The fake-provider tests refuse an unverified, displaced, removed, or different candidate, a second lease holder, and evidence from another tree, manifest, or signer.
 - The observe identity requests the `ci_production` config, and the next step requires that request to fail.
