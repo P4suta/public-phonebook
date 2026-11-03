@@ -135,5 +135,9 @@ release-retention environment:
     doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --only-secrets R2_ACCESS_KEY_ID --only-secrets R2_SECRET_ACCESS_KEY --no-fallback -- node tools/release-retention.ts {{ quote(environment) }}
 
 [positional-arguments]
+monitors *flags:
+    doppler run --project public-phonebook --config prd --only-secrets BETTER_STACK_API_TOKEN --no-fallback -- node tools/uptime.ts "$@"
+
+[positional-arguments]
 control-import directory *flags:
     node tools/control-import.ts "$@"
