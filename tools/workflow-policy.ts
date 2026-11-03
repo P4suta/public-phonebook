@@ -16,7 +16,6 @@ export const allowedActions: readonly string[] = [
   "dopplerhq/secrets-fetch-action",
   "jdx/mise-action",
   "actions/attest-build-provenance",
-  "actions/attest-sbom",
   "actions/attest",
 ];
 
