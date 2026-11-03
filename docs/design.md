@@ -170,7 +170,7 @@ The detail card shows the category, the name, and each number, then a full-width
 Detailed contacts expose contact saving once even when several telephone numbers are listed.
 A row heading for the address follows, with the address as plain selectable text and no link, underline, or icon.
 An outline map action with the map pin sits below the address and searches Google Maps for the facility name and address.
-Its accessible name starts with the facility name, such as `国立国会図書館の地図を見る`, and ends with the new-tab notice.
+Its accessible name starts with the facility name, contains the visible label verbatim, such as `国立国会図書館を地図で見る`, and ends with the new-tab notice.
 A contact without an address shows neither the address heading nor the map action.
 The facility homepage action closes the card, and the source section follows the card.
 On wide screens, the detail actions share the 360-pixel telephone column.

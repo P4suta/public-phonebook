@@ -167,9 +167,7 @@ test("typing searches, exact names rank first, and contact actions work", async 
   await expect(
     first.getByText("東京都千代田区", { exact: true }),
   ).toBeVisible();
-  await expect(first.getByRole("link", { name: /の地図を見る/u })).toHaveCount(
-    0,
-  );
+  await expect(first.getByRole("link", { name: /地図で見る/u })).toHaveCount(0);
   await expect(first.getByRole("heading").getByRole("link")).toHaveCount(0);
   const detail = first.getByRole("link", {
     name: "国立国会図書館の住所などを見る",
@@ -185,7 +183,7 @@ test("typing searches, exact names rank first, and contact actions work", async 
   ).toHaveAttribute("href", /contact\.vcf$/);
   await expect(
     page.getByRole("link", {
-      name: "国立国会図書館の地図を見る（新しいタブ）",
+      name: "国立国会図書館を地図で見る（新しいタブ）",
       exact: true,
     }),
   ).toHaveAttribute("href", /google\.com\/maps\/search/);
@@ -238,7 +236,7 @@ test("each result keeps its name as heading text and names its one detail action
     await expect(
       page.getByRole("heading", { level: 1, name: cases[1].facility }),
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: /の地図を見る/u })).toHaveCount(
+    await expect(page.getByRole("link", { name: /地図で見る/u })).toHaveCount(
       0,
     );
     await expect(

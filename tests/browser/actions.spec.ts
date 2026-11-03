@@ -38,7 +38,7 @@ test("the detail page's map opens in a new tab after confirmation and preserves 
     await address.evaluate((node) => getComputedStyle(node).textDecorationLine),
   ).toBe("none");
   const map = card.getByRole("link", {
-    name: `${contact.name}の地図を見る（新しいタブ）`,
+    name: `${contact.name}を地図で見る（新しいタブ）`,
     exact: true,
   });
   await expect(map).toHaveText("地図で見る");

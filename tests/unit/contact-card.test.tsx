@@ -131,7 +131,7 @@ it("shows every telephone action and one contact-save action for a multi-number 
       );
       expect(markup).not.toMatch(/<a[^>]*>[^<]*Tokyo/u);
       expect(markup).toMatch(
-        /<a class="button " href="https:\/\/www\.google\.com\/maps\/search\/\?api=1&amp;query=Public%20library%2CTokyo"[^>]*data-external-destination="address" aria-label="Public libraryの地図を見る（新しいタブ）"><svg[^>]*data-icon="map-pin"[^>]*>.*?<\/svg>地図で見る<\/a>/u,
+        /<a class="button " href="https:\/\/www\.google\.com\/maps\/search\/\?api=1&amp;query=Public%20library%2CTokyo"[^>]*data-external-destination="address" aria-label="Public libraryを地図で見る（新しいタブ）"><svg[^>]*data-icon="map-pin"[^>]*>.*?<\/svg>地図で見る<\/a>/u,
       );
       expect(markup.indexOf("地図で見る")).toBeGreaterThan(
         markup.indexOf("Tokyo"),
@@ -180,11 +180,13 @@ it("orders the contact card from the name to the homepage and leaves out the add
   }
 });
 
-it("names the map action after the facility and keeps its visible label", () => {
+it("names the map action after the facility and ends its name with the visible label", () => {
   fc.assert(
     fc.property(fc.string({ minLength: 1 }), (name) => {
-      expect(uiCopy.address.mapName(name)).toBe(`${name}の地図を見る`);
+      const accessible = uiCopy.address.mapName(name);
       expect(uiCopy.address.map).toBe("地図で見る");
+      expect(accessible).toBe(`${name}を地図で見る`);
+      expect(accessible.endsWith(uiCopy.address.map)).toBe(true);
     }),
     { numRuns: propertyRuns, seed: propertySeed },
   );

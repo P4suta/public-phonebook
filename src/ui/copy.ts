@@ -31,7 +31,7 @@ export const uiCopy = {
   address: {
     heading: "住所",
     map: "地図で見る" satisfies Action,
-    mapName: (facility: string): Action => `${facility}の地図を見る`,
+    mapName: (facility: string): Action => `${facility}を地図で見る`,
   },
   facilityHomepage: "施設のホームページを開く" satisfies Action,
   sourceTitle: "電話番号のもとの情報",
