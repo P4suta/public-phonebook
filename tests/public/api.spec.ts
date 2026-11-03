@@ -4,12 +4,14 @@ import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import * as v from "valibot";
 import {
+  DatasetFileListingSchema,
+  DirectoryDeltaListingSchema,
+  datasetFileListing,
+  directoryDeltaListing,
   PreparedDatasetManifestSchema,
-  publicDatasetManifest,
 } from "../../src/core/dataset-storage.ts";
 import {
   CatalogSchema,
-  DatasetManifestSchema,
   GroupedSearchResponseSchema,
 } from "../../src/core/models.ts";
 import { checkedFetch } from "../../tools/public-request.ts";
@@ -81,8 +83,13 @@ test("every published archive matches its exact checked bytes", async ({
   );
   const response = await checkedFetch("/api/datasets");
   expect(response.status).toBe(200);
-  const remote = v.parse(DatasetManifestSchema, await response.json());
-  expect(remote).toEqual(publicDatasetManifest(local));
+  const remote = v.parse(DatasetFileListingSchema, await response.json());
+  expect(remote).toEqual(datasetFileListing(local));
+  const deltas = await checkedFetch(remote.datasetDeltas);
+  expect(deltas.status).toBe(200);
+  expect(v.parse(DirectoryDeltaListingSchema, await deltas.json())).toEqual(
+    directoryDeltaListing(local),
+  );
   for (const file of remote.files) {
     const archive = await checkedFetch(new URL(file.url, baseURL));
     expect(archive.status).toBe(200);

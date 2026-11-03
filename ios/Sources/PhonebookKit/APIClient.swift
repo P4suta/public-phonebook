@@ -2,8 +2,10 @@ import CryptoKit
 import Foundation
 import PhonebookCore
 
-public enum ServiceError: Error, Sendable {
+public enum ServiceError: Error, Equatable, Sendable {
   case invalidURL, invalidResponse, notFound, snapshotChanged
+  /// The listing offers no directory archive in a format that this app reads, so the app needs an update.
+  case unsupportedFormat
   case unavailable(retryAfter: Date?)
   case http(Int)
 }
@@ -29,6 +31,8 @@ public protocol DatasetFile: Sendable {
 public struct DatasetDelta: DatasetFile, Equatable {
   /// Over ten times the decoded national archive, so a listing can't size an unbounded decoder.
   static let maximumDecodedBytes = 1_073_741_824
+  /// The listed format of the deltas that this app applies, which `DirectoryDelta.swift` reads.
+  static let format = "public-phonebook-directory-delta/1"
 
   public let snapshot: SnapshotID
   public let archiveSha256: SnapshotID
@@ -42,7 +46,8 @@ public struct DatasetDelta: DatasetFile, Equatable {
 }
 
 public struct DatasetArchive: DatasetFile, Equatable {
-  static let file = "directory.tsv.br"
+  /// The listed format of the archive that this app imports, which `DirectoryArchive.swift` reads.
+  static let format = "public-phonebook-directory/1"
   static let mimeType = "application/octet-stream"
   static let maximumBytes = 268_435_456
 
@@ -61,6 +66,13 @@ public struct DatasetArchive: DatasetFile, Equatable {
     }
     return hasher.finalize().map { String(format: "%02x", $0) }.joined()
   }
+}
+
+/// The current archive that this app imports, and the pinned delta listing of the same snapshot.
+public struct DatasetListing: Sendable {
+  public let archive: DatasetArchive
+  /// The delta listing, which a provider that doesn't publish deltas omits.
+  public let deltas: String?
 }
 
 public protocol HTTPTransport: Sendable {
@@ -106,17 +118,6 @@ public struct APIClient: Sendable {
     guard identities.count == 1, identities.first?.value == snapshot.rawValue else {
       throw ServiceError.snapshotChanged
     }
-  }
-
-  public func discovery() async throws -> Resource<Endpoints> {
-    let response = try await get("/api/v1")
-    let result = try JSONDecoder().decode(DirectoryDiscovery.self, from: response.data).resource()
-    try validateIdentity(result.meta.snapshot, response: response.response)
-    try validateLink(result.data.datasets, snapshot: result.meta.snapshot)
-    if let deltas = result.data.datasetDeltas {
-      try validateLink(deltas, snapshot: result.meta.snapshot)
-    }
-    return result
   }
 
   public func get(_ link: String) async throws -> HTTPResult {
@@ -182,9 +183,9 @@ public struct APIClient: Sendable {
   }
 
   public func validateIdentity(_ snapshot: SnapshotID, response: HTTPURLResponse) throws {
-    guard response.value(forHTTPHeaderField: "X-Dataset-Snapshot") == snapshot.rawValue,
-      response.value(forHTTPHeaderField: "X-Directory-API-Version") == "1"
-    else { throw ServiceError.invalidResponse }
+    guard response.value(forHTTPHeaderField: "X-Dataset-Snapshot") == snapshot.rawValue else {
+      throw ServiceError.invalidResponse
+    }
     if let url = response.url {
       let items = URLComponents(url: url, resolvingAgainstBaseURL: true)?.queryItems ?? []
       if items.contains(where: { $0.name == "snapshot" }) {
@@ -193,28 +194,34 @@ public struct APIClient: Sendable {
     }
   }
 
-  public func directoryArchive(link: String) async throws -> DatasetArchive {
-    let response = try await get(link)
-    let manifest = try JSONDecoder().decode(DirectoryDatasets.self, from: response.data)
-    try validateIdentity(manifest.snapshot, response: response.response)
-    try validateLink(link, snapshot: manifest.snapshot)
-    let files = manifest.files.filter { $0.file == DatasetArchive.file }
-    guard files.count == 1, let file = files.first, (0...5_000_000).contains(manifest.contacts),
+  /// Reads the dataset listing and picks the one archive in the format that this app imports.
+  public func datasets() async throws -> DatasetListing {
+    let response = try await get("/api/datasets")
+    let listing = try JSONDecoder().decode(DirectoryDatasets.self, from: response.data)
+    try validateIdentity(listing.snapshot, response: response.response)
+    if let deltas = listing.datasetDeltas {
+      try validateLink(deltas, snapshot: listing.snapshot)
+    }
+    let archives = listing.files.compactMap(\.entry)
+    guard let file = archives.first else { throw ServiceError.unsupportedFormat }
+    guard archives.count == 1, (0...5_000_000).contains(listing.contacts),
       (1...DatasetArchive.maximumBytes).contains(file.bytes),
-      file.url == Self.datasetPath(manifest.snapshot, file.sha256, file.file)
+      file.url == Self.datasetPath(listing.snapshot, file.sha256, file.file)
     else { throw ServiceError.invalidResponse }
-    return DatasetArchive(
-      snapshot: manifest.snapshot, contacts: manifest.contacts, link: file.url,
-      sha256: file.sha256, bytes: file.bytes)
+    return DatasetListing(
+      archive: DatasetArchive(
+        snapshot: listing.snapshot, contacts: listing.contacts, link: file.url,
+        sha256: file.sha256, bytes: file.bytes),
+      deltas: listing.datasetDeltas)
   }
 
-  /// Lists the deltas to the current archive, each bound to its base, file name, and immutable URL.
+  /// Lists the deltas in this app's format to the current archive, each bound to its base, file name, and immutable URL.
   public func directoryDeltas(link: String) async throws -> [DatasetDelta] {
     let response = try await get(link)
     let listing = try JSONDecoder().decode(DirectoryDeltaListing.self, from: response.data)
     try validateIdentity(listing.snapshot, response: response.response)
     try validateLink(link, snapshot: listing.snapshot)
-    return try listing.deltas.map { delta in
+    return try listing.deltas.compactMap(\.entry).map { delta in
       let file = DatasetDelta.file(base: delta.base)
       guard delta.file == file, delta.base != listing.snapshot,
         (1...DatasetArchive.maximumBytes).contains(delta.bytes),
@@ -231,7 +238,7 @@ public struct APIClient: Sendable {
   private static func datasetPath(_ snapshot: SnapshotID, _ sha256: SnapshotID, _ file: String)
     -> String
   {
-    "/api/v1/datasets/\(snapshot.rawValue)/\(sha256.rawValue)/\(file)"
+    "/api/datasets/\(snapshot.rawValue)/\(sha256.rawValue)/\(file)"
   }
 
   public func download(

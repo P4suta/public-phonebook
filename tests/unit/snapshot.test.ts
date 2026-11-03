@@ -7,9 +7,9 @@ import { brotliDecompressSync, gunzipSync, gzipSync } from "node:zlib";
 import * as v from "valibot";
 import { expect, it } from "vitest";
 import {
+  datasetFileListing,
   type PreparedDatasetManifest,
   PreparedDatasetManifestSchema,
-  publicDatasetManifest,
 } from "../../src/core/dataset-storage.ts";
 import { decodeDirectoryArchive } from "../../src/core/directory-archive.ts";
 import {
@@ -657,7 +657,7 @@ it("publishes a verified delta from an earlier prepared bundle", async () => {
       baseArchiveSha256: archive(base)?.sha256,
     });
     expect(artifact.bytes * 2).toBeLessThanOrEqual(archive(target)?.bytes ?? 0);
-    expect(Object.keys(publicDatasetManifest(target))).not.toContain("deltas");
+    expect(Object.keys(datasetFileListing(target))).not.toContain("deltas");
     await checkDataBundle(join(root, "target"));
 
     const baseText = await decoded(join(root, "base", "directory.tsv.br"));

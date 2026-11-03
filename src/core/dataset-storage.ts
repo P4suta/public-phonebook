@@ -1,13 +1,17 @@
 import * as v from "valibot";
-import { directoryArchiveFile } from "./directory-archive.ts";
+import {
+  directoryArchiveFile,
+  directoryArchiveFormat,
+} from "./directory-archive.ts";
 import {
   directoryDeltaFile,
   directoryDeltaFilePattern,
+  directoryDeltaFormat,
 } from "./directory-delta.ts";
 import {
   CountSchema,
+  DatasetFileNameSchema,
   DatasetListingSchema,
-  type DatasetManifest,
   DatasetManifestSchema,
   DigestSchema,
 } from "./models.ts";
@@ -78,10 +82,83 @@ export type PreparedDatasetManifest = v.InferOutput<
   typeof PreparedDatasetManifestSchema
 >;
 
-export function publicDatasetManifest(
+export const datasetListingPath = "/api/datasets";
+export const deltaListingPath = "/api/dataset-deltas";
+
+function datasetUrl(snapshot: string, sha256: string, file: string): string {
+  return `${datasetListingPath}/${snapshot}/${sha256}/${file}`;
+}
+
+/**
+ * The format of each complete file: an identifier, a slash, and the version of the bytes as served, compression included.
+ * A changed representation ships as another file with a new identifier beside the old one.
+ */
+export const datasetFileFormats = {
+  "contacts.jsonl.gz": "public-phonebook-contacts-jsonl/1",
+  "contacts.csv.gz": "public-phonebook-contacts-csv/1",
+  "contacts.vcf.gz": "public-phonebook-contacts-vcard/1",
+  [directoryArchiveFile]: directoryArchiveFormat,
+} as const satisfies Record<
+  v.InferOutput<typeof DatasetFileNameSchema>,
+  string
+>;
+
+const { files: _storedFiles, ...listedFields } = DatasetListingSchema.entries;
+
+export const DatasetFileListingSchema = v.pipe(
+  v.strictObject({
+    ...listedFields,
+    files: v.array(
+      v.strictObject({
+        file: DatasetFileNameSchema,
+        format: v.string(),
+        sha256: DigestSchema,
+        bytes: CountSchema,
+        url: v.string(),
+      }),
+    ),
+    datasetDeltas: v.string(),
+  }),
+  v.check(
+    ({ datasetDeltas: _link, files, ...listing }) =>
+      v.is(DatasetManifestSchema, {
+        ...listing,
+        files: files.map(({ format: _format, ...file }) => file),
+      }),
+    "A dataset listing must list each complete file once at its immutable URL",
+  ),
+  v.check(
+    (listing) =>
+      listing.files.every(
+        (file) => file.format === datasetFileFormats[file.file],
+      ),
+    "Each listed file must declare its format",
+  ),
+  v.check(
+    (listing) =>
+      listing.datasetDeltas ===
+      `${deltaListingPath}?snapshot=${listing.snapshot}`,
+    "The delta link must pin the listed snapshot",
+  ),
+);
+export type DatasetFileListing = v.InferOutput<typeof DatasetFileListingSchema>;
+
+/** Lists the complete files of the bound manifest with their formats, and links the deltas to the same snapshot. */
+export function datasetFileListing(
   manifest: PreparedDatasetManifest,
-): DatasetManifest {
-  return v.parse(DatasetManifestSchema, v.parse(PublicListingSchema, manifest));
+): DatasetFileListing {
+  const { files, ...listing } = v.parse(PublicListingSchema, manifest);
+  return v.parse(DatasetFileListingSchema, {
+    ...listing,
+    files: files.map((file) => ({
+      file: file.file,
+      format: datasetFileFormats[file.file],
+      sha256: file.sha256,
+      bytes: file.bytes,
+      url: file.url,
+    })),
+    datasetDeltas: `${deltaListingPath}?snapshot=${manifest.snapshot}`,
+  });
 }
 
 export const SearchIndexLocationSchema = v.pipe(
@@ -119,33 +196,29 @@ export function searchIndexLocation(
   });
 }
 
-type DatasetApiBase = "/api" | "/api/v1";
-
-function datasetUrl(
-  base: DatasetApiBase,
-  snapshot: string,
-  sha256: string,
-  file: string,
-): string {
-  return `${base}/datasets/${snapshot}/${sha256}/${file}`;
-}
-
 export const DirectoryDeltaListingSchema = v.pipe(
   v.strictObject({
     snapshot: DigestSchema,
     archiveSha256: DigestSchema,
     deltas: v.array(
-      v.strictObject({ ...DirectoryDeltaEntries, url: v.string() }),
+      v.strictObject({
+        base: DirectoryDeltaEntries.base,
+        baseArchiveSha256: DirectoryDeltaEntries.baseArchiveSha256,
+        file: DirectoryDeltaEntries.file,
+        format: v.literal(directoryDeltaFormat),
+        sha256: DirectoryDeltaEntries.sha256,
+        bytes: DirectoryDeltaEntries.bytes,
+        uncompressedSha256: DirectoryDeltaEntries.uncompressedSha256,
+        uncompressedBytes: DirectoryDeltaEntries.uncompressedBytes,
+        url: v.string(),
+      }),
     ),
   }),
   v.check(
     (listing) =>
-      listing.deltas.every((delta) =>
-        (["/api", "/api/v1"] as const).some(
-          (base) =>
-            delta.url ===
-            datasetUrl(base, listing.snapshot, delta.sha256, delta.file),
-        ),
+      listing.deltas.every(
+        (delta) =>
+          delta.url === datasetUrl(listing.snapshot, delta.sha256, delta.file),
       ),
     "A directory delta URL must name its target snapshot and digest",
   ),
@@ -156,7 +229,6 @@ export type DirectoryDeltaListing = v.InferOutput<
 
 export function directoryDeltaListing(
   manifest: PreparedDatasetManifest,
-  base: DatasetApiBase,
 ): DirectoryDeltaListing {
   const archive = manifest.files.find(
     (file) => file.file === directoryArchiveFile,
@@ -168,7 +240,8 @@ export function directoryDeltaListing(
     archiveSha256: archive.sha256,
     deltas: manifest.deltas.map((delta) => ({
       ...delta,
-      url: datasetUrl(base, manifest.snapshot, delta.sha256, delta.file),
+      format: directoryDeltaFormat,
+      url: datasetUrl(manifest.snapshot, delta.sha256, delta.file),
     })),
   });
 }

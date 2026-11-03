@@ -182,6 +182,11 @@ final class IntegrationModel {
           problem = "データを受け取れたかを確かめられませんでした。アプリを開き直してください。"
         case ImportError.projectionTooLarge:
           problem = "一つの電話番号に集まる情報が多すぎるため、データを受け取れませんでした。"
+        case ServiceError.unsupportedFormat:
+          problem =
+            manifest == nil
+            ? "データの形式がこのアプリに合わないため、受け取れませんでした。アプリを新しくしてください。"
+            : "データの形式がこのアプリに合わないため、新しくできませんでした。前のデータのまま使えます。アプリを新しくしてください。"
         default:
           problem =
             manifest == nil

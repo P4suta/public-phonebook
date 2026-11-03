@@ -52,7 +52,7 @@ private func corpusServer(_ entries: [CorpusEntry], requests: RequestLog = Reque
   async throws
 {
   let entries = try corpus("baseline")
-  let listing = try #require(entries.first { $0.path.hasPrefix("/api/v1/datasets?") })
+  let listing = try #require(entries.first { $0.path == "/api/datasets" })
   let datasets = try JSONDecoder().decode(DirectoryDatasets.self, from: listing.data)
   let server = try await corpusServer(entries)
   let root = try temporaryDirectory()
@@ -123,9 +123,9 @@ private func decodedBrotli(_ data: Data, in root: URL) async throws -> Data {
 /// Rebuilds the provider's updated archive from its baseline with the delta that `src/core/directory-delta.ts` wrote.
 @Test(.timeLimit(.minutes(1))) func currentProviderDeltaRebuildsTheUpdatedArchive() async throws {
   let updated = try corpus("updated")
-  let listingEntry = try #require(updated.first { $0.path.hasPrefix("/api/v1/dataset-deltas?") })
+  let listingEntry = try #require(updated.first { $0.path.hasPrefix("/api/dataset-deltas?") })
   let listing = try JSONDecoder().decode(DirectoryDeltaListing.self, from: listingEntry.data)
-  let delta = try #require(listing.deltas.first)
+  let delta = try #require(listing.deltas.compactMap(\.entry).first)
   let deltaEntry = try #require(updated.first { $0.path == delta.url })
   let archiveEntry = try #require(updated.first { $0.path.hasSuffix("/directory.tsv.br") })
   let root = try temporaryDirectory()

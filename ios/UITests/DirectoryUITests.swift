@@ -45,7 +45,7 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 10))
     XCTAssertTrue(app.descendants(matching: .any)["search-hint"].exists)
     XCTAssertFalse(app.staticTexts["directory-total"].exists)
-    XCTAssertEqual(try proxy().requests.filter { $0.hasPrefix("/api/v1/datasets/") }.count, 1)
+    XCTAssertEqual(try proxy().requests.filter { $0.hasPrefix("/api/datasets/") }.count, 1)
     capture(app, name: "initial-search")
   }
 

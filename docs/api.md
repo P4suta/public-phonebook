@@ -7,20 +7,40 @@ The site's search, contact, and search index routes serve only the site, as [the
 
 ## Find the current files
 
-`GET /api/v1` returns `version`, `snapshot`, `generatedAt`, and the links `datasets` and `datasetDeltas`.
-Each link carries `?snapshot=` with the current snapshot.
-A pinned listing returns 409 after a change, so a client can tell that its links went stale.
+`GET /api/datasets` returns the one dataset listing.
+It holds `snapshot`, `generatedAt`, the contact and telephone counts, the source and database digests, `files`, and `datasetDeltas`.
+`datasetDeltas` links the delta listing of the same snapshot with `?snapshot=`.
+Both listings accept an optional `?snapshot=` pin and name the current snapshot in `X-Dataset-Snapshot`.
+A pinned listing returns 409 after a change, so a client can tell that its link went stale.
 A duplicate or malformed `snapshot` returns 400.
-`GET /api/datasets` and `GET /api/dataset-deltas` return the same listings without a pin, and their file URLs start with `/api/` instead of `/api/v1/`.
+No route carries a version in its path.
 
 ```sh
 curl --fail-with-body http://127.0.0.1:8787/api/datasets
 ```
 
+### File formats
+
+Each entry in `files` and each entry in the delta listing's `deltas` declares `format`.
+A format is an identifier, a slash, and the version of the file's bytes as served, compression included.
+Choose files by `format`, and skip entries in formats that your client doesn't read.
+
+| File | Format | Content |
+| --- | --- | --- |
+| `contacts.jsonl.gz` | `public-phonebook-contacts-jsonl/1` | gzip JSON Lines, one contact per line |
+| `contacts.csv.gz` | `public-phonebook-contacts-csv/1` | gzip CSV with the columns below |
+| `contacts.vcf.gz` | `public-phonebook-contacts-vcard/1` | gzip vCard 3.0 cards |
+| `directory.tsv.br` | `public-phonebook-directory/1` | The [native directory archive](#native-directory-archive) |
+| `directory-delta-{base}.tsv.br` | `public-phonebook-directory-delta/1` | A [native directory delta](#native-directory-deltas) |
+
+The native archive and delta identifiers equal the first decoded line with a slash in place of the tab.
+A format change ships as a new entry with a new identifier beside the old one.
+The listing keeps the old entry until its clients have moved, and an identifier never changes meaning.
+[The dataset file formats decision](adr/declare-dataset-file-formats-instead-of-api-versions.md) records this rule.
+
 ## Download complete data
 
-`GET /api/datasets` supplies the current manifest.
-It lists complete gzip-compressed JSONL, CSV, and vCard files and a Brotli-compressed native directory archive with byte lengths and SHA-256 hashes.
+The dataset listing names complete gzip-compressed JSONL, CSV, and vCard files and a Brotli-compressed native directory archive with byte lengths and SHA-256 hashes.
 Use each returned URL directly.
 The URL includes both the contact snapshot and the archive digest, so a changed representation gets a different immutable URL.
 Validate the downloaded byte length and SHA-256 before processing it.
@@ -75,11 +95,9 @@ The archive omits contact and source-record IDs, which remain in JSONL.
 ### Native directory deltas
 
 A delta rebuilds the current decoded `directory.tsv.br` from the decoded archive of an earlier snapshot, so an offline client can skip the complete download.
-`GET /api/dataset-deltas` lists the deltas to the current snapshot, and `/api/datasets` doesn't list them.
-The versioned `GET /api/v1/dataset-deltas?snapshot=…` takes the same snapshot pin as the versioned dataset listing and returns 409 after a change.
-The `/api/v1` index links the listing as `datasetDeltas` with the pin.
+`GET /api/dataset-deltas` lists the deltas to the current snapshot, and the dataset listing links it as `datasetDeltas` with the snapshot pin.
 The response holds the current `snapshot`, the `archiveSha256` of the `directory.tsv.br` that every delta rebuilds, and a `deltas` array that may be empty.
-Each entry names its `base` snapshot, the `baseArchiveSha256` of that snapshot's `directory.tsv.br`, its `file` and `url`, and the `bytes` and `sha256` of its Brotli bytes.
+Each entry names its `base` snapshot, the `baseArchiveSha256` of that snapshot's `directory.tsv.br`, its `file`, `format`, and `url`, and the `bytes` and `sha256` of its Brotli bytes.
 It also gives the `uncompressedBytes` and `uncompressedSha256` of the decoded delta, so a client can bound its decoder.
 The listing revalidates like the dataset manifest.
 The URL serves the exact Brotli bytes as `application/octet-stream` without `Content-Encoding`, with the immutable caching of the complete files.
@@ -131,7 +149,7 @@ Search accepts page sizes from 1 through 30.
 
 ### Website search index
 
-`/api/datasets` doesn't list the search index, and the `/api/v1` routes don't serve it.
+`/api/datasets` doesn't list the search index, and no open-data route serves it.
 `GET /api/search-index` returns the current `snapshot`, the immutable index `url`, and the `bytes` and `sha256` of the Brotli bytes.
 It also returns the `uncompressedBytes` and `uncompressedSha256` of the decoded index.
 The response revalidates with an ETag, like the catalog.
@@ -161,7 +179,7 @@ When the snapshot changed, the page returns 409 with a short explanation and a l
 
 GET and HEAD work on every route, and the open-data routes also answer `OPTIONS` preflight requests.
 Other methods return 405 with an `Allow` header.
-The open-data cross-origin headers expose validators, snapshot identity, request IDs, the version header, and retry information.
+The open-data cross-origin headers expose validators, snapshot identity, request IDs, and retry information.
 Immutable archive URLs carry ETags and support conditional reads.
 Errors use RFC 9457 `application/problem+json` with `code`, `status`, and a generated `requestId`.
 400 denotes invalid input, 403 a site route requested from another site, 404 a missing resource, 406 an unacceptable content coding, 409 an obsolete pin, cursor, or row snapshot, and 503 temporary unavailability.

@@ -7,6 +7,7 @@ date: 2026-11-03
 ## Status
 
 Accepted.
+The [dataset file formats decision](declare-dataset-file-formats-instead-of-api-versions.md) supersedes its `/api/v1` index, version header, and versioned listings.
 The owner decided to retire the public read API.
 This supersedes the [public read API](public-read-api-with-snapshot-identity.md), the [server-rendered API reference](server-rendered-api-reference.md), and the [interactive reference](openapi-driven-interactive-reference.md).
 

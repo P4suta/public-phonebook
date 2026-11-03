@@ -4,16 +4,14 @@ import { brotliDecompressSync } from "node:zlib";
 import * as v from "valibot";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  type DirectoryDiscovery,
-  DirectoryDiscoverySchema,
-} from "../../src/core/api-contract.ts";
-import { DirectoryDeltaListingSchema } from "../../src/core/dataset-storage.ts";
+  type DatasetFileListing,
+  DatasetFileListingSchema,
+  DirectoryDeltaListingSchema,
+  datasetFileFormats,
+} from "../../src/core/dataset-storage.ts";
 import { decodeDirectoryArchive } from "../../src/core/directory-archive.ts";
 import { applyDirectoryDelta } from "../../src/core/directory-delta.ts";
-import {
-  DigestSchema,
-  VersionedDatasetManifestSchema,
-} from "../../src/core/models.ts";
+import { DigestSchema } from "../../src/core/models.ts";
 import { snapshotAdmission } from "../../src/core/snapshot-policy.ts";
 import { sha256Digest } from "../../tools/directory-delta.ts";
 import {
@@ -22,42 +20,57 @@ import {
 } from "../../tools/directory-fixture.ts";
 import { contractResponses } from "../../tools/native-fixture.ts";
 
+// The published identifiers stay literal here, so a changed signature fails as a contract change.
+const archiveFormat = "public-phonebook-directory/1";
+const deltaFormat = "public-phonebook-directory-delta/1";
+
 let fixture: Awaited<ReturnType<typeof directoryFixture>> | undefined;
 beforeAll(async () => {
   fixture = await directoryFixture();
 });
 afterAll(async () => fixture?.dispose());
 
-async function request(path: string): Promise<Response> {
+async function request(path: string, init?: RequestInit): Promise<Response> {
   if (!fixture) throw new Error("Missing contract fixture");
-  return fixture.fetch(new Request(new URL(path, "https://contract.example")));
+  return fixture.fetch(
+    new Request(new URL(path, "https://contract.example"), init),
+  );
+}
+
+async function listing(): Promise<DatasetFileListing> {
+  return v.parse(
+    DatasetFileListingSchema,
+    await (await request("/api/datasets")).json(),
+  );
 }
 
 describe("shared native API contract", () => {
-  it("versions errors and preflight responses without redirects", async () => {
+  it("answers errors and preflight responses without redirects or an API version", async () => {
     for (const method of ["GET", "HEAD", "OPTIONS", "POST"]) {
-      if (!fixture) throw new Error("Missing contract fixture");
-      const response = await fixture.fetch(
-        new Request("https://contract.example/api/v1/datasets?snapshot=bad", {
-          method,
-        }),
-      );
-      expect(response.headers.get("X-Directory-API-Version"), method).toBe("1");
+      const response = await request("/api/datasets?snapshot=bad", { method });
+      expect(
+        response.headers.get("X-Directory-API-Version"),
+        method,
+      ).toBeNull();
       expect(response.headers.get("location"), method).toBeNull();
     }
   });
-  it("pins every mutable discovery link", async () => {
-    const discovery = v.parse(
-      DirectoryDiscoverySchema,
-      await (await request("/api/v1")).json(),
-    );
-    for (const path of [discovery.datasets, discovery.datasetDeltas])
-      expect(
-        new URL(path, "https://contract.example").searchParams.get("snapshot"),
-      ).toBe(discovery.snapshot);
+  it("pins the delta link to the listed snapshot", async () => {
+    const current = await listing();
+    expect(
+      new URL(
+        current.datasetDeltas,
+        "https://contract.example",
+      ).searchParams.getAll("snapshot"),
+    ).toEqual([current.snapshot]);
   });
-  it("serves no site route under the versioned prefix", async () => {
+  it("serves no versioned route", async () => {
+    const { files } = await listing();
     for (const path of [
+      "/api/v1",
+      "/api/v1/datasets",
+      "/api/v1/dataset-deltas",
+      ...files.map((file) => file.url.replace("/api/", "/api/v1/")),
       "/api/v1/catalog",
       "/api/v1/contacts",
       "/api/v1/contact-groups",
@@ -70,23 +83,30 @@ describe("shared native API contract", () => {
     ]) {
       const response = await request(path);
       expect(response.status, path).toBe(404);
-      expect(response.headers.get("X-Directory-API-Version"), path).toBe("1");
+      expect(response.headers.get("X-Directory-API-Version"), path).toBeNull();
     }
   });
-  it("keeps immutable archive URLs on the versioned API and checks the requested snapshot", async () => {
-    const manifest = v.parse(
-      VersionedDatasetManifestSchema,
-      await (await request("/api/v1/datasets")).json(),
-    );
+  it("declares each file's format and serves it at its immutable URL", async () => {
+    const manifest = await listing();
+    expect(
+      Object.fromEntries(
+        manifest.files.map((file) => [file.file, file.format]),
+      ),
+    ).toEqual({
+      "contacts.jsonl.gz": "public-phonebook-contacts-jsonl/1",
+      "contacts.csv.gz": "public-phonebook-contacts-csv/1",
+      "contacts.vcf.gz": "public-phonebook-contacts-vcard/1",
+      "directory.tsv.br": archiveFormat,
+    });
+    expect(datasetFileFormats["directory.tsv.br"]).toBe(archiveFormat);
     for (const file of manifest.files) {
       const response = await request(file.url);
       expect(response.status).toBe(200);
-      expect(response.headers.get("X-Directory-API-Version")).toBe("1");
       expect(response.headers.get("X-Dataset-Snapshot")).toBe(
         manifest.snapshot,
       );
       expect(response.headers.get("Content-Type")).toBe(
-        file.file === "directory.tsv.br"
+        file.format === archiveFormat
           ? "application/octet-stream"
           : "application/gzip",
       );
@@ -99,7 +119,7 @@ describe("shared native API contract", () => {
     expect(
       (
         await request(
-          `/api/v1/datasets/${manifest.snapshot}/${"0".repeat(64)}/directory.tsv`,
+          `/api/datasets/${manifest.snapshot}/${"0".repeat(64)}/directory.tsv`,
         )
       ).status,
     ).toBe(404);
@@ -112,11 +132,8 @@ describe("shared native API contract", () => {
         JSON.stringify(suffix),
       ).toBe(false);
       expect(
-        (
-          await request(
-            `/api/v1/datasets?snapshot=${encodeURIComponent(value)}`,
-          )
-        ).status,
+        (await request(`/api/datasets?snapshot=${encodeURIComponent(value)}`))
+          .status,
       ).toBe(400);
     }
   });
@@ -140,27 +157,19 @@ describe("shared native API contract", () => {
       name: "baseline" | "updated",
     ): {
       readonly responses: typeof actual;
-      readonly discovery: DirectoryDiscovery;
+      readonly listing: DatasetFileListing;
       readonly file:
         | { readonly url: string; readonly sha256: string }
         | undefined;
       readonly archive: string;
     } => {
       const responses = actual.filter((response) => response.revision === name);
-      const discovery = v.parse(
-        DirectoryDiscoverySchema,
+      expect(responses[0]?.path).toBe("/api/datasets");
+      const manifest = v.parse(
+        DatasetFileListingSchema,
         JSON.parse(responses[0]?.body ?? ""),
       );
-      const listing = responses.find(
-        (response) => response.path === discovery.datasets,
-      );
-      const manifest = v.parse(
-        VersionedDatasetManifestSchema,
-        JSON.parse(listing?.body ?? ""),
-      );
-      const file = manifest.files.find(
-        (item) => item.file === "directory.tsv.br",
-      );
+      const file = manifest.files.find((item) => item.format === archiveFormat);
       const archive = responses.find((response) => response.path === file?.url);
       expect(archive?.encoding).toBe("base64");
       expect(archive?.headers["Content-Type"]).toBe("application/octet-stream");
@@ -168,35 +177,34 @@ describe("shared native API contract", () => {
       expect(data.byteLength).toBe(file?.bytes);
       expect(sha256(data)).toBe(file?.sha256);
       const decoded = decodeDirectoryArchive(text(data));
-      expect(decoded.header.snapshot).toBe(discovery.snapshot);
+      expect(decoded.header.snapshot).toBe(manifest.snapshot);
       expect(decoded.rows).toHaveLength(manifest.contacts);
-      return { responses, discovery, file, archive: text(data) };
+      return { responses, listing: manifest, file, archive: text(data) };
     };
     const baseline = revision("baseline");
     expect(baseline.responses.map((response) => response.path)).toEqual([
-      "/api/v1",
-      baseline.discovery.datasets,
+      "/api/datasets",
       baseline.file?.url,
     ]);
     const updated = revision("updated");
-    const listing = v.parse(
+    const deltas = v.parse(
       DirectoryDeltaListingSchema,
-      JSON.parse(updated.responses[2]?.body ?? ""),
+      JSON.parse(updated.responses[1]?.body ?? ""),
     );
-    const [delta] = listing.deltas;
-    expect(listing.deltas).toHaveLength(1);
-    expect(listing.archiveSha256).toBe(updated.file?.sha256);
-    expect(delta?.base).toBe(baseline.discovery.snapshot);
+    const [delta] = deltas.deltas;
+    expect(deltas.deltas).toHaveLength(1);
+    expect(delta?.format).toBe(deltaFormat);
+    expect(deltas.archiveSha256).toBe(updated.file?.sha256);
+    expect(delta?.base).toBe(baseline.listing.snapshot);
     expect(delta?.baseArchiveSha256).toBe(baseline.file?.sha256);
     expect(updated.responses.map((response) => response.path)).toEqual([
-      "/api/v1",
-      updated.discovery.datasets,
-      updated.discovery.datasetDeltas,
+      "/api/datasets",
+      updated.listing.datasetDeltas,
       delta?.url,
       updated.file?.url,
     ]);
-    const deltaBytes = bytes(updated.responses[3]?.body);
-    expect(updated.responses[3]?.headers["Content-Type"]).toBe(
+    const deltaBytes = bytes(updated.responses[2]?.body);
+    expect(updated.responses[2]?.headers["Content-Type"]).toBe(
       "application/octet-stream",
     );
     expect(deltaBytes.byteLength).toBe(delta?.bytes);
@@ -241,30 +249,25 @@ describe("shared native API contract", () => {
           }
   });
 
-  it("keeps the unversioned dataset listings equal to the versioned ones apart from the prefix", async () => {
-    const current = await request("/api/v1");
-    expect(current.headers.get("X-Directory-API-Version")).toBe("1");
-    const raw: unknown = await current.json();
-    const discovery = v.parse(DirectoryDiscoverySchema, raw);
-    expect(current.headers.get("X-Dataset-Snapshot")).toBe(discovery.snapshot);
-    for (const [legacy, versioned] of [
-      ["/api/datasets", discovery.datasets],
-      ["/api/dataset-deltas", discovery.datasetDeltas],
-    ] as const) {
-      const unversioned = await request(legacy);
-      expect(unversioned.headers.get("Access-Control-Allow-Origin")).toBe("*");
-      expect((await unversioned.text()).replaceAll("/api/", "/api/v1/")).toBe(
-        await (await request(versioned)).text(),
+  it("serves both listings to every origin with the current snapshot, pinned or not", async () => {
+    const { snapshot, datasetDeltas } = await listing();
+    for (const path of [
+      "/api/datasets",
+      `/api/datasets?snapshot=${snapshot}`,
+      "/api/dataset-deltas",
+      datasetDeltas,
+    ]) {
+      const response = await request(path);
+      expect(response.status, path).toBe(200);
+      expect(response.headers.get("Access-Control-Allow-Origin"), path).toBe(
+        "*",
       );
+      expect(response.headers.get("X-Dataset-Snapshot"), path).toBe(snapshot);
     }
   });
 
   it("rejects stale, malformed, and ambiguous identities before returning mutable resources", async () => {
-    for (const path of [
-      "/api/v1",
-      "/api/v1/datasets",
-      "/api/v1/dataset-deltas",
-    ]) {
+    for (const path of ["/api/datasets", "/api/dataset-deltas"]) {
       expect(
         (await request(`${path}?snapshot=${"0".repeat(64)}`)).status,
         path,

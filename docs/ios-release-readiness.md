@@ -6,7 +6,7 @@ Update it when an item closes, and remove it once version 1.0 is public.
 
 ## Dependencies
 
-The app requires the versioned `/api/v1` contract and the public `/privacy` and `/support` pages that #20 delivered.
+The app requires the `/api/datasets` listing with the `public-phonebook-directory/1` archive and the public `/privacy` and `/support` pages that #20 delivered.
 The native UI harness starts `tools/native-fixture.ts`, which serves the actual Hono handlers over loopback.
 The TypeScript unit tests regenerate the provider corpus that the Swift tests decode and reject a stale copy.
 The web outputs of the shared Figma icons belong to #21.
@@ -51,7 +51,7 @@ The workflow and its delivery path haven't run yet, because they need the owner'
 | Measure the national import time, memory, and storage, and the Call Directory load on a device | Developer and owner | A device run |
 | Create the App Manager key, the distribution certificate, both App Store profiles, the Doppler values, and the OIDC identity | Owner | The [owner setup](ios-store-distribution.md#owner-setup) |
 | Run the `TestFlight` workflow on `main`, which reruns `ios-check`, `ios-prove`, `ios-sanitize`, and `ios-mutate` for that commit | Owner | The owner setup |
-| Verify `/api/v1`, `/privacy`, and `/support` over production HTTPS without authentication again before submission | Developer | Submission |
+| Verify `/api/datasets`, `/privacy`, and `/support` over production HTTPS without authentication again before submission | Developer | Submission |
 | Capture store screenshots with `just ios-screenshots ORIGIN` from the committed revision | Developer | Owner approval of the commit |
 | Confirm whether App Store Connect also needs a large-display screenshot set | Owner | App Store Connect |
 | Approve the workflow's delivery job, which signs, uploads, and waits for TestFlight processing | Owner | A passing workflow run |

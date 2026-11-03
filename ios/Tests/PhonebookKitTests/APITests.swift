@@ -20,20 +20,74 @@ private actor StubTransport: HTTPTransport {
   }
 }
 
-@Test func responseSnapshotMustMatchThePinnedRequestAndHeader() async throws {
+/// Answers every request with `data` as the JSON at `path`, under the snapshot header `identity`.
+private func stubbedClient(_ data: Data, path: String, identity: String) throws -> APIClient {
   let origin = try #require(URL(string: "https://dial.page"))
-  let data = discoveryFixture(snapshot: try sampleSnapshot().rawValue)
   let response = try #require(
     HTTPURLResponse(
-      url: origin.appendingPathComponent("api/v1"),
-      statusCode: 200, httpVersion: nil,
-      headerFields: [
-        "Content-Type": "application/json", "X-Directory-API-Version": "1",
-        "X-Dataset-Snapshot": String(repeating: "b", count: 64),
-      ]))
-  let api = try APIClient(
+      url: origin.appendingPathComponent(path), statusCode: 200, httpVersion: nil,
+      headerFields: ["Content-Type": "application/json", "X-Dataset-Snapshot": identity]))
+  return try APIClient(
     origin: origin, transport: StubTransport(HTTPResult(data: data, response: response)))
-  await #expect(throws: ServiceError.self) { try await api.discovery() }
+}
+
+/// A dataset listing whose files are the given JSON objects.
+private func listing(_ snapshot: String, files: [String]) -> Data {
+  Data(
+    """
+    {"snapshot":"\(snapshot)","generatedAt":"2026-10-30","contacts":1,\
+    "files":[\(files.joined(separator: ","))]}
+    """.utf8)
+}
+
+private func archiveEntry(_ snapshot: String, format: String = "public-phonebook-directory/1")
+  -> String
+{
+  """
+  {"file":"directory.tsv.br","format":"\(format)","sha256":"\(snapshot)","bytes":1,\
+  "url":"/api/datasets/\(snapshot)/\(snapshot)/directory.tsv.br"}
+  """
+}
+
+@Test func responseSnapshotMustMatchTheHeader() async throws {
+  let snapshot = try sampleSnapshot().rawValue
+  let api = try stubbedClient(
+    listing(snapshot, files: [archiveEntry(snapshot)]), path: "api/datasets",
+    identity: String(repeating: "b", count: 64))
+  await #expect(throws: ServiceError.self) { try await api.datasets() }
+}
+
+@Test func theListingPicksTheArchiveInThisAppsFormatAndSkipsUnknownFormats() async throws {
+  let snapshot = try sampleSnapshot().rawValue
+  // A later format may list other fields, so the client must not decode it.
+  let later = #"{"file":"directory.bin","format":"public-phonebook-directory/2"}"#
+  let api = try stubbedClient(
+    listing(snapshot, files: [later, archiveEntry(snapshot)]), path: "api/datasets",
+    identity: snapshot)
+  let current = try await api.datasets()
+  #expect(current.archive.link == "/api/datasets/\(snapshot)/\(snapshot)/directory.tsv.br")
+  #expect(current.archive.snapshot.rawValue == snapshot)
+  #expect(current.deltas == nil)
+}
+
+@Test func aListingWithoutThisAppsFormatIsUnsupported() async throws {
+  let snapshot = try sampleSnapshot().rawValue
+  for files in [
+    [archiveEntry(snapshot, format: "public-phonebook-directory/2")],
+    [#"{"file":"contacts.csv.gz","format":"public-phonebook-contacts-csv/1"}"#], [],
+  ] {
+    let api = try stubbedClient(
+      listing(snapshot, files: files), path: "api/datasets", identity: snapshot)
+    await #expect(throws: ServiceError.unsupportedFormat) { try await api.datasets() }
+  }
+}
+
+@Test func twoArchivesInThisAppsFormatAreAnInvalidListing() async throws {
+  let snapshot = try sampleSnapshot().rawValue
+  let api = try stubbedClient(
+    listing(snapshot, files: [archiveEntry(snapshot), archiveEntry(snapshot)]),
+    path: "api/datasets", identity: snapshot)
+  await #expect(throws: ServiceError.invalidResponse) { try await api.datasets() }
 }
 
 @Test func snapshotConflictAndServiceRetryDelayHaveDistinctErrors() throws {
@@ -68,7 +122,7 @@ private actor StubTransport: HTTPTransport {
   let response = try #require(
     HTTPURLResponse(
       url: url, statusCode: 200, httpVersion: nil,
-      headerFields: ["X-Dataset-Snapshot": snapshot.rawValue, "X-Directory-API-Version": "1"]))
+      headerFields: ["X-Dataset-Snapshot": snapshot.rawValue]))
   #expect(throws: ServiceError.self) {
     try APIClient(origin: origin).validateIdentity(snapshot, response: response)
   }

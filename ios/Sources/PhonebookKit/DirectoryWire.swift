@@ -1,23 +1,26 @@
 import Foundation
 import PhonebookCore
 
-struct DirectoryDiscovery: Decodable, Sendable {
-  let version: String
-  let snapshot: SnapshotID
-  let generatedAt: String
-  let datasets: String
-  let datasetDeltas: String?
+/// A listing entry type that the app decodes only when the entry declares the app's format.
+protocol ListedFormat: Decodable, Sendable {
+  static var format: String { get }
+}
 
-  func resource() throws -> Resource<Endpoints> {
-    guard version == "1" else { throw ServiceError.invalidResponse }
-    return Resource(
-      data: Endpoints(datasets: datasets, datasetDeltas: datasetDeltas),
-      meta: SnapshotMeta(snapshot: snapshot, generatedAt: generatedAt))
+/// One listed entry, which stays unread when it declares a format that this app doesn't know.
+struct Listed<Entry: ListedFormat>: Decodable, Sendable {
+  let entry: Entry?
+
+  private enum Key: String, CodingKey { case format }
+
+  init(from decoder: any Decoder) throws {
+    let format = try decoder.container(keyedBy: Key.self).decode(String.self, forKey: .format)
+    entry = format == Entry.format ? try Entry(from: decoder) : nil
   }
 }
 
 struct DirectoryDeltaListing: Decodable, Sendable {
-  struct Delta: Decodable, Sendable {
+  struct Delta: ListedFormat {
+    static var format: String { DatasetDelta.format }
     let base: SnapshotID
     let baseArchiveSha256: SnapshotID
     let file: String
@@ -29,11 +32,12 @@ struct DirectoryDeltaListing: Decodable, Sendable {
   }
   let snapshot: SnapshotID
   let archiveSha256: SnapshotID
-  let deltas: [Delta]
+  let deltas: [Listed<Delta>]
 }
 
 struct DirectoryDatasets: Decodable, Sendable {
-  struct File: Decodable, Sendable {
+  struct File: ListedFormat {
+    static var format: String { DatasetArchive.format }
     let file: String
     let sha256: SnapshotID
     let bytes: Int
@@ -42,5 +46,7 @@ struct DirectoryDatasets: Decodable, Sendable {
   let snapshot: SnapshotID
   let generatedAt: String
   let contacts: Int
-  let files: [File]
+  let files: [Listed<File>]
+  /// The pinned delta listing, which a provider that doesn't publish deltas omits.
+  let datasetDeltas: String?
 }

@@ -50,10 +50,10 @@ test("the national category preview has exact counts and bounded payloads for ev
   }
 });
 
+import { DatasetFileListingSchema } from "../../src/core/dataset-storage.ts";
 import {
   CatalogSchema,
   ContactSchema,
-  DatasetManifestSchema,
   GroupedSearchResponseSchema,
   SearchResponseSchema,
 } from "../../src/core/models.ts";
@@ -73,7 +73,7 @@ test("the native national catalog and every region and category are searchable",
   console.info(
     JSON.stringify({
       operation: "national.api",
-      origin: new URL((await request.get("/api/v1")).url()).origin,
+      origin: new URL((await request.get("/api/datasets")).url()).origin,
       contacts: catalog.contacts,
       categories: catalog.categories.length,
       prefectures: catalog.prefectures.length,
@@ -139,7 +139,7 @@ test("site details, vCards, source records, and headers agree", async ({
     ["/api/contacts", false],
     ["/api/contact-groups", false],
     ["/api/sources", false],
-    ["/api/v1", true],
+
     ["/api/datasets", true],
     ["/api/dataset-deltas", true],
   ] as const) {
@@ -160,6 +160,9 @@ test("site details, vCards, source records, and headers agree", async ({
     "/api",
     "/api/openapi.json",
     "/api/contacts.vcf",
+    "/api/v1",
+    "/api/v1/datasets",
+    "/api/v1/dataset-deltas",
     "/api/v1/openapi.json",
     "/api/v1/contacts",
     "/developers",
@@ -172,7 +175,7 @@ test("complete dataset downloads match their published checksums", async ({
 }) => {
   test.setTimeout(120000);
   const body: unknown = await (await request.get("/api/datasets")).json();
-  const manifest = v.parse(DatasetManifestSchema, body);
+  const manifest = v.parse(DatasetFileListingSchema, body);
   for (const file of manifest.files) {
     const response = await request.get(file.url);
     expect(response.status()).toBe(200);

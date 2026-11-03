@@ -177,7 +177,7 @@ func httpResponse(_ body: Data, headers: String = "") -> Data {
   let snapshot = try sampleSnapshot().rawValue
   let destination = try await HTTPTestServer { _ in
     httpResponse(
-      Data("[]".utf8), headers: "X-Dataset-Snapshot: \(snapshot)\r\nX-Directory-API-Version: 1\r\n")
+      Data("[]".utf8), headers: "X-Dataset-Snapshot: \(snapshot)\r\n")
   }
   let location =
     destination.origin.appendingPathComponent("api").absoluteString + "?snapshot=" + snapshot
@@ -203,7 +203,7 @@ func sampleArchive(bytes: Int, digest: String? = nil) throws -> DatasetArchive {
   let sha256 = try SnapshotID(digest ?? snapshot.rawValue)
   return DatasetArchive(
     snapshot: snapshot, contacts: 0,
-    link: "/api/v1/datasets/\(snapshot.rawValue)/\(sha256.rawValue)/directory.tsv.br",
+    link: "/api/datasets/\(snapshot.rawValue)/\(sha256.rawValue)/directory.tsv.br",
     sha256: sha256, bytes: bytes)
 }
 

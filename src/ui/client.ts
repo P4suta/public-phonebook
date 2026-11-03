@@ -1,12 +1,14 @@
 import { createIsomorphicFn } from "@tanstack/react-start";
 import * as v from "valibot";
 import {
+  type DatasetFileListing,
+  DatasetFileListingSchema,
+} from "../core/dataset-storage.ts";
+import {
   type Catalog,
   CatalogSchema,
   type Contact,
   ContactSchema,
-  type DatasetManifest,
-  DatasetManifestSchema,
   type GroupedSearchResponse,
   GroupedSearchResponseSchema,
   ProblemSchema,
@@ -72,9 +74,9 @@ export async function getCatalog(signal?: AbortSignal): Promise<Catalog> {
 
 export async function getDatasets(
   signal?: AbortSignal,
-): Promise<DatasetManifest> {
+): Promise<DatasetFileListing> {
   return v.parse(
-    DatasetManifestSchema,
+    DatasetFileListingSchema,
     await requestJson("/api/datasets", signal),
   );
 }

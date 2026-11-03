@@ -1,4 +1,6 @@
 import * as v from "valibot";
+import { datasetListingPath } from "../src/core/dataset-storage.ts";
+import { directoryArchiveFormat } from "../src/core/directory-archive.ts";
 import {
   type Declaration,
   declaredPlan,
@@ -50,8 +52,9 @@ export const uptimeChecks: readonly UptimeCheck[] = [
   {
     pronounceable_name: "Public Phonebook app data index",
     monitor_type: "keyword",
-    url: "https://www.dial.page/api/v1",
-    required_keyword: '"datasets"',
+    url: `https://www.dial.page${datasetListingPath}`,
+    // Only a listing that offers the archive the iPhone app reads carries its format.
+    required_keyword: directoryArchiveFormat,
     check_frequency: every3Minutes,
     email: true,
   },

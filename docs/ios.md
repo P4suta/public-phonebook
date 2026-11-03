@@ -21,14 +21,17 @@ The generator inspects all six actual Xcode configurations and rejects missing o
 The app keeps the whole national directory on the device.
 The first launch opens a setup flow that saves the directory and then explains caller identification, which the reader can turn on or postpone.
 The app adds nothing to the Contacts app, and deleting the app removes everything it saved.
-The app downloads `directory.tsv.br` from the `/api/v1/datasets` listing in one request and accepts it only when its length, SHA-256 digest, and snapshot header match the listing.
+The app reads `/api/datasets` and picks the one file whose `format` is `public-phonebook-directory/1`, and it skips entries in other formats unread.
+When the listing has no file in that format, the app asks the reader to update it.
+It downloads that `directory.tsv.br` in one request and accepts it only when its length, SHA-256 digest, and snapshot header match the listing.
 It decodes the Brotli stream with the system Compression framework and validates the signature, the header dictionaries, every row, the byte order of the rows, and the per-prefecture counts.
 It saves the rows in a new SQLite generation with a file of normalized names and a file of row categories, and activates the generation atomically.
 A failed or cancelled import keeps the existing generation, and the current and previous generations remain readable.
 The app saves over Wi-Fi and cellular networks, shows only the saved percentage, and updates about once a month.
 
-An update first looks for a snapshot delta when the discovery document links `datasetDeltas`.
-The app reads that listing only when it already saved a directory, and downloads only the delta that starts from the saved snapshot.
+An update first looks for a snapshot delta when the dataset listing links `datasetDeltas`.
+The app reads that listing only when it already saved a directory, and it reads only deltas whose `format` is `public-phonebook-directory-delta/1`.
+It downloads only the delta that starts from the saved snapshot.
 It checks the delta's listed length and SHA-256, then rebuilds the new archive in a temporary file.
 Copied rows come from the saved SQLite rows in archive order, and their dictionary indices pass through the delta's maps.
 The app hashes the rebuilt archive while writing it and requires the row count, length, and SHA-256 in the delta header.
@@ -45,7 +48,7 @@ Its label is `住所などを見る` when the facility has an address and `く�
 VoiceOver reads the facility name before that label.
 The about screens, privacy notes, data sources, and licenses are part of the app, and only facility, map, and source pages open in the browser after a confirmation.
 
-The actual Hono handlers produce the shared provider corpus with the discovery document, the dataset listing, and the archive.
+The actual Hono handlers produce the shared provider corpus with the dataset listing and the archive.
 The corpus also holds the fixture's updated revision with its delta listing, its delta from the baseline, and its complete archive.
 Swift tests import that corpus through the real synchronization path.
 They rebuild the updated archive from the saved baseline and compare it byte for byte with the archive the provider wrote.

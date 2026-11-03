@@ -40,13 +40,12 @@ public actor SyncEngine {
     -> SnapshotManifest
   {
     trace.record(TraceEvent(phase: .discovery, outcome: .started))
-    let discovery = try await api.discovery()
-    let snapshot = discovery.meta.snapshot
+    let listing = try await api.datasets()
+    let archive = listing.archive
+    let snapshot = archive.snapshot
     trace.record(TraceEvent(phase: .discovery, outcome: .completed, snapshot: snapshot))
-    let archive = try await api.directoryArchive(link: discovery.data.datasets)
-    guard archive.snapshot == snapshot else { throw ImportError.invalidSnapshot }
     await progress(0)
-    if let link = discovery.data.datasetDeltas,
+    if let link = listing.deltas,
       try await stageDelta(link: link, archive: archive, progress: progress)
     {
       return try await activate(snapshot: snapshot, progress: progress)

@@ -2,19 +2,17 @@ import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
 import * as v from "valibot";
 import {
-  type DirectoryDiscovery,
-  DirectoryDiscoverySchema,
-} from "../core/api-contract.ts";
-import {
   admitsContentCoding,
   matchesEntityTag,
 } from "../core/content-negotiation.ts";
 import {
+  datasetFileListing,
+  datasetListingPath,
+  deltaListingPath,
   directoryDeltaListing,
   manifestObjectKey,
   type PreparedDatasetManifest,
   PreparedDatasetManifestSchema,
-  publicDatasetManifest,
   searchIndexLocation,
   searchIndexObjectKey,
 } from "../core/dataset-storage.ts";
@@ -27,7 +25,6 @@ import {
   DigestSchema,
   type Problem,
   RowLocationSchema,
-  VersionedDatasetManifestSchema,
 } from "../core/models.ts";
 import {
   type RowLocatorDecision,
@@ -69,13 +66,8 @@ const rowPosition = /^(?:0|[1-9][0-9]*)$/u;
 // D1 numbers rows from 1 in search index order, so a row position maps to the next rowid.
 const rowidOffset = 1;
 const ClientEncodingSchema = v.object({ clientAcceptEncoding: v.string() });
-const versionedBase = "/api/v1";
 const searchPaths = new Set(["/api/contacts", "/api/contact-groups"]);
-const pinnedPaths = new Set([
-  versionedBase,
-  `${versionedBase}/datasets`,
-  `${versionedBase}/dataset-deltas`,
-]);
+const pinnedPaths = new Set([datasetListingPath, deltaListingPath]);
 const sameOriginRequest = "same-origin";
 
 export type DirectoryApiBindings = Pick<
@@ -187,17 +179,12 @@ const rowFailureStatus = {
   FailureStatus
 >;
 
-function versioned(path: string): boolean {
-  return path === versionedBase || path.startsWith(`${versionedBase}/`);
-}
-
-/** Open data is every versioned route, the dataset listing and files, and the delta listing; the site owns every other `/api` route. */
+/** Open data is the dataset listing and files and the delta listing; the site owns every other `/api` route. */
 export function openDataPath(path: string): boolean {
   return (
-    versioned(path) ||
-    path === "/api/datasets" ||
-    path.startsWith("/api/datasets/") ||
-    path === "/api/dataset-deltas"
+    path === datasetListingPath ||
+    path.startsWith(`${datasetListingPath}/`) ||
+    path === deltaListingPath
   );
 }
 
@@ -211,29 +198,12 @@ function admitsParameter(
     : pinnedPaths.has(path) && name === "snapshot";
 }
 
-function pinnedDiscovery(
-  catalog: Pick<Catalog, "snapshot" | "generatedAt">,
-): DirectoryDiscovery {
-  const pin = (resource: string): string =>
-    `${versionedBase}/${resource}?snapshot=${catalog.snapshot}`;
-  return v.parse(DirectoryDiscoverySchema, {
-    name: "Public Phonebook API",
-    version: "1",
-    snapshot: catalog.snapshot,
-    generatedAt: catalog.generatedAt,
-    datasets: pin("datasets"),
-    datasetDeltas: pin("dataset-deltas"),
-  });
-}
-
 /** Builds a router with the request checks that both route families share. */
 function directoryRouter(family: RouteFamily): Hono<ApiEnvironment> {
   const router = new Hono<ApiEnvironment>();
   router.use("*", async (c, next) => {
     // Hono merges the context response's headers into a raw response only when that context response already exists.
     const { headers } = c.res;
-    if (versioned(new URL(c.req.url).pathname))
-      headers.set("X-Directory-API-Version", "1");
     headers.set("X-Content-Type-Options", "nosniff");
     headers.set("Referrer-Policy", "no-referrer");
     headers.set(
@@ -253,7 +223,6 @@ function directoryRouter(family: RouteFamily): Hono<ApiEnvironment> {
           "X-Dataset-Snapshot",
           "X-Request-Id",
           "Retry-After",
-          "X-Directory-API-Version",
         ],
         maxAge: corsPreflightMaxAgeSeconds,
       }),
@@ -332,70 +301,53 @@ function openDataApi(): Hono<ApiEnvironment> {
     await next();
   });
 
-  router.get(versionedBase, async (c) =>
-    c.json(pinnedDiscovery(await readCatalog(directoryDatabase(c.env.DB)))),
-  );
+  router.get(datasetListingPath, async (c) => {
+    const catalog = await readCatalog(directoryDatabase(c.env.DB));
+    const prepared = await readPreparedManifest(c, catalog);
+    if (!prepared) return problem(c, "unavailable", httpStatus.unavailable);
+    c.header("X-Dataset-Snapshot", catalog.snapshot);
+    c.header("Cache-Control", mutableCache);
+    return c.json(datasetFileListing(prepared));
+  });
 
-  for (const base of ["/api", versionedBase] as const) {
-    router.get(`${base}/datasets`, async (c) => {
-      const catalog = await readCatalog(directoryDatabase(c.env.DB));
-      const prepared = await readPreparedManifest(c, catalog);
-      if (!prepared) return problem(c, "unavailable", httpStatus.unavailable);
-      const parsed = publicDatasetManifest(prepared);
-      c.header("X-Dataset-Snapshot", catalog.snapshot);
-      c.header("Cache-Control", mutableCache);
-      return c.json(
-        base === versionedBase
-          ? v.parse(VersionedDatasetManifestSchema, {
-              ...parsed,
-              files: parsed.files.map((file) => ({
-                ...file,
-                url: file.url.replace(/^\/api\//u, `${versionedBase}/`),
-              })),
-            })
-          : parsed,
-      );
-    });
+  router.get(deltaListingPath, async (c) => {
+    const catalog = await readCatalog(directoryDatabase(c.env.DB));
+    const prepared = await readPreparedManifest(c, catalog);
+    if (!prepared) return problem(c, "unavailable", httpStatus.unavailable);
+    c.header("X-Dataset-Snapshot", catalog.snapshot);
+    c.header("Cache-Control", mutableCache);
+    return c.json(directoryDeltaListing(prepared));
+  });
 
-    router.get(`${base}/dataset-deltas`, async (c) => {
-      const catalog = await readCatalog(directoryDatabase(c.env.DB));
-      const prepared = await readPreparedManifest(c, catalog);
-      if (!prepared) return problem(c, "unavailable", httpStatus.unavailable);
-      c.header("X-Dataset-Snapshot", catalog.snapshot);
-      c.header("Cache-Control", mutableCache);
-      return c.json(directoryDeltaListing(prepared, base));
+  router.get(`${datasetListingPath}/:snapshot/:digest/:file`, async (c) => {
+    const snapshot = c.req.param("snapshot");
+    const digest = c.req.param("digest");
+    const name = c.req.param("file");
+    const complete = v.is(DatasetFileNameSchema, name);
+    const delta = directoryDeltaFilePattern.test(name);
+    if (
+      !v.safeParse(DigestSchema, snapshot).success ||
+      !v.safeParse(DigestSchema, digest).success ||
+      (!complete && !delta)
+    )
+      return problem(c, "not_found", httpStatus.notFound);
+    const object = await c.env.DATASETS.get(`${snapshot}/${digest}/${name}`);
+    if (!object) return problem(c, "not_found", httpStatus.notFound);
+    const headers = new Headers({
+      "Content-Type":
+        delta || name === "directory.tsv.br"
+          ? "application/octet-stream"
+          : "application/gzip",
+      "Content-Length": String(object.size),
+      ETag: object.httpEtag,
+      "Cache-Control": immutableCache,
+      "Content-Disposition": `attachment; filename="${name}"`,
+      "X-Dataset-Snapshot": snapshot,
     });
-
-    router.get(`${base}/datasets/:snapshot/:digest/:file`, async (c) => {
-      const snapshot = c.req.param("snapshot");
-      const digest = c.req.param("digest");
-      const name = c.req.param("file");
-      const complete = v.is(DatasetFileNameSchema, name);
-      const delta = directoryDeltaFilePattern.test(name);
-      if (
-        !v.safeParse(DigestSchema, snapshot).success ||
-        !v.safeParse(DigestSchema, digest).success ||
-        (!complete && !delta)
-      )
-        return problem(c, "not_found", httpStatus.notFound);
-      const object = await c.env.DATASETS.get(`${snapshot}/${digest}/${name}`);
-      if (!object) return problem(c, "not_found", httpStatus.notFound);
-      const headers = new Headers({
-        "Content-Type":
-          delta || name === "directory.tsv.br"
-            ? "application/octet-stream"
-            : "application/gzip",
-        "Content-Length": String(object.size),
-        ETag: object.httpEtag,
-        "Cache-Control": immutableCache,
-        "Content-Disposition": `attachment; filename="${name}"`,
-        "X-Dataset-Snapshot": snapshot,
-      });
-      if (c.req.header("If-None-Match") === object.httpEtag)
-        return new Response(null, { status: httpStatus.notModified, headers });
-      return new Response(object.body, { headers });
-    });
-  }
+    if (c.req.header("If-None-Match") === object.httpEtag)
+      return new Response(null, { status: httpStatus.notModified, headers });
+    return new Response(object.body, { headers });
+  });
   return router;
 }
 
