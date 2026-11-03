@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { lock } from "proper-lockfile";
 import * as v from "valibot";
+import { probeHold } from "../src/core/publication-policy.ts";
 
 export const probeWindowMs = 10_000;
 export const probeLimit = 40;
@@ -23,10 +24,11 @@ export function probeAdmission(
   const recent = sent.filter((time) => time > now - probeWindowMs);
   if (recent.length + 1 < probeLimit)
     return { admitted: true, recent: [...recent, now], waitMs: 0 };
+  // A time from a faster clock counts against the window but can't hold a request past it.
   return {
     admitted: false,
     recent,
-    waitMs: Math.min(...recent) + probeWindowMs - now,
+    waitMs: probeHold(Math.min(...recent, now), now, probeWindowMs),
   };
 }
 

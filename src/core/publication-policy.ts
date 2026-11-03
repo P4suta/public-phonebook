@@ -103,6 +103,20 @@ export function retainsCoverage(candidate: number, previous: number): boolean {
   return candidate * coverageScale >= previous * coverageRetained;
 }
 
+/** How long a refused public check request waits for the oldest request in its window to age out; the checks' timeouts rely on this bound. */
+export function probeHold(
+  oldestMs: number,
+  nowMs: number,
+  windowMs: number,
+): number {
+  //@ verify
+  //@ requires windowMs > 0 && windowMs <= 3600000
+  //@ requires nowMs >= 0 && nowMs <= 9007199254740991
+  //@ requires oldestMs > nowMs - windowMs && oldestMs <= nowMs
+  //@ ensures \result > 0 && \result <= windowMs
+  return oldestMs + windowMs - nowMs;
+}
+
 export type LeaseAdmission =
   | "acquire"
   | "renew"

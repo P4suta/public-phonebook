@@ -6,7 +6,7 @@ import {
   rehearsalRequested,
 } from "../../tools/public-request.ts";
 
-// The budget holds a request for up to one probe window, and a page settles after its document, its scripts, and its data.
+// `probeHold` proves that the budget holds a request for at most one probe window, and a page settles after its document, its scripts, and its data.
 const settleTimeoutMs = 3 * probeWindowMs;
 const testTimeoutMs = 6 * settleTimeoutMs;
 const origin = process.env.DIAL_PUBLIC_ORIGIN ?? "";

@@ -9,8 +9,8 @@ import { fileDigest } from "./snapshot.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 40;
-const declaredPostconditionCount = 83;
+const verifiedUnitCount = 42;
+const declaredPostconditionCount = 84;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -40,6 +40,7 @@ const expected = [
   "withdrawalDecision",
   "recoveryDecision",
   "leaseAdmission",
+  "probeHold",
   "evidenceAdmission",
   "canRetireResource",
   "retainsCoverage",
@@ -596,6 +597,11 @@ async function main(): Promise<void> {
         name: "lease-expiry",
         from: "if (serverTimeMs >= expiresAtMs) return",
         to: "if (serverTimeMs > expiresAtMs) return",
+      },
+      {
+        name: "probe-hold",
+        from: "return oldestMs + windowMs - nowMs;",
+        to: "return oldestMs + windowMs - nowMs + 1;",
       },
       {
         name: "evidence-signer",
