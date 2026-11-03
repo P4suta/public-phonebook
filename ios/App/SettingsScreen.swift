@@ -9,30 +9,18 @@ struct SettingsScreen: View {
     ScrollView {
       VStack(alignment: .leading, spacing: 0) {
         VStack(alignment: .leading, spacing: 12) {
-          Text("全国の電話番号").font(.headline).accessibilityAddTraits(.isHeader)
+          Text("アプリのデータ").font(.headline).accessibilityAddTraits(.isHeader)
           if let manifest = model.manifest {
-            Text("保存した日：\(manifest.updatedAt.formatted(date: .long, time: .omitted))")
+            Text("受け取った日：\(manifest.updatedAt.formatted(date: .long, time: .omitted))")
               .font(.callout).accessibilityIdentifier("saved-date")
           } else {
-            Text("まだ保存していません。").font(.callout).accessibilityIdentifier("saved-date")
+            Text("まだ受け取っていません。").font(.callout).accessibilityIdentifier("saved-date")
           }
           if model.progress != nil {
-            SaveProgress(percent: model.percent)
-            Button {
-              model.cancel()
-            } label: {
-              IconLabel(icon: "x", text: "保存をやめる")
-            }.buttonStyle(MonoButtonStyle())
-          } else {
-            Button {
-              model.update()
-            } label: {
-              IconLabel(icon: "download", text: model.manifest == nil ? "今すぐ保存する" : "今すぐ更新する")
-            }
-            .buttonStyle(MonoButtonStyle(prominent: true))
-            .accessibilityIdentifier("update-now")
-            Text("月に1回くらい、自動で新しくします。").font(.footnote)
+            SaveProgress(percent: model.percent, remaining: model.remainingSeconds)
           }
+          Text("新しいデータは、月に1回くらい自動で受け取ります。").font(.footnote)
+            .accessibilityIdentifier("automatic-update")
         }.padding(.vertical, 24)
         Divider().overlay(.black)
         VStack(alignment: .leading, spacing: 12) {
