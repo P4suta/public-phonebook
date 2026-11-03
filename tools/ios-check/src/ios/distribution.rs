@@ -19,6 +19,16 @@ const STORE_TEXT_LIMITS: [(&str, usize); 6] = [
     ("reviewNotes", 4000),
 ];
 
+/// Swift Build compiles every Swift package with its Debug configuration when the project configuration's name contains one of these words in any case.
+/// `packageConfigurationOverride` in swift-build's `BuildParameters.swift` holds that rule.
+const PACKAGE_DEBUG_WORDS: [&str; 2] = ["debug", "development"];
+
+/// Whether Swift Build compiles the Swift packages of configuration `name` with their Debug configuration.
+fn packages_build_debug(name: &str) -> bool {
+    let name = name.to_lowercase();
+    PACKAGE_DEBUG_WORDS.iter().any(|word| name.contains(word))
+}
+
 #[derive(Clone, Copy)]
 enum Environment {
     Development,
@@ -126,12 +136,17 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
     }
     for (config, environment, debug) in [
         ("Debug", Environment::Development, true),
-        ("DevelopmentRelease", Environment::Development, false),
+        ("DevRelease", Environment::Development, false),
         ("VerificationDebug", Environment::Verification, true),
         ("VerificationRelease", Environment::Verification, false),
         ("ProductionDebug", Environment::Production, true),
         ("Release", Environment::Production, false),
     ] {
+        ensure!(
+            packages_build_debug(config) == debug,
+            "{config}: Swift Build would compile its Swift packages with their {} configuration",
+            if debug { "Release" } else { "Debug" }
+        );
         let output = logged(
             root,
             &format!("configuration-{config}"),
@@ -514,6 +529,22 @@ mod tests {
             .get_args()
             .map(|argument| argument.to_string_lossy().into_owned())
             .collect()
+    }
+
+    #[test]
+    fn package_optimization_follows_swift_build_configuration_names() {
+        for debug in [
+            "Debug",
+            "VerificationDebug",
+            "ProductionDebug",
+            "DevelopmentRelease",
+        ] {
+            assert!(packages_build_debug(debug), "{debug}");
+        }
+        for release in ["Release", "DevRelease", "VerificationRelease"] {
+            assert!(!packages_build_debug(release), "{release}");
+        }
+        assert!(packages_build_debug("QADEBUGRelease"));
     }
 
     #[test]

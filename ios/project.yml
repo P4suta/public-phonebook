@@ -6,9 +6,10 @@ options:
 packages:
   Phonebook:
     path: .
+# Swift Build compiles the Swift packages in Debug when a configuration name contains "debug" or "development" in any case.
 configs:
   Debug: debug
-  DevelopmentRelease: release
+  DevRelease: release
   VerificationDebug: debug
   VerificationRelease: release
   ProductionDebug: debug
@@ -29,7 +30,7 @@ settings:
     GCC_TREAT_WARNINGS_AS_ERRORS: YES
 configFiles:
   Debug: Config/Development.xcconfig
-  DevelopmentRelease: Config/Development.xcconfig
+  DevRelease: Config/Development.xcconfig
   VerificationDebug: Config/Verification.xcconfig
   VerificationRelease: Config/Verification.xcconfig
   ProductionDebug: Config/Production.xcconfig
@@ -148,7 +149,7 @@ schemes:
     run:
       config: Debug
     archive:
-      config: DevelopmentRelease
+      config: DevRelease
   PublicPhonebookVerification:
     build:
       targets:
