@@ -102,7 +102,46 @@ fn validate(settings: &TargetSettings, environment: Environment, debug: bool) ->
         conditions.split_whitespace().any(|value| value == "DEBUG") == debug,
         "Incorrect optimization environment"
     );
+    ensure!(
+        conditions
+            .split_whitespace()
+            .any(|value| value == super::store_build::CONDITION)
+            == matches!(environment, Environment::Verification),
+        "{}: {} must appear in the verification configurations and nowhere else",
+        settings.target,
+        super::store_build::CONDITION
+    );
     Ok(())
+}
+
+/// Adds the verification tools condition where it is absent and removes it where it is present.
+fn flip_verification_tools(settings: &TargetSettings) -> TargetSettings {
+    let conditions = settings
+        .build_settings
+        .get("SWIFT_ACTIVE_COMPILATION_CONDITIONS")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let present = conditions
+        .split_whitespace()
+        .any(|value| value == super::store_build::CONDITION);
+    let flipped = if present {
+        conditions
+            .split_whitespace()
+            .filter(|value| *value != super::store_build::CONDITION)
+            .collect::<Vec<_>>()
+            .join(" ")
+    } else {
+        format!("{conditions} {}", super::store_build::CONDITION)
+    };
+    let mut build_settings = settings.build_settings.clone();
+    build_settings.insert(
+        "SWIFT_ACTIVE_COMPILATION_CONDITIONS".to_owned(),
+        json!(flipped),
+    );
+    TargetSettings {
+        target: settings.target.clone(),
+        build_settings,
+    }
 }
 
 pub(super) fn configurations(root: &Path) -> Result<()> {
@@ -168,6 +207,11 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
             if !visited.insert(target.target.clone()) {
                 continue;
             }
+            ensure!(
+                validate(&flip_verification_tools(&target), environment, debug).is_err(),
+                "Configuration negative control was accepted: {}",
+                super::store_build::CONDITION
+            );
             for key in [
                 "PHONEBOOK_BUNDLE_ID",
                 "PHONEBOOK_API_ORIGIN",
@@ -200,7 +244,7 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
         }
     }
     println!(
-        "PASS: all six build configurations, both native targets each, and 144 rejected environment defects"
+        "PASS: all six build configurations, both native targets each, and 156 rejected environment defects"
     );
     Ok(())
 }

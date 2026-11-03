@@ -82,6 +82,26 @@ The detail screen shows the address as selectable text, and an outline `地図�
 VoiceOver reads that button as the facility name followed by `の地図を見る`, and a facility without an address has no map button.
 Settings holds the caller section, which shows a filled check circle with `許可しています` or an empty circle with `まだ許可していません`.
 The About screen shows the date that the app saved its data.
+
+The VerificationDebug and VerificationRelease configurations define the `PHONEBOOK_VERIFICATION_TOOLS` compile condition, and the other four configurations don't.
+Under that condition, the app menu adds `QA用の確認`, a screen for one test telephone number and its label.
+The [Figma QA section](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=563-2290) holds its design.
+The screen reads the number in any spelling that search accepts, and the label starts as `確認用の番号`.
+The app saves both in `verification-number.json` in the App Group container, excludes the file from backups, and protects it until the first unlock.
+The app writes neither value to a log or a request.
+A search that matches the label or the complete number shows the entry under a `QA用` heading with the standard call button.
+That button opens the iOS call confirmation, so the owner can check calling with their own number instead of a facility's.
+The Call Directory extension reads the file and merges the entry into the national caller numbers in ascending order while it loads them.
+When the national data lists the same number, the test label replaces the national label, because CallKit takes each number once.
+`PhonebookCore.CallerMerge` holds that decision, and `verification/ios/CallerMerge.lean` proves the merge.
+Saving or clearing the entry reloads the extension, and the screen reports the state that iOS gave.
+The screen also shows the saved data date, the last automatic check, the next due time from `RefreshPolicy`, and any problem.
+Its `いま受け取る` button runs the monthly update path once, or the first download before any data exists.
+The gate in `ios-check` scans every file of the unsigned Release app and extension for six markers of the QA code and fails on any of them.
+The markers are the screen's type name, the file name, an accessibility identifier, and three phrases of its copy.
+The gate also requires all six markers in the VerificationDebug build, so the scan demonstrably sees them.
+`mise x -- cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- store-build-control` builds Release with the condition defined.
+It passes when the scan rejects that build with all six markers.
 The about screens, privacy notes, data sources, and licenses are part of the app, and only facility, map, and source pages open in the browser after a confirmation.
 
 The actual Hono handlers produce the shared provider corpus with the dataset listing and the archive.

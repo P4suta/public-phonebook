@@ -14,13 +14,20 @@ final class CallDirectoryHandler: CXCallDirectoryProvider {
     do {
       if context.isIncremental { context.removeAllIdentificationEntries() }
       let directory = try Self.directory()
-      guard let active = try CallerFile.active(in: directory) else {
+      let active = try CallerFile.active(in: directory)
+      #if PHONEBOOK_VERIFICATION_TOOLS
+        let extra = VerificationNumberStore.load()
+      #else
+        let extra: CallerEntry? = nil
+      #endif
+      guard active != nil || extra != nil else {
         // Turning the extension on before the first save succeeds with no entries.
         logger.notice("caller.load entries=0 reason=unsaved")
         context.completeRequest()
         return
       }
-      let reader = try CallerFile.Reader(url: active.file)
+      let reader = try CallerFile.Merged(
+        national: active.map { try CallerFile.Reader(url: $0.file) }, extra: extra)
       var entries = 0
       var peak = Self.footprint()
       while true {
@@ -41,10 +48,10 @@ final class CallDirectoryHandler: CXCallDirectoryProvider {
       logger.notice(
         "caller.load entries=\(entries, privacy: .public) peakFootprintKB=\(max(peak, Self.footprint()) / 1024, privacy: .public) result=complete"
       )
-      let generation = active.generation
+      let generation = active?.generation
       context.completeRequest { expired in
         // The app reads this record and skips asking iOS to load the same generation again.
-        guard !expired else { return }
+        guard !expired, let generation else { return }
         try? CallerFile.recordLoaded(generation, in: directory)
       }
     } catch {

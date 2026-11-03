@@ -27,6 +27,12 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
     GCC_TREAT_WARNINGS_AS_ERRORS: YES
+  configs:
+    # The QA build's verification screen compiles under this condition, which no other configuration sets.
+    VerificationDebug:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG PHONEBOOK_VERIFICATION_TOOLS
+    VerificationRelease:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: PHONEBOOK_VERIFICATION_TOOLS
 configFiles:
   Debug: Config/Development.xcconfig
   DevelopmentRelease: Config/Development.xcconfig
@@ -106,6 +112,7 @@ targets:
     templates: [SharedExtension]
     sources:
       - CallDirectory
+      - Native/VerificationNumberStore.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_CALL_DIRECTORY)

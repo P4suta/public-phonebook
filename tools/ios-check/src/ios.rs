@@ -20,6 +20,7 @@ mod proof;
 mod receipts;
 mod screenshots;
 mod signing;
+mod store_build;
 mod testflight;
 
 use build_number::BuildNumber;
@@ -56,7 +57,7 @@ const RUNTIME: &str = "com.apple.CoreSimulator.SimRuntime.iOS-27-0";
 const DEVICE_TYPE: &str = "com.apple.CoreSimulator.SimDeviceType.iPhone-17";
 const DEVICE_NAME: &str = "Public Phonebook Checks";
 const LIVE_UI_TEST: &str = "testLivePublicDirectorySearchAndSource";
-const UI_TESTS: [&str; 16] = [
+const UI_TESTS: [&str; 17] = [
     "testOnboardingSavesTheDirectoryBeforeSearch",
     "testSearchGroupsResultsAndShowsMore",
     "testTelephoneSearchFindsEveryRecordForTheNumber",
@@ -64,6 +65,7 @@ const UI_TESTS: [&str; 16] = [
     "testContactDetailShowsRegionSourceAndExternalLinkConfirmation",
     "testPhoneNumberIsTextOverTheCallButton",
     "testCallerPromptAppearsOnlyWhileCallerNamesAreOff",
+    "testVerificationNumberAppearsInSearchAndClears",
     "testPortraitLandscapeRoundTrip",
     "testBackgroundForegroundPreservesSearchAndDetail",
     "testFirstDownloadWaitsForTheStartButton",
@@ -74,7 +76,7 @@ const UI_TESTS: [&str; 16] = [
     "testLandscapeLargeTextSettings",
     "testAboutStaysInTheAppAndLicenseIsReadable",
 ];
-const REQUIRED_TESTS: [&str; 52] = [
+const REQUIRED_TESTS: [&str; 56] = [
     "currentProviderArchiveImportsTheNationalDirectory",
     "providerArchiveSavesTheExpectedGenerationContent",
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
@@ -127,6 +129,10 @@ const REQUIRED_TESTS: [&str; 52] = [
     "aChangedSnapshotOrDigestDiscardsTheKeptBytes",
     "aWrongContentRangeOrAnUnsatisfiableRangeKeepsNoBadBytes",
     "synchronizationResumesTheBytesOfAFailedAttempt",
+    "mergedCallersMatchTheLeanModelOnSeededInputs",
+    "aSharedNumberTakesTheExtraLabelOnce",
+    "theExtraEntryJoinsBeforeAfterOrWithoutTheNationalNumbers",
+    "callerEntriesAcceptSearchSpellingsAndRefuseOthers",
 ];
 const SCOPE: [&str; 19] = [
     "ios",
@@ -249,6 +255,8 @@ pub enum Action {
         output: Option<PathBuf>,
     },
     Testflight,
+    /// Builds Release with the verification tools condition and requires the store-build step to reject it.
+    StoreBuildControl,
     Screenshots {
         #[arg(long)]
         origin: String,
@@ -1039,6 +1047,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         ),
         Action::Screenshots { origin } => screenshots::capture(root, &origin),
         Action::Generate => Ok(()),
+        Action::StoreBuildControl => store_build::control(root),
         Action::UiTest { tests, live } => {
             ui_test(root, &tests, live)?;
             Ok(())
@@ -1190,6 +1199,15 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "build",
                 ]),
             )?;
+            store_build::require_absent(
+                &root.join("ios/DerivedData/Build/Products/Release-iphoneos/PublicPhonebook.app"),
+            )?;
+            store_build::require_every_marker(
+                &root.join(
+                    "ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app",
+                ),
+                "VerificationDebug",
+            )?;
             let results = ui_test(root, &[], false)?;
             require_current_sources(root, &sources)?;
             fs::write(
@@ -1204,6 +1222,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "source_sha256":source_records(&sources),
                     "swift_language_mode":"6", "deployment_target":"iOS 18.0",
                     "device_build":"Release, unsigned",
+                    "store_build":format!("Release app and extension contain none of the {} verification tools markers, and VerificationDebug contains all of them", store_build::MARKERS.len()),
                     "simulator_runtime":RUNTIME, "simulator_device":DEVICE_TYPE,
                     "device_validation":"not run", "ios_18_runtime_validation":"not run"
                 }))?,
