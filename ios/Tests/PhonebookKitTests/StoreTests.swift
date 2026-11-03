@@ -70,6 +70,31 @@ import Testing
     try await store.contacts(generation: active.generation, ids: [1]).first?.name == "保存済み")
 }
 
+/// A process that stops during an import keeps the active generation, and the next save removes the unfinished files.
+@Test func anInterruptedImportKeepsTheActiveGenerationUntilTheNextSaveRemovesIt() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let active = try await publish([ArchiveLine(name: "保存済み")], to: try SnapshotStore(root: root))
+  let unfinished = UUID()
+  var interrupted: SnapshotStore? = try SnapshotStore(root: root, makeGeneration: { unfinished })
+  let header = try sampleHeader(snapshot: "b", counts: ["13": 2])
+  try await interrupted?.begin(header: header)
+  try await interrupted?.append(records([ArchiveLine()], header: header))
+  // Releasing the store closes its files without the cleanup in `abort`, as an ended process does.
+  interrupted = nil
+  func files(of generation: UUID) throws -> [String] {
+    try FileManager.default.contentsOfDirectory(atPath: root.path)
+      .filter { $0.hasPrefix(generation.uuidString) }
+  }
+  #expect(try !files(of: unfinished).isEmpty)
+  let store = try SnapshotStore(root: root)
+  #expect(try await store.manifest()?.generation == active.generation)
+  #expect(try await store.contacts(generation: active.generation, ids: [1]).first?.name == "保存済み")
+  let next = try await publish([ArchiveLine(name: "次の施設")], to: store, snapshot: "c")
+  #expect(next.previous == active.generation)
+  #expect(try files(of: unfinished).isEmpty)
+}
+
 @Test func earlierStorageFormatsAreTreatedAsUnsaved() async throws {
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }

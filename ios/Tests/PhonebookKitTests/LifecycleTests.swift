@@ -173,9 +173,32 @@ final class RecordingTrace: TraceSink {
   let id = UUID()
   let event = TraceEvent(
     operation: id, phase: .activation, outcome: .completed,
-    snapshot: try sampleSnapshot(), records: 47)
+    snapshot: try sampleSnapshot(), records: 47, milliseconds: 12)
   let data = try JSONEncoder().encode(event)
   let fields = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
-  #expect(Set(fields.keys) == ["operation", "phase", "outcome", "snapshot", "records"])
+  #expect(
+    Set(fields.keys) == ["operation", "phase", "outcome", "snapshot", "records", "milliseconds"])
   #expect(try JSONDecoder().decode(TraceEvent.self, from: data) == event)
+  let elapsed = TraceEvent(phase: .parse, snapshot: try sampleSnapshot(), elapsed: .seconds(1.2345))
+  #expect(elapsed.milliseconds == 1235)
+  #expect(elapsed.outcome == .completed)
+}
+
+/// Every part of a complete import reports its duration once, so a trace can tell the parts apart.
+@Test(.timeLimit(.minutes(1))) func importTracesTheDurationOfEachPhase() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let trace = RecordingTrace()
+  let store = try SnapshotStore(root: root, trace: trace)
+  let lines = [ArchiveLine(name: "B", phones: "03-0000-0002"), ArchiveLine(name: "A")]
+  let url = try writeArchive(
+    archiveText(header: sampleHeaderObject(counts: ["13": 2]), lines: lines), in: root)
+  _ = try await DirectoryArchiveReader(url: url, trace: trace).read(
+    header: { try await store.begin(header: $0) },
+    records: { batch, _ in try await store.append(batch) })
+  _ = try await store.publish(at: Date())
+  let timed = trace.events.withLock { $0 }.filter { $0.milliseconds != nil }
+  #expect(
+    timed.map(\.phase) == [.decompress, .parse, .insert, .numbers, .callers, .commit, .fsync])
+  #expect(timed.allSatisfy { $0.outcome == .completed && $0.snapshot == (try? sampleSnapshot()) })
 }

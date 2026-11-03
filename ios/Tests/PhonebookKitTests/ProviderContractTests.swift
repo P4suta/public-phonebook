@@ -100,6 +100,99 @@ private func corpusServer(_ entries: [CorpusEntry], requests: RequestLog = Reque
   #expect(try callerEntries(rebuilt) == paged)
 }
 
+/// Digests every table, the schema, and every file of one saved generation in a fixed order.
+private func generationDigests(root: URL, generation: UUID) throws -> [String: String] {
+  func file(_ kind: String) throws -> String {
+    sha256Hex(try Data(contentsOf: root.appendingPathComponent(generation.uuidString + "." + kind)))
+  }
+  let database = try SQLiteDatabase(
+    url: root.appendingPathComponent(generation.uuidString + ".sqlite"), readOnly: true)
+  func table(_ sql: String, row: (OpaquePointer) throws -> [String?]) throws -> String {
+    let rows = try database.query(sql) { values in
+      try row(values).map { $0.map { "t" + $0 } ?? "n" }.joined(separator: "\u{1F}")
+    }
+    return "\(rows.count) " + sha256Hex(Data(rows.joined(separator: "\n").utf8))
+  }
+  let text = { (row: OpaquePointer, column: Int32) in try SQLiteDatabase.optionalText(row, column) }
+  let integer = { (row: OpaquePointer, column: Int32) in String(SQLiteDatabase.integer(row, column))
+  }
+  let stored = try database.query("SELECT value FROM meta WHERE key = 'header'") {
+    try SQLiteDatabase.text($0, 0, maximumBytes: 67_108_864)
+  }
+  let encoder = JSONEncoder()
+  encoder.outputFormatting = .sortedKeys
+  let header = try encoder.encode(
+    JSONDecoder().decode(ArchiveHeader.self, from: Data(try #require(stored.first).utf8)))
+  return [
+    "schema": try table("SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY name") {
+      [try text($0, 0), try text($0, 1), try text($0, 2), try text($0, 3)]
+    },
+    "meta": try table("SELECT key FROM meta ORDER BY key") { [try text($0, 0)] },
+    "header": sha256Hex(header),
+    "categories": try table("SELECT id, label FROM categories ORDER BY id") {
+      [integer($0, 0), try text($0, 1)]
+    },
+    "contacts": try table(
+      """
+      SELECT id, category, region, name, address, phones, website, provenance, origin, confirmation
+      FROM contacts ORDER BY id
+      """
+    ) { row in
+      [integer(row, 0), integer(row, 1)] + (try (2...6).map { try text(row, $0) })
+        + [integer(row, 7), try text(row, 8), try text(row, 9)]
+    },
+    "phones": try table("SELECT number, contact FROM phones ORDER BY number, contact") {
+      [integer($0, 0), integer($0, 1)]
+    },
+    "numbers": try table("SELECT number FROM numbers ORDER BY number") { [integer($0, 0)] },
+    "names": try file("names"),
+    "kinds": try file("kinds"),
+    "callers": try file("callers"),
+  ]
+}
+
+/// Pins the saved content of the provider fixture, so a faster import can't change what the app saves.
+@Test(.timeLimit(.minutes(1))) func providerArchiveSavesTheExpectedGenerationContent()
+  async throws
+{
+  let entries = try corpus("baseline")
+  let archive = try #require(entries.first { $0.path.hasSuffix("/directory.tsv.br") })
+  let server = try await corpusServer(entries)
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let store = try SnapshotStore(root: root.appendingPathComponent("store"))
+  let manifest = try await SyncEngine(api: APIClient(origin: server.origin), store: store)
+    .synchronize(progress: { _ in })
+  let decoded = try await decodedBrotli(archive.data, in: root)
+  let lines = decoded.split(separator: 0x0A, omittingEmptySubsequences: false).dropLast()
+  #expect(manifest.records == lines.count - 2)
+  var saved: [Data] = []
+  while saved.count < manifest.records {
+    saved += try await store.archiveRows(
+      generation: manifest.generation, from: saved.count,
+      count: min(SnapshotStore.archiveRowBatch, manifest.records - saved.count))
+  }
+  #expect(saved == lines.dropFirst(2).map { Data($0) })
+  let digests = try generationDigests(
+    root: root.appendingPathComponent("store"), generation: manifest.generation)
+  #expect(digests == expectedGenerationDigests)
+}
+
+/// The content that the provider fixture's baseline archive saves, as `generationDigests` reports it.
+/// Update these only with an intentional change to the corpus or to the saved format.
+private let expectedGenerationDigests = [
+  "schema": "5 01a5f3b9706aa8a5d5aa4b12e8222d7a59a0bcd19149f8cf951dd0699da2dad9",
+  "meta": "1 53aed5e998a4bec4d0ac7ae4c5171d419cb52f0f8cb8c34661ce6eaa2092bcaf",
+  "header": "04f50fccfb7c9362da5d7bfea84f241965f1ef165832a23767617f67d73a2dd0",
+  "categories": "65 27ffad285ef95cb156028fda743b9cd560948278c0cae43dc21578a7063f2e2d",
+  "contacts": "241 0a7235c1eabbff1475d3f258f733902fad8c1593b1daa4873157f0bf76f188b2",
+  "phones": "242 b68f529984c2d8a1f4f39943ce0d5aa9a7cf22369bb5f825c3637eb28c350f8d",
+  "numbers": "2 eca00b202bc735e58d1f0416753b9423c8ce0ba6532752036beaf042eff65c73",
+  "names": "e5b1be0beb6b351f1d186f61dd80bedd77ab5b3b3940e54c96f6ce00bddb163a",
+  "kinds": "fd516d49024e15e7e9e2af783a92190b843b3ae99ffede6b8d1e135edf080bc9",
+  "callers": "301abbefbacc926d3201512684af30534b99201f4f718068ed7db2fe0aa339ac",
+]
+
 private func callerEntries(_ url: URL) throws -> [IdentificationEntry] {
   let reader = try CallerFile.Reader(url: url)
   var entries: [IdentificationEntry] = []

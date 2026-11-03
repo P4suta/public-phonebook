@@ -6,8 +6,11 @@ enum BrotliError: Error, Equatable {
 }
 
 protocol ArchiveLines {
-  /// Calls `body` with each LF-terminated line and the encoded bytes read so far.
+  /// Calls `body` with each LF-terminated line and the encoded bytes read so far,
+  /// and returns the time spent reading and decoding the file outside `body`.
+  @discardableResult
   nonisolated(nonsending) func eachLine(_ body: (Data, Int) async throws -> Void) async throws
+    -> Duration
 }
 
 /// Reads an uncompressed archive, such as one that a delta rebuilt, with the limits of `BrotliLines`.
@@ -19,11 +22,17 @@ struct PlainLines: ArchiveLines {
 
   init(url: URL) throws { handle = try FileHandle(forReadingFrom: url) }
 
-  nonisolated(nonsending) func eachLine(_ body: (Data, Int) async throws -> Void) async throws {
+  @discardableResult
+  nonisolated(nonsending) func eachLine(_ body: (Data, Int) async throws -> Void) async throws
+    -> Duration
+  {
     defer { try? handle.close() }
     var line = Data()
     var consumed = 0
-    while let chunk = try handle.read(upToCount: Self.chunk), !chunk.isEmpty {
+    var reading = PhaseTimer()
+    while let chunk = try reading.measure({ try handle.read(upToCount: Self.chunk) }),
+      !chunk.isEmpty
+    {
       consumed += chunk.count
       var start = chunk.startIndex
       while let end = chunk[start...].firstIndex(of: Self.lineFeed) {
@@ -37,6 +46,7 @@ struct PlainLines: ArchiveLines {
       guard line.count <= BrotliLines.maximumLine else { throw BrotliError.lineTooLong }
     }
     guard line.isEmpty else { throw BrotliError.unterminated }
+    return reading.elapsed
   }
 }
 
@@ -48,9 +58,14 @@ struct BrotliLines: ArchiveLines {
 
   init(url: URL) throws { handle = try FileHandle(forReadingFrom: url) }
 
-  /// Calls `body` with each LF-terminated line and the compressed bytes read so far.
-  nonisolated(nonsending) func eachLine(_ body: (Data, Int) async throws -> Void) async throws {
+  /// Calls `body` with each LF-terminated line and the compressed bytes read so far,
+  /// and returns the time spent reading and decompressing outside `body`.
+  @discardableResult
+  nonisolated(nonsending) func eachLine(_ body: (Data, Int) async throws -> Void) async throws
+    -> Duration
+  {
     defer { try? handle.close() }
+    var decoding = PhaseTimer()
     let stream = UnsafeMutablePointer<compression_stream>.allocate(capacity: 1)
     defer { stream.deallocate() }
     guard
@@ -68,34 +83,36 @@ struct BrotliLines: ArchiveLines {
     var finished = false
     while !finished {
       if offset == input.count, !exhausted {
-        input = try handle.read(upToCount: Self.chunk) ?? Data()
+        input = try decoding.measure { try handle.read(upToCount: Self.chunk) } ?? Data()
         offset = 0
         exhausted = input.isEmpty
       }
-      let (consumed, status) = try input.withUnsafeBytes { raw -> (Int, compression_status) in
-        let base = raw.bindMemory(to: UInt8.self).baseAddress ?? UnsafePointer(output)
-        stream.pointee.src_ptr = base + offset
-        stream.pointee.src_size = input.count - offset
-        stream.pointee.dst_ptr = output
-        stream.pointee.dst_size = Self.chunk
-        let flags = exhausted ? Int32(COMPRESSION_STREAM_FINALIZE.rawValue) : 0
-        let status = compression_stream_process(stream, flags)
-        guard status != COMPRESSION_STATUS_ERROR else { throw BrotliError.corrupt }
-        return (input.count - offset - stream.pointee.src_size, status)
+      let (consumed, status) = try decoding.measure {
+        try input.withUnsafeBytes { raw -> (Int, compression_status) in
+          let base = raw.bindMemory(to: UInt8.self).baseAddress ?? UnsafePointer(output)
+          stream.pointee.src_ptr = base + offset
+          stream.pointee.src_size = input.count - offset
+          stream.pointee.dst_ptr = output
+          stream.pointee.dst_size = Self.chunk
+          let flags = exhausted ? Int32(COMPRESSION_STREAM_FINALIZE.rawValue) : 0
+          let status = compression_stream_process(stream, flags)
+          guard status != COMPRESSION_STATUS_ERROR else { throw BrotliError.corrupt }
+          return (input.count - offset - stream.pointee.src_size, status)
+        }
       }
       offset += consumed
       consumedBytes += consumed
       finished = status == COMPRESSION_STATUS_END
       let produced = Self.chunk - stream.pointee.dst_size
-      let bytes = UnsafeRawBufferPointer(start: output, count: produced)
       var start = 0
-      for (index, byte) in bytes.enumerated() where byte == 0x0A {
-        line.append(contentsOf: bytes[start..<index])
+      while start < produced, let found = memchr(output + start, 0x0A, produced - start) {
+        let end = UnsafeMutableRawPointer(output).distance(to: found)
+        line.append(output + start, count: end - start)
         try await body(line, consumedBytes)
         line.removeAll(keepingCapacity: true)
-        start = index + 1
+        start = end + 1
       }
-      line.append(contentsOf: bytes[start...])
+      line.append(output + start, count: produced - start)
       guard line.count <= Self.maximumLine else { throw BrotliError.lineTooLong }
       if !finished, exhausted, produced == 0 { throw BrotliError.truncated }
     }
@@ -103,5 +120,6 @@ struct BrotliLines: ArchiveLines {
       throw BrotliError.corrupt
     }
     guard line.isEmpty else { throw BrotliError.unterminated }
+    return decoding.elapsed
   }
 }

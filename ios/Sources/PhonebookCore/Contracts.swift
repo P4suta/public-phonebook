@@ -82,6 +82,8 @@ public enum PublicationDecision: Equatable, Sendable {
 
 public enum CallerLabel {
   public static func make(names: [String], category: String) -> String {
+    // Most numbers belong to one row, and a single name is its own unique list.
+    if names.count == 1 { return "\(names[0])（\(category)）" }
     let unique = Set(names).sorted()
     if unique.count == 1, let name = unique.first { return "\(name)（\(category)）" }
     return "公共施設（\(unique.count)つの名称で登録）"

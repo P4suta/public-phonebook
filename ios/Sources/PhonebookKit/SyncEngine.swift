@@ -55,8 +55,7 @@ public actor SyncEngine {
     }
     defer { try? FileManager.default.removeItem(at: file) }
     try await stage(
-      DirectoryArchiveReader(url: file), archive: archive, encodedBytes: archive.bytes,
-      progress: progress)
+      DirectoryArchiveReader(url: file, trace: trace), archive: archive, progress: progress)
     return try await activate(snapshot: snapshot, progress: progress)
   }
 
@@ -95,10 +94,9 @@ public actor SyncEngine {
         await progress(transfer + min(max(fraction, 0), 1) * (Self.downloadShare - transfer))
       }
       guard admission == .apply else { throw DeltaRejection(admission: admission) }
-      let bytes = try rebuilt.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
       try await stage(
-        DirectoryArchiveReader(url: rebuilt, encoding: .plain), archive: archive,
-        encodedBytes: bytes, progress: progress)
+        DirectoryArchiveReader(url: rebuilt, encoding: .plain, trace: trace), archive: archive,
+        progress: progress)
       trace.record(TraceEvent(phase: .delta, outcome: .completed, snapshot: archive.snapshot))
       return true
     } catch {
@@ -109,24 +107,38 @@ public actor SyncEngine {
   }
 
   /// Validates an archive into a new generation, and removes that generation when the archive fails.
+  /// The store saves one batch while the reader parses the next, and saves the batches in archive order.
+  /// The saved share of the progress follows the rows saved out of the archive's contact count.
   private func stage(
-    _ reader: DirectoryArchiveReader, archive: DatasetArchive, encodedBytes: Int,
+    _ reader: DirectoryArchiveReader, archive: DatasetArchive,
     progress: @escaping @Sendable (Double) async -> Void
   ) async throws {
+    var saved = 0
+    func report(_ rows: Int) async {
+      saved += rows
+      let fraction = min(Double(saved) / Double(max(archive.contacts, 1)), 1)
+      await progress(Self.downloadShare + fraction * Self.saveShare)
+    }
     do {
-      _ = try await reader.read(
-        header: { header in
-          guard header.snapshot == archive.snapshot, header.contacts == archive.contacts else {
-            throw ImportError.invalidSnapshot
-          }
-          try await store.begin(header: header, origin: api.origin)
-        },
-        records: { records, consumed in
-          try Task.checkCancellation()
-          try await store.append(records)
-          let read = Double(min(consumed, encodedBytes)) / Double(max(encodedBytes, 1))
-          await progress(Self.downloadShare + read * Self.saveShare)
-        })
+      try await withThrowingTaskGroup(of: Int.self) { saving in
+        _ = try await reader.read(
+          header: { header in
+            guard header.snapshot == archive.snapshot, header.contacts == archive.contacts else {
+              throw ImportError.invalidSnapshot
+            }
+            try await store.begin(header: header, origin: api.origin)
+          },
+          records: { records, _ in
+            // Waiting for the batch in flight keeps the saves in order and holds two batches at most.
+            if let rows = try await saving.next() { await report(rows) }
+            try Task.checkCancellation()
+            saving.addTask { [store] in
+              try await store.append(records)
+              return records.count
+            }
+          })
+        while let rows = try await saving.next() { await report(rows) }
+      }
       trace.record(TraceEvent(phase: .decode, outcome: .completed, snapshot: archive.snapshot))
       await progress(Self.downloadShare + Self.saveShare)
     } catch {

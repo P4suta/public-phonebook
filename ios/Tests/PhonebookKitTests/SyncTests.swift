@@ -85,6 +85,72 @@ private actor ProgressLog {
   func append(_ value: Double) { values.append(value) }
 }
 
+/// Serves one listed archive of `rows` distinct rows, which the reader passes on in several batches.
+private func batchedServer(rows: Int) async throws -> HTTPTestServer {
+  let snapshot = try sampleSnapshot().rawValue
+  let lines = (0..<rows).map { ArchiveLine(name: "施設\($0)") }
+  let archive = try brotli(
+    archiveText(header: sampleHeaderObject(counts: ["13": rows]), lines: lines))
+  let digest = sha256Hex(archive)
+  let file = "/api/datasets/\(snapshot)/\(digest)/directory.tsv.br"
+  let listing = datasetsFixture(
+    snapshot: snapshot, contacts: rows, sha256: digest, bytes: archive.count, url: file)
+  return try await HTTPTestServer { request in
+    let target = request.split(separator: " ").dropFirst().first.map(String.init) ?? "/"
+    if target == file {
+      return Data(
+        "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/octet-stream\r\nX-Dataset-Snapshot: \(snapshot)\r\nContent-Length: \(archive.count)\r\n\r\n"
+          .utf8) + archive
+    }
+    guard target == "/api/datasets" else { return notFoundResponse }
+    return httpResponse(
+      listing, headers: "Content-Length: \(listing.count)\r\nX-Dataset-Snapshot: \(snapshot)\r\n")
+  }
+}
+
+/// The saved share rises once per saved batch, by that batch's share of the rows, and keeps the existing shares.
+@Test(.timeLimit(.minutes(1))) func savedProgressFollowsTheSavedRows() async throws {
+  let rows = 2_500
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let server = try await batchedServer(rows: rows)
+  let engine = SyncEngine(
+    api: try APIClient(origin: server.origin), store: try SnapshotStore(root: root))
+  let reported = ProgressLog()
+  let manifest = try await engine.synchronize { await reported.append($0) }
+  #expect(manifest.records == rows)
+  // Transfer updates never exceed the download share, so every larger value comes from saving.
+  let saving = await reported.values.filter { $0 > SyncEngine.downloadShare }
+  let expected =
+    [1_000, 2_000, 2_500].map {
+      SyncEngine.downloadShare + Double($0) / Double(rows) * SyncEngine.saveShare
+    } + [SyncEngine.downloadShare + SyncEngine.saveShare, 1]
+  #expect(saving.count == expected.count)
+  #expect(zip(saving, expected).allSatisfy { abs($0 - $1) < 1e-12 })
+}
+
+/// Cancelling while one batch saves and the next parses keeps the saved generation and removes every unfinished file.
+@Test(.timeLimit(.minutes(1))) func cancellingWhileSavingKeepsTheSavedGeneration() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let store = try SnapshotStore(root: root)
+  let original = try await publish([ArchiveLine(name: "前の施設")], to: store, snapshot: "d")
+  let server = try await batchedServer(rows: 2_500)
+  let engine = SyncEngine(api: try APIClient(origin: server.origin), store: store)
+  let operation = Task {
+    try await engine.synchronize { value in
+      if value > SyncEngine.downloadShare { withUnsafeCurrentTask { $0?.cancel() } }
+    }
+  }
+  await #expect(throws: CancellationError.self) { try await operation.value }
+  #expect(try await store.manifest()?.generation == original.generation)
+  #expect(
+    try await store.contacts(generation: original.generation, ids: [1]).first?.name == "前の施設")
+  let generations = try FileManager.default.contentsOfDirectory(atPath: root.path)
+    .compactMap { UUID(uuidString: String($0.prefix(36))) }
+  #expect(Set(generations) == [original.generation])
+}
+
 private enum CleanupFault: Error { case refused }
 private struct FailedRemoval: SnapshotFiles {
   func readManifest(at url: URL) throws -> Data { try LocalSnapshotFiles().readManifest(at: url) }
