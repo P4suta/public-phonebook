@@ -12,8 +12,6 @@ import { decodeDirectoryArchive } from "../../src/core/directory-archive.ts";
 import { applyDirectoryDelta } from "../../src/core/directory-delta.ts";
 import {
   DigestSchema,
-  GroupedSearchResponseSchema,
-  SearchResponseSchema,
   VersionedDatasetManifestSchema,
 } from "../../src/core/models.ts";
 import { snapshotAdmission } from "../../src/core/snapshot-policy.ts";
@@ -40,7 +38,7 @@ describe("shared native API contract", () => {
     for (const method of ["GET", "HEAD", "OPTIONS", "POST"]) {
       if (!fixture) throw new Error("Missing contract fixture");
       const response = await fixture.fetch(
-        new Request("https://contract.example/api/v1/catalog?snapshot=bad", {
+        new Request("https://contract.example/api/v1/datasets?snapshot=bad", {
           method,
         }),
       );
@@ -48,29 +46,32 @@ describe("shared native API contract", () => {
       expect(response.headers.get("location"), method).toBeNull();
     }
   });
-  it("pins every mutable discovery and direct-search continuation", async () => {
+  it("pins every mutable discovery link", async () => {
     const discovery = v.parse(
       DirectoryDiscoverySchema,
       await (await request("/api/v1")).json(),
     );
-    for (const path of [
-      discovery.contacts,
-      discovery.contactGroups,
-      discovery.catalog,
-      discovery.sources,
-      discovery.datasets,
-      discovery.datasetDeltas,
-    ])
+    for (const path of [discovery.datasets, discovery.datasetDeltas])
       expect(
         new URL(path, "https://contract.example").searchParams.get("snapshot"),
       ).toBe(discovery.snapshot);
-    const page = v.parse(
-      SearchResponseSchema,
-      await (await request("/api/v1/contacts?limit=1")).json(),
-    );
-    expect(new URL(page.links.next ?? "").searchParams.get("snapshot")).toBe(
-      discovery.snapshot,
-    );
+  });
+  it("serves no site route under the versioned prefix", async () => {
+    for (const path of [
+      "/api/v1/catalog",
+      "/api/v1/contacts",
+      "/api/v1/contact-groups",
+      "/api/v1/contacts.vcf",
+      "/api/v1/contacts/13%3Adental",
+      "/api/v1/contacts/13%3Adental/contact.vcf",
+      "/api/v1/sources",
+      "/api/v1/sources/test",
+      "/api/v1/openapi.json",
+    ]) {
+      const response = await request(path);
+      expect(response.status, path).toBe(404);
+      expect(response.headers.get("X-Directory-API-Version"), path).toBe("1");
+    }
   });
   it("keeps immutable archive URLs on the versioned API and checks the requested snapshot", async () => {
     const manifest = v.parse(
@@ -103,55 +104,6 @@ describe("shared native API contract", () => {
       ).status,
     ).toBe(404);
   });
-  it("exports only the requested bounded region and category as vCards with pinned continuation", async () => {
-    const response = await request(
-      "/api/v1/contacts.vcf?prefecture=01&category=library&limit=2",
-    );
-    expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toContain("text/vcard");
-    const text = await response.text();
-    expect(text.match(/BEGIN:VCARD/gu)).toHaveLength(2);
-    expect(text).not.toContain("Test facility <script> medical");
-    const continuation = response.headers.get("Link") ?? "";
-    const next = new URL(continuation.slice(1, continuation.indexOf(">")));
-    expect(next.pathname).toBe("/api/v1/contacts.vcf");
-    expect(next.searchParams.get("snapshot")).toBe(
-      response.headers.get("X-Dataset-Snapshot"),
-    );
-    expect((await request(next.pathname + next.search)).status).toBe(200);
-  });
-  it("documents snapshot pins only on versioned mutable resources", async () => {
-    for (const base of ["/api", "/api/v1"]) {
-      const body: unknown = await (
-        await request(`${base}/openapi.json`)
-      ).json();
-      const specification = v.parse(
-        v.object({
-          paths: v.record(
-            v.string(),
-            v.object({
-              get: v.object({
-                parameters: v.optional(
-                  v.array(v.object({ name: v.string(), in: v.string() })),
-                ),
-              }),
-            }),
-          ),
-        }),
-        body,
-      );
-      for (const [path, resource] of Object.entries(specification.paths)) {
-        const pins =
-          resource.get.parameters?.filter(
-            (parameter) =>
-              parameter.name === "snapshot" && parameter.in === "query",
-          ) ?? [];
-        expect(pins.length, path).toBe(
-          base === "/api/v1" && !path.includes("/datasets/{") ? 1 : 0,
-        );
-      }
-    }
-  });
   it("rejects digests with trailing line terminators at the schema and HTTP boundaries", async () => {
     for (const suffix of ["\n", "\r", "\r\n", "\u2028", "\u2029", "\0", "a"]) {
       const value = "a".repeat(64) + suffix;
@@ -160,8 +112,11 @@ describe("shared native API contract", () => {
         JSON.stringify(suffix),
       ).toBe(false);
       expect(
-        (await request(`/api/v1/catalog?snapshot=${encodeURIComponent(value)}`))
-          .status,
+        (
+          await request(
+            `/api/v1/datasets?snapshot=${encodeURIComponent(value)}`,
+          )
+        ).status,
       ).toBe(400);
     }
   });
@@ -220,7 +175,6 @@ describe("shared native API contract", () => {
     const baseline = revision("baseline");
     expect(baseline.responses.map((response) => response.path)).toEqual([
       "/api/v1",
-      baseline.discovery.catalog,
       baseline.discovery.datasets,
       baseline.file?.url,
     ]);
@@ -287,61 +241,39 @@ describe("shared native API contract", () => {
           }
   });
 
-  it("keeps the legacy routes compatible with the versioned provider", async () => {
+  it("keeps the unversioned dataset listings equal to the versioned ones apart from the prefix", async () => {
     const current = await request("/api/v1");
     expect(current.headers.get("X-Directory-API-Version")).toBe("1");
     const raw: unknown = await current.json();
     const discovery = v.parse(DirectoryDiscoverySchema, raw);
     expect(current.headers.get("X-Dataset-Snapshot")).toBe(discovery.snapshot);
-    const legacy: unknown = await (
-      await request("/api/contacts?limit=50")
-    ).json();
-    const versioned: unknown = await (
-      await request(`${discovery.contacts}&limit=50`)
-    ).json();
-    const old = v.parse(SearchResponseSchema, legacy);
-    const native = v.parse(SearchResponseSchema, versioned);
-    expect(native.data).toEqual(old.data);
-    expect(native.meta).toEqual(old.meta);
-    expect(new URL(native.links.next ?? "").pathname).toBe("/api/v1/contacts");
+    for (const [legacy, versioned] of [
+      ["/api/datasets", discovery.datasets],
+      ["/api/dataset-deltas", discovery.datasetDeltas],
+    ] as const) {
+      const unversioned = await request(legacy);
+      expect(unversioned.headers.get("Access-Control-Allow-Origin")).toBe("*");
+      expect((await unversioned.text()).replaceAll("/api/", "/api/v1/")).toBe(
+        await (await request(versioned)).text(),
+      );
+    }
   });
 
   it("rejects stale, malformed, and ambiguous identities before returning mutable resources", async () => {
     for (const path of [
-      "catalog",
-      "contacts",
-      "sources/test",
-      "contacts/13%3Adental",
-      "contacts/13%3Adental/contact.vcf",
-      "datasets",
-      "dataset-deltas",
+      "/api/v1",
+      "/api/v1/datasets",
+      "/api/v1/dataset-deltas",
     ]) {
       expect(
-        (await request(`/api/v1/${path}?snapshot=${"0".repeat(64)}`)).status,
+        (await request(`${path}?snapshot=${"0".repeat(64)}`)).status,
         path,
       ).toBe(409);
       for (const query of [
         "snapshot=x",
         `snapshot=${"0".repeat(64)}&snapshot=${"1".repeat(64)}`,
       ])
-        expect((await request(`/api/v1/${path}?${query}`)).status, path).toBe(
-          400,
-        );
-    }
-  });
-
-  it("preserves the version and snapshot across category continuations", async () => {
-    const raw: unknown = await (await request("/api/v1")).json();
-    const discovery = v.parse(DirectoryDiscoverySchema, raw);
-    const body: unknown = await (
-      await request(`/api/v1/contact-groups?snapshot=${discovery.snapshot}`)
-    ).json();
-    const grouped = v.parse(GroupedSearchResponseSchema, body);
-    for (const group of grouped.groups) {
-      const next = new URL(group.results.links.next ?? "");
-      expect(next.pathname).toBe("/api/v1/contacts");
-      expect(next.searchParams.get("snapshot")).toBe(discovery.snapshot);
-      expect((await request(next.pathname + next.search)).status).toBe(200);
+        expect((await request(`${path}?${query}`)).status, path).toBe(400);
     }
   });
 });

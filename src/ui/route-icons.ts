@@ -33,7 +33,7 @@ export const routeIcons: Readonly<Record<RouteId, readonly IconName[]>> = {
     "search",
     ...everyCategory,
   ],
-  "/about": ["code", "database", "life-buoy", "shield-check"],
+  "/about": ["database", "life-buoy", "shield-check"],
   "/contacts/$id": [
     "book-user",
     "check",
@@ -44,8 +44,7 @@ export const routeIcons: Readonly<Record<RouteId, readonly IconName[]>> = {
   ],
   "/contacts/$id_/source": ["file-braces"],
   "/contacts/row/$snapshot/$row": [],
-  "/data": everyCategory,
-  "/developers": ["check", "chevron-down", "copy", "file-braces", "send"],
+  "/data": [...everyCategory, "download"],
   "/privacy": ["life-buoy", "mail", "shield-check"],
   "/support": ["life-buoy", "mail", "shield-check"],
 };

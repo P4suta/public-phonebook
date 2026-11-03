@@ -5,6 +5,8 @@ import {
   CatalogSchema,
   type Contact,
   ContactSchema,
+  type DatasetManifest,
+  DatasetManifestSchema,
   type GroupedSearchResponse,
   GroupedSearchResponseSchema,
   ProblemSchema,
@@ -66,6 +68,15 @@ export async function requestJson(
 
 export async function getCatalog(signal?: AbortSignal): Promise<Catalog> {
   return v.parse(CatalogSchema, await requestJson("/api/catalog", signal));
+}
+
+export async function getDatasets(
+  signal?: AbortSignal,
+): Promise<DatasetManifest> {
+  return v.parse(
+    DatasetManifestSchema,
+    await requestJson("/api/datasets", signal),
+  );
 }
 
 export async function getContact(

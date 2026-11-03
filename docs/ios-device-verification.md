@@ -36,7 +36,7 @@ Keep private selectors outside product code.
 Trigger the bundle's actual PhonebookBackgroundRefresh identifier with the app in the background.
 The verification bundle uses page.dial.publicphonebook.devicechecks.refresh.
 Observe the actual production handler, network requests, activation, completion result, and unchanged prior generation on failure.
-To test task expiry, `PHONEBOOK_FIXTURE_INCOMPLETE=contacts` holds an incomplete response after real I/O begins.
+To test task expiry, `PHONEBOOK_FIXTURE_INCOMPLETE=datasets` holds an incomplete dataset listing after real I/O begins.
 Expire the task after that observation and verify cancellation and preserved data.
 
 Record debugger-forced launch, expiry, and natural OS delivery as distinct checks.

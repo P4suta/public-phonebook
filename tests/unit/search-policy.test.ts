@@ -66,7 +66,7 @@ describe("directory decisions", () => {
     ).toBe(`https://www.dial.page/${version}/${digest}/api/contacts?q=x`);
     expect(
       searchCacheKey(
-        new Request("https://www.dial.page/api/v1/contact-groups", {
+        new Request("https://www.dial.page/api/contact-groups", {
           method: "HEAD",
         }),
         digest,
@@ -77,6 +77,7 @@ describe("directory decisions", () => {
       ["https://www.dial.page/api/contacts", "POST", digest, version],
       ["https://www.dial.page/api/catalog", "GET", digest, version],
       ["https://www.dial.page/api/contacts.vcf", "GET", digest, version],
+      ["https://www.dial.page/api/v1/contacts", "GET", digest, version],
       ["https://www.dial.page/api/contacts", "GET", "", version],
       ["https://www.dial.page/api/contacts", "GET", "A".repeat(64), version],
       ["https://www.dial.page/api/contacts", "GET", undefined, version],

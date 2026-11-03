@@ -6,6 +6,8 @@ date: 2026-10-29
 
 ## Status
 
+Superseded by [serving the directory JSON to the site only](serve-directory-json-to-the-site-only.md).
+Only the `/api/v1` index and the dataset and delta routes stay open to every client.
 Proposed for publication.
 The local implementation is superseded by [native Cloudflare TypeScript services](native-cloudflare-typescript-services.md).
 The decision below records the preceding Rust implementation.

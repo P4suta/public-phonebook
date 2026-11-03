@@ -116,12 +116,12 @@ for (const attempt of [
 }
 
 for (const attempt of ["attribute", "style", "script"] as const) {
-  test(`the API reference keeps the strict policy and rejects an untrusted ${attempt}`, async ({
+  test(`the data page keeps the strict policy and rejects an untrusted ${attempt}`, async ({
     page,
   }) => {
-    const response = await page.goto("/developers");
+    const response = await page.goto("/data");
     await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
-    if (!response) throw new Error("Missing reference response");
+    if (!response) throw new Error("Missing data page response");
     const csp = (await response.allHeaders())["content-security-policy"] ?? "";
     expect(csp).toMatch(/script-src 'self' 'nonce-[^']+';/u);
     expect(csp).toMatch(/style-src 'self' 'nonce-[^']+';/u);

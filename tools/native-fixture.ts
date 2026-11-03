@@ -84,7 +84,6 @@ async function revisionResponses(
   try {
     const raw: unknown = JSON.parse(await request("/api/v1"));
     const discovery = v.parse(DirectoryDiscoverySchema, raw);
-    if (revision === "baseline") await request(discovery.catalog);
     const listing: unknown = JSON.parse(await request(discovery.datasets));
     const archive = v
       .parse(VersionedDatasetManifestSchema, listing)
@@ -162,8 +161,8 @@ async function serve(): Promise<void> {
       });
       const response = await fixture.fetch(request);
       if (
-        process.env.PHONEBOOK_FIXTURE_INCOMPLETE === "contacts" &&
-        new URL(request.url).pathname === "/api/v1/contacts"
+        process.env.PHONEBOOK_FIXTURE_INCOMPLETE === "datasets" &&
+        new URL(request.url).pathname === "/api/v1/datasets"
       ) {
         outgoing.writeHead(httpOk, {
           ...Object.fromEntries(response.headers),
@@ -173,7 +172,7 @@ async function serve(): Promise<void> {
         console.info(
           JSON.stringify({
             operation: "fixture.incomplete",
-            route: "/api/v1/contacts",
+            route: "/api/v1/datasets",
           }),
         );
         return;

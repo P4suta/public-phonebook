@@ -23,6 +23,7 @@ import {
   type Contact,
   GroupedSearchResponseSchema,
   RowLocationSchema,
+  type SearchResponse,
   SearchResponseSchema,
 } from "../src/core/models.ts";
 import { formatPhone, normalizePhone } from "../src/core/phone.ts";
@@ -54,7 +55,6 @@ export const parityCounts: ParityCounts = {
 };
 const deepLimit = 100;
 const previewSize = 3;
-const continuationLimit = 100;
 const exampleLimit = 20;
 const swappedPairs = 50;
 const rowLocatorSamples = 100;
@@ -362,14 +362,21 @@ class ServerSearch {
     };
   }
 
+  /** Follows the server's continuation links at the site's page size, as the website does. */
   async category(query: string, category: Category): Promise<ComparedRow[]> {
-    const page = v.parse(
-      SearchResponseSchema,
-      await this.json(
-        `/api/contacts?${new URLSearchParams({ q: query, category, limit: String(continuationLimit) })}`,
-      ),
-    );
-    return page.data.map(serverRow);
+    const rows: ComparedRow[] = [];
+    let path: string | null =
+      `/api/contacts?${new URLSearchParams({ q: query, category })}`;
+    while (path) {
+      const page: SearchResponse = v.parse(
+        SearchResponseSchema,
+        await this.json(path),
+      );
+      rows.push(...page.data.map(serverRow));
+      const next = page.links.next ? new URL(page.links.next) : null;
+      path = next ? `${next.pathname}${next.search}` : null;
+    }
+    return rows;
   }
 }
 

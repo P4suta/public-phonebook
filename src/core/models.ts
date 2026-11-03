@@ -244,6 +244,7 @@ export const ProblemSchema = v.strictObject({
     "conflicting_region",
     "invalid_cursor",
     "snapshot_changed",
+    "cross_origin",
     "not_found",
     "method_not_allowed",
     "not_acceptable",

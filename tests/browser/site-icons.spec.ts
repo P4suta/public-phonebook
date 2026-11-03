@@ -220,7 +220,6 @@ test("each server render inlines one sprite with exactly the symbols its routes 
     [`${contactPath}/source`, [root, { routeId: "/contacts/$id_/source" }]],
     ["/about", [root, { routeId: "/about" }]],
     ["/data", [root, { routeId: "/data" }]],
-    ["/developers", [root, { routeId: "/developers" }]],
     ["/privacy", [root, { routeId: "/privacy" }]],
     ["/support", [root, { routeId: "/support" }]],
     ["/missing-page", [root]],

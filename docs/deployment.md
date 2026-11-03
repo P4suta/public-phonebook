@@ -294,7 +294,7 @@ The upload creates a version without applying triggers, so custom domains and ot
 HTML responses use `no-store, no-transform` to prevent Cloudflare from adding scripts to the document.
 Browser checks reject scripts from other origins and verify that an inserted external script is detected.
 The publisher hashes build output before the upload and after it.
-Public Playwright checks exercise desktop and narrow search, telephone formatting, detail and provenance navigation, the API reference's request form, accessibility, security-policy failures, and the 512-byte query boundary.
+Public Playwright checks exercise desktop and narrow search, telephone formatting, detail and provenance navigation, the data page's file list, accessibility, security-policy failures, and the 512-byte query boundary.
 They also download every archive through HTTPS and compare its byte length and SHA-256 with the checked manifest.
 Failure evidence stays under `test-results`.
 
@@ -388,7 +388,8 @@ The zone publishes `v=DMARC1; p=reject; adkim=s; aspf=s` at `_dmarc.dial.page`, 
 
 ## Zone protection
 
-The zone's rate limiting rule blocks a client IP for 10 seconds after 60 requests in 10 seconds to `/`, `/api/contact*`, or `/api/v1/contact*`.
+The zone's rate limiting rule blocks a client IP for 10 seconds after 60 requests in 10 seconds to `/`, `/api/contact*`, `/api/source*`, `/api/catalog`, `/api/search-index*`, or `/contacts/`.
+The site routes rely on this rule for every client that omits `Sec-Fetch-Site`, as [the route split decision](adr/serve-directory-json-to-the-site-only.md) explains.
 The block answers 429 with `Retry-After` and sets no cookie, which keeps the privacy page accurate.
 Don't use a managed challenge or Bot Fight Mode on these hosts, because they set cookies.
 Release checks hold any request that would be their 40th in 10 seconds, so they stay below the limit.
@@ -410,3 +411,20 @@ Run `mise x -- just monitors` to print the plan, and `mise x -- just monitors --
 The command matches checks by name, never deletes one, and lists every check it doesn't manage.
 It reads the team-scoped `BETTER_STACK_API_TOKEN` from the Doppler `prd` config, sends it only to the Better Stack monitors API, and prints no token.
 No workflow runs the command, so a change to the checks takes effect when the owner or an agent applies it after merge.
+
+## Cloudflare notifications
+
+`tools/cloudflare-alerts-plan.ts` declares the account's notification policies for the service, and each one emails `CLOUDFLARE_ALERT_EMAIL` from the Doppler `prd` config.
+
+| Policy | Alert type | Fires when |
+| --- | --- | --- |
+| Worker issues | `workers_observability_real_time_issue` | Workers Observability finds an issue in any Worker of the account |
+| HTTP DDoS attacks | `dos_attack_l7` | Cloudflare mitigates an HTTP DDoS attack on a zone of the account |
+| Universal SSL | `universal_ssl_event_type` | A Universal SSL certificate changes state |
+| D1 rows read | `billing_usage_alert` | D1 reads 12.5 billion rows in a month, half of what Workers Paid includes |
+| D1 rows written | `billing_usage_alert` | D1 writes 25 million rows in a month, half of what Workers Paid includes |
+
+The account's earlier billing policies for Workers and R2 and its budget alert stay outside the declarations.
+Run `mise x -- just cloudflare-alerts` to print the plan, and `mise x -- just cloudflare-alerts --apply` to create or update the declared policies through the owner's cf sign-in.
+The command manages only policies whose names start with `Public Phonebook`, never deletes one, and prints no address.
+`tools/declared-plan.ts` holds the plan that both commands share.

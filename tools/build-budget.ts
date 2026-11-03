@@ -8,7 +8,7 @@ const searchWorkerChunk = /^local-search-worker-[\w-]+\.js$/u;
 
 /**
  * Size limits for the build, checked after every build.
- * The Worker limit stays well below Cloudflare's compressed upload limit, so an accidental bundle, such as the API reference or a dataset, fails here first.
+ * The Worker limit stays well below Cloudflare's compressed upload limit, so an accidental bundle, such as a dataset, fails here first.
  */
 export const buildBudgets = {
   workerCompressedBytes: 1024 * bytesPerKibibyte,

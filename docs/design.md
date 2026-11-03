@@ -13,7 +13,6 @@ Shared components define typography, controls, contact cards, category icons, an
 | Source | 146:2 | 145:2 |
 | No results | 148:2 | 147:2 |
 | Data information | 152:2 | 151:2 |
-| API explorer | 202:1073 | 203:594 |
 | Invalid search | 228:1670 | 150:2 |
 | Missing page | 228:1698 | 228:1781 |
 | Unavailable page | 228:1726 | 228:1809 |
@@ -62,15 +61,11 @@ The initial heading is the service name.
 The service name and the project information link below it start at the page's top padding and the content's start edge, 16 pixels apart.
 The search field row sits at the vertical center of the viewport, with its label and hint directly above it.
 A viewport too short for that arrangement keeps the same order and derived spacing from the top and scrolls instead.
-Data and API information is reached through the project information link.
+Data information and the complete files are reached through the project information link.
 No footer contains required information.
 Buttons have visible labels, explicit focus indicators, and generous targets.
 The search action touches the search-field border on wide screens and sits below the field on narrow screens.
 Search actions have a minimum width and grow to fit their labels.
-The API reference uses the existing desktop and mobile frames with an editable operation-navigation and parameter layout.
-Its operation list sits beside the content from the column breakpoint and before it on narrower screens.
-Each operation separates its parameters, responses, examples, and request form with solid rules and type size, not color.
-Request fields have visible labels, and the response status appears as text below the form.
 The search field has a visible label and a persistent hint above it, with no placeholder or decorative glyph.
 
 The website uses typed Vanilla Extract styles and the generic sans-serif family, so text follows the reader's operating system and browser font settings without a font download.
@@ -179,7 +174,7 @@ The dialog's backdrop is opaque white, so it adds no tint or translucent surface
 Relative service navigation and telephone actions retain their native destinations.
 Known terminal map annotations are removed without stripping building descriptions.
 Source details provide readable context before opening the publisher's original file.
-Bulk export belongs in the API rather than the search interface.
+Bulk export belongs in the complete files on the data page rather than the search interface.
 A category's labelled continuation expands only that category in the same result screen.
 Automatic continuation begins after that expansion or after opening a category continuation link.
 An explicit continuation moves focus to the first control of the first new card.

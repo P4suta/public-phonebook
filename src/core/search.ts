@@ -14,7 +14,8 @@ import {
 import { DigestSchema } from "./models.ts";
 import { normalizePhone } from "./phone.ts";
 import type { Result } from "./result.ts";
-import { boundedLimit, compatibleRegion } from "./search-policy.ts";
+import { compatibleRegion } from "./search-policy.ts";
+import { fitsSitePage } from "./site-request-policy.ts";
 
 const maximumQueryBytes = 512;
 const maximumCursorLength = 4096;
@@ -52,7 +53,7 @@ export const SearchSchema = v.strictObject({
       v.regex(/^[1-9][0-9]?0?$/),
       v.transform(Number),
       v.integer(),
-      v.check(boundedLimit),
+      v.check(fitsSitePage),
     ),
     "30",
   ),
