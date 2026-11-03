@@ -1,3 +1,4 @@
+import * as fc from "fast-check";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import * as v from "valibot";
@@ -11,6 +12,7 @@ import {
   OfficialLink,
   ResultCard,
 } from "../../src/ui/components.tsx";
+import { uiCopy } from "../../src/ui/copy.ts";
 import {
   catalogRegions,
   localCard,
@@ -39,6 +41,7 @@ vi.mock("../../src/ui/styles.css.ts", () => ({
   contactLink: "contactLink",
   contactNumbers: "contactNumbers",
   cardFeedback: "cardFeedback",
+  detailAction: "detailAction",
   phoneGroup: "phoneGroup",
   group: "group",
   region: "region",
@@ -74,29 +77,32 @@ it("renders external web resources with isolated tabs and an accessible announce
   expect(local).toContain('data-icon="info"');
 });
 
+const contact = v.parse(ContactSchema, {
+  id: "fixture:multiple-phones",
+  name: "Public library",
+  category: "library",
+  prefectureCode: "13",
+  municipalityCode: "13101",
+  address: "Tokyo",
+  phones: [
+    { display: "03-3581-2331", e164: "+81335812331" },
+    { display: "03-3827-2053", e164: "+81338272053" },
+  ],
+  website: null,
+  sourceId: "fixture",
+  sourceRecordId: "1",
+  sourceUrls: ["https://example.org/data"],
+  license: "CC0-1.0",
+  licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
+  dataAsOf: "2026-10-01",
+  retrievedAt: "2026-10-29T00:00:00Z",
+  phoneConfirmed: false,
+  phoneConfirmationUrl: null,
+});
+const propertyRuns = 200;
+const propertySeed = 160;
+
 it("shows every telephone action and one contact-save action for a multi-number facility", () => {
-  const contact = v.parse(ContactSchema, {
-    id: "fixture:multiple-phones",
-    name: "Public library",
-    category: "library",
-    prefectureCode: "13",
-    municipalityCode: "13101",
-    address: "Tokyo",
-    phones: [
-      { display: "03-3581-2331", e164: "+81335812331" },
-      { display: "03-3827-2053", e164: "+81338272053" },
-    ],
-    website: null,
-    sourceId: "fixture",
-    sourceRecordId: "1",
-    sourceUrls: ["https://example.org/data"],
-    license: "CC0-1.0",
-    licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
-    dataAsOf: "2026-10-01",
-    retrievedAt: "2026-10-29T00:00:00Z",
-    phoneConfirmed: false,
-    phoneConfirmationUrl: null,
-  });
   const result = serverCard(contact, regions, "/?q=library");
   for (const markup of [
     renderToStaticMarkup(createElement(ContactCard, { contact })),
@@ -135,6 +141,45 @@ it("shows every telephone action and one contact-save action for a multi-number 
   }
 });
 
+it("keeps a result's name as heading text and labels its one detail action by the address the details show", () => {
+  const cases = [
+    { address: "Tokyo", label: "住所などを見る" },
+    { address: "", label: "くわしい情報を見る" },
+    { address: "　", label: "くわしい情報を見る" },
+  ] as const;
+  for (const { address, label } of cases) {
+    const card = serverCard({ ...contact, address }, regions, "/?q=library");
+    const markup = renderToStaticMarkup(
+      createElement(ResultCard, { card, onOpenRow: () => undefined }),
+    );
+    expect(markup).toContain(
+      `<h3 class="contactName" id="contact-${contact.id}" tabindex="-1">Public library</h3>`,
+    );
+    expect(markup.match(/href="\/contacts\//gu)).toHaveLength(1);
+    expect(markup).toMatch(
+      new RegExp(
+        `<a class="detailAction" href="/contacts/[^"]+" aria-label="Public libraryの${label}"><svg[^>]*data-icon="chevron-right"[^>]*>.*?</svg>${label}</a>`,
+        "u",
+      ),
+    );
+    expect(markup.indexOf("detailAction")).toBeGreaterThan(
+      markup.lastIndexOf('href="tel:'),
+    );
+  }
+});
+
+it("puts the facility name before the visible detail label in the accessible name", () => {
+  fc.assert(
+    fc.property(fc.string({ minLength: 1 }), fc.boolean(), (name, address) => {
+      const label = uiCopy.resultDetail.label(address);
+      const accessible = uiCopy.resultDetail.name(name, label);
+      expect(label).toBe(address ? "住所などを見る" : "くわしい情報を見る");
+      expect(accessible).toBe(`${name}の${label}`);
+    }),
+    { numRuns: propertyRuns, seed: propertySeed },
+  );
+});
+
 it("draws the back and reload actions with their own masters", () => {
   const drawn = (markup: string): string[] =>
     [...markup.matchAll(/data-icon="([\w-]+)"/gu)].map(
@@ -171,6 +216,7 @@ it("links a device result through its index row and keeps the national number's 
     name: "市立図書館",
     region: "京都府",
     phones: ["+81774981200"],
+    hasAddress: true,
     href: `/contacts/row/${"a".repeat(64)}/41?from=%2F%3Fq%3D%E5%9B%B3%E6%9B%B8%E9%A4%A8`,
     row: { snapshot: "a".repeat(64), row: 41 },
   });

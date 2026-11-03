@@ -357,6 +357,20 @@ export const phoneGroup = style([
     },
   },
 ]);
+/** Keeps the result's detail action at its label's width below the telephone actions, in the telephone column on wide screens. */
+export const detailAction = style([
+  button,
+  {
+    justifySelf: "start",
+    "@media": {
+      [viewport.columns]: {
+        selectors: {
+          [`${card}[data-layout="result"] &`]: { gridColumn: "2" },
+        },
+      },
+    },
+  },
+]);
 export const contactLink = style({
   display: "flex",
   alignItems: "center",

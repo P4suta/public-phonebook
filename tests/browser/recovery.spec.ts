@@ -2,7 +2,7 @@ import type { Locator } from "@playwright/test";
 import * as v from "valibot";
 import { SearchResponseSchema } from "../../src/core/models.ts";
 import { expect, test } from "./fixtures.ts";
-import { saveData } from "./search-sources.ts";
+import { detailActionName, saveData } from "./search-sources.ts";
 
 const settleDelay = 120;
 const quietPeriod = 10_000;
@@ -141,7 +141,7 @@ test("search and cursor continuation work without JavaScript", async ({
     await page
       .locator("article")
       .first()
-      .getByRole("link", { name: /の情報を見る$/u })
+      .getByRole("link", { name: detailActionName })
       .click();
     await expect(
       page.getByRole("link", { name: "電話帳に入れる" }),
