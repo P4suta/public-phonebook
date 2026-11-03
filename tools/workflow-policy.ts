@@ -1,7 +1,12 @@
 import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import * as v from "valibot";
 import { parse } from "yaml";
+import {
+  checkSchedule,
+  scheduleSpecifications,
+  workflowSchedule,
+} from "./workflow-schedule.ts";
 
 export const allowedActions: readonly string[] = [
   "actions/checkout",
@@ -35,7 +40,9 @@ export type WorkflowRule =
   | "publication-concurrency"
   | "doppler-environment-injection"
   | "doppler-config-mismatch"
-  | "skipped-predecessor-unguarded";
+  | "skipped-predecessor-unguarded"
+  | "schedule-condition-unrecognized"
+  | "schedule-property";
 
 export interface WorkflowViolation {
   readonly file: string;
@@ -583,7 +590,30 @@ export function workflowViolations(
     violations.push(...releaseJobViolations(file, location, job));
   }
   violations.push(...skipPropagationViolations(file, workflow.jobs));
+  violations.push(...scheduleViolations(file, document));
   return violations;
+}
+
+/** Checks the declared schedule of a release-path workflow in every scenario that GitHub's rules allow. */
+function scheduleViolations(
+  file: string,
+  document: unknown,
+): readonly WorkflowViolation[] {
+  let schedule: ReturnType<typeof workflowSchedule>;
+  try {
+    schedule = workflowSchedule(document);
+  } catch {
+    return [
+      { file, location: "jobs", rule: "schedule-condition-unrecognized" },
+    ];
+  }
+  const specification = scheduleSpecifications[basename(file)];
+  if (!specification) return [];
+  return checkSchedule(schedule, specification).map((finding) => ({
+    file,
+    location: finding.property,
+    rule: "schedule-property" as const,
+  }));
 }
 
 export function actionViolations(
