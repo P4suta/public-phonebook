@@ -10,6 +10,7 @@ import {
 } from "./core/web-search.ts";
 import { api } from "./server/api.ts";
 import type { DirectoryBindings } from "./server/bindings.ts";
+import { pageRequest } from "./server/page-request.ts";
 import { withVersionHeader } from "./server/version-header.ts";
 
 const cspNonceBytes = 24;
@@ -46,10 +47,9 @@ export default {
         ...crypto.getRandomValues(new Uint8Array(cspNonceBytes)),
       ),
     );
-    const headers = new Headers(request.headers);
-    headers.set("x-dial-nonce", nonce);
-    const internal = new Request(request, { headers });
-    const response = await start(internal, { context: { nonce } });
+    const response = await start(pageRequest(request, nonce), {
+      context: { nonce },
+    });
     const invalid =
       url.pathname === "/" && !parseWebSearch(parseSearchString(url.search)).ok;
     const result = new Response(
