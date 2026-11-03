@@ -21,7 +21,7 @@ struct ContactScreen: View {
           if contact.address.isEmpty {
             Text(contact.region)
           } else {
-            AddressLink(address: contact.address)
+            AddressLink(name: contact.name, address: contact.address)
           }
         }
         if let raw = contact.website, let url = WebAddress.url(raw) {

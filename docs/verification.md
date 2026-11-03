@@ -20,7 +20,7 @@ The workflow checks run actionlint over every workflow and zizmor offline with t
 Offline mode leaves out zizmor's online audits, so the result doesn't depend on network access or a token.
 The typed policy in `tools/workflow-policy.ts` also checks every workflow and local composite action.
 It requires explicit permissions on every workflow and job, and every top-level block must be empty.
-It allows only `actions/checkout`, `actions/cache`, `actions/upload-artifact`, `actions/download-artifact`, `dopplerhq/secrets-fetch-action`, `jdx/mise-action`, and the three `actions/attest` actions, each pinned to a full commit SHA.
+It allows only `actions/checkout`, `actions/cache`, `actions/upload-artifact`, `actions/download-artifact`, `dopplerhq/secrets-fetch-action`, `jdx/mise-action`, `actions/attest-build-provenance`, and `actions/attest`, each pinned to a full commit SHA.
 It rejects `inputs` or `github.event` expressions inside a `run:` script, which must receive those values through `env:`.
 It admits `id-token: write` only in a job that names an environment or calls a reusable workflow.
 A workflow with such a job may start only from `workflow_dispatch` or `workflow_call`.

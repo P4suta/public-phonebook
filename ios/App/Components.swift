@@ -96,11 +96,10 @@ struct PhoneActions: View {
 }
 
 enum ExternalDestination {
-  case map, facility, publication, license, source, other
+  case facility, publication, license, source, other
 
   var description: String {
     switch self {
-    case .map: "この住所を、Googleマップで表示します。"
     case .facility: "この施設のページを開きます。"
     case .publication: "このデータを公開しているページを開きます。"
     case .license: "データを使うときの決まりのページを開きます。"
@@ -133,29 +132,42 @@ struct ExternalLink<Label: View>: View {
 }
 
 struct AddressLink: View {
+  let name: String
   let address: String
+  @State private var confirming = false
+  @State private var opening = false
+  @State private var missing = false
 
   var body: some View {
-    if let url = Self.mapURL(address) {
-      ExternalLink(url: url, destination: .map) {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-          DesignIcon(name: "location", size: 16)
-          Text(address).font(.callout).underline().multilineTextAlignment(.leading)
-          DesignIcon(name: "external", size: 14)
+    Button {
+      confirming = true
+    } label: {
+      HStack(alignment: .firstTextBaseline, spacing: 6) {
+        DesignIcon(name: "location", size: 16)
+        Text(address).font(.callout).underline().multilineTextAlignment(.leading)
+        DesignIcon(name: "external", size: 14)
+      }
+    }
+    .buttonStyle(.plain)
+    .disabled(opening)
+    .accessibilityLabel("\(address) マップで開く")
+    .accessibilityIdentifier("address-link")
+    .alert("マップで開きます", isPresented: $confirming) {
+      Button("開く") {
+        opening = true
+        Task {
+          missing = !(await MapDestination.open(name: name, address: address))
+          opening = false
         }
       }
-      .buttonStyle(.plain)
-      .accessibilityIdentifier("address-link")
-    } else {
-      Text(address).font(.callout)
+      Button("やめる", role: .cancel) {}
+    } message: {
+      Text("この施設の場所を、Appleのマップで表示します。\n場所を探すために、施設の名前と住所をAppleに送ります。")
     }
-  }
-
-  static func mapURL(_ address: String) -> URL? {
-    var components = URLComponents(string: "https://www.google.com/maps/search/")
-    components?.queryItems = [
-      URLQueryItem(name: "api", value: "1"), URLQueryItem(name: "query", value: address),
-    ]
-    return components?.url
+    .alert("場所を見つけられませんでした", isPresented: $missing) {
+      Button("閉じる", role: .cancel) {}
+    } message: {
+      Text("インターネットにつながっているか確かめて、もう一度試してください。")
+    }
   }
 }
