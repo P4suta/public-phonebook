@@ -4,6 +4,8 @@ import { checkedFetch, publicAccess } from "../../tools/public-request.ts";
 import { test as base, expect } from "../browser/fixtures.ts";
 
 const transportHeaders = ["set-cookie", "content-encoding", "content-length"];
+// Browsers send these over HTTPS and Node's fetch decodes them; Playwright doesn't report the browser's own value.
+const browserContentCodings = "gzip, deflate, br";
 
 export const test = base.extend({
   context: async ({ context, baseURL }, use): Promise<void> => {
@@ -22,7 +24,13 @@ export const test = base.extend({
           return route.continue();
         const response = await checkedFetch(
           request.url(),
-          { method: request.method(), headers: request.headers() },
+          {
+            method: request.method(),
+            headers: {
+              ...request.headers(),
+              "accept-encoding": browserContentCodings,
+            },
+          },
           access,
         );
         const headers = new Headers(response.headers);

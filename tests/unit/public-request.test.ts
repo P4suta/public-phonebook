@@ -70,6 +70,22 @@ describe("public verification requests", () => {
     expect(seen.has(versionOverrideHeader)).toBe(false);
   });
 
+  it("asks for identity unless the caller names the content codings it decodes", async () => {
+    const codings: (string | null)[] = [];
+    const recording: typeof fetch = async (_url, init): Promise<Response> => {
+      codings.push(new Headers(init?.headers).get("accept-encoding"));
+      return new Response(null);
+    };
+    await checkedFetch("/api", {}, access(null), recording);
+    await checkedFetch(
+      "/api",
+      { headers: { "Accept-Encoding": "gzip, deflate, br" } },
+      access(null),
+      recording,
+    );
+    expect(codings).toEqual(["identity", "gzip, deflate, br"]);
+  });
+
   it("refuses a response that a different or unlabeled version answered", async () => {
     const override = access({ id: candidate, mode: "override" });
     await expect(
