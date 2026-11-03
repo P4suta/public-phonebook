@@ -9,7 +9,7 @@ final class ServiceFixture: Sendable {
     func matches(_ target: String) -> Bool {
       guard let url = URLComponents(string: target) else { return false }
       switch self {
-      case .dataset: return url.path.hasPrefix("/api/v1/datasets/")
+      case .dataset: return url.path.hasPrefix("/api/datasets/")
       }
     }
   }
@@ -176,7 +176,7 @@ final class ServiceFixture: Sendable {
         finish("\(response.statusCode) with \(body.count) bytes after \(upstream) upstream")
         var headers: [String: String] = [:]
         for field in [
-          "Content-Type", "X-Dataset-Snapshot", "X-Directory-API-Version", "Retry-After",
+          "Content-Type", "X-Dataset-Snapshot", "Retry-After",
         ] {
           if let value = response.value(forHTTPHeaderField: field) { headers[field] = value }
         }

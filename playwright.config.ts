@@ -48,7 +48,7 @@ export default defineConfig({
   ],
   webServer: {
     command: "npm run preview",
-    url: `${testOrigin}/api/v1`,
+    url: `${testOrigin}/api/datasets`,
     ignoreHTTPSErrors: true,
     reuseExistingServer: !process.env.CI,
     timeout: serverTimeoutMs,

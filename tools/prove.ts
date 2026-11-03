@@ -57,7 +57,6 @@ const expected = [
   "deltaAdmission",
 ];
 const boundFiles = [
-  "src/core/api-contract.ts",
   "src/core/snapshot-policy.ts",
   "src/core/catalog.ts",
   "src/routes/privacy.tsx",

@@ -13,6 +13,8 @@ import { CountSchema, DigestSchema } from "./models.ts";
 import type { Result } from "./result.ts";
 
 const deltaSignature = "public-phonebook-directory-delta\t1";
+/** The format that the delta listing declares for each delta, which line 1 spells with a TAB for the slash. */
+export const directoryDeltaFormat = deltaSignature.replace("\t", "/");
 // The archive signature of `directory-archive.ts`, which the reconstructed target starts with.
 const archiveSignature = "public-phonebook-directory\t1";
 const lineTerminator = "\n";

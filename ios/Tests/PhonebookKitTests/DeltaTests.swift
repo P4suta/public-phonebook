@@ -219,15 +219,15 @@ private func everyDeltaFaultIsRejectedBeforeStaging(_ fault: DeltaFault) async t
 }
 
 private enum DeltaSync: CaseIterable, Sendable {
-  case applied, rejectedDelta, unlistedBase, unlinked, unsaved, completeAlsoFails, cancelled
+  case applied, rejectedDelta, unlistedBase, unknownFormat, unlinked, unsaved, completeAlsoFails,
+    cancelled
 }
+
+private let unknownDeltaFormat = "public-phonebook-directory-delta/2"
 
 private func json(_ data: Data, snapshot: String) -> Data {
   httpResponse(
-    data,
-    headers:
-      "Content-Length: \(data.count)\r\nX-Dataset-Snapshot: \(snapshot)\r\nX-Directory-API-Version: 1\r\n"
-  )
+    data, headers: "Content-Length: \(data.count)\r\nX-Dataset-Snapshot: \(snapshot)\r\n")
 }
 
 private func binary(_ data: Data, snapshot: String) -> Data {
@@ -238,7 +238,7 @@ private func binary(_ data: Data, snapshot: String) -> Data {
 
 /// Paths the delta server answers, so a test can tell which downloads the client made.
 private struct DeltaRoutes {
-  let listing = "/api/v1/dataset-deltas?snapshot=\(currentSnapshot)"
+  let listing = "/api/dataset-deltas?snapshot=\(currentSnapshot)"
   let delta: String
   let archive: String
 }
@@ -257,22 +257,21 @@ private func deltaServer(_ mode: DeltaSync, requests: RequestLog) async throws -
   let base = mode == .unlistedBase ? foreignSnapshot : savedSnapshot
   let file = "directory-delta-\(base).tsv.br"
   let routes = DeltaRoutes(
-    delta: "/api/v1/datasets/\(currentSnapshot)/\(sha256Hex(delta))/\(file)",
-    archive: "/api/v1/datasets/\(currentSnapshot)/\(archiveDigest)/directory.tsv.br")
-  let manifest = Data(
-    """
-    {"snapshot":"\(currentSnapshot)","generatedAt":"2026-10-30","contacts":4,\
-    "files":[{"file":"directory.tsv.br","sha256":"\(archiveDigest)","bytes":\(archive.count),\
-    "url":"\(routes.archive)"}]}
-    """.utf8)
+    delta: "/api/datasets/\(currentSnapshot)/\(sha256Hex(delta))/\(file)",
+    archive: "/api/datasets/\(currentSnapshot)/\(archiveDigest)/directory.tsv.br")
+  let manifest = datasetsFixture(
+    snapshot: currentSnapshot, contacts: 4, sha256: archiveDigest, bytes: archive.count,
+    url: routes.archive, deltas: mode != .unlinked)
+  let format = mode == .unknownFormat ? unknownDeltaFormat : DatasetDelta.format
+  // A delta in a later format lists other fields, and the client skips it in every mode.
   let listing = Data(
     """
-    {"snapshot":"\(currentSnapshot)","archiveSha256":"\(archiveDigest)","deltas":[{"base":"\(base)",\
-    "baseArchiveSha256":"\(listedArchive)","file":"\(file)","sha256":"\(sha256Hex(delta))",\
-    "bytes":\(delta.count),"uncompressedSha256":"\(sha256Hex(text))",\
+    {"snapshot":"\(currentSnapshot)","archiveSha256":"\(archiveDigest)","deltas":[\
+    {"base":"\(base)","format":"\(unknownDeltaFormat)","url":"\(routes.delta)"},\
+    {"base":"\(base)","baseArchiveSha256":"\(listedArchive)","file":"\(file)","format":"\(format)",\
+    "sha256":"\(sha256Hex(delta))","bytes":\(delta.count),"uncompressedSha256":"\(sha256Hex(text))",\
     "uncompressedBytes":\(text.count),"url":"\(routes.delta)"}]}
     """.utf8)
-  let discovery = discoveryFixture(snapshot: currentSnapshot, deltas: mode != .unlinked)
   let served = mode == .completeAlsoFails ? archive.dropLast() : archive
   let server = try await HTTPTestServer { request in
     let target = request.split(separator: " ").dropFirst().first.map(String.init) ?? "/"
@@ -281,9 +280,8 @@ private func deltaServer(_ mode: DeltaSync, requests: RequestLog) async throws -
     case routes.archive: return binary(served, snapshot: currentSnapshot)
     case routes.delta: return binary(delta, snapshot: currentSnapshot)
     case routes.listing: return json(listing, snapshot: currentSnapshot)
-    default:
-      return json(
-        target.hasPrefix("/api/v1/datasets?") ? manifest : discovery, snapshot: currentSnapshot)
+    case "/api/datasets": return json(manifest, snapshot: currentSnapshot)
+    default: return notFoundResponse
     }
   }
   return (server, routes)
@@ -320,7 +318,7 @@ private func synchronizationAppliesDeltasAndFallsBackToTheCompleteArchive(_ mode
   #expect(result.previous == original?.generation)
   let names = try await store.contacts(generation: result.generation, ids: [1, 2, 3, 4]).map(\.name)
   #expect(names == sorted(targetLines).map(\.name))
-  let listed = [DeltaSync.applied, .rejectedDelta, .unlistedBase].contains(mode)
+  let listed = [DeltaSync.applied, .rejectedDelta, .unlistedBase, .unknownFormat].contains(mode)
   #expect(requested().contains(routes.listing) == listed)
   #expect(requested().contains(routes.delta) == [.applied, .rejectedDelta].contains(mode))
   #expect(requested().contains(routes.archive) == (mode != .applied))

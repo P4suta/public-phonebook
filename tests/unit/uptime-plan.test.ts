@@ -74,7 +74,7 @@ const checkArbitrary = fc.record({
   monitor_type: fc.constant("keyword" as const),
   url: fc.constantFrom(
     "https://www.dial.page/",
-    "https://www.dial.page/api/v1",
+    "https://www.dial.page/api/datasets",
   ),
   required_keyword: fc.constantFrom("x", "y"),
   check_frequency: fc.constantFrom(180, 300),

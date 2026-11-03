@@ -1,7 +1,7 @@
 # Interface design and verification
 
 The design source is [Public Phonebook in Figma](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook).
-Work updates the existing Web Desktop and Web Mobile pages.
+Work updates the existing Web Desktop, Web Mobile, and iPhone app pages.
 Shared components define typography, controls, contact cards, category icons, and source rows.
 
 | Screen | Desktop frame | Mobile frame |
@@ -19,9 +19,10 @@ Shared components define typography, controls, contact cards, category icons, an
 
 ## Figma file organization
 
-The four existing pages retain their original identities.
+The four original pages retain their original identities, and the file also holds the iPhone app page and the Brand & icons page.
 Native sections separate current screens, reusable masters, foundations, future concepts, and archived studies.
-All 91 artifacts that were directly on the original page canvases remain present with their original IDs and node types.
+Of the 91 artifacts that were directly on the original page canvases, 89 remain present with their original IDs and node types.
+Later work removed the API explorer frames `202:1073` and `203:594`.
 
 | Purpose | Section |
 | --- | --- |
@@ -31,25 +32,32 @@ All 91 artifacts that were directly on the original page canvases remain present
 | Shared component masters | [Reusable masters](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=257-1904) |
 | Future native concepts | [Concepts](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=258-851) |
 | Earlier design notes | [Archive](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=258-852) |
+| iPhone app screens | [Current iPhone app](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=468-1283) |
+| iPhone app component masters | [iPhone app components](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=468-1284) |
+| Brand marks, app icons, and the icon library | [Brand & icons](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=316-1010) |
 
 Current desktop viewports are 1440 by 900 pixels.
 Current mobile viewports are 390 by 844 pixels, with a 320 by 900 compact example.
+Current iPhone app viewports are 393 by 852 points.
 Long data and result content remains inside vertically scrolling viewports.
-The 23 current web screens use symmetric content gutters.
+The 27 current web screens use symmetric content gutters.
+The 13 current iPhone screens span the full width, and their content frames set the side margins.
 The two external-link confirmation screens center the dialog component on an opaque white page.
 Archived notes and earlier state studies preserve historical decisions and do not govern the current interface.
 
 The retained [layout audit](figma-layout.json) captures native bounds, intrinsic text measurements, text colors, and instance-reference counts.
-The audit checks all four pages, including archived and future content.
+The audit checks all six pages, including archived and future content.
 It measures an untruncated copy of each text node at its original width, then removes that temporary copy.
 It checks clipping, auto-layout sibling overlap, monochrome paints, opacity, effects, and text against the nearest opaque ancestor fill.
 Intentional vertical viewport overflow and absolute focus indicators are excluded from unintended clipping and sibling-overlap findings.
-The retained capture contains 1,018 text measurements and 754 resolved instance references.
-Unit checks independently recompute canvas overlap and section containment, validate text fit and contrasting colors, and enforce canonical viewport sizes and gutters.
+Sibling-overlap findings also skip absolute overlays, such as the iPhone map confirmation alert.
+The retained capture contains 1,401 text measurements and 1,069 resolved instance references.
+Unit checks independently recompute canvas overlap and section containment, validate text fit and contrasting colors, and enforce canonical web and iPhone viewport sizes and gutters.
 The same overlap check detects all ten overlapping pairs in the original desktop arrangement.
 These checks cover the retained capture and cannot detect later Figma edits until the audit is refreshed.
 After a Figma edit, capture the changed subtrees' text measurements and placements in the audit's tuple form and run `node tools/figma-audit.ts merge CAPTURE_JSON`.
 The merge replaces every text inside a recaptured instance, so removed or swapped layers leave no stale measurements.
+A capture with `scope` set to `page` replaces the whole page entry, so deleted frames leave no stale placements.
 Layer occlusion and visual clarity still require direct visual review.
 
 ## Visual rules

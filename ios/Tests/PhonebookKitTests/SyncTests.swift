@@ -12,7 +12,6 @@ private enum SyncFixture: CaseIterable, Sendable {
 
 private func syncServer(_ mode: SyncFixture) async throws -> HTTPTestServer {
   let snapshot = try sampleSnapshot().rawValue
-  let discovery = discoveryFixture(snapshot: snapshot)
   let lines = [ArchiveLine(name: "新しい施設")]
   let header = sampleHeaderObject(
     snapshot: mode == .headerMismatch ? "c" : "a",
@@ -23,13 +22,9 @@ private func syncServer(_ mode: SyncFixture) async throws -> HTTPTestServer {
   let digest = SHA256.hash(data: archive).map { String(format: "%02x", $0) }.joined()
   let listed = mode == .digestMismatch ? String(repeating: "c", count: 64) : digest
   let contacts = mode == .countMismatch ? 2 : 1
-  let file = "/api/v1/datasets/\(snapshot)/\(listed)/directory.tsv.br"
-  let manifest = Data(
-    """
-    {"snapshot":"\(snapshot)","generatedAt":"2026-10-30","contacts":\(contacts),\
-    "files":[{"file":"directory.tsv.br","sha256":"\(listed)","bytes":\(archive.count),\
-    "url":"\(file)"}]}
-    """.utf8)
+  let file = "/api/datasets/\(snapshot)/\(listed)/directory.tsv.br"
+  let manifest = datasetsFixture(
+    snapshot: snapshot, contacts: contacts, sha256: listed, bytes: archive.count, url: file)
   let identity = mode == .snapshotMismatch ? String(repeating: "b", count: 64) : snapshot
   return try await HTTPTestServer { request in
     let target = request.split(separator: " ").dropFirst().first.map(String.init) ?? "/"
@@ -38,12 +33,10 @@ private func syncServer(_ mode: SyncFixture) async throws -> HTTPTestServer {
         "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/octet-stream\r\nX-Dataset-Snapshot: \(identity)\r\nContent-Length: \(archive.count)\r\n\r\n"
           .utf8) + archive
     }
-    let data = target.hasPrefix("/api/v1/datasets?") ? manifest : discovery
+    guard target == "/api/datasets" else { return notFoundResponse }
     return httpResponse(
-      data,
-      headers:
-        "Content-Length: \(data.count)\r\nX-Dataset-Snapshot: \(snapshot)\r\nX-Directory-API-Version: 1\r\n"
-    )
+      manifest,
+      headers: "Content-Length: \(manifest.count)\r\nX-Dataset-Snapshot: \(snapshot)\r\n")
   }
 }
 

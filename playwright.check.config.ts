@@ -26,7 +26,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
     command: "npm run preview -- --port 8790",
-    url: `${fixtureOrigin}/api/v1`,
+    url: `${fixtureOrigin}/api/datasets`,
     env: { DIAL_LOCAL_STATE: ".local/check-state" },
     ignoreHTTPSErrors: true,
     reuseExistingServer: false,

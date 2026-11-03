@@ -6,10 +6,12 @@ import {
 } from "node:http";
 import { dirname } from "node:path";
 import * as v from "valibot";
-import { DirectoryDiscoverySchema } from "../src/core/api-contract.ts";
-import { DirectoryDeltaListingSchema } from "../src/core/dataset-storage.ts";
-import { directoryArchiveFile } from "../src/core/directory-archive.ts";
-import { VersionedDatasetManifestSchema } from "../src/core/models.ts";
+import {
+  DatasetFileListingSchema,
+  DirectoryDeltaListingSchema,
+  datasetListingPath,
+} from "../src/core/dataset-storage.ts";
+import { directoryArchiveFormat } from "../src/core/directory-archive.ts";
 import {
   contractOrigin,
   directoryFixture,
@@ -55,11 +57,7 @@ async function revisionResponses(
       new Request(new URL(path, contractOrigin)),
     );
     const headers: Record<string, string> = {};
-    for (const name of [
-      "Content-Type",
-      "X-Dataset-Snapshot",
-      "X-Directory-API-Version",
-    ])
+    for (const name of ["Content-Type", "X-Dataset-Snapshot"])
       headers[name] = response.headers.get(name) ?? "";
     const status = response.status;
     if (binary) {
@@ -82,17 +80,14 @@ async function revisionResponses(
     return body;
   }
   try {
-    const raw: unknown = JSON.parse(await request("/api/v1"));
-    const discovery = v.parse(DirectoryDiscoverySchema, raw);
-    const listing: unknown = JSON.parse(await request(discovery.datasets));
-    const archive = v
-      .parse(VersionedDatasetManifestSchema, listing)
-      .files.find((file) => file.file === directoryArchiveFile);
+    const raw: unknown = JSON.parse(await request(datasetListingPath));
+    const listing = v.parse(DatasetFileListingSchema, raw);
+    const archive = listing.files.find(
+      (file) => file.format === directoryArchiveFormat,
+    );
     if (!archive) throw new Error("The provider contract has no archive");
     if (revision === "updated") {
-      const deltas: unknown = JSON.parse(
-        await request(discovery.datasetDeltas),
-      );
+      const deltas: unknown = JSON.parse(await request(listing.datasetDeltas));
       for (const delta of v.parse(DirectoryDeltaListingSchema, deltas).deltas)
         await request(delta.url, true);
     }
@@ -162,7 +157,7 @@ async function serve(): Promise<void> {
       const response = await fixture.fetch(request);
       if (
         process.env.PHONEBOOK_FIXTURE_INCOMPLETE === "datasets" &&
-        new URL(request.url).pathname === "/api/v1/datasets"
+        new URL(request.url).pathname === datasetListingPath
       ) {
         outgoing.writeHead(httpOk, {
           ...Object.fromEntries(response.headers),
@@ -172,7 +167,7 @@ async function serve(): Promise<void> {
         console.info(
           JSON.stringify({
             operation: "fixture.incomplete",
-            route: "/api/v1/datasets",
+            route: datasetListingPath,
           }),
         );
         return;

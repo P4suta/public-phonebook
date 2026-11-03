@@ -397,7 +397,7 @@ impl Fixture {
                 stream.set_read_timeout(Some(Duration::from_secs(1)))?;
                 stream.set_write_timeout(Some(Duration::from_secs(1)))?;
                 stream.write_all(
-                    b"GET /api/v1 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+                    b"GET /api/datasets HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
                 )?;
                 let mut bytes = [0; 64];
                 if stream

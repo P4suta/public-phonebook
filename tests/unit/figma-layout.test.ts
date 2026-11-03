@@ -62,6 +62,36 @@ const layoutSchema = v.object({
   before: v.array(v.object({ id: v.string(), placements: v.array(placement) })),
 });
 
+const originalPages = ["0:1", "14:2", "14:3", "14:4"];
+const removedFrames = new Set(["202:1073", "203:594"]);
+const textMeasurements = [
+  ["14:2", 551],
+  ["0:1", 359],
+  ["14:3", 22],
+  ["14:4", 103],
+  ["468:1270", 232],
+  ["316:1010", 134],
+] as const;
+const dialogGutter = 480;
+const desktopGutter = 240;
+const mobileGutter = 24;
+const iphoneViewport = { width: 393, height: 852, gutter: 0 } as const;
+const iphoneScreens = new Set([
+  "470:1302",
+  "470:1361",
+  "470:1410",
+  "470:1454",
+  "470:1490",
+  "503:1953",
+  "470:1522",
+  "470:1749",
+  "471:1628",
+  "471:1699",
+  "471:1728",
+  "512:1982",
+  "471:1768",
+]);
+
 async function readLayout(): Promise<v.InferOutput<typeof layoutSchema>> {
   const raw: unknown = JSON.parse(
     await readFile("docs/figma-layout.json", "utf8"),
@@ -69,17 +99,14 @@ async function readLayout(): Promise<v.InferOutput<typeof layoutSchema>> {
   return v.parse(layoutSchema, raw);
 }
 
-it("rejects the original canvas overlaps and retains every original artifact in separated sections", async () => {
+it("rejects the original canvas overlaps and keeps every retained original artifact in separated sections", async () => {
   const audit = await readLayout();
   expect(audit.pages.map((page) => page.id).sort()).toEqual([
-    "0:1",
-    "14:2",
-    "14:3",
-    "14:4",
+    ...originalPages,
+    "316:1010",
+    "468:1270",
   ]);
-  expect(audit.before.map((page) => page.id).sort()).toEqual(
-    audit.pages.map((page) => page.id).sort(),
-  );
+  expect(audit.before.map((page) => page.id).sort()).toEqual(originalPages);
   expect(audit.tupleFields.placement).toEqual([
     "id",
     "parent",
@@ -96,15 +123,16 @@ it("rejects the original canvas overlaps and retains every original artifact in 
     expect(page.observedNodes, page.id).toBeGreaterThan(0);
     expect(page.issues, page.id).toEqual([]);
     expect(page.references.resolved, page.id).toBe(page.references.instances);
-    const before = audit.before.find((item) => item.id === page.id);
-    if (!before) throw new Error(`Missing original page ${page.id}`);
+    const original = audit.before.find((item) => item.id === page.id);
     const byId = new Map(page.placements.map((node) => [node.id, node]));
     expect(byId.size, page.id).toBe(page.placements.length);
-    for (const original of before.placements) {
-      expect(byId.get(original.id)?.kind, original.id).toBe(original.kind);
+    for (const artifact of original?.placements ?? []) {
+      expect(byId.get(artifact.id)?.kind, artifact.id).toBe(
+        removedFrames.has(artifact.id) ? undefined : artifact.kind,
+      );
     }
     for (const [phase, nodes] of [
-      ["before", before.placements],
+      ["before", original?.placements ?? []],
       ["after", page.placements],
     ] as const) {
       const overlaps: string[] = [];
@@ -152,12 +180,9 @@ it("fits the native Figma text measurements and keeps text distinct from its opa
     "foreground",
     "background",
   ]);
-  expect(audit.pages.map((page) => [page.id, page.texts.length])).toEqual([
-    ["14:2", 582],
-    ["0:1", 311],
-    ["14:3", 22],
-    ["14:4", 103],
-  ]);
+  expect(audit.pages.map((page) => [page.id, page.texts.length])).toEqual(
+    textMeasurements,
+  );
   for (const page of audit.pages) {
     expect(new Set(page.texts.map(([id]) => id)).size, page.id).toBe(
       page.texts.length,
@@ -188,7 +213,6 @@ it("keeps canonical screen viewports, scrolling, and symmetric gutters consisten
     "228:1698",
     "228:1726",
     "152:2",
-    "202:1073",
     "311:2238",
     "438:2882",
   ]);
@@ -202,19 +226,40 @@ it("keeps canonical screen viewports, scrolling, and symmetric gutters consisten
     "228:1781",
     "228:1809",
     "151:2",
-    "203:594",
     "233:1676",
     "438:2901",
   ]);
   const screens = audit.pages
     .flatMap((page) => page.placements)
-    .filter((node) => desktop.has(node.id) || mobile.has(node.id));
-  expect(screens).toHaveLength(desktop.size + mobile.size);
+    .filter(
+      (node) =>
+        desktop.has(node.id) ||
+        mobile.has(node.id) ||
+        iphoneScreens.has(node.id),
+    );
+  expect(screens).toHaveLength(desktop.size + mobile.size + iphoneScreens.size);
   for (const node of screens) {
+    if (iphoneScreens.has(node.id)) {
+      expect(
+        [node.width, node.height, node.left, node.right, node.scroll],
+        node.id,
+      ).toEqual([
+        iphoneViewport.width,
+        iphoneViewport.height,
+        iphoneViewport.gutter,
+        iphoneViewport.gutter,
+        "VERTICAL",
+      ]);
+      continue;
+    }
     const compact = node.id === "233:1676";
     const wide = desktop.has(node.id);
     const gutter =
-      node.id === "438:2882" ? 480 : wide && node.id !== "202:1073" ? 240 : 24;
+      node.id === "438:2882"
+        ? dialogGutter
+        : wide
+          ? desktopGutter
+          : mobileGutter;
     expect(
       [node.width, node.height, node.left, node.right, node.scroll],
       node.id,

@@ -61,22 +61,6 @@ public struct SearchResults: Sendable {
   public var total: Int { groups.reduce(0) { $0 + $1.total } }
 }
 
-public struct SnapshotMeta: Sendable {
-  public let snapshot: SnapshotID
-  public let generatedAt: String
-}
-
-public struct Resource<Value: Sendable>: Sendable {
-  public let data: Value
-  public let meta: SnapshotMeta
-}
-
-public struct Endpoints: Sendable {
-  public let datasets: String
-  /// The delta listing, which a provider that doesn't publish deltas omits.
-  public let datasetDeltas: String?
-}
-
 public enum ImportError: Error, Equatable, Sendable {
   case oversizedRecord, invalidRecord, invalidSnapshot, unexpectedCount, alreadyUpdating
   case unavailableStorage, activationUncertain, projectionTooLarge

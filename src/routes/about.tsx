@@ -16,7 +16,7 @@ function AboutPage(): ReactElement {
         </p>
         <h2 className={css.subheading}>電話番号をさがす</h2>
         <p className={css.body}>
-          名前の一部を入れると、候補が出ます。 地域や施設の種類もえらべます。
+          名前の一部を入れると、候補が出ます。 電話番号でもさがせます。
         </p>
         <h2 className={css.subheading}>データをたしかめる・使う</h2>
         <p className={css.body}>

@@ -9,7 +9,9 @@ import {
   prefectureNames,
 } from "../../src/core/catalog.ts";
 import {
+  DatasetFileListingSchema,
   DirectoryDeltaListingSchema,
+  datasetFileFormats,
   manifestObjectKey,
   PreparedDatasetManifestSchema,
   SearchIndexLocationSchema,
@@ -235,12 +237,14 @@ describe("native D1 public API", () => {
       sourceCount: 1,
       sourceDatabaseSha256: "1".repeat(64),
       databaseSha256: "2".repeat(64),
-      files: [
-        "contacts.jsonl.gz",
-        "contacts.csv.gz",
-        "contacts.vcf.gz",
-        "directory.tsv.br",
-      ].map((file) => ({
+      files: (
+        [
+          "contacts.jsonl.gz",
+          "contacts.csv.gz",
+          "contacts.vcf.gz",
+          "directory.tsv.br",
+        ] as const
+      ).map((file) => ({
         file,
         sha256: "3".repeat(64),
         bytes: 1,
@@ -281,21 +285,26 @@ describe("native D1 public API", () => {
       production,
     );
     expect(response.status).toBe(200);
-    expect(await response.text()).toBe(JSON.stringify(listing));
+    const listed = {
+      ...listing,
+      files: listing.files.map(({ file, ...stored }) => ({
+        file,
+        format: datasetFileFormats[file],
+        ...stored,
+      })),
+      datasetDeltas: `/api/dataset-deltas?snapshot=${snapshot}`,
+    };
+    expect(await response.text()).toBe(JSON.stringify(listed));
+    expect(v.is(DatasetFileListingSchema, listed)).toBe(true);
     expect(response.headers.get("cache-control")).toContain("no-cache");
-    const versioned = await api.fetch(
-      new Request("https://www.dial.page/api/v1/datasets"),
-      production,
-    );
-    expect(await versioned.text()).toBe(
-      JSON.stringify({
-        ...listing,
-        files: listing.files.map((file) => ({
-          ...file,
-          url: file.url.replace("/api/", "/api/v1/"),
-        })),
-      }),
-    );
+    expect(
+      (
+        await api.fetch(
+          new Request("https://www.dial.page/api/v1/datasets"),
+          production,
+        )
+      ).status,
+    ).toBe(404);
     const unindexed = JSON.stringify(listing);
     const unindexedDigest = await sha256(unindexed);
     await bucket.put(manifestObjectKey(snapshot, unindexedDigest), unindexed);
@@ -389,25 +398,31 @@ describe("native D1 public API", () => {
         DATASET_MANIFEST_SHA256: manifestSha256,
       });
 
-    expect(await (await fetch("/api/datasets")).text()).toBe(
-      JSON.stringify(listing),
+    const datasets: unknown = await (await fetch("/api/datasets")).json();
+    const { datasetDeltas, ...listed } = v.parse(
+      DatasetFileListingSchema,
+      datasets,
     );
-    for (const prefix of ["/api", "/api/v1"]) {
-      const response = await fetch(
-        prefix === "/api/v1"
-          ? `${prefix}/dataset-deltas?snapshot=${snapshot}`
-          : `${prefix}/dataset-deltas`,
-      );
-      expect(response.status, prefix).toBe(200);
+    expect(datasets).not.toHaveProperty("deltas");
+    expect(datasetDeltas).toBe(`/api/dataset-deltas?snapshot=${snapshot}`);
+    expect({
+      ...listed,
+      files: listed.files.map(({ format: _format, ...stored }) => stored),
+    }).toEqual(listing);
+    for (const path of ["/api/dataset-deltas", datasetDeltas]) {
+      const response = await fetch(path);
+      expect(response.status, path).toBe(200);
       expect(response.headers.get("X-Dataset-Snapshot")).toBe(snapshot);
       expect(response.headers.get("Cache-Control")).toContain("no-cache");
-      const url = `${prefix}/datasets/${snapshot}/${deltaSha256}/${file}`;
+      const url = `/api/datasets/${snapshot}/${deltaSha256}/${file}`;
       expect(
         v.parse(DirectoryDeltaListingSchema, await response.json()),
       ).toEqual({
         snapshot,
         archiveSha256: "3".repeat(64),
-        deltas: [{ ...artifact, url }],
+        deltas: [
+          { ...artifact, format: "public-phonebook-directory-delta/1", url },
+        ],
       });
       const download = await fetch(url);
       expect(download.status).toBe(200);
@@ -435,26 +450,28 @@ describe("native D1 public API", () => {
       ).toBe(304);
     }
     expect(
-      (await fetch(`/api/v1/dataset-deltas?snapshot=${"0".repeat(64)}`)).status,
+      (await fetch(`/api/dataset-deltas?snapshot=${"0".repeat(64)}`)).status,
     ).toBe(409);
-    expect((await fetch("/api/v1/dataset-deltas?snapshot=x")).status).toBe(400);
-    expect(
-      (await fetch(`/api/dataset-deltas?snapshot=${snapshot}`)).status,
-    ).toBe(400);
+    expect((await fetch("/api/dataset-deltas?snapshot=x")).status).toBe(400);
+    for (const path of [
+      "/api/v1/dataset-deltas",
+      `/api/v1/datasets/${snapshot}/${deltaSha256}/${file}`,
+    ])
+      expect((await fetch(path)).status, path).toBe(404);
     for (const name of [
       `directory-delta-${base}.tsv`,
       `directory-delta-${base.toUpperCase()}.tsv.br`,
       "directory-delta-7.tsv.br",
     ])
       expect(
-        (await fetch(`/api/v1/datasets/${snapshot}/${deltaSha256}/${name}`))
+        (await fetch(`/api/datasets/${snapshot}/${deltaSha256}/${name}`))
           .status,
         name,
       ).toBe(404);
     expect(
-      await (await fetch("/api/v1/dataset-deltas", legacyDigest)).json(),
+      await (await fetch("/api/dataset-deltas", legacyDigest)).json(),
     ).toEqual({ snapshot, archiveSha256: "3".repeat(64), deltas: [] });
-    expect((await fetch("/api/v1/dataset-deltas", "")).status).toBe(503);
+    expect((await fetch("/api/dataset-deltas", "")).status).toBe(503);
   });
   it("rejects duplicate categories, foreign rows, mixed snapshots, and false group totals", async () => {
     const body: unknown = await (
@@ -635,6 +652,9 @@ describe("native D1 public API", () => {
       "/api",
       "/api/openapi.json",
       "/api/contacts.vcf",
+      "/api/v1",
+      "/api/v1/datasets",
+      "/api/v1/dataset-deltas",
       "/api/v1/openapi.json",
       "/api/v1/contacts",
       "/api/v1/contacts.vcf",
@@ -985,10 +1005,10 @@ describe("native D1 public API", () => {
     expect(refused.status).toBe(405);
     expect(refused.headers.get("Allow")).toBe("GET, HEAD");
     expect(refused.headers.get("Access-Control-Allow-Origin")).toBeNull();
-    const admitted = await request("/api/v1", preflight);
+    const admitted = await request("/api/datasets", preflight);
     expect(admitted.status).toBe(204);
     expect(admitted.headers.get("Access-Control-Allow-Origin")).toBe("*");
-    const posted = await request("/api/v1", { method: "POST" });
+    const posted = await request("/api/datasets", { method: "POST" });
     expect(posted.status).toBe(405);
     expect(posted.headers.get("Allow")).toBe("GET, HEAD, OPTIONS");
     expect((await request("/api/contacts", { method: "POST" })).status).toBe(
@@ -1014,6 +1034,12 @@ describe("site and open-data route families", () => {
     "/api/sources",
     `/api/contacts/row/${snapshot}/0`,
   ];
+  const openDataFile = `/api/datasets/${snapshot}/${"3".repeat(64)}/contacts.csv.gz`;
+
+  beforeAll(async () => {
+    const bucket = await runtime.getR2Bucket("DATASETS");
+    await bucket.put(openDataFile.replace("/api/datasets/", ""), "fixture\n");
+  });
 
   async function sent(
     path: string,
@@ -1031,7 +1057,7 @@ describe("site and open-data route families", () => {
     for (const sender of senders)
       for (const [family, path] of [
         ["site", "/api/catalog"],
-        ["open-data", "/api/v1"],
+        ["open-data", openDataFile],
       ] as const) {
         const response = await sent(path, sender);
         const label = `${family} ${String(sender)}`;
@@ -1073,11 +1099,11 @@ describe("site and open-data route families", () => {
 
   it("sends each path to exactly one route family", () => {
     for (const [path, open] of [
-      ["/api/v1", true],
-      ["/api/v1/datasets", true],
-      ["/api/v1/dataset-deltas", true],
-      [`/api/v1/datasets/${snapshot}/${snapshot}/contacts.csv.gz`, true],
-      ["/api/v1/contacts", true],
+      ["/api/v1", false],
+      ["/api/v1/datasets", false],
+      ["/api/v1/dataset-deltas", false],
+      [`/api/v1/datasets/${snapshot}/${snapshot}/contacts.csv.gz`, false],
+      ["/api/v1/contacts", false],
       ["/api/datasets", true],
       [`/api/datasets/${snapshot}/${snapshot}/contacts.csv.gz`, true],
       ["/api/dataset-deltas", true],
@@ -1448,7 +1474,6 @@ describe("dataset-bound search cache", () => {
       for (const header of [
         "Content-Type",
         "X-Dataset-Snapshot",
-        "X-Directory-API-Version",
         "Access-Control-Allow-Origin",
         "X-Content-Type-Options",
         "Content-Security-Policy",
@@ -1517,7 +1542,7 @@ describe("dataset-bound search cache", () => {
       expect(
         (await cachedRequest("/api/contacts", cache, { version })).status,
       ).toBe(200);
-    for (const path of ["/api/catalog", "/api/contacts/fixture:000", "/api/v1"])
+    for (const path of ["/api/catalog", "/api/contacts/fixture:000"])
       expect((await cachedRequest(path, cache)).status, path).toBe(200);
     expect(cache.reads).toEqual([]);
     expect(cache.entries.size).toBe(0);
