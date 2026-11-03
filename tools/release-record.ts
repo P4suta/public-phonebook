@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   copyFile,
   mkdir,
@@ -51,6 +52,24 @@ export const recordFiles = {
 export const sumsFile = "SHA256SUMS";
 const evidenceFormat = 1;
 const cyclonedxVersion = "1.6";
+/** The RFC 9562 namespace for names that are URLs. */
+export const urlNamespace = "6ba7b811-9dad-11d1-80b4-00c04fd430c8";
+const sbomNameBase = `https://github.com/${releaseControl.repository}/sbom`;
+const uuidBytes = 16;
+const versionByte = 6;
+const variantByte = 8;
+const lowNibble = 0x0f;
+const nameBasedVersion = 0x50;
+const variantMask = 0x3f;
+const rfcVariant = 0x80;
+const uuidGroups = [8, 4, 4, 4, 12] as const;
+/** CycloneDX 1.6 requires an RFC 4122 serial number, and `actions/attest` requires the field to recognize CycloneDX. */
+const SerialNumberSchema = v.pipe(
+  v.string(),
+  v.regex(
+    /^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
+  ),
+);
 const tagMonthScale = 100;
 const evidenceScope = "releases";
 const nodeModules = "node_modules/";
@@ -112,6 +131,7 @@ const ComponentSchema = v.looseObject({
 const SbomSchema = v.looseObject({
   bomFormat: v.literal("CycloneDX"),
   specVersion: v.literal(cyclonedxVersion),
+  serialNumber: SerialNumberSchema,
   metadata: v.looseObject({
     component: v.looseObject({
       type: v.literal("application"),
@@ -149,6 +169,32 @@ function base64Hex(encoded: string): string {
   ).join("");
 }
 
+/** Derives a name-based version 5 identifier, so the same name always gets the same identifier. */
+export function nameBasedUuid(namespace: string, name: string): string {
+  const digest = createHash("sha1")
+    .update(
+      Uint8Array.from(
+        namespace.replaceAll("-", "").match(/../gu) ?? [],
+        (pair) => Number.parseInt(pair, hexRadix),
+      ),
+    )
+    .update(name, "utf8")
+    .digest()
+    .subarray(0, uuidBytes);
+  digest[versionByte] =
+    ((digest[versionByte] ?? 0) & lowNibble) | nameBasedVersion;
+  digest[variantByte] = ((digest[variantByte] ?? 0) & variantMask) | rfcVariant;
+  const hex = digest.toString("hex");
+  let offset = 0;
+  return uuidGroups
+    .map((width) => {
+      const group = hex.slice(offset, offset + width);
+      offset += width;
+      return group;
+    })
+    .join("-");
+}
+
 export function productionSbom(
   lock: unknown,
   product: { readonly name: string; readonly version: string },
@@ -180,9 +226,16 @@ export function productionSbom(
       hashes: [...integrityHashes(entry.integrity)],
     });
   }
+  const sorted = [...components.values()].sort((first, second) =>
+    first.purl < second.purl ? -1 : first.purl === second.purl ? 0 : 1,
+  );
+  const contents = createHash("sha256")
+    .update(JSON.stringify([product, sorted]))
+    .digest("hex");
   return v.parse(SbomSchema, {
     bomFormat: "CycloneDX",
     specVersion: cyclonedxVersion,
+    serialNumber: `urn:uuid:${nameBasedUuid(urlNamespace, `${sbomNameBase}/${contents}`)}`,
     version: 1,
     metadata: {
       component: {
@@ -192,9 +245,7 @@ export function productionSbom(
         version: product.version,
       },
     },
-    components: [...components.values()].sort((first, second) =>
-      first.purl < second.purl ? -1 : first.purl === second.purl ? 0 : 1,
-    ),
+    components: sorted,
   });
 }
 
