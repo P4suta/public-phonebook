@@ -29,30 +29,27 @@ const regions = catalogRegions({
 });
 
 vi.mock("../../src/ui/styles.css.ts", () => ({
+  actionColumn: "actionColumn",
   actions: "actions",
+  addressHeading: "addressHeading",
   body: "body",
   button: "button",
-  numberCopyHint: "numberCopyHint",
   card: "card",
   category: "category",
+  contactAddress: "contactAddress",
   contactHeader: "contactHeader",
   contactLocation: "contactLocation",
   contactName: "contactName",
-  contactLink: "contactLink",
   contactNumbers: "contactNumbers",
-  cardFeedback: "cardFeedback",
   detailAction: "detailAction",
   phoneGroup: "phoneGroup",
-  group: "group",
   region: "region",
   heading: "heading",
   solid: "solid",
   srOnly: "srOnly",
   stack: "stack",
-  status: "status",
   subheading: "subheading",
   telephone: "telephone",
-  trailingIcon: "trailingIcon",
 }));
 
 it("renders external web resources with isolated tabs and an accessible announcement before hydration", () => {
@@ -113,8 +110,13 @@ it("shows every telephone action and one contact-save action for a multi-number 
     const detail = markup.includes('data-layout="detail"');
     expect(markup.match(/href="tel:/g)).toHaveLength(2);
     expect(markup.match(/data-phone/g)).toHaveLength(2);
-    expect(markup.match(/<button[^>]*data-phone/g)).toHaveLength(2);
-    expect(markup).not.toMatch(/<a[^>]*data-phone/u);
+    for (const phone of contact.phones)
+      expect(markup).toContain(
+        `<p class="telephone" data-phone="">${phone.display}</p>`,
+      );
+    expect(markup).not.toContain("<button");
+    expect(markup).not.toContain("<output");
+    expect(markup).not.toContain("コピー");
     expect(markup.match(/電話をかける<\/a>/g)).toHaveLength(2);
     for (const phone of contact.phones)
       expect(markup).toContain(`href="tel:${phone.e164}"`);
@@ -124,11 +126,15 @@ it("shows every telephone action and one contact-save action for a multi-number 
         /<a[^>]*contact\.vcf[^>]*><svg[^>]*data-icon="book-user"/u,
       );
     if (detail) {
-      expect(markup).toMatch(
-        /<a[^>]*data-external-destination="address"[^>]*><svg[^>]*data-icon="map-pin"[^>]*>.*?<\/svg><span>Tokyo<svg[^>]*data-icon="external-link"/u,
-      );
       expect(markup).toContain(
-        'href="https://www.google.com/maps/search/?api=1&amp;query=Public%20library%2CTokyo"',
+        '<h2 class="addressHeading">住所</h2><p class="body">Tokyo</p>',
+      );
+      expect(markup).not.toMatch(/<a[^>]*>[^<]*Tokyo/u);
+      expect(markup).toMatch(
+        /<a class="button " href="https:\/\/www\.google\.com\/maps\/search\/\?api=1&amp;query=Public%20library%2CTokyo"[^>]*data-external-destination="address" aria-label="Public libraryを地図で見る（新しいタブ）"><svg[^>]*data-icon="map-pin"[^>]*>.*?<\/svg>地図で見る<\/a>/u,
+      );
+      expect(markup.indexOf("地図で見る")).toBeGreaterThan(
+        markup.indexOf("Tokyo"),
       );
     } else {
       expect(markup).not.toContain("Tokyo");
@@ -139,6 +145,51 @@ it("shows every telephone action and one contact-save action for a multi-number 
       );
     }
   }
+});
+
+it("orders the contact card from the name to the homepage and leaves out the address block without an address", () => {
+  const website = "https://example.org/library";
+  const markup = renderToStaticMarkup(
+    createElement(ContactCard, { contact: { ...contact, website } }),
+  );
+  const order = [
+    "図書館",
+    "Public library",
+    "03-3581-2331",
+    "電話をかける",
+    "電話帳に入れる",
+    "住所",
+    "Tokyo",
+    "地図で見る",
+    "施設のホームページを開く",
+    "</article>",
+  ].map((text) => markup.indexOf(text));
+  expect(order.every((position) => position >= 0)).toBe(true);
+  expect(order).toEqual(order.toSorted((a, b) => a - b));
+  expect(markup).toMatch(
+    /<a class="button " href="https:\/\/example\.org\/library"[^>]*data-external-destination="facility"><svg[^>]*data-icon="external-link"[^>]*>.*?<\/svg>施設のホームページを開く<span class="srOnly">（新しいタブ）<\/span><\/a>/u,
+  );
+  for (const address of ["", "　"]) {
+    const bare = renderToStaticMarkup(
+      createElement(ContactCard, { contact: { ...contact, address } }),
+    );
+    expect(bare).not.toContain("住所");
+    expect(bare).not.toContain("地図で見る");
+    expect(bare).not.toContain("google.com/maps");
+    expect(bare).not.toContain("施設のホームページを開く");
+  }
+});
+
+it("names the map action after the facility and ends its name with the visible label", () => {
+  fc.assert(
+    fc.property(fc.string({ minLength: 1 }), (name) => {
+      const accessible = uiCopy.address.mapName(name);
+      expect(uiCopy.address.map).toBe("地図で見る");
+      expect(accessible).toBe(`${name}を地図で見る`);
+      expect(accessible.endsWith(uiCopy.address.map)).toBe(true);
+    }),
+    { numRuns: propertyRuns, seed: propertySeed },
+  );
 });
 
 it("keeps a result's name as heading text and labels its one detail action by the address the details show", () => {

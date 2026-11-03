@@ -67,14 +67,15 @@ Exclude gray steps, gradients, shadows, translucent styling, filters, blending, 
 Use size, weight, grouping, spacing, and solid borders to communicate structure.
 The initial heading is the service name.
 The service name and the project information link below it start at the page's top padding and the content's start edge, 16 pixels apart.
-The search field row sits at the vertical center of the viewport, with its label and hint directly above it.
+The search field row sits at the vertical center of the viewport, with its label directly above it.
 A viewport too short for that arrangement keeps the same order and derived spacing from the top and scrolls instead.
 Data information and the complete files are reached through the project information link.
 No footer contains required information.
 Buttons have visible labels, explicit focus indicators, and generous targets.
-The search action touches the search-field border on wide screens and sits below the field on narrow screens.
+The search action is a standard outline action 8 pixels from the field.
+It sits beside the field, centered on it, on wide screens and below the field at its label's width on narrow screens.
 Search actions have a minimum width and grow to fit their labels.
-The search field has a visible label and a persistent hint above it, with no placeholder or decorative glyph.
+The search field has one visible label above it, with no hint, placeholder, or decorative glyph.
 
 The website uses typed Vanilla Extract styles and the generic sans-serif family, so text follows the reader's operating system and browser font settings without a font download.
 The [Digital Agency design system](https://design.digital.go.jp/dads/foundations/typography/) states that its Noto Sans JP choice doesn't restrict system fonts and that information must not depend on the font.
@@ -114,7 +115,7 @@ These checks compare the retained export, not a live Figma file or subjective vi
 ## Interaction and copy
 
 Use short, concrete Japanese labels.
-The placeholder names facility names and telephone numbers.
+The search label names facility names and telephone numbers.
 The search has no region or category filter, like the iPhone app.
 Japanese composition completes before an automatic search begins.
 Input that contains hiragana, katakana, or kanji searches 120 milliseconds after composition ends or the text changes.
@@ -134,43 +135,46 @@ Early native-form input survives JavaScript enhancement.
 Clearing the search term restores the initial screen without a separate home action.
 The search input stays mounted and focused across initial and result layouts.
 Layout changes do not use motion animation.
-The visible result count changes at once, and a separate status announces it about 0.6 seconds after typing stops.
+No visible line repeats the result total.
+A visually hidden status announces the total about 0.6 seconds after typing stops.
 A visitor downloads the search index, not the national database, and it stays only in the browser's HTTP cache.
 
-Results prioritize exact names and show large telephone numbers with call and copy controls.
+Results prioritize exact names and show large telephone numbers with call actions.
 Every contact appears under its fixed facility-category heading with one category icon and the category's exact count.
+The count follows the category label 8 pixels after it, on the label's baseline.
 The category that holds an exact name comes first, and the exact name leads that category.
 Each category initially previews up to three contacts rather than filling the screen with one large category.
 The category order follows its best contact's exact-name, prefix, substring, normalized-name, and stable-ID order.
 There is no grouping selector.
 The existing desktop and mobile result screens demonstrate the `高知大学` search.
 Grouped contacts inherit the shared heading's category and use third-level facility headings.
-The telephone value is a native copy button with a small visible copy hint.
-Result number controls and primary call actions fill the telephone column.
-Number and hint clicks focus the same button before initiating copying synchronously in the trusted click.
-The adapter uses the asynchronous clipboard when transient activation is available and a synchronous selection-copy compatibility path when it is absent.
-Programmatic clicks cannot initiate either write path.
-Only the latest copy request within a contact can publish completion feedback.
-It never carries a telephone URI or initiates calling.
+The telephone value is plain selectable text, and no control copies it.
+Primary call actions fill the telephone column.
+The value never carries a telephone URI or initiates calling.
 Calling uses a separate primary action labelled with its purpose.
 Facility names are heading text, and the prefecture and municipality follow the facility name as text.
 Below the telephone actions, one outline link opens the details, with a chevron before a label that names what the details add.
 The label is `住所などを見る` when the detail page shows an address and `くわしい情報を見る` when it doesn't.
 Its accessible name starts with the facility name and keeps the visible label, such as `高知大学の住所などを見る`.
-On wide screens, the detail link sits in the telephone column.
-Result cards leave the address and its map link to the detail page.
+On wide screens, the detail link sits in the left column below the region.
+Result cards leave the address and its map action to the detail page.
 A result that the device found opens its details through its index row, and a changed snapshot reloads the index and searches again.
 The search index carries no addresses, so a result that the device found uses the address label.
 Navigation links have a visible underline or outline, an icon, and a target of at least 44 pixels.
 This follows the distinction between [native links](https://www.w3.org/WAI/ARIA/apg/patterns/link/) and [action buttons](https://www.w3.org/WAI/ARIA/apg/patterns/button/).
-No separate telephone-copy or address-copy control is rendered.
-Copy feedback occupies a full-width row below the contact content.
-Successful and denied copying preserve the call target alignment.
-Desktop results place the name and region beside telephone information.
-Narrow screens preserve the reading order of the name, the region, and telephone information.
+No page renders a copy control or copy feedback.
+Desktop results use two columns and three rows: the name beside the number, the region beside the call action, and the detail link below the region.
+Narrow screens keep one column in the source order: the name, the region, the number, the call action, and the detail link.
+That source order also sets the keyboard and screen reader order, so the call action comes before the detail link at every width.
+The detail card shows the category, the name, and each number, then a full-width solid call action and an outline save action.
 Detailed contacts expose contact saving once even when several telephone numbers are listed.
-Detail addresses lead to a map.
-Map links open a separate tab, show an external-navigation icon right after the address text, announce that behavior, and use `noopener noreferrer`.
+A row heading for the address follows, with the address as plain selectable text and no link, underline, or icon.
+An outline map action with the map pin sits below the address and searches Google Maps for the facility name and address.
+Its accessible name starts with the facility name, contains the visible label verbatim, such as `国立国会図書館を地図で見る`, and ends with the new-tab notice.
+A contact without an address shows neither the address heading nor the map action.
+The facility homepage action closes the card, and the source section follows the card.
+On wide screens, the detail actions share the 360-pixel telephone column.
+The map action draws the map pin in place of the external-navigation icon, announces the new tab, and uses `noopener noreferrer`.
 Publisher sites, source files, and reuse terms follow the same external-web-link convention before and after enhancement, with the external-navigation icon at the start of each action.
 A plain activation of a link to another site first opens a modal dialog that follows the [modal dialog pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/).
 The dialog names what the link opens, the destination host, and the new tab, and focus starts on its open action.
@@ -198,15 +202,15 @@ The palette scanner inspects CSS declarations, computed styles, active pseudo-el
 Prohibited fixtures verify that the scanner rejects color, gray, gradients, opacity, shadows, filters, blending, and the browser's default translucent backdrop.
 The national browser suite checks Chromium, Firefox, WebKit, and a mobile WebKit profile.
 Live contact checks cover the reported dental result, long Japanese names, and multiple telephone numbers.
-They run at 320, 390, 800, 960, and 1440 pixels and include doubled text, keyboard focus, exact copied values, and clipboard denial.
-Native clipboard tests separately click the number text and copy hint after automatic search.
-They also consume native transient activation before the first trusted click reaches React and verify the synchronous selection copy event, focus restoration, and temporary-field cleanup.
-Fault injection rejects an older pending copy after a later successful copy.
-Map tests on the detail page confirm the dialog and then verify an actual new tab, its query, its absent opener, and the preserved page.
+They run at 320, 390, 800, 960, and 1440 pixels and include doubled text and keyboard focus.
+They require plain telephone text and no button in a result card, and a planted copy button must fail that rule.
+Map tests on the detail page check the plain address text and the map action's name.
+They confirm the dialog and then verify an actual new tab, its query, its absent opener, and the preserved page.
 External-link checks open the dialog from every link type and check its description, host, initial and returned focus, Escape, cancellation, opener isolation, and design rules.
 They also require modifier-key and middle-button activations to bypass the dialog and links without JavaScript to open directly.
 The detector checks alignment, repeated framed actions, duplicate destinations, link affordances, native control roles, labels, target overlap, clipping, and accidental call links on telephone values.
-It also requires a plain-text facility heading and one labelled detail link on the telephone actions' left edge below them.
+It also requires a plain-text facility heading and one labelled detail link on the region's left edge below it.
+On wide screens, that link sits left of the call action, and a 1440-pixel check places the call action in the right column.
 Planted displaced actions, a displaced detail link, and extra framed actions must produce their specific violations.
 These constraints enforce this product's layout and interaction decisions rather than score arbitrary visual quality.
 Screenshots and failure traces remain local review artifacts.

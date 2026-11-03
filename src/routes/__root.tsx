@@ -17,7 +17,7 @@ import { pageIcons } from "../ui/route-icons.ts";
 import { iconSprite } from "../ui/styles.css.ts";
 
 const siteName = "Public Phonebook";
-const siteDescription = "施設や窓口の電話番号をさがせます。";
+const siteDescription = "施設の電話番号をさがせます。";
 const { favicon, vectorFavicon, appleTouchIcon, maskIcon, socialPreview } =
   siteIcons;
 

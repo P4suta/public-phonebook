@@ -59,7 +59,12 @@ export async function externalLinkIssues(
       const name = link.getAttribute("aria-label") ?? link.textContent ?? "";
       if (!name.includes("新しいタブ"))
         issues.push(`new-tab-announcement: ${link.href}`);
-      if (link.querySelectorAll('svg[data-icon="external-link"]').length !== 1)
+      // The map action draws its own map pin, and its confirmation names the new tab.
+      const icon =
+        link.dataset.externalDestination === "address"
+          ? "map-pin"
+          : "external-link";
+      if (link.querySelectorAll(`svg[data-icon="${icon}"]`).length !== 1)
         issues.push(`new-tab-icon: ${link.href}`);
       return issues;
     }),
