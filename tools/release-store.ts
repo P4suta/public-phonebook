@@ -33,6 +33,7 @@ const leaseUpdateMs = 10000;
 const legacyJournalFormat = 1;
 const journalFormat = 2;
 const evidenceFormat = 1;
+const stageEvidenceFormat = 2;
 const legacyPhases = [
   "preparing",
   "activating",
@@ -408,13 +409,17 @@ export const candidateStages = [
   "phones",
   "prove",
   "e2e",
+  "ios-prove",
+  "ios-check",
 ] as const;
 export type CandidateStage = (typeof candidateStages)[number];
+/** A stage's evidence binds to the digest of the files it reads, and to the dataset only when the stage reads one. */
 export const CandidateEvidenceSchema = v.strictObject({
-  formatVersion: v.literal(evidenceFormat),
+  formatVersion: v.literal(stageEvidenceFormat),
   stage: v.picklist(candidateStages),
+  inputsSha256: DigestSchema,
+  manifestSha256: v.nullable(DigestSchema),
   sourceTree,
-  manifestSha256: DigestSchema,
   result: v.picklist(["passed", "failed"]),
   provenance: RunProvenanceSchema,
 });
@@ -427,11 +432,7 @@ export async function recordCandidateEvidence(
   const record = v.parse(CandidateEvidenceSchema, evidence);
   if (record.result !== "passed")
     throw new Error("Only a passing stage becomes candidate evidence");
-  const key = controlKeys.candidate(
-    record.sourceTree,
-    record.manifestSha256,
-    record.stage,
-  );
+  const key = controlKeys.candidate(record.inputsSha256, record.stage);
   try {
     await store.write(key, encodeRecord(record), { kind: "create" });
     return "created";
@@ -447,7 +448,7 @@ export async function recordCandidateEvidence(
     if (
       stored?.success &&
       stored.output.stage === record.stage &&
-      stored.output.sourceTree === record.sourceTree &&
+      stored.output.inputsSha256 === record.inputsSha256 &&
       stored.output.manifestSha256 === record.manifestSha256 &&
       stored.output.result === "passed" &&
       provenanceSigner(stored.output.provenance) ===
@@ -494,20 +495,27 @@ export async function recordCandidateObservation(
 
 export interface StageAdmission {
   readonly stage: CandidateStage;
+  readonly inputsSha256: string;
   readonly decision: ReturnType<typeof evidenceAdmission>;
+}
+
+/** The inputs digest and dataset that each stage's evidence must name for the checked-out files. */
+export interface ExpectedStage {
+  readonly inputsSha256: string;
+  readonly manifestSha256: string | null;
 }
 
 export async function candidateEvidenceAdmission(
   store: ControlStore,
-  expectedTree: string,
-  expectedManifest: string,
+  expected: Readonly<Record<CandidateStage, ExpectedStage>>,
   expectedSigners: readonly string[] = evidenceSigners,
 ): Promise<readonly StageAdmission[]> {
   const admissions: StageAdmission[] = [];
   for (const stage of candidateStages) {
+    const { inputsSha256, manifestSha256 } = expected[stage];
     const object = await readObject(
       store,
-      controlKeys.candidate(expectedTree, expectedManifest, stage),
+      controlKeys.candidate(inputsSha256, stage),
     );
     const parsed = object
       ? v.safeParse(
@@ -522,12 +530,13 @@ export async function candidateEvidenceAdmission(
     const signer = evidence ? provenanceSigner(evidence.provenance) : "";
     admissions.push({
       stage,
+      inputsSha256,
       decision: evidenceAdmission(
         evidence !== null,
-        evidence?.sourceTree ?? "",
-        expectedTree,
+        evidence?.inputsSha256 ?? "",
+        inputsSha256,
         evidence?.manifestSha256 ?? "",
-        expectedManifest,
+        manifestSha256 ?? "",
         signer,
         expectedSigners.includes(signer) ? signer : (expectedSigners[0] ?? ""),
         evidence?.result === "passed",
@@ -539,17 +548,11 @@ export async function candidateEvidenceAdmission(
 
 export async function requireCandidateEvidence(
   store: ControlStore,
-  expectedTree: string,
-  expectedManifest: string,
+  expected: Readonly<Record<CandidateStage, ExpectedStage>>,
   expectedSigners: readonly string[] = evidenceSigners,
 ): Promise<void> {
   const refused = (
-    await candidateEvidenceAdmission(
-      store,
-      expectedTree,
-      expectedManifest,
-      expectedSigners,
-    )
+    await candidateEvidenceAdmission(store, expected, expectedSigners)
   ).filter((admission) => admission.decision !== "admit");
   if (refused.length)
     throw new Error(

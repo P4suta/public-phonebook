@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 import { localBundle, localBundleVariable } from "../../tools/local-bundle.ts";
-import { candidateSigner, candidateStages } from "../../tools/release-store.ts";
+import { candidateStages } from "../../tools/release-store.ts";
 import {
   checkStageScripts,
   e2eEnvironment,
@@ -13,7 +13,6 @@ import {
   parseTestArguments,
   performanceCommand,
   performanceReport,
-  recordingAuthority,
   stageRunner,
 } from "../../tools/test.ts";
 import {
@@ -24,33 +23,34 @@ import {
 
 const tree = "a".repeat(40);
 const manifest = "b".repeat(64);
+const inputs = "c".repeat(64);
 
 describe("test stages", () => {
   it("runs every stage by default and selected stages in gate order", () => {
     expect(parseTestArguments([])).toEqual({
       bundle: resolve(".local/phonebook"),
       stages: candidateStages,
-      record: false,
     });
     expect(
       parseTestArguments([
+        "--stage",
+        "ios-check",
         "--stage",
         "e2e",
         "--bundle",
         "fixture",
         "--stage",
         "data",
-        "--record",
       ]),
     ).toEqual({
       bundle: resolve("fixture"),
-      stages: ["data", "e2e"],
-      record: true,
+      stages: ["data", "e2e", "ios-check"],
     });
     for (const args of [
       ["--stage", "deploy"],
       ["--stage", "e2e", "--stage", "e2e"],
       ["--bundle"],
+      ["--record"],
       ["fixture"],
     ])
       expect(() => parseTestArguments(args), args.join(" ")).toThrow();
@@ -101,53 +101,43 @@ describe("test stages", () => {
     ]);
   });
 
-  it("records candidate evidence only from a clean Actions run", () => {
-    const actions = {
-      kind: "github-actions" as const,
-      repository: "P4suta/public-phonebook",
-      workflow: candidateSigner,
-      runId: "9",
-      runAttempt: 1,
-      commit: tree,
-      actor: "P4suta",
-    };
-    expect(() =>
-      recordingAuthority(false, { kind: "local" }, null),
-    ).not.toThrow();
-    expect(() => recordingAuthority(true, actions, tree)).not.toThrow();
-    expect(() => recordingAuthority(true, { kind: "local" }, tree)).toThrow(
-      "GitHub Actions",
-    );
-    expect(() => recordingAuthority(true, actions, null)).toThrow("clean");
+  it("runs the iOS stages through the same native check tool as `just`", async () => {
+    const justfile = await readFile("justfile", "utf8");
+    for (const [stage, command] of [
+      ["ios-prove", "prove"],
+      ["ios-check", "check"],
+    ] as const) {
+      expect(candidateStages).toContain(stage);
+      expect(justfile).toContain(
+        `${stage}:\n    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- ${command}\n`,
+      );
+    }
   });
 
-  it("writes one receipt per stage under its tree and manifest", async () => {
+  it("writes one receipt per stage under the digest of its inputs", async () => {
     const directory = await mkdtemp(join(tmpdir(), "phonebook-stages-"));
     try {
       const path = await saveStageReceipt(
         {
-          formatVersion: 1,
+          formatVersion: 2,
           stage: "e2e",
-          sourceTree: tree,
+          inputsSha256: inputs,
           manifestSha256: manifest,
+          sourceTree: tree,
           result: "passed",
           provenance: { kind: "local" },
         },
         directory,
       );
-      expect(path).toBe(stageReceiptPath(directory, tree, manifest, "e2e"));
-      expect(path).toBe(
-        join(directory, "receipts", tree, manifest, "e2e.json"),
+      expect(path).toBe(stageReceiptPath(directory, inputs, "e2e"));
+      expect(path).toBe(join(directory, "receipts", inputs, "e2e.json"));
+      expect((await readStageReceipt(directory, inputs, "e2e")).stage).toBe(
+        "e2e",
       );
-      expect(
-        (await readStageReceipt(directory, tree, manifest, "e2e")).stage,
-      ).toBe("e2e");
       await expect(
-        readStageReceipt(directory, tree, manifest, "data"),
+        readStageReceipt(directory, inputs, "data"),
       ).rejects.toThrow();
-      expect(() =>
-        stageReceiptPath(directory, "../escape", manifest, "e2e"),
-      ).toThrow();
+      expect(() => stageReceiptPath(directory, "../escape", "e2e")).toThrow();
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

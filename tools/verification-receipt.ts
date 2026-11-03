@@ -43,15 +43,13 @@ export async function saveVerificationReceipt(
 
 export function stageReceiptPath(
   directory: string,
-  sourceTree: string,
-  manifestSha256: string,
+  inputsSha256: string,
   stage: CandidateStage,
 ): string {
   return join(
     directory,
     "receipts",
-    v.parse(treeSchema, sourceTree),
-    v.parse(DigestSchema, manifestSha256),
+    v.parse(DigestSchema, inputsSha256),
     `${stage}.json`,
   );
 }
@@ -61,12 +59,7 @@ export async function saveStageReceipt(
   directory = resolve(".local"),
 ): Promise<string> {
   const record = v.parse(CandidateEvidenceSchema, evidence);
-  const path = stageReceiptPath(
-    directory,
-    record.sourceTree,
-    record.manifestSha256,
-    record.stage,
-  );
+  const path = stageReceiptPath(directory, record.inputsSha256, record.stage);
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, encodeRecord(record), { flush: true });
   return path;
@@ -74,17 +67,13 @@ export async function saveStageReceipt(
 
 export async function readStageReceipt(
   directory: string,
-  sourceTree: string,
-  manifestSha256: string,
+  inputsSha256: string,
   stage: CandidateStage,
 ): Promise<CandidateEvidence> {
   return v.parse(
     CandidateEvidenceSchema,
     JSON.parse(
-      await readFile(
-        stageReceiptPath(directory, sourceTree, manifestSha256, stage),
-        "utf8",
-      ),
+      await readFile(stageReceiptPath(directory, inputsSha256, stage), "utf8"),
     ),
   );
 }

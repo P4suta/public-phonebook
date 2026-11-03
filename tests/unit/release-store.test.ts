@@ -30,6 +30,7 @@ import {
   saveRelease,
   storeVerificationDataset,
 } from "../../tools/release-store.ts";
+import { expectedStages, passingEvidence } from "./stage-evidence-fixture.ts";
 
 const tree = "1".repeat(40);
 const manifest = "3".repeat(64);
@@ -238,17 +239,14 @@ describe("verification datasets", () => {
 });
 
 describe("candidate evidence", () => {
+  const expected = expectedStages("main", manifest);
+
   function evidence(
     stage: CandidateEvidence["stage"],
     change: Partial<CandidateEvidence> = {},
   ): CandidateEvidence {
     return {
-      formatVersion: 1,
-      stage,
-      sourceTree: tree,
-      manifestSha256: manifest,
-      result: "passed",
-      provenance: actions,
+      ...passingEvidence(stage, expected[stage], actions, tree),
       ...change,
     };
   }
@@ -256,7 +254,7 @@ describe("candidate evidence", () => {
   it("admits complete passing evidence from the candidate workflow", async () => {
     for (const stage of candidateStages)
       await recordCandidateEvidence(store, evidence(stage));
-    await requireCandidateEvidence(store, tree, manifest);
+    await requireCandidateEvidence(store, expected);
     expect(
       await recordCandidateEvidence(
         store,
@@ -279,15 +277,41 @@ describe("candidate evidence", () => {
       if (stage !== "parity")
         await recordCandidateEvidence(store, evidence(stage));
     expect(
-      (await candidateEvidenceAdmission(store, tree, manifest)).filter(
+      (await candidateEvidenceAdmission(store, expected)).filter(
         (admission) => admission.decision !== "admit",
       ),
-    ).toEqual([{ stage: "parity", decision: "missing-stage" }]);
-    await expect(
-      requireCandidateEvidence(store, tree, manifest),
-    ).rejects.toThrow("parity missing-stage");
+    ).toEqual([
+      {
+        stage: "parity",
+        inputsSha256: expected.parity.inputsSha256,
+        decision: "missing-stage",
+      },
+    ]);
+    await expect(requireCandidateEvidence(store, expected)).rejects.toThrow(
+      "parity missing-stage",
+    );
     await recordCandidateEvidence(store, evidence("parity"));
-    await requireCandidateEvidence(store, tree, manifest);
+    await requireCandidateEvidence(store, expected);
+  });
+
+  it("reuses a stage's evidence when only files outside its inputs change", async () => {
+    for (const stage of candidateStages)
+      await recordCandidateEvidence(store, evidence(stage));
+    const changedPage = {
+      ...expectedStages("page-change", manifest),
+      "ios-prove": expected["ios-prove"],
+      "ios-check": expected["ios-check"],
+    };
+    expect(
+      (await candidateEvidenceAdmission(store, changedPage)).map(
+        ({ stage, decision }) => [stage, decision],
+      ),
+    ).toEqual(
+      candidateStages.map((stage) => [
+        stage,
+        stage.startsWith("ios-") ? "admit" : "missing-stage",
+      ]),
+    );
   });
 
   it("keeps a performance observation beside the evidence without deciding admission", async () => {
@@ -309,16 +333,16 @@ describe("candidate evidence", () => {
       }),
     ).toBe("unchanged");
     expect(
-      (await candidateEvidenceAdmission(store, tree, manifest)).every(
+      (await candidateEvidenceAdmission(store, expected)).every(
         (admission) => admission.decision === "missing-stage",
       ),
     ).toBe(true);
   });
 
-  it("refuses a missing stage, a failed stage, a stale tree, a different manifest, and a different signer", async () => {
+  it("refuses a missing stage, a failed stage, stale inputs, a different manifest, and a different signer", async () => {
     await recordCandidateEvidence(store, evidence("check"));
     await store.write(
-      controlKeys.candidate(tree, manifest, "data"),
+      controlKeys.candidate(expected.data.inputsSha256, "data"),
       encodeRecord(evidence("data", { result: "failed" })),
       { kind: "create" },
     );
@@ -337,36 +361,44 @@ describe("candidate evidence", () => {
       }),
     );
     await store.write(
-      controlKeys.candidate(tree, manifest, "e2e"),
-      encodeRecord(evidence("e2e", { sourceTree: "6".repeat(40) })),
+      controlKeys.candidate(expected.e2e.inputsSha256, "e2e"),
+      encodeRecord(evidence("e2e", { inputsSha256: "6".repeat(64) })),
       { kind: "create" },
     );
-    expect(await candidateEvidenceAdmission(store, tree, manifest)).toEqual([
+    expect(
+      (await candidateEvidenceAdmission(store, expected)).map(
+        ({ stage, decision }) => ({ stage, decision }),
+      ),
+    ).toEqual([
       { stage: "check", decision: "admit" },
       { stage: "data", decision: "failed-stage" },
       { stage: "parity", decision: "missing-stage" },
       { stage: "phones", decision: "different-signer" },
       { stage: "prove", decision: "different-signer" },
-      { stage: "e2e", decision: "stale-tree" },
+      { stage: "e2e", decision: "stale-inputs" },
+      { stage: "ios-prove", decision: "missing-stage" },
+      { stage: "ios-check", decision: "missing-stage" },
     ]);
-    await expect(
-      requireCandidateEvidence(store, tree, manifest),
-    ).rejects.toThrow(
-      "data failed-stage, parity missing-stage, phones different-signer, prove different-signer, e2e stale-tree",
+    await expect(requireCandidateEvidence(store, expected)).rejects.toThrow(
+      "data failed-stage, parity missing-stage, phones different-signer, prove different-signer, e2e stale-inputs, ios-prove missing-stage, ios-check missing-stage",
     );
+    const otherDataset = expectedStages("main", "7".repeat(64));
     await store.write(
-      controlKeys.candidate(tree, "7".repeat(64), "check"),
-      encodeRecord(evidence("check")),
+      controlKeys.candidate(otherDataset.parity.inputsSha256, "parity"),
+      encodeRecord(
+        evidence("parity", { inputsSha256: otherDataset.parity.inputsSha256 }),
+      ),
       { kind: "create" },
     );
+    const admissions = await candidateEvidenceAdmission(store, otherDataset);
     expect(
-      (await candidateEvidenceAdmission(store, tree, "7".repeat(64))).slice(
-        0,
-        2,
-      ),
+      admissions
+        .map(({ stage, decision }) => ({ stage, decision }))
+        .slice(0, 3),
     ).toEqual([
-      { stage: "check", decision: "different-manifest" },
+      { stage: "check", decision: "admit" },
       { stage: "data", decision: "missing-stage" },
+      { stage: "parity", decision: "different-manifest" },
     ]);
   });
 });

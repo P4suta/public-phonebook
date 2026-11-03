@@ -27,7 +27,7 @@ Read the account and credentials only from environment variables, and never prin
 Send the payload's SHA-256 as `x-amz-content-sha256` so the signature covers the uploaded bytes.
 
 Name every key in one module, and refuse a replacement outside the conditional keys.
-- `blobs/sha256/`, `datasets/<manifest>/`, `collections/<report>/`, `collection-cache/`, and `candidates/<tree>/<manifest>/` are written once.
+- `blobs/sha256/`, `datasets/<manifest>/`, `collections/<report>/`, `collection-cache/`, and `candidates/<inputs>/` are written once.
 - `journals/<env>/head.json` and `leases/<env>.json` are replaced conditionally.
 - `journals/<env>/history/` and `evidence/` are append-only, and a bucket lock makes them permanent, which R2 reports as 409.
 

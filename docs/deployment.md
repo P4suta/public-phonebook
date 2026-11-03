@@ -107,14 +107,14 @@ These rules hold for every workflow, and `tools/workflow-policy.ts` enforces the
 
 | Workflow | Start | Effect |
 | --- | --- | --- |
-| `candidate.yml` | Manual, or called by `release.yml` | Runs `assurance.yml`, then every candidate stage on the national dataset, and records passing evidence |
+| `candidate.yml` | Manual, or called by `release.yml` | Runs each candidate stage whose inputs have no passing evidence, in parallel, and records the stages that pass |
 | `release.yml` | Manual, `dataset` and `checks` inputs | Admits evidence, builds and attests the Worker, stages it at 0%, checks it, waits for approval, promotes it, and publishes its record |
 | `recover.yml` | Manual, `withdraw` or `restore` | Withdraws a candidate that never took traffic, or restores the verified predecessor after approval |
 | `status.yml` | Manual | Reads the masked journal, the deployed versions, and the retention plan |
 | `pipeline-controls.yml` | Manual, `dataset` input | Runs the pipeline's refusals and the withdrawal drill |
 
 `release.yml` runs these jobs in order.
-1. `candidate` calls `candidate.yml`, unless `checks` is `reuse` because evidence for the same tree and dataset already exists.
+1. `candidate` calls `candidate.yml`, unless `checks` is `reuse` because every stage already has evidence for its inputs.
 2. `evidence` requires passing evidence for every stage and reads the database digest from the stored manifest.
 3. `build` builds the Worker without any secret, attests a tarball of the build output and its SBOM, and records its build digest.
 4. `stage` verifies the attestation, prepares the D1 database and archives, and deploys the attested build at 0%.
@@ -122,6 +122,25 @@ These rules hold for every workflow, and `tools/workflow-policy.ts` enforces the
 6. `promote` waits for the `production` approval, moves traffic in one step, and checks the candidate without the override.
 7. `record` assembles the release record and publishes it as a GitHub release.
 8. `withdraw` removes the candidate when `verify` fails, because the read-only token leaves the withdrawal pending.
+
+### Candidate stages
+
+| Stage | Job | Reads | Dataset |
+| --- | --- | --- | --- |
+| `check` | `check` | Every tracked file | No |
+| `prove` | `prove` | Every tracked file | No |
+| `data` | `data`, through the fetch's bundle check | Every tracked file outside `ios`, `verification/ios`, and `tools/ios-check` | Yes |
+| `phones` | `data` | The same files as `data` | Yes |
+| `parity` | `parity` | The same files as `data` | Yes |
+| `e2e` | `e2e` | The same files as `data` | Yes |
+| `ios-prove` | `ios-prove` | The scope that `tools/ios-check` hashes, and `candidate.yml` | No |
+| `ios-check` | `ios-check` on macOS | The same files as `ios-prove` | No |
+
+`tools/stage-inputs.ts` declares these files, and each stage's evidence binds to the SHA-256 of its declaration, the Git object IDs of the files it reads, and its dataset where it reads one.
+The `plan` job lists the stages without admitted evidence, and `candidate.yml` runs only those, each once, in parallel.
+A page change reruns the Web stages and reuses the iOS evidence, and a new dataset reruns only the four dataset stages.
+The `record` job records every listed stage whose job passed, and it then fails the run if any listed stage didn't pass, so a rerun repeats only the failed stages.
+The [stage inputs decision](adr/bind-candidate-evidence-to-the-files-each-stage-reads.md) explains the declarations and their trust assumption.
 
 Evidence counts when `candidate.yml` records it directly or inside `release.yml`, both on `main`.
 A called workflow reports its caller in `GITHUB_WORKFLOW_REF`, so the admission accepts exactly these two signers.
@@ -228,7 +247,7 @@ mise x -- just release DATASET
 
 The release command dispatches `release.yml` on `main` with the dataset input, finds the dispatched run, and watches it.
 It never publishes from the local machine and never adopts or bootstraps an environment on its own.
-Production publishes only from that workflow, with candidate evidence for the same Git tree and manifest.
+Production publishes only from that workflow, with candidate evidence for the files each stage reads and the manifest.
 The publisher refuses a local `--stage`, `--verify-candidate`, `--promote`, `--drill`, or `--adopt`.
 `just withdraw`, `just recover`, and `just release-status` stay available locally.
 
@@ -243,12 +262,12 @@ The publisher refuses a local `--stage`, `--verify-candidate`, `--promote`, `--d
 
 The bundle defaults to `.local/datasets/DATASET`, which `just data-fetch` fills.
 The publisher refuses a bundle whose manifest digest differs from the named dataset.
-The stages are `check`, `data`, `phones`, `prove`, and `e2e`, and each passing stage writes `.local/receipts/TREE/MANIFEST/STAGE.json`.
+Each passing stage writes `.local/receipts/INPUTS/STAGE.json`, and a stage that reads no dataset needs no bundle.
 The `check` stage runs `just check` and then `just check-build`, so the evidence keeps the build and the checks that pull requests skip.
+The `ios-check` stage needs macOS with Xcode, so a local run on Linux selects the other stages.
 A run of every stage also writes the combined local receipt.
-In GitHub Actions, `--record` stores each passing stage as candidate evidence under `candidates/TREE/MANIFEST/`.
-A local run can't record candidate evidence, so a local receipt never stands in for the release gate.
-Production admits a candidate only when every stage has passing evidence for the same tree and manifest from `candidate.yml` on `main`.
+Only the `record` job of `candidate.yml` stores candidate evidence, so a local receipt never stands in for the release gate.
+Production admits a candidate only when every stage has passing evidence for its inputs from `candidate.yml` on `main`.
 Normal preparation and publication require canonical addresses.
 
 The data command validates the complete local bundle before remote writes.
@@ -264,7 +283,7 @@ Repeated preparation reuses the exact database artifact and preserves earlier da
 The final checks compare counts, foreign keys, the complete catalog, and fixed payload samples with the validated source.
 
 The publisher requires a clean committed checkout, a verified remote-data receipt, and admitted candidate evidence.
-Tree identity allows a merge commit to preserve an already checked candidate when its files are unchanged.
+Inputs identity lets a merge commit keep an already checked stage when the files that stage reads are unchanged.
 The `build` job builds the candidate with production bindings and origin and no secret, and `--artifact` names that build by its digest.
 The upload creates a version without applying triggers, so custom domains and other Worker-wide settings stay as the owner last applied them.
 HTML responses use `no-store, no-transform` to prevent Cloudflare from adding scripts to the document.
@@ -286,7 +305,7 @@ Conditional writes keep one writer per object: a create sends `If-None-Match: *`
 | `datasets/MANIFEST/` | Ready manifest and catalog for verification | Once |
 | `collections/REPORT/` | Collection outputs, source artifact list, and prepared dataset link | Once |
 | `collection-cache/DIGEST` | Source bytes of a collection | Once |
-| `candidates/TREE/MANIFEST/STAGE.json` | Candidate evidence per stage | Once |
+| `candidates/INPUTS/STAGE.json` | Candidate evidence per stage, keyed by its inputs digest | Once |
 | `journals/ENV/head.json` | Current publication journal | Conditional replacement |
 | `journals/ENV/history/SEQUENCE.json` | Every journal record | Append-only, bucket lock |
 | `leases/ENV.json` | Publication lease | Conditional replacement |

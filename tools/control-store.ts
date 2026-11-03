@@ -131,12 +131,8 @@ export const controlKeys = {
     checkedKey(`collections/${v.parse(DigestSchema, report)}/${file}`),
   collectionCache: (sha256: string): string =>
     `collection-cache/${v.parse(DigestSchema, sha256)}`,
-  candidate: (
-    sourceTree: string,
-    manifestSha256: string,
-    stage: string,
-  ): string =>
-    `candidates/${v.parse(treeSchema, sourceTree)}/${v.parse(DigestSchema, manifestSha256)}/${v.parse(stageSchema, stage)}.json`,
+  candidate: (inputsSha256: string, stage: string): string =>
+    `candidates/${v.parse(DigestSchema, inputsSha256)}/${v.parse(stageSchema, stage)}.json`,
   observation: (
     sourceTree: string,
     manifestSha256: string,
