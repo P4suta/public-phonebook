@@ -2,7 +2,7 @@ import { readFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import * as v from "valibot";
 import { requireBuildBudget } from "./build-budget.ts";
-import { checkDataBundle } from "./check-data.ts";
+import { checkedDataBundle } from "./check-data.ts";
 import { defaultBundle, localBundleVariable } from "./local-bundle.ts";
 import { command, requireCommand } from "./process.ts";
 import {
@@ -94,7 +94,7 @@ export function stageRunner(
       await requireBuildBudget();
     },
     data: async (): Promise<void> => {
-      await checkDataBundle(bundle);
+      await checkedDataBundle(bundle);
     },
     parity: () => requireCommand("node", parityCommand(bundle)),
     phones: () =>

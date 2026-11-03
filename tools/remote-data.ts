@@ -4,7 +4,7 @@ import * as v from "valibot";
 import { manifestObjectKey } from "../src/core/dataset-storage.ts";
 import { databaseResourceName, environments } from "../src/core/environment.ts";
 import { DigestSchema } from "../src/core/models.ts";
-import { checkDataBundle } from "./check-data.ts";
+import { checkedDataBundle } from "./check-data.ts";
 import { cloudflare, remoteSql } from "./cloudflare.ts";
 import { acquireLease, type PublicationLease } from "./control-lease.ts";
 import {
@@ -277,7 +277,7 @@ async function prepare(
     provenance,
   );
   try {
-    const manifest = await checkDataBundle(bundle);
+    const manifest = await checkedDataBundle(bundle);
     const manifestSha256 = await fileDigest(
       join(bundle, "manifest.ready.json"),
     );
@@ -349,7 +349,7 @@ async function main(args: readonly string[]): Promise<void> {
   const store = controlStoreFromEnvironment();
   if (command.kind === "fetch") {
     await fetchDataset(store, command.manifestSha256, command.directory);
-    await checkDataBundle(command.directory);
+    await checkedDataBundle(command.directory);
     console.info(
       JSON.stringify({
         operation: "data.remote.fetch",
@@ -359,7 +359,7 @@ async function main(args: readonly string[]): Promise<void> {
     );
     return;
   }
-  await checkDataBundle(command.bundle);
+  await checkedDataBundle(command.bundle);
   console.info(
     JSON.stringify({
       operation: "data.remote.store",

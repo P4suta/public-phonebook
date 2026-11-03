@@ -74,8 +74,8 @@ export function checkFixtureContacts(): Contact[] {
   );
 }
 
-export async function prepareCheckFixture(): Promise<void> {
-  const directory = ".local/check-fixture";
+/** Writes a complete three-contact bundle that passes the data check. */
+export async function writeCheckFixture(directory: string): Promise<void> {
   await rm(directory, { recursive: true, force: true });
   await mkdir(directory, { recursive: true });
   const contacts = checkFixtureContacts();
@@ -226,6 +226,11 @@ export async function prepareCheckFixture(): Promise<void> {
     join(directory, "manifest.ready.json"),
     JSON.stringify(manifest),
   );
+}
+
+export async function prepareCheckFixture(): Promise<void> {
+  const directory = ".local/check-fixture";
+  await writeCheckFixture(directory);
   await seedLocalData(directory, {
     state: ".local/check-state",
     port: fixtureServerPort,

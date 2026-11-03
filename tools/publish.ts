@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import * as v from "valibot";
 import { databaseResourceName, environments } from "../src/core/environment.ts";
 import { CatalogSchema, DigestSchema } from "../src/core/models.ts";
-import { checkDataBundle } from "./check-data.ts";
+import { checkedDataBundle } from "./check-data.ts";
 import { acquireLease, type PublicationLease } from "./control-lease.ts";
 import {
   type ControlStore,
@@ -226,7 +226,7 @@ function releasePorts(
     },
     deployed: () => deployedVersions(environment),
     async prepare(target): Promise<void> {
-      const manifest = await checkDataBundle(sourceBundle);
+      const manifest = await checkedDataBundle(sourceBundle);
       const prepared = v.parse(
         v.object({
           environment: v.literal(environment),
@@ -307,7 +307,7 @@ async function adoptProduction(
 ): Promise<void> {
   if (context.writer.current())
     throw new Error("Production already has a publication journal");
-  const manifest = await checkDataBundle(bundle, "retained");
+  const manifest = await checkedDataBundle(bundle, "retained");
   const active = (await deployedVersions("production")).current;
   const target: ReleaseTarget = {
     releaseId: active.versionId,
@@ -483,7 +483,7 @@ export function publicationAuthority(
 
 interface AdmittedCandidate {
   readonly sourceTree: string;
-  readonly manifest: Awaited<ReturnType<typeof checkDataBundle>>;
+  readonly manifest: Awaited<ReturnType<typeof checkedDataBundle>>;
   readonly manifestSha256: string;
   readonly previous: ReleaseTarget | null;
 }
@@ -494,7 +494,7 @@ async function admitCandidate(
   journal: ReleaseJournal | null,
 ): Promise<AdmittedCandidate> {
   const sourceTree = await committedTree();
-  const manifest = await checkDataBundle(options.bundle);
+  const manifest = await checkedDataBundle(options.bundle);
   const manifestSha256 = await fileDigest(
     join(options.bundle, "manifest.ready.json"),
   );

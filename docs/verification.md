@@ -305,6 +305,7 @@ Immutable Releases and the `v*` tag ruleset are repository settings that only th
 
 Prepare and seed the national bundle as described in [local operation](deployment.md).
 Run `npm run data:check -- .local/phonebook` to verify every retained contact, source reference, sortable field, index column, category and prefecture count, phone relation count, search index count, archive byte length, SHA-256, and SQLite integrity.
+In a clean checkout, a repeated check of unchanged files reuses the passing result that [local operation](deployment.md) describes.
 The same check confirms that row numbers follow the normalized name and identifier order.
 It reads the JSON Lines, CSV, and vCard archives in step and requires the same telephone numbers, in the same order, for every contact.
 Only the adoption of an earlier production bundle admits that publication's apostrophe before each CSV telephone cell.

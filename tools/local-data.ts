@@ -12,7 +12,7 @@ import { createConnection } from "node:net";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { Miniflare } from "miniflare";
-import { checkDataBundle } from "./check-data.ts";
+import { checkedDataBundle } from "./check-data.ts";
 
 export const developmentHost = "127.0.0.1";
 export const developmentPort = 8787;
@@ -80,7 +80,7 @@ export async function seedLocalData(
   if (await serverIsRunning(options.port))
     throw new Error("Stop the local server before seeding data");
   const directory = resolve(bundle);
-  const manifest = await checkDataBundle(directory);
+  const manifest = await checkedDataBundle(directory);
   const database = join(directory, "directory.sqlite");
   const state = resolve(options.state, persistenceVersion);
   await mkdir(state, { recursive: true });

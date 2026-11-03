@@ -263,6 +263,11 @@ The publisher refuses a local `--stage`, `--verify-candidate`, `--promote`, `--d
 The bundle defaults to `.local/datasets/DATASET`, which `just data-fetch` fills.
 The publisher refuses a bundle whose manifest digest differs from the named dataset.
 Each passing stage writes `.local/receipts/INPUTS/STAGE.json`, and a stage that reads no dataset needs no bundle.
+Each passing complete data check writes `.local/receipts/data-check/KEY.json` with the size and SHA-256 of every file it read.
+The key combines the `data` stage's inputs digest, which covers the manifest, with the address forms that the check admits.
+A later check in the same clean checkout reuses that result only while every one of those files keeps its recorded size and SHA-256.
+A dirty tree or a directory outside Git always runs the complete check.
+Each workflow job starts from a fresh checkout without receipts, so its first data check runs in full.
 The `check` stage runs `just check` and then `just check-build`, so the evidence keeps the build and the checks that pull requests skip.
 The `ios-check` stage needs macOS with Xcode, so a local run on Linux selects the other stages.
 A run of every stage also writes the combined local receipt.
