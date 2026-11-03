@@ -340,7 +340,6 @@ test("every screen preserves external navigation and the gate rejects missing pr
     path,
     `${path}/source`,
     "/data",
-    "/developers",
     "/privacy",
     "/support",
     "/missing-page",

@@ -8,7 +8,7 @@ date: 2026-10-30
 
 Proposed.
 Implemented and checked locally.
-Since the [server-rendered reference](server-rendered-api-reference.md), `/developers` uses this same policy.
+The [server-rendered reference](server-rendered-api-reference.md) used this same policy until [serving the directory JSON to the site only](serve-directory-json-to-the-site-only.md) removed `/developers`.
 
 ## Context
 

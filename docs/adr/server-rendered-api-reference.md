@@ -6,6 +6,8 @@ date: 2026-11-02
 
 ## Status
 
+Superseded by [serving the directory JSON to the site only](serve-directory-json-to-the-site-only.md).
+The `/developers` page, its request form, and the OpenAPI documents are gone.
 Proposed.
 Implemented locally.
 It supersedes the [interactive reference decision](openapi-driven-interactive-reference.md).

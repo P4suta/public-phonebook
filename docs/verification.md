@@ -56,7 +56,7 @@ The crate checks are rustfmt, strict Clippy, its tests, the icon consistency che
 `just check-rust` runs the same crate checks alone.
 It then runs the built-browser checks.
 The browser check creates a separate local D1 and R2 fixture with three contacts and uses port 8790.
-It covers the design, contact, API reference, external-link, information, CSP, privacy, row page, local search, search, search-trigger, and startup cases that need no national archive.
+It covers the design, contact, external-link, information, CSP, privacy, row page, local search, search, search-trigger, and startup cases that need no national archive.
 It requires no owner-specific service, credentials, or national archive.
 
 The manual Assurance workflow, `assurance.yml`, runs the same set on hosted runners.
@@ -80,7 +80,6 @@ Built-browser checks enforce the intended upper and lower hierarchy and reject c
 The retained Figma layout audit checks all four existing pages and preserves a known failing pre-repair canvas arrangement as a negative control.
 Native Figma text measurement and browser layout remain external rendering boundaries.
 The geometry checks establish properties of the captured records, not all possible layouts or unexported Figma changes.
-Browser checks require the API schema URL action to occupy one line at the normal text size.
 Contact checks bind related target edges and enforce one primary framed call action per telephone number.
 They require number copying to remain separate from calling and preserve alignment after successful and denied copying.
 The browser detector must reject deliberately displaced actions and redundant framed navigation with the expected rule names.
@@ -163,13 +162,14 @@ The budget clamps a request time from a faster clock to the current time, so the
 Revisit this boundary if Cloudflare changes version overrides, gradual deployments, or the Worker and version API responses.
 
 Run `mise x -- just prove`.
-LemmaScript 0.6.5 translates the actual annotated search, search-trigger, copy, reference-request, publication, collection, snapshot, row locator, and directory delta policy implementations to Dafny.
+LemmaScript 0.6.5 translates the actual annotated search, search-trigger, copy, site request, publication, collection, snapshot, row locator, and directory delta policy implementations to Dafny.
 The gate requires unmodified generated output and every function listed in `tools/prove.ts`.
-Dafny 4.11.0 checks its expected nonempty unit and postcondition inventory for the supported search, search-trigger, copy, reference-request, publication, school-evidence, unique-candidate, source-accounting, versioned-API snapshot, and row locator decisions.
-The reference-request policy partitions idle, unknown-operation, incomplete-path, and send decisions over the full Boolean domain.
+Dafny 4.11.0 checks its expected nonempty unit and postcondition inventory for the supported search, search-trigger, copy, site request, publication, school-evidence, unique-candidate, source-accounting, versioned-API snapshot, and row locator decisions.
+The site request policy refuses a site-route request exactly when its `Sec-Fetch-Site` header is present and differs from `same-origin`, over the full Boolean domain.
+It also admits search page sizes from 1 through 30, the page size that the site requests.
 The copy policy partitions current success, current failure, and superseded completion over the full Boolean domain.
 The browser adapter uses fresh symbol identities and suppresses superseded state and announcements.
-Separate negative controls accept limit 101, ignore a municipality when choosing a catalog total, store a failure status, reverse the completion guard, reverse the trusted-click guard, and send a reference request with an incomplete path while retaining their contracts.
+Separate negative controls accept limit 101, ignore a municipality when choosing a catalog total, store a failure status, reverse the completion guard, reverse the trusted-click guard, admit a site-route request from another site, and accept a 31-row site page while retaining their contracts.
 Each must fail verification.
 Search-trigger controls ignore composition, search an incomplete telephone number, and pause after one keystroke interval, and each must fail verification too.
 A conflicting import identity also has a source-mutating negative control that must fail verification.
@@ -233,7 +233,7 @@ The deprecated selection-copy command remains isolated in that adapter and is no
 Native fault injection consumes activation with a popup before React receives the first click and checks the actual selection-copy event rather than a replacement clipboard implementation.
 WebKit must copy on that first click.
 Chromium and Firefox reject that native write after popup activation loss; their cases require readable failure followed by successful copying on the next trusted click.
-An additional case removes the asynchronous API and checks native copying of an API URL.
+An additional case removes the asynchronous API and checks native copying of a telephone number.
 Untrusted synthetic clicks must leave both write paths untouched.
 These checks cover DOM events, focus, and browser behavior through native tests rather than translator proofs.
 Headless WebKit evidence does not certify every released Safari build or its native data detectors.
@@ -375,15 +375,14 @@ The console and CSP gates remain enabled, and no context bypasses CSP.
 WebKit reports a fetch that a navigation cancelled as an access-control failure, so the console gate ignores that report only for same-origin URLs, which can't fail access control.
 The page also stops an unfinished index load when it's hidden and starts it again when it's shown.
 The [native-select compatibility decision](adr/hashed-native-select-style-compatibility.md) records the search-page style-attribute hash and its positive and negative controls.
-The [server-rendered reference decision](adr/server-rendered-api-reference.md) records how `/developers` renders the OpenAPI document and handles its request forms.
-Reference unit tests read the generated document and require every operation, a Japanese summary for each, and a meaning for each documented status.
-They also cover request planning, path encoding, code examples, and bounded response reading.
-Reference browser tests compare the rendered operations and navigation with the live OpenAPI document.
-They follow direct operation links through a reload and copy each code example.
-They send successful and invalid requests from the form with JavaScript and through a plain submission without it, including a binary download.
-The API page keeps the strict CSP of every other page, and its CSP tests plant a style attribute, a stylesheet, and a script.
+The [route split decision](adr/serve-directory-json-to-the-site-only.md) records which routes serve only the site.
+Unit tests send each `Sec-Fetch-Site` value and an absent header to a site route and to the open-data index.
+They require 403 only for a site route with a header other than `same-origin`.
+They require cross-origin headers on the open-data routes and none on any site route.
+A path table requires each `/api` path to reach exactly one route family.
+The data page keeps the strict CSP of every other page, and its CSP tests plant a style attribute, a stylesheet, and a script.
 The palette gate covers CSS and SVG opacity as well as masks, gradients, shadows, filters, blending, and paint colors.
-Its negative controls run inside the live reference page as well as isolated fixtures.
+Its negative controls run in isolated fixtures.
 CSV fixtures independently parse serializer output and cover embedded commas, quotes, newlines, empty values, and all ten guarded formula prefixes in every free-text column.
 A fixed-seed property requires that guard to match the serializer's own formula escaping for generated text.
 The verbatim telephone cell admits only validated E.164 numbers, and the writer refuses a contact whose number would bypass that schema.

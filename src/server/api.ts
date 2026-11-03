@@ -1,26 +1,20 @@
 import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
-import { describeRoute, openAPIRouteHandler, resolver } from "hono-openapi";
 import * as v from "valibot";
 import {
   type DirectoryDiscovery,
   DirectoryDiscoverySchema,
-  type UnversionedDiscovery,
-  UnversionedDiscoverySchema,
 } from "../core/api-contract.ts";
-import { categoryDefinitions, prefectureNames } from "../core/catalog.ts";
 import {
   admitsContentCoding,
   matchesEntityTag,
 } from "../core/content-negotiation.ts";
 import {
-  DirectoryDeltaListingSchema,
   directoryDeltaListing,
   manifestObjectKey,
   type PreparedDatasetManifest,
   PreparedDatasetManifestSchema,
   publicDatasetManifest,
-  SearchIndexLocationSchema,
   searchIndexLocation,
   searchIndexObjectKey,
 } from "../core/dataset-storage.ts";
@@ -29,17 +23,10 @@ import { type FailureStatus, httpStatus } from "../core/http-status.ts";
 import { sha256 } from "../core/identity.ts";
 import {
   type Catalog,
-  CatalogSchema,
-  ContactSchema,
   DatasetFileNameSchema,
-  DatasetManifestSchema,
   DigestSchema,
-  GroupedSearchResponseSchema,
   type Problem,
-  ProblemSchema,
   RowLocationSchema,
-  SearchResponseSchema,
-  SourceSchema,
   VersionedDatasetManifestSchema,
 } from "../core/models.ts";
 import {
@@ -48,6 +35,7 @@ import {
 } from "../core/row-locator-policy.ts";
 import { parseSearch } from "../core/search.ts";
 import { storesSearch } from "../core/search-policy.ts";
+import { siteRequestAdmission } from "../core/site-request-policy.ts";
 import { snapshotAdmission } from "../core/snapshot-policy.ts";
 import { contactVCard } from "../core/vcard.ts";
 import type { DirectoryBindings } from "./bindings.ts";
@@ -70,12 +58,6 @@ import {
   storeSearch,
 } from "./search-cache.ts";
 
-const maximumQueryLength = 512;
-const maximumCursorLength = 4096;
-const maximumSearchLimit = 100;
-const defaultSearchLimit = 30;
-const exampleSearchLimit = 5;
-const prefectureCodeWidth = 2;
 const corsPreflightMaxAgeSeconds = 86400;
 const maximumUrlBytes = 8192;
 const problemTypeBase = "https://www.dial.page/api/problems/";
@@ -87,6 +69,14 @@ const rowPosition = /^(?:0|[1-9][0-9]*)$/u;
 // D1 numbers rows from 1 in search index order, so a row position maps to the next rowid.
 const rowidOffset = 1;
 const ClientEncodingSchema = v.object({ clientAcceptEncoding: v.string() });
+const versionedBase = "/api/v1";
+const searchPaths = new Set(["/api/contacts", "/api/contact-groups"]);
+const pinnedPaths = new Set([
+  versionedBase,
+  `${versionedBase}/datasets`,
+  `${versionedBase}/dataset-deltas`,
+]);
+const sameOriginRequest = "same-origin";
 
 export type DirectoryApiBindings = Pick<
   DirectoryBindings,
@@ -103,86 +93,12 @@ type ApiEnvironment = {
   Variables: { requestId: string };
 };
 type ApiContext = Context<ApiEnvironment>;
+type RouteFamily = "site" | "open-data";
 
-const searchParameters: NonNullable<
-  Parameters<typeof describeRoute>[0]["parameters"]
-> = [
-  {
-    name: "q",
-    in: "query",
-    example: "国立国会図書館",
-    description:
-      "Name substring or a complete Japanese telephone number. NFKC and case normalization. Maximum 512 UTF-8 bytes.",
-    schema: { type: "string", default: "", maxLength: maximumQueryLength },
-  },
-  {
-    name: "prefecture",
-    in: "query",
-    description: "Two-digit JIS prefecture code",
-    schema: {
-      type: "string",
-      enum: prefectureNames.map((_, index) =>
-        String(index + 1).padStart(prefectureCodeWidth, "0"),
-      ),
-    },
-  },
-  {
-    name: "municipality",
-    in: "query",
-    description:
-      "Five-digit municipality code from the catalog. Implies its prefecture. A conflicting prefecture is rejected.",
-    schema: {
-      type: "string",
-      pattern: "^(0[1-9]|[1-3][0-9]|4[0-7])[0-9]{3}$",
-    },
-  },
-  {
-    name: "category",
-    in: "query",
-    schema: {
-      type: "string",
-      enum: categoryDefinitions.map((category) => category.id),
-    },
-  },
-  {
-    name: "limit",
-    in: "query",
-    example: exampleSearchLimit,
-    schema: {
-      type: "integer",
-      minimum: 1,
-      maximum: maximumSearchLimit,
-      default: defaultSearchLimit,
-    },
-  },
-  {
-    name: "cursor",
-    in: "query",
-    description:
-      "Opaque continuation token. Prefer links.next; do not construct or modify tokens.",
-    schema: { type: "string", maxLength: maximumCursorLength },
-  },
-];
-
-const failureResponses = Object.fromEntries(
-  [
-    httpStatus.badRequest,
-    httpStatus.notFound,
-    httpStatus.conflict,
-    httpStatus.unavailable,
-  ].map((status) => [
-    status,
-    {
-      description:
-        status === httpStatus.conflict
-          ? "The dataset changed; restart without a cursor"
-          : "An RFC 9457 problem with a request ID",
-      content: {
-        "application/problem+json": { schema: resolver(ProblemSchema) },
-      },
-    },
-  ]),
-);
+const allowedMethods: Record<RouteFamily, string> = {
+  site: "GET, HEAD",
+  "open-data": "GET, HEAD, OPTIONS",
+};
 
 function problem(
   c: ApiContext,
@@ -194,8 +110,9 @@ function problem(
     conflicting_region: "The municipality does not belong to the prefecture",
     invalid_cursor: "The cursor does not match this search",
     snapshot_changed: "The dataset changed; restart the search",
+    cross_origin: "Only this site's own pages can read this resource",
     not_found: "The resource was not found",
-    method_not_allowed: "Use GET, HEAD, or OPTIONS",
+    method_not_allowed: "Use a method that the Allow header lists",
     not_acceptable: "No representation matches the accepted content codings",
     unavailable: "The directory is temporarily unavailable",
   };
@@ -270,326 +187,93 @@ const rowFailureStatus = {
   FailureStatus
 >;
 
-type RouteDescription = Parameters<typeof describeRoute>[0];
-type RouteParameter = NonNullable<RouteDescription["parameters"]>[number];
-type RouteResponse = NonNullable<RouteDescription["responses"]>[string];
-
-function digestPath(name: string, description: string): RouteParameter {
-  return {
-    name,
-    in: "path",
-    required: true,
-    description,
-    schema: { type: "string", pattern: "^[a-f0-9]{64}$" },
-  };
+function versioned(path: string): boolean {
+  return path === versionedBase || path.startsWith(`${versionedBase}/`);
 }
 
-function problemResponse(description: string): RouteResponse {
-  return {
-    description,
-    content: {
-      "application/problem+json": { schema: resolver(ProblemSchema) },
-    },
-  };
+/** Open data is every versioned route, the dataset listing and files, and the delta listing; the site owns every other `/api` route. */
+export function openDataPath(path: string): boolean {
+  return (
+    versioned(path) ||
+    path === "/api/datasets" ||
+    path.startsWith("/api/datasets/") ||
+    path === "/api/dataset-deltas"
+  );
 }
 
-type DiscoveryCatalog = Pick<Catalog, "snapshot" | "generatedAt">;
-
-const exampleDiscoveryCatalog: DiscoveryCatalog = {
-  snapshot: "11c97b6f677ab45fd62ee43db1037df05c4e6a8cfee6d1e8d8473b26589ad85b",
-  generatedAt: "2026-10-29T00:00:00Z",
-};
-
-function discoveryLinks(
-  base: "/api" | "/api/v1",
-): Record<keyof UnversionedDiscovery, string> {
-  return {
-    name: "Public Phonebook API",
-    contacts: `${base}/contacts`,
-    contactGroups: `${base}/contact-groups`,
-    catalog: `${base}/catalog`,
-    sources: `${base}/sources`,
-    datasets: `${base}/datasets`,
-    datasetDeltas: `${base}/dataset-deltas`,
-    openapi: `${base}/openapi.json`,
-    docs: "/developers",
-  };
+function admitsParameter(
+  family: RouteFamily,
+  path: string,
+  name: string,
+): boolean {
+  return family === "site"
+    ? searchPaths.has(path)
+    : pinnedPaths.has(path) && name === "snapshot";
 }
 
-function unversionedDiscovery(): UnversionedDiscovery {
-  return v.parse(UnversionedDiscoverySchema, discoveryLinks("/api"));
-}
-
-function pinnedDiscovery(catalog: DiscoveryCatalog): DirectoryDiscovery {
-  const links = discoveryLinks("/api/v1");
-  const pin = (path: string): string => `${path}?snapshot=${catalog.snapshot}`;
+function pinnedDiscovery(
+  catalog: Pick<Catalog, "snapshot" | "generatedAt">,
+): DirectoryDiscovery {
+  const pin = (resource: string): string =>
+    `${versionedBase}/${resource}?snapshot=${catalog.snapshot}`;
   return v.parse(DirectoryDiscoverySchema, {
-    ...links,
+    name: "Public Phonebook API",
     version: "1",
     snapshot: catalog.snapshot,
     generatedAt: catalog.generatedAt,
-    contacts: pin(links.contacts),
-    contactGroups: pin(links.contactGroups),
-    catalog: pin(links.catalog),
-    sources: pin(links.sources),
-    datasets: pin(links.datasets),
-    datasetDeltas: pin(links.datasetDeltas),
+    datasets: pin("datasets"),
+    datasetDeltas: pin("dataset-deltas"),
   });
 }
 
-function registerWebsiteResources(api: Hono<ApiEnvironment>): void {
-  api.get(
-    "/api/search-index",
-    describeRoute({
-      operationId: "getSearchIndex",
-      tags: ["Search index"],
-      summary: "Locate and verify the current website search index",
-      description:
-        "Returns the immutable URL of the current snapshot's search index with the byte length and SHA-256 of the Brotli bytes and of the decoded index. Check the decoded length, digest, format line, and snapshot before using the index.",
-      responses: {
-        [httpStatus.ok]: {
-          description: "The current search index location",
-          content: {
-            "application/json": {
-              schema: resolver(SearchIndexLocationSchema),
-            },
-          },
-        },
-        [httpStatus.notModified]: {
-          description: "The cached location is still current",
-        },
-        [httpStatus.unavailable]: problemResponse(
-          "An RFC 9457 problem with a request ID",
-        ),
-      },
-    }),
-    async (c) => {
-      const catalog = await readCatalog(directoryDatabase(c.env.DB));
-      const manifest = await readPreparedManifest(c, catalog);
-      if (!manifest) return problem(c, "unavailable", httpStatus.unavailable);
-      const location = searchIndexLocation(manifest);
-      const etag = `"${await sha256(JSON.stringify(location))}"`;
-      c.header("X-Dataset-Snapshot", catalog.snapshot);
-      c.header("ETag", etag);
-      c.header("Cache-Control", mutableCache);
-      if (matchesEntityTag(c.req.header("If-None-Match"), etag))
-        return c.body(null, httpStatus.notModified);
-      return c.json(location);
-    },
-  );
-
-  api.get(
-    "/api/search-index/:snapshot/:sha256",
-    describeRoute({
-      operationId: "downloadSearchIndex",
-      tags: ["Search index"],
-      summary: "Download the immutable website search index",
-      description:
-        "Returns the stored Brotli bytes with Content-Encoding br, so the browser decodes them. Only the current snapshot and digest exist. The request's Accept-Encoding must admit br. The decoded index is the website's search-index format 1.",
-      parameters: [
-        digestPath("snapshot", "The current snapshot from /api/search-index"),
-        digestPath("sha256", "The SHA-256 of the Brotli bytes"),
-      ],
-      responses: {
-        [httpStatus.ok]: {
-          description:
-            "The Brotli-encoded index with a strong ETag and immutable caching",
-          content: {
-            [searchIndexMediaType]: {
-              schema: { type: "string", format: "binary" },
-            },
-          },
-        },
-        [httpStatus.notModified]: {
-          description: "The cached index is still valid",
-        },
-        [httpStatus.notFound]: problemResponse(
-          "The snapshot or digest isn't the current search index",
-        ),
-        [httpStatus.notAcceptable]: problemResponse(
-          "The request's Accept-Encoding doesn't admit br",
-        ),
-        [httpStatus.unavailable]: problemResponse(
-          "An RFC 9457 problem with a request ID",
-        ),
-      },
-    }),
-    async (c) => {
-      const snapshot = c.req.param("snapshot");
-      const digest = c.req.param("sha256");
-      if (!v.is(DigestSchema, snapshot) || !v.is(DigestSchema, digest))
-        return problem(c, "not_found", httpStatus.notFound);
-      const catalog = await readCatalog(directoryDatabase(c.env.DB));
-      if (snapshot !== catalog.snapshot)
-        return problem(c, "not_found", httpStatus.notFound);
-      const manifest = await readPreparedManifest(c, catalog);
-      if (!manifest) return problem(c, "unavailable", httpStatus.unavailable);
-      if (digest !== manifest.searchIndex.sha256)
-        return problem(c, "not_found", httpStatus.notFound);
-      c.header("Vary", "Accept-Encoding");
-      if (!admitsContentCoding(acceptedEncodings(c.req.raw), searchIndexCoding))
-        return problem(c, "not_acceptable", httpStatus.notAcceptable);
-      const validators = {
-        ETag: `"${digest}"`,
-        "Cache-Control": immutableCache,
-        Vary: "Accept-Encoding",
-        "X-Dataset-Snapshot": snapshot,
-      };
-      if (matchesEntityTag(c.req.header("If-None-Match"), validators.ETag))
-        return new Response(null, {
-          status: httpStatus.notModified,
-          headers: validators,
-        });
-      const object = await c.env.DATASETS.get(
-        searchIndexObjectKey(snapshot, digest),
-      );
-      if (!object) return problem(c, "unavailable", httpStatus.unavailable);
-      if (object.size !== manifest.searchIndex.bytes) {
-        await object.body.cancel();
-        return problem(c, "unavailable", httpStatus.unavailable);
-      }
-      return new Response(object.body, {
-        headers: {
-          ...validators,
-          "Content-Type": searchIndexMediaType,
-          "Content-Encoding": searchIndexCoding,
-          "Content-Length": String(object.size),
-        },
-        encodeBody: "manual",
-      });
-    },
-  );
-
-  api.get(
-    "/api/contacts/row/:snapshot/:row",
-    describeRoute({
-      operationId: "locateContactRow",
-      tags: ["Search index"],
-      summary: "Find the contact at a search index row",
-      description:
-        "Returns the stable ID of the contact at a 0-based row of the snapshot's search index. A snapshot that is no longer current returns 409; reload the search index and search again.",
-      parameters: [
-        digestPath("snapshot", "The snapshot of the search index"),
-        {
-          name: "row",
-          in: "path",
-          required: true,
-          description:
-            "A 0-based row in decimal without leading zeros or a sign",
-          schema: { type: "string", pattern: "^(0|[1-9][0-9]*)$" },
-        },
-      ],
-      responses: {
-        [httpStatus.ok]: {
-          description: "The contact ID at the row",
-          content: {
-            "application/json": { schema: resolver(RowLocationSchema) },
-          },
-        },
-        [httpStatus.badRequest]: problemResponse(
-          "The snapshot or row is malformed",
-        ),
-        [httpStatus.notFound]: problemResponse(
-          "The row is outside the current snapshot",
-        ),
-        [httpStatus.conflict]: problemResponse(
-          "The snapshot changed; reload the search index",
-        ),
-        [httpStatus.unavailable]: problemResponse(
-          "An RFC 9457 problem with a request ID",
-        ),
-      },
-    }),
-    async (c) => {
-      const snapshot = c.req.param("snapshot");
-      const position = parseRowPosition(c.req.param("row"));
-      const row = position ?? 0;
-      const db = directoryDatabase(c.env.DB);
-      const catalog = await readCatalog(db);
-      c.header("X-Dataset-Snapshot", catalog.snapshot);
-      const decision = rowLocatorDecision(
-        v.is(DigestSchema, snapshot) && position !== null,
-        snapshot === catalog.snapshot,
-        row,
-        catalog.contacts,
-      );
-      if (decision !== "located")
-        return problem(c, decision, rowFailureStatus[decision]);
-      const id = await readRowContactId(db, row + rowidOffset);
-      if (id === null) throw new Error("A located search index row is missing");
-      c.header("Cache-Control", mutableCache);
-      return c.json(v.parse(RowLocationSchema, { id }));
-    },
-  );
-}
-
-function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
-  const api = new Hono<ApiEnvironment>();
-  const describeResource = (
-    options: Parameters<typeof describeRoute>[0],
-  ): ReturnType<typeof describeRoute> =>
-    describeRoute({
-      ...options,
-      parameters: [
-        ...(options.parameters ?? []),
-        ...(base === "/api/v1"
-          ? [
-              {
-                name: "snapshot",
-                in: "query" as const,
-                description:
-                  "Optional active snapshot identity. A different snapshot returns 409; duplicate or malformed values return 400. Follow the pinned discovery links for a consistent import.",
-                schema: { type: "string" as const, pattern: "^[a-f0-9]{64}$" },
-              },
-            ]
-          : []),
-      ],
-    });
-  api.use("*", async (c, next) => {
-    if (
-      base === "/api/v1" &&
-      (new URL(c.req.url).pathname === base ||
-        new URL(c.req.url).pathname.startsWith(`${base}/`))
-    )
-      c.header("X-Directory-API-Version", "1");
-    c.header("X-Content-Type-Options", "nosniff");
-    c.header("Referrer-Policy", "no-referrer");
-    c.header(
+/** Builds a router with the request checks that both route families share. */
+function directoryRouter(family: RouteFamily): Hono<ApiEnvironment> {
+  const router = new Hono<ApiEnvironment>();
+  router.use("*", async (c, next) => {
+    // Hono merges the context response's headers into a raw response only when that context response already exists.
+    const { headers } = c.res;
+    if (versioned(new URL(c.req.url).pathname))
+      headers.set("X-Directory-API-Version", "1");
+    headers.set("X-Content-Type-Options", "nosniff");
+    headers.set("Referrer-Policy", "no-referrer");
+    headers.set(
       "Content-Security-Policy",
       "default-src 'none'; frame-ancestors 'none'",
     );
     await next();
   });
-  api.use(
-    "*",
-    cors({
-      origin: "*",
-      allowMethods: ["GET", "HEAD", "OPTIONS"],
-      exposeHeaders: [
-        "ETag",
-        "X-Dataset-Snapshot",
-        "X-Request-Id",
-        "Link",
-        "Retry-After",
-        "X-Directory-API-Version",
-      ],
-      maxAge: corsPreflightMaxAgeSeconds,
-    }),
-  );
-  api.use("*", async (c, next) => {
-    if (
-      !new URL(c.req.url).pathname.startsWith(`${base}/`) &&
-      new URL(c.req.url).pathname !== base
-    ) {
-      await next();
-      return;
-    }
+  if (family === "open-data")
+    router.use(
+      "*",
+      cors({
+        origin: "*",
+        allowMethods: ["GET", "HEAD", "OPTIONS"],
+        exposeHeaders: [
+          "ETag",
+          "X-Dataset-Snapshot",
+          "X-Request-Id",
+          "Retry-After",
+          "X-Directory-API-Version",
+        ],
+        maxAge: corsPreflightMaxAgeSeconds,
+      }),
+    );
+  router.use("*", async (c, next) => {
     c.set("requestId", crypto.randomUUID());
     c.header("X-Request-Id", c.get("requestId"));
     if (c.req.method !== "GET" && c.req.method !== "HEAD") {
-      c.header("Allow", "GET, HEAD, OPTIONS");
+      c.header("Allow", allowedMethods[family]);
       return problem(c, "method_not_allowed", httpStatus.methodNotAllowed);
     }
+    const sender = c.req.header("Sec-Fetch-Site");
+    if (
+      siteRequestAdmission(
+        family === "site",
+        sender !== undefined,
+        sender === sameOriginRequest,
+      ) === "cross_origin"
+    )
+      return problem(c, "cross_origin", httpStatus.forbidden);
     if (new TextEncoder().encode(c.req.url).length > maximumUrlBytes)
       return problem(c, "invalid_query", httpStatus.badRequest);
     try {
@@ -597,13 +281,8 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
       decodeURIComponent(url.pathname);
       decodeURIComponent(url.search.replaceAll("+", " "));
       if (
-        ![
-          `${base}/contacts`,
-          `${base}/contacts.vcf`,
-          `${base}/contact-groups`,
-        ].includes(url.pathname) &&
         [...url.searchParams.keys()].some(
-          (name) => base !== "/api/v1" || name !== "snapshot",
+          (name) => !admitsParameter(family, url.pathname, name),
         )
       )
         return problem(c, "invalid_query", httpStatus.badRequest);
@@ -612,418 +291,53 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
     }
     await next();
   });
-
-  api.use("*", async (c, next) => {
-    const key = [`${base}/contacts`, `${base}/contact-groups`].includes(
-      new URL(c.req.url).pathname,
-    )
-      ? searchCacheKey(
-          c.req.raw,
-          c.env.DATASET_MANIFEST_SHA256,
-          c.env.CF_VERSION_METADATA?.id,
-        )
-      : null;
-    const cache = key ? (c.env.SEARCH_CACHE ?? edgeSearchCache()) : null;
-    if (!key || !cache) {
-      await next();
-      return;
-    }
-    const cached = await cachedSearch(cache, key);
-    if (cached) {
-      const response = new Response(cached.body, cached);
-      response.headers.set("Cache-Control", mutableCache);
-      return response;
-    }
-    await next();
-    if (storesSearch(c.res.status))
-      await settle(c, storeSearch(cache, key, c.res));
+  router.notFound((c) => problem(c, "not_found", httpStatus.notFound));
+  router.onError((_error, c) => {
+    console.error(
+      JSON.stringify({
+        operation: "directory.read",
+        outcome: "unavailable",
+        requestId: c.get("requestId"),
+        route: c.req.routePath,
+      }),
+    );
+    return problem(c, "unavailable", httpStatus.unavailable);
   });
+  return router;
+}
 
-  api.use("*", async (c, next) => {
-    const path = new URL(c.req.url).pathname;
-    if (base === "/api/v1" && (path === base || path.startsWith(`${base}/`))) {
-      c.header("X-Directory-API-Version", "1");
-      const url = new URL(c.req.url);
+function openDataApi(): Hono<ApiEnvironment> {
+  const router = directoryRouter("open-data");
+  router.use("*", async (c, next) => {
+    const url = new URL(c.req.url);
+    if (pinnedPaths.has(url.pathname)) {
       const identities = url.searchParams.getAll("snapshot");
-      if (
-        !url.pathname.startsWith(`${base}/datasets/`) &&
-        url.pathname !== `${base}/openapi.json`
-      ) {
-        const catalog = await readCatalog(directoryDatabase(c.env.DB));
-        c.header("X-Dataset-Snapshot", catalog.snapshot);
-        const decision = snapshotAdmission(
-          identities.length > 0,
-          identities.length <= 1,
-          identities.every((value) => v.safeParse(DigestSchema, value).success),
-          identities[0] === catalog.snapshot,
+      const catalog = await readCatalog(directoryDatabase(c.env.DB));
+      c.header("X-Dataset-Snapshot", catalog.snapshot);
+      const decision = snapshotAdmission(
+        identities.length > 0,
+        identities.length <= 1,
+        identities.every((value) => v.safeParse(DigestSchema, value).success),
+        identities[0] === catalog.snapshot,
+      );
+      if (decision !== "accepted")
+        return problem(
+          c,
+          decision,
+          decision === "snapshot_changed"
+            ? httpStatus.conflict
+            : httpStatus.badRequest,
         );
-        if (decision !== "accepted")
-          return problem(
-            c,
-            decision,
-            decision === "snapshot_changed"
-              ? httpStatus.conflict
-              : httpStatus.badRequest,
-          );
-      } else if (identities.length > 0) {
-        return problem(c, "invalid_query", httpStatus.badRequest);
-      }
     }
     await next();
   });
 
-  api.get(
-    base,
-    describeResource({
-      operationId: "getDiscovery",
-      tags: ["Directory"],
-      summary:
-        "Discover the resource URLs, the OpenAPI document, and the reference",
-      description:
-        base === "/api/v1"
-          ? "Returns each versioned resource URL pinned to the current snapshot, with the snapshot and its generation time. Follow these links for a consistent import. A pin that's no longer current returns 409."
-          : "Returns the URL of each unversioned resource, this OpenAPI document, and the /developers reference. The body doesn't depend on the dataset. Query parameters are rejected.",
-      responses: {
-        [httpStatus.ok]: {
-          description:
-            base === "/api/v1"
-              ? "Resource URLs pinned to the current snapshot"
-              : "The unversioned resource URLs",
-          content: {
-            "application/json":
-              base === "/api/v1"
-                ? {
-                    schema: resolver(DirectoryDiscoverySchema),
-                    example: pinnedDiscovery(exampleDiscoveryCatalog),
-                  }
-                : {
-                    schema: resolver(UnversionedDiscoverySchema),
-                    example: unversionedDiscovery(),
-                  },
-          },
-        },
-        ...(base === "/api/v1"
-          ? {
-              [httpStatus.badRequest]: problemResponse(
-                "A parameter other than one well-formed snapshot",
-              ),
-              [httpStatus.conflict]: problemResponse(
-                "The snapshot changed; follow the current discovery links",
-              ),
-              [httpStatus.unavailable]: problemResponse(
-                "An RFC 9457 problem with a request ID",
-              ),
-            }
-          : {
-              [httpStatus.badRequest]: problemResponse(
-                "The request has a query parameter",
-              ),
-            }),
-      },
-    }),
-    async (c) =>
-      c.json(
-        base === "/api/v1"
-          ? pinnedDiscovery(await readCatalog(directoryDatabase(c.env.DB)))
-          : unversionedDiscovery(),
-      ),
+  router.get(versionedBase, async (c) =>
+    c.json(pinnedDiscovery(await readCatalog(directoryDatabase(c.env.DB)))),
   );
 
-  api.get(
-    `${base}/catalog`,
-    describeResource({
-      operationId: "getCatalog",
-      tags: ["Directory"],
-      summary: "Get categories, regions, and the active dataset",
-      responses: {
-        [httpStatus.ok]: {
-          description: "Directory catalog",
-          content: { "application/json": { schema: resolver(CatalogSchema) } },
-        },
-        ...failureResponses,
-      },
-    }),
-    async (c) => {
-      const catalog = await readCatalog(directoryDatabase(c.env.DB));
-      const etag = `"${await sha256(JSON.stringify(catalog))}"`;
-      c.header("X-Dataset-Snapshot", catalog.snapshot);
-      c.header("ETag", etag);
-      c.header("Cache-Control", mutableCache);
-      if (c.req.header("If-None-Match") === etag)
-        return c.body(null, httpStatus.notModified);
-      return c.json(catalog);
-    },
-  );
-
-  api.get(
-    `${base}/contacts`,
-    describeResource({
-      operationId: "searchContacts",
-      tags: ["Contacts"],
-      summary:
-        "Search facilities by name, telephone number, category, and region",
-      description:
-        "Exact names precede prefixes and substrings. Ties use normalized name and stable ID. Follow links.next until null. A cursor is bound to its query, limit, and dataset snapshot. Parameters must occur once; unknown parameters are rejected.",
-      parameters: searchParameters,
-      responses: {
-        ...failureResponses,
-        [httpStatus.ok]: {
-          description: "A stable page of contacts",
-          content: {
-            "application/json": { schema: resolver(SearchResponseSchema) },
-          },
-        },
-      },
-    }),
-    async (c) => {
-      const url = new URL(c.req.url);
-      const parameters = new URLSearchParams(url.searchParams);
-      if (base === "/api/v1") parameters.delete("snapshot");
-      const search = parseSearch(parameters);
-      if (!search.ok) return problem(c, search.error, httpStatus.badRequest);
-      const db = directoryDatabase(c.env.DB);
-      const catalog = await readCatalog(db);
-      if (base === "/api/v1")
-        url.searchParams.set("snapshot", catalog.snapshot);
-      const result = await searchContacts(db, search.value, catalog, url);
-      if (!result.ok)
-        return problem(
-          c,
-          result.error,
-          result.error === "snapshot_changed"
-            ? httpStatus.conflict
-            : httpStatus.badRequest,
-        );
-      c.header("X-Dataset-Snapshot", catalog.snapshot);
-      c.header("Cache-Control", mutableCache);
-      if (result.value.links.next)
-        c.header("Link", `<${result.value.links.next}>; rel="next"`);
-      return c.json(result.value);
-    },
-  );
-
-  api.get(
-    `${base}/contact-groups`,
-    describeResource({
-      operationId: "searchContactGroups",
-      tags: ["Contacts"],
-      summary: "Preview matching contacts in every facility category",
-      description:
-        "Unfiltered categories each preview up to min(3, limit) contacts, ordered by their best name match. Group counts are exact. Follow each results.links.next through the flat contacts endpoint to retrieve all remaining matches. Category-selected searches return a regular page. A cursor requires a category. Query, limit, and dataset cursor bindings are unchanged.",
-      parameters: searchParameters,
-      responses: {
-        ...failureResponses,
-        [httpStatus.ok]: {
-          description: "Disjoint category previews from one dataset snapshot",
-          content: {
-            "application/json": {
-              schema: resolver(GroupedSearchResponseSchema),
-            },
-          },
-        },
-      },
-    }),
-    async (c) => {
-      const url = new URL(c.req.url);
-      const parameters = new URLSearchParams(url.searchParams);
-      if (base === "/api/v1") parameters.delete("snapshot");
-      const search = parseSearch(parameters);
-      if (!search.ok) return problem(c, search.error, httpStatus.badRequest);
-      const db = directoryDatabase(c.env.DB);
-      const catalog = await readCatalog(db);
-      if (base === "/api/v1")
-        url.searchParams.set("snapshot", catalog.snapshot);
-      const result = await searchContactGroups(db, search.value, catalog, url);
-      if (!result.ok)
-        return problem(
-          c,
-          result.error,
-          result.error === "snapshot_changed"
-            ? httpStatus.conflict
-            : httpStatus.badRequest,
-        );
-      c.header("X-Dataset-Snapshot", catalog.snapshot);
-      c.header("Cache-Control", mutableCache);
-      return c.json(result.value);
-    },
-  );
-
-  api.get(
-    `${base}/contacts.vcf`,
-    describeResource({
-      operationId: "downloadFilteredContacts",
-      tags: ["Contacts"],
-      summary: "Download a bounded page of filtered contacts as vCards",
-      description:
-        "Returns, as vCard text, the contacts that searchContacts returns for the same parameters. A page holds at most 100 contacts. Follow the Link response header until it's absent. The cursor in that link is bound to the query, limit, and dataset snapshot. Parameters must occur once; unknown parameters are rejected.",
-      parameters: searchParameters,
-      responses: {
-        [httpStatus.ok]: {
-          description:
-            "One vCard 3.0 per contact on the page, UTF-8, CRLF, 75-byte folded lines",
-          content: { "text/vcard": { schema: { type: "string" } } },
-        },
-        ...failureResponses,
-      },
-    }),
-    async (c) => {
-      const url = new URL(c.req.url);
-      const parameters = new URLSearchParams(url.searchParams);
-      if (base === "/api/v1") parameters.delete("snapshot");
-      const search = parseSearch(parameters);
-      if (!search.ok) return problem(c, search.error, httpStatus.badRequest);
-      const db = directoryDatabase(c.env.DB);
-      const catalog = await readCatalog(db);
-      if (base === "/api/v1")
-        url.searchParams.set("snapshot", catalog.snapshot);
-      const result = await searchContacts(db, search.value, catalog, url);
-      if (!result.ok)
-        return problem(
-          c,
-          result.error,
-          result.error === "snapshot_changed"
-            ? httpStatus.conflict
-            : httpStatus.badRequest,
-        );
-      c.header("X-Dataset-Snapshot", catalog.snapshot);
-      c.header("Cache-Control", mutableCache);
-      if (result.value.links.next)
-        c.header("Link", `<${result.value.links.next}>; rel="next"`);
-      return c.body(
-        result.value.data.map(contactVCard).join(""),
-        httpStatus.ok,
-        {
-          "Content-Type": "text/vcard; charset=utf-8",
-          "Content-Disposition": "attachment; filename=contacts.vcf",
-        },
-      );
-    },
-  );
-
-  api.get(
-    `${base}/contacts/:id`,
-    describeResource({
-      operationId: "getContact",
-      tags: ["Contacts"],
-      summary: "Get a facility and its provenance",
-      responses: {
-        ...failureResponses,
-        [httpStatus.ok]: {
-          description: "Contact",
-          content: { "application/json": { schema: resolver(ContactSchema) } },
-        },
-      },
-    }),
-    async (c) => {
-      const contact = await readContact(
-        directoryDatabase(c.env.DB),
-        c.req.param("id"),
-      );
-      return contact
-        ? c.json(contact)
-        : problem(c, "not_found", httpStatus.notFound);
-    },
-  );
-
-  api.get(
-    `${base}/contacts/:id/contact.vcf`,
-    describeResource({
-      operationId: "downloadContact",
-      tags: ["Contacts"],
-      summary: "Download one complete vCard",
-      responses: {
-        [httpStatus.ok]: {
-          description: "vCard 3.0, UTF-8, CRLF, 75-byte folded lines",
-          content: { "text/vcard": { schema: { type: "string" } } },
-        },
-        ...failureResponses,
-      },
-    }),
-    async (c) => {
-      const contact = await readContact(
-        directoryDatabase(c.env.DB),
-        c.req.param("id"),
-      );
-      if (!contact) return problem(c, "not_found", httpStatus.notFound);
-      return new Response(contactVCard(contact), {
-        headers: {
-          "Content-Type": "text/vcard; charset=utf-8",
-          "Content-Disposition": "attachment; filename=contact.vcf",
-        },
-      });
-    },
-  );
-
-  api.get(
-    `${base}/sources`,
-    describeResource({
-      operationId: "listSources",
-      tags: ["Sources"],
-      summary: "List source provenance and import results",
-      responses: {
-        [httpStatus.ok]: {
-          description: "Sources",
-          content: {
-            "application/json": {
-              schema: resolver(v.strictObject({ data: v.array(SourceSchema) })),
-            },
-          },
-        },
-        ...failureResponses,
-      },
-    }),
-    async (c) =>
-      c.json({ data: await readSources(directoryDatabase(c.env.DB)) }),
-  );
-  api.get(
-    `${base}/sources/:id`,
-    describeResource({
-      operationId: "getSource",
-      tags: ["Sources"],
-      summary: "Get source archive hashes and import counts",
-      responses: {
-        ...failureResponses,
-        [httpStatus.ok]: {
-          description: "Source",
-          content: { "application/json": { schema: resolver(SourceSchema) } },
-        },
-      },
-    }),
-    async (c) => {
-      const source = await readSource(
-        directoryDatabase(c.env.DB),
-        c.req.param("id"),
-      );
-      return source
-        ? c.json(source)
-        : problem(c, "not_found", httpStatus.notFound);
-    },
-  );
-
-  api.get(
-    `${base}/datasets`,
-    describeResource({
-      operationId: "getDatasetManifest",
-      tags: ["Datasets"],
-      summary:
-        "Get complete dataset download URLs, byte lengths, and SHA-256 hashes",
-      responses: {
-        [httpStatus.ok]: {
-          description: "Current snapshot manifest",
-          content: {
-            "application/json": {
-              schema: resolver(
-                base === "/api/v1"
-                  ? VersionedDatasetManifestSchema
-                  : DatasetManifestSchema,
-              ),
-            },
-          },
-        },
-        ...failureResponses,
-      },
-    }),
-    async (c) => {
+  for (const base of ["/api", versionedBase] as const) {
+    router.get(`${base}/datasets`, async (c) => {
       const catalog = await readCatalog(directoryDatabase(c.env.DB));
       const prepared = await readPreparedManifest(c, catalog);
       if (!prepared) return problem(c, "unavailable", httpStatus.unavailable);
@@ -1031,66 +345,28 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
       c.header("X-Dataset-Snapshot", catalog.snapshot);
       c.header("Cache-Control", mutableCache);
       return c.json(
-        base === "/api/v1"
+        base === versionedBase
           ? v.parse(VersionedDatasetManifestSchema, {
               ...parsed,
               files: parsed.files.map((file) => ({
                 ...file,
-                url: file.url.replace(/^\/api\//u, "/api/v1/"),
+                url: file.url.replace(/^\/api\//u, `${versionedBase}/`),
               })),
             })
           : parsed,
       );
-    },
-  );
+    });
 
-  api.get(
-    `${base}/dataset-deltas`,
-    describeResource({
-      operationId: "getDatasetDeltas",
-      tags: ["Datasets"],
-      summary:
-        "List deltas from earlier native directory archives to the current one",
-      description:
-        "Each delta rebuilds the current directory.tsv.br from the named base archive. Verify the downloaded bytes, then the decoded target length and SHA-256 in the delta header, before replacing stored data. Download the complete archive when no delta starts from the stored snapshot or a check fails.",
-      responses: {
-        [httpStatus.ok]: {
-          description: "Deltas to the current snapshot, possibly none",
-          content: {
-            "application/json": {
-              schema: resolver(DirectoryDeltaListingSchema),
-            },
-          },
-        },
-        ...failureResponses,
-      },
-    }),
-    async (c) => {
+    router.get(`${base}/dataset-deltas`, async (c) => {
       const catalog = await readCatalog(directoryDatabase(c.env.DB));
       const prepared = await readPreparedManifest(c, catalog);
       if (!prepared) return problem(c, "unavailable", httpStatus.unavailable);
       c.header("X-Dataset-Snapshot", catalog.snapshot);
       c.header("Cache-Control", mutableCache);
       return c.json(directoryDeltaListing(prepared, base));
-    },
-  );
+    });
 
-  api.get(
-    `${base}/datasets/:snapshot/:digest/:file`,
-    describeRoute({
-      operationId: "downloadDataset",
-      tags: ["Datasets"],
-      summary:
-        "Download immutable complete JSONL, CSV, vCard, or native directory data, or a native directory delta",
-      responses: {
-        [httpStatus.ok]: {
-          description:
-            "Gzip or Brotli archive with immutable caching and an ETag",
-        },
-        ...failureResponses,
-      },
-    }),
-    async (c) => {
+    router.get(`${base}/datasets/:snapshot/:digest/:file`, async (c) => {
       const snapshot = c.req.param("snapshot");
       const digest = c.req.param("digest");
       const name = c.req.param("file");
@@ -1118,46 +394,216 @@ function createDirectoryApi(base: "/api" | "/api/v1"): Hono<ApiEnvironment> {
       if (c.req.header("If-None-Match") === object.httpEtag)
         return new Response(null, { status: httpStatus.notModified, headers });
       return new Response(object.body, { headers });
-    },
-  );
-
-  if (base === "/api") registerWebsiteResources(api);
-
-  api.get(
-    `${base}/openapi.json`,
-    openAPIRouteHandler(api, {
-      // The default drops documented paths such as /contacts.vcf as static files.
-      excludeStaticFile: false,
-      documentation: {
-        info: {
-          title: "Public Phonebook API",
-          version: base === "/api/v1" ? "1.0.0" : "0.1.0",
-          description:
-            "Public facility contact data with source provenance. No API key is required.",
-        },
-        servers: [{ url: "/" }],
-      },
-    }),
-  );
-  api.notFound((c) => problem(c, "not_found", httpStatus.notFound));
-  api.onError((_error, c) => {
-    console.error(
-      JSON.stringify({
-        operation: "directory.read",
-        outcome: "unavailable",
-        requestId: c.get("requestId"),
-        route: c.req.routePath,
-      }),
-    );
-    return problem(c, "unavailable", httpStatus.unavailable);
-  });
-  return api;
+    });
+  }
+  return router;
 }
 
-const api = new Hono<ApiEnvironment>()
-  .route("/", createDirectoryApi("/api/v1"))
-  .route("/", createDirectoryApi("/api"));
-api.notFound((c) => problem(c, "not_found", httpStatus.notFound));
+function siteApi(): Hono<ApiEnvironment> {
+  const router = directoryRouter("site");
+  router.use("*", async (c, next) => {
+    const key = searchCacheKey(
+      c.req.raw,
+      c.env.DATASET_MANIFEST_SHA256,
+      c.env.CF_VERSION_METADATA?.id,
+    );
+    const cache = key ? (c.env.SEARCH_CACHE ?? edgeSearchCache()) : null;
+    if (!key || !cache) {
+      await next();
+      return;
+    }
+    const cached = await cachedSearch(cache, key);
+    if (cached) {
+      const response = new Response(cached.body, cached);
+      response.headers.set("Cache-Control", mutableCache);
+      return response;
+    }
+    await next();
+    if (storesSearch(c.res.status))
+      await settle(c, storeSearch(cache, key, c.res));
+  });
 
-export { api };
-export type DirectoryApi = typeof api;
+  router.get("/api/catalog", async (c) => {
+    const catalog = await readCatalog(directoryDatabase(c.env.DB));
+    const etag = `"${await sha256(JSON.stringify(catalog))}"`;
+    c.header("X-Dataset-Snapshot", catalog.snapshot);
+    c.header("ETag", etag);
+    c.header("Cache-Control", mutableCache);
+    if (c.req.header("If-None-Match") === etag)
+      return c.body(null, httpStatus.notModified);
+    return c.json(catalog);
+  });
+
+  router.get("/api/contacts", async (c) => {
+    const url = new URL(c.req.url);
+    const search = parseSearch(url.searchParams);
+    if (!search.ok) return problem(c, search.error, httpStatus.badRequest);
+    const db = directoryDatabase(c.env.DB);
+    const catalog = await readCatalog(db);
+    const result = await searchContacts(db, search.value, catalog, url);
+    if (!result.ok)
+      return problem(
+        c,
+        result.error,
+        result.error === "snapshot_changed"
+          ? httpStatus.conflict
+          : httpStatus.badRequest,
+      );
+    c.header("X-Dataset-Snapshot", catalog.snapshot);
+    c.header("Cache-Control", mutableCache);
+    if (result.value.links.next)
+      c.header("Link", `<${result.value.links.next}>; rel="next"`);
+    return c.json(result.value);
+  });
+
+  router.get("/api/contact-groups", async (c) => {
+    const url = new URL(c.req.url);
+    const search = parseSearch(url.searchParams);
+    if (!search.ok) return problem(c, search.error, httpStatus.badRequest);
+    const db = directoryDatabase(c.env.DB);
+    const catalog = await readCatalog(db);
+    const result = await searchContactGroups(db, search.value, catalog, url);
+    if (!result.ok)
+      return problem(
+        c,
+        result.error,
+        result.error === "snapshot_changed"
+          ? httpStatus.conflict
+          : httpStatus.badRequest,
+      );
+    c.header("X-Dataset-Snapshot", catalog.snapshot);
+    c.header("Cache-Control", mutableCache);
+    return c.json(result.value);
+  });
+
+  router.get("/api/contacts/:id", async (c) => {
+    const contact = await readContact(
+      directoryDatabase(c.env.DB),
+      c.req.param("id"),
+    );
+    return contact
+      ? c.json(contact)
+      : problem(c, "not_found", httpStatus.notFound);
+  });
+
+  router.get("/api/contacts/:id/contact.vcf", async (c) => {
+    const contact = await readContact(
+      directoryDatabase(c.env.DB),
+      c.req.param("id"),
+    );
+    if (!contact) return problem(c, "not_found", httpStatus.notFound);
+    return new Response(contactVCard(contact), {
+      headers: {
+        "Content-Type": "text/vcard; charset=utf-8",
+        "Content-Disposition": "attachment; filename=contact.vcf",
+      },
+    });
+  });
+
+  router.get("/api/sources", async (c) =>
+    c.json({ data: await readSources(directoryDatabase(c.env.DB)) }),
+  );
+
+  router.get("/api/sources/:id", async (c) => {
+    const source = await readSource(
+      directoryDatabase(c.env.DB),
+      c.req.param("id"),
+    );
+    return source
+      ? c.json(source)
+      : problem(c, "not_found", httpStatus.notFound);
+  });
+
+  router.get("/api/search-index", async (c) => {
+    const catalog = await readCatalog(directoryDatabase(c.env.DB));
+    const manifest = await readPreparedManifest(c, catalog);
+    if (!manifest) return problem(c, "unavailable", httpStatus.unavailable);
+    const location = searchIndexLocation(manifest);
+    const etag = `"${await sha256(JSON.stringify(location))}"`;
+    c.header("X-Dataset-Snapshot", catalog.snapshot);
+    c.header("ETag", etag);
+    c.header("Cache-Control", mutableCache);
+    if (matchesEntityTag(c.req.header("If-None-Match"), etag))
+      return c.body(null, httpStatus.notModified);
+    return c.json(location);
+  });
+
+  router.get("/api/search-index/:snapshot/:sha256", async (c) => {
+    const snapshot = c.req.param("snapshot");
+    const digest = c.req.param("sha256");
+    if (!v.is(DigestSchema, snapshot) || !v.is(DigestSchema, digest))
+      return problem(c, "not_found", httpStatus.notFound);
+    const catalog = await readCatalog(directoryDatabase(c.env.DB));
+    if (snapshot !== catalog.snapshot)
+      return problem(c, "not_found", httpStatus.notFound);
+    const manifest = await readPreparedManifest(c, catalog);
+    if (!manifest) return problem(c, "unavailable", httpStatus.unavailable);
+    if (digest !== manifest.searchIndex.sha256)
+      return problem(c, "not_found", httpStatus.notFound);
+    c.header("Vary", "Accept-Encoding");
+    if (!admitsContentCoding(acceptedEncodings(c.req.raw), searchIndexCoding))
+      return problem(c, "not_acceptable", httpStatus.notAcceptable);
+    const validators = {
+      ETag: `"${digest}"`,
+      "Cache-Control": immutableCache,
+      Vary: "Accept-Encoding",
+      "X-Dataset-Snapshot": snapshot,
+    };
+    if (matchesEntityTag(c.req.header("If-None-Match"), validators.ETag))
+      return new Response(null, {
+        status: httpStatus.notModified,
+        headers: validators,
+      });
+    const object = await c.env.DATASETS.get(
+      searchIndexObjectKey(snapshot, digest),
+    );
+    if (!object) return problem(c, "unavailable", httpStatus.unavailable);
+    if (object.size !== manifest.searchIndex.bytes) {
+      await object.body.cancel();
+      return problem(c, "unavailable", httpStatus.unavailable);
+    }
+    return new Response(object.body, {
+      headers: {
+        ...validators,
+        "Content-Type": searchIndexMediaType,
+        "Content-Encoding": searchIndexCoding,
+        "Content-Length": String(object.size),
+      },
+      encodeBody: "manual",
+    });
+  });
+
+  router.get("/api/contacts/row/:snapshot/:row", async (c) => {
+    const snapshot = c.req.param("snapshot");
+    const position = parseRowPosition(c.req.param("row"));
+    const row = position ?? 0;
+    const db = directoryDatabase(c.env.DB);
+    const catalog = await readCatalog(db);
+    c.header("X-Dataset-Snapshot", catalog.snapshot);
+    const decision = rowLocatorDecision(
+      v.is(DigestSchema, snapshot) && position !== null,
+      snapshot === catalog.snapshot,
+      row,
+      catalog.contacts,
+    );
+    if (decision !== "located")
+      return problem(c, decision, rowFailureStatus[decision]);
+    const id = await readRowContactId(db, row + rowidOffset);
+    if (id === null) throw new Error("A located search index row is missing");
+    c.header("Cache-Control", mutableCache);
+    return c.json(v.parse(RowLocationSchema, { id }));
+  });
+  return router;
+}
+
+const openData = openDataApi();
+const site = siteApi();
+
+/** Sends each request to exactly one route family, so the site's routes never pass through the open-data middleware. */
+const dispatch: Hono<ApiEnvironment>["fetch"] = (request, ...rest) =>
+  (openDataPath(new URL(request.url).pathname) ? openData : site).fetch(
+    request,
+    ...rest,
+  );
+
+export const api = { fetch: dispatch } as const;

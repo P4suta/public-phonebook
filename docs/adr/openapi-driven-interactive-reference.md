@@ -6,9 +6,10 @@ date: 2026-10-30
 
 ## Status
 
-Superseded by [render the API reference on the server](server-rendered-api-reference.md).
+Superseded by [serving the directory JSON to the site only](serve-directory-json-to-the-site-only.md), which removes the reference.
+It was first superseded by [render the API reference on the server](server-rendered-api-reference.md).
 The page no longer loads Scalar, and its separate style policy is gone.
-The reference still follows the generated OpenAPI document rather than a hand-maintained operation list.
+The server-rendered reference followed the generated OpenAPI document rather than a hand-maintained operation list.
 
 ## Context
 

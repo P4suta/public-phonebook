@@ -53,7 +53,7 @@ test("the public catalog and grouped API retain the checked national publication
       (group) => group.category === "library" && group.results.data.length > 0,
     ),
   ).toBe(true);
-  const invalid = await checkedFetch("/api/contacts?limit=101");
+  const invalid = await checkedFetch("/api/contacts?limit=31");
   expect(invalid.status).toBe(400);
   expect(invalid.headers.get("content-type")).toContain(
     "application/problem+json",

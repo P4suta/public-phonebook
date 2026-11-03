@@ -7,12 +7,7 @@ export interface SearchCache {
 }
 
 const edgeLifetimeSeconds = 300;
-const cachedPaths = new Set([
-  "/api/contacts",
-  "/api/contact-groups",
-  "/api/v1/contacts",
-  "/api/v1/contact-groups",
-]);
+const cachedPaths = new Set(["/api/contacts", "/api/contact-groups"]);
 
 export function searchCacheKey(
   request: Request,

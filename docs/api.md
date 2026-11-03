@@ -1,77 +1,21 @@
-# Public read API
+# Open data files
 
-This document describes the local TypeScript implementation.
-The existing public deployment is unchanged.
-The running API describes its contract at `/api/openapi.json`.
-Open `/developers` for the reference that the server renders from that contract.
-It lists each operation with its parameters, response meanings, curl and JavaScript examples, and a request form that also works without JavaScript.
-The reference reads the generated contract rather than maintaining a second list of operations.
-No API key, cookie, account, or HTML scraping is required.
+The complete dataset files, their listings, and the delta files are open to every client.
+They need no API key, cookie, account, or HTML scraping, and they carry cross-origin headers.
+The data page at `/data` lists the current files with their format, size, SHA-256, and download link.
+The site's search, contact, and search index routes serve only the site, as [the route split decision](adr/serve-directory-json-to-the-site-only.md) records.
 
-## Discover and search
+## Find the current files
 
-Start with `GET /api` and `GET /api/catalog`.
-`GET /api` returns the URL of each resource, the OpenAPI document, and the reference.
-`GET /api/v1` returns the versioned links pinned to the current snapshot, with `version`, `snapshot`, and `generatedAt`.
-The catalog supplies category IDs, prefecture codes, municipality codes, counts, and the current snapshot.
+`GET /api/v1` returns `version`, `snapshot`, `generatedAt`, and the links `datasets` and `datasetDeltas`.
+Each link carries `?snapshot=` with the current snapshot.
+A pinned listing returns 409 after a change, so a client can tell that its links went stale.
+A duplicate or malformed `snapshot` returns 400.
+`GET /api/datasets` and `GET /api/dataset-deltas` return the same listings without a pin, and their file URLs start with `/api/` instead of `/api/v1/`.
 
 ```sh
-curl --fail-with-body --get --data-urlencode 'q=国立国会図書館' http://127.0.0.1:8787/api/contacts
+curl --fail-with-body http://127.0.0.1:8787/api/datasets
 ```
-
-| Parameter | Contract |
-| --- | --- |
-| q | A facility-name substring or complete Japanese telephone number; at most 512 UTF-8 bytes |
-| prefecture | Two-digit code from the catalog |
-| municipality | Five-digit code from the catalog; implies its prefecture |
-| category | One of the catalog's category IDs |
-| limit | Integer from 1 through 100; defaults to 30 |
-| cursor | Opaque continuation token; prefer the returned next link |
-
-Parameters occur at most once.
-Unknown parameters, malformed encoding, and conflicting regions are rejected.
-Names use NFKC normalization and case folding through JavaScript lowercase conversion.
-Exact names precede prefixes and substrings.
-Ties use the normalized name and stable ID in SQLite binary order.
-Complete telephone numbers use the canonical Japanese E.164 index.
-Shared telephone numbers preserve separate contact records.
-Telephone search accepts national or `+81` spelling, full-width digits, and explicit visual separators.
-It does not extract numbers from labels, internal line breaks, extensions, or lists of numbers.
-The current directory contract admits 10- and 11-digit national numbers rather than emergency short codes or longer device-number allocations.
-Telephone aliases share a cursor identity without colliding with similarly normalized facility-name queries.
-
-A successful search returns `data`, `meta`, and `links`.
-Follow `links.next` until it is null.
-Each cursor binds the snapshot, normalized query, filters, and page size.
-A changed snapshot returns 409; restart without the cursor.
-Query identities are SHA-256 digests rather than copies of the query text.
-
-`GET /api/contacts.vcf` takes the same parameters and returns the same page of contacts as vCard text, one vCard 3.0 per contact.
-Follow the URL in its `Link` response header until the header is absent.
-
-## Preview facility categories
-
-`GET /api/contact-groups` accepts the same search parameters.
-Without a selected category, it returns every matching category with up to `min(3, limit)` contacts and an exact matching count.
-Groups follow the order of their best contact under the same stable search ranking.
-The response contains `groups: [{ category, results }]` and overall `meta: { snapshot, total }`.
-Each `results` has the flat search response shape, and its `links.self` identifies the containing preview request.
-Follow each `results.links.next` through `/api/contacts` to retrieve all remaining contacts in that category.
-The continuation retains the requested page size, even when the initial preview contains only three contacts.
-A selected category returns a regular page wrapped in one group.
-A cursor without a category is rejected.
-Category membership, disjoint contact identities, snapshot consistency, and the sum of category totals are validated at both service and client boundaries.
-This endpoint supports bounded category previews without downloading the national database or issuing a request for every category.
-
-## Read a contact and its sources
-
-`GET /api/contacts/{id}` returns all telephone numbers, address, website, source URLs, source record identity, dates, and reuse metadata.
-`GET /api/contacts/{id}/contact.vcf` returns one complete vCard 3.0.
-`GET /api/sources` and `GET /api/sources/{id}` expose retained source hashes, retrieval dates, artifacts, and import accounting.
-A source date describes the retained publication and does not assert telephone reachability.
-Each phone retains the publisher's spelling in `display` and its canonical dial destination in `e164`.
-Validation requires both fields to identify the same digits.
-The website formats and copies the canonical value with Japanese numbering metadata while the API and archives preserve the original spelling.
 
 ## Download complete data
 
@@ -80,7 +24,7 @@ It lists complete gzip-compressed JSONL, CSV, and vCard files and a Brotli-compr
 Use each returned URL directly.
 The URL includes both the contact snapshot and the archive digest, so a changed representation gets a different immutable URL.
 Validate the downloaded byte length and SHA-256 before processing it.
-Downloads contain the complete directory and do not depend on the search page size.
+Downloads contain the complete directory.
 Source-specific reuse terms remain attached to every record.
 CSV records carry the columns `id`, `name`, `category`, `prefecture_code`, `municipality_code`, `address`, `phone_numbers`, `website`, `source_id`, `source_url`, `license`, `license_url`, and `data_as_of`.
 A `phone_numbers` cell holds the contact's E.164 numbers unescaped and separated by semicolons, the same values as `e164` in JSON Lines and `TEL` in vCard.
@@ -89,6 +33,7 @@ A spreadsheet may still read that cell as a number, so import the column as text
 Every other cell that begins with `=`, `+`, `-`, `@`, a tab, a carriage return, or a full-width `＝`, `＋`, `－`, or `＠` receives a leading apostrophe.
 That guard covers the characters of the formula-escaping option in the pinned `csv-stringify` serializer, which writes quoted fields and CRLF records.
 JSONL retains the canonical structured values.
+Each phone retains the publisher's spelling in `display` and its canonical dial destination in `e164`.
 vCard text is escaped and folded at 75 UTF-8 bytes without splitting code points.
 
 ### Native directory archive
@@ -131,8 +76,8 @@ The archive omits contact and source-record IDs, which remain in JSONL.
 
 A delta rebuilds the current decoded `directory.tsv.br` from the decoded archive of an earlier snapshot, so an offline client can skip the complete download.
 `GET /api/dataset-deltas` lists the deltas to the current snapshot, and `/api/datasets` doesn't list them.
-The versioned `GET /api/v1/dataset-deltas?snapshot=…` takes the same snapshot pin as the other versioned resources and returns 409 after a change.
-Each discovery document links the listing as `datasetDeltas`, and the `/api/v1` link carries the pin.
+The versioned `GET /api/v1/dataset-deltas?snapshot=…` takes the same snapshot pin as the versioned dataset listing and returns 409 after a change.
+The `/api/v1` index links the listing as `datasetDeltas` with the pin.
 The response holds the current `snapshot`, the `archiveSha256` of the `directory.tsv.br` that every delta rebuilds, and a `deltas` array that may be empty.
 Each entry names its `base` snapshot, the `baseArchiveSha256` of that snapshot's `directory.tsv.br`, its `file` and `url`, and the `bytes` and `sha256` of its Brotli bytes.
 It also gives the `uncompressedBytes` and `uncompressedSha256` of the decoded delta, so a client can bound its decoder.
@@ -176,10 +121,17 @@ The result is the target only when its rows equal `target.contacts`, and its byt
 Validate the rebuilt archive as a complete one before replacing stored data.
 After any failure, keep the stored data and download the complete `directory.tsv.br`.
 
-## Website search index
+## The site's own routes
 
-The website's search index is a website contract rather than a public download.
-`/api/datasets` doesn't list it, and the versioned `/api/v1` API doesn't serve it.
+Search, category previews, contacts, single vCards, sources, the catalog, the search index, and the row locator answer only under `/api`.
+They send no cross-origin headers, and they answer `OPTIONS` with 405.
+A request whose `Sec-Fetch-Site` header is present and differs from `same-origin` gets a 403 problem with the code `cross_origin`.
+A request without that header stays admitted, so server rendering and the release checks reach these routes.
+Search accepts page sizes from 1 through 30.
+
+### Website search index
+
+`/api/datasets` doesn't list the search index, and the `/api/v1` routes don't serve it.
 `GET /api/search-index` returns the current `snapshot`, the immutable index `url`, and the `bytes` and `sha256` of the Brotli bytes.
 It also returns the `uncompressedBytes` and `uncompressedSha256` of the decoded index.
 The response revalidates with an ETag, like the catalog.
@@ -194,26 +146,24 @@ The response carries the digest as a strong ETag, answers a matching `If-None-Ma
 Its `Content-Type` is `application/octet-stream`, because the decoded index mixes UTF-8 lines with binary category and region parts.
 Check the decoded length, the decoded SHA-256, the format line, and the header snapshot before using the index.
 
-## Locate a contact by index row
+### Locate a contact by index row
 
 `GET /api/contacts/row/{snapshot}/{row}` returns `{ "id": "…" }` for a 0-based row of that snapshot's search index.
 The row is a decimal number without a sign or leading zeros.
 D1 numbers contacts in index order, so row `n` is the contact whose D1 rowid is `n + 1`.
 A malformed snapshot or row returns 400, a snapshot that isn't current returns 409, and a row at or past the contact count returns 404.
 A 409 response names the current snapshot in `X-Dataset-Snapshot`, so reload the search index and search again.
-The response carries only the contact ID, which the public contact resource already exposes.
 
 The website page `/contacts/row/{snapshot}/{row}` redirects with 303 to `/contacts/{id}` and keeps its `from` search path.
 When the snapshot changed, the page returns 409 with a short explanation and a link back to the search, and it works without JavaScript.
 
 ## HTTP behavior
 
-GET, HEAD, and OPTIONS are supported.
-Other methods return 405.
-Public CORS permits anonymous reads and exposes validators, snapshot identity, request IDs, continuation links, and retry information.
-Catalog ETags identify the serialized catalog representation.
+GET and HEAD work on every route, and the open-data routes also answer `OPTIONS` preflight requests.
+Other methods return 405 with an `Allow` header.
+The open-data cross-origin headers expose validators, snapshot identity, request IDs, the version header, and retry information.
 Immutable archive URLs carry ETags and support conditional reads.
 Errors use RFC 9457 `application/problem+json` with `code`, `status`, and a generated `requestId`.
-400 denotes invalid input, 404 a missing resource, 406 an unacceptable content coding, 409 an obsolete cursor or row snapshot, and 503 temporary unavailability.
+400 denotes invalid input, 403 a site route requested from another site, 404 a missing resource, 406 an unacceptable content coding, 409 an obsolete pin, cursor, or row snapshot, and 503 temporary unavailability.
 A 503 response includes Retry-After.
 Error bodies omit SQL, stack traces, credentials, and user queries.

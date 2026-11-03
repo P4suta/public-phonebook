@@ -7,7 +7,7 @@ const serverTimeoutMs = 120000;
 export default defineConfig({
   testDir: "./tests/browser",
   testMatch:
-    /\/(?:api-reference-design|contact-design|csp|design|external-links|information|privacy|local-search|search|search-index-api|search-trigger|site-icons|startup)\.spec\.ts$/,
+    /\/(?:contact-design|csp|design|external-links|information|privacy|local-search|search|search-index-api|search-trigger|site-icons|startup)\.spec\.ts$/,
   forbidOnly: true,
   retries: 0,
   workers: browserWorkers,
@@ -26,7 +26,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
     command: "npm run preview -- --port 8790",
-    url: `${fixtureOrigin}/api`,
+    url: `${fixtureOrigin}/api/v1`,
     env: { DIAL_LOCAL_STATE: ".local/check-state" },
     ignoreHTTPSErrors: true,
     reuseExistingServer: false,

@@ -21,18 +21,13 @@ function AboutPage(): ReactElement {
         <h2 className={css.subheading}>データをたしかめる・使う</h2>
         <p className={css.body}>
           電話番号のもとの情報や、データを使うときの決まりをたしかめられます。
+          すべてのデータを、だれでも登録せずにダウンロードできます。
         </p>
-        <nav aria-label="データとAPIの説明" className={css.actions}>
+        <nav aria-label="データの説明" className={css.actions}>
           <LinkButton href="/data" icon="database">
             データについてくわしく知る
           </LinkButton>
-          <LinkButton href="/developers" icon="code">
-            APIの使い方を見る
-          </LinkButton>
         </nav>
-        <p className={css.body}>
-          ほかのアプリで使うためのAPIもあります。 登録せずに使えます。
-        </p>
         <nav aria-label="使い方とプライバシーの説明" className={css.actions}>
           <LinkButton href="/support" icon="life-buoy">
             使い方と、声を伝える方法を見る
