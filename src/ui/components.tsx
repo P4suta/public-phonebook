@@ -7,6 +7,7 @@ import {
 } from "react";
 import { categoryDefinitions } from "../core/catalog.ts";
 import { copyCompletion } from "../core/copy-policy.ts";
+import { mapSearchUrl } from "../core/map-link.ts";
 import type { Contact } from "../core/models.ts";
 import { formatPhone } from "../core/phone.ts";
 import { cleanAddress } from "../core/search.ts";
@@ -289,6 +290,7 @@ export function ContactCard({
     (item) => item.id === contact.category,
   );
   const address = cleanAddress(contact.address);
+  const map = address ? mapSearchUrl(contact.name, address) : null;
   return (
     <article
       className={css.card}
@@ -312,20 +314,26 @@ export function ContactCard({
       />
       {address && (
         <div className={css.contactLocation}>
-          <a
-            className={css.contactLink}
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-external-destination={"address" satisfies ExternalDestination}
-            aria-label={`${address}の地図を開く（新しいタブ）`}
-          >
-            <Icon name="map-pin" />
-            <span>
-              {address}
-              <Icon name="external-link" className={css.trailingIcon} />
-            </span>
-          </a>
+          {map ? (
+            <a
+              className={css.contactLink}
+              href={map}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-external-destination={
+                "address" satisfies ExternalDestination
+              }
+              aria-label={`${address}の地図を開く（新しいタブ）`}
+            >
+              <Icon name="map-pin" />
+              <span>
+                {address}
+                <Icon name="external-link" className={css.trailingIcon} />
+              </span>
+            </a>
+          ) : (
+            <p>{address}</p>
+          )}
         </div>
       )}
       <FeedbackRow feedback={feedback} />
