@@ -128,6 +128,8 @@ public actor SnapshotStore {
   }
 
   private static let generationExtensions = ["sqlite", "names", "kinds"]
+  /// A generation saved before the caller file existed still opens, so the file isn't one of the required extensions.
+  private static let callerExtension = "callers"
   private var manifestURL: URL { root.appendingPathComponent("active.json") }
 
   private func url(_ generation: UUID, _ kind: String) -> URL {
@@ -310,7 +312,9 @@ public actor SnapshotStore {
   }
 
   private func removeGeneration(_ generation: UUID) throws {
-    for kind in Self.generationExtensions {
+    for kind in Self.generationExtensions + [
+      Self.callerExtension, Self.callerExtension + ".partial",
+    ] {
       let target = url(generation, kind)
       if FileManager.default.fileExists(atPath: target.path) {
         try files.removeGeneration(at: target)
@@ -339,11 +343,12 @@ public actor SnapshotStore {
     }
   }
 
-  /// Lists every number once and checks its caller label before the generation can activate.
+  /// Lists every number once, checks its caller label, and writes the caller file before the generation can activate.
   private func prepareNumbers(_ draft: SnapshotDraft) throws {
     let database = draft.database
     try database.execute("CREATE TABLE numbers (number INTEGER PRIMARY KEY)")
     let insert = try database.prepare("INSERT INTO numbers VALUES (?)")
+    let callers = try CallerFile.Writer(url: url(draft.generation, Self.callerExtension))
     let rows = try database.prepare(
       """
       SELECT p.number, c.name, k.label
@@ -361,9 +366,36 @@ public actor SnapshotStore {
         category: try SQLiteDatabase.text(row, 2))
       {
         try insert.run([.integer(entry.number)])
+        try callers.append(number: entry.number, label: entry.label)
       }
     }
-    if let entry = try labels.finish() { try insert.run([.integer(entry.number)]) }
+    if let entry = try labels.finish() {
+      try insert.run([.integer(entry.number)])
+      try callers.append(number: entry.number, label: entry.label)
+    }
+    try callers.finish()
+  }
+
+  /// The file that the Call Directory extension reads for a generation.
+  public func callerFile(generation: UUID) -> URL { url(generation, Self.callerExtension) }
+
+  /// Writes the caller file of a generation saved before the app wrote one, and returns its location.
+  @discardableResult
+  public func ensureCallerFile(generation: UUID) throws -> URL {
+    let target = callerFile(generation: generation)
+    if FileManager.default.fileExists(atPath: target.path) { return target }
+    let partial = url(generation, Self.callerExtension + ".partial")
+    let writer = try CallerFile.Writer(url: partial)
+    var previous: Int64 = 0
+    while true {
+      let entries = try identification(generation: generation, after: previous)
+      guard let last = entries.last else { break }
+      for entry in entries { try writer.append(number: entry.number, label: entry.label) }
+      previous = last.number
+    }
+    try writer.finish()
+    try FileManager.default.moveItem(at: partial, to: target)
+    return target
   }
 
   private func readable(_ generation: UUID?) throws -> (SQLiteDatabase, UUID) {

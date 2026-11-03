@@ -49,8 +49,17 @@ struct NativeExtensionNotifier: ExtensionNotifier {
 }
 
 struct SavedGenerationReceipts: GenerationReceipts {
+  /// Prefers the extension's own record, because turning it on in Settings loads the data without the app.
   func generation(for consumer: SnapshotConsumer) async -> UUID? {
-    UserDefaults.standard.string(forKey: consumer.rawValue + "Generation").flatMap(
+    switch consumer {
+    case .caller:
+      if let store = try? AppIdentity.store(),
+        let loaded = CallerFile.loadedGeneration(in: await store.root)
+      {
+        return loaded
+      }
+    }
+    return UserDefaults.standard.string(forKey: consumer.rawValue + "Generation").flatMap(
       UUID.init(uuidString:))
   }
   func record(_ generation: UUID, for consumer: SnapshotConsumer) async {
@@ -158,6 +167,10 @@ final class IntegrationModel {
   private func notifyExtensions(_ manifest: SnapshotManifest, force: Set<SnapshotConsumer> = [])
     async
   {
+    // A directory saved before the caller file existed gets one before iOS asks the extension for it.
+    do { try await store.ensureCallerFile(generation: manifest.generation) } catch {
+      SystemTraceSink().record(TraceEvent(phase: .notification, outcome: .deferred))
+    }
     let results = await ExtensionNotifications.refresh(
       generation: manifest.generation,
       notifier: NativeExtensionNotifier(), receipts: SavedGenerationReceipts(), force: force,

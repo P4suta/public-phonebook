@@ -78,6 +78,35 @@ private func corpusServer(_ entries: [CorpusEntry], requests: RequestLog = Reque
   let entriesForCaller = try await store.identification(generation: manifest.generation, after: 0)
   #expect(entriesForCaller.map(\.number) == entriesForCaller.map(\.number).sorted())
   #expect(entriesForCaller.first { $0.number == 81_300_000_000 }?.label.isEmpty == false)
+
+  // The save wrote the caller file, and it lists exactly what the store's identification pages list.
+  var paged: [IdentificationEntry] = []
+  var previous: Int64 = 0
+  while true {
+    let page = try await store.identification(generation: manifest.generation, after: previous)
+    guard let last = page.last else { break }
+    paged += page
+    previous = last.number
+  }
+  let saved = await store.callerFile(generation: manifest.generation)
+  #expect(
+    try CallerFile.active(in: root)
+      == CallerFile.Active(generation: manifest.generation, file: saved))
+  #expect(try callerEntries(saved) == paged)
+  // A directory saved before the caller file existed gets the same file on demand.
+  try FileManager.default.removeItem(at: saved)
+  #expect(try CallerFile.active(in: root) == nil)
+  let rebuilt = try await store.ensureCallerFile(generation: manifest.generation)
+  #expect(try callerEntries(rebuilt) == paged)
+}
+
+private func callerEntries(_ url: URL) throws -> [IdentificationEntry] {
+  let reader = try CallerFile.Reader(url: url)
+  var entries: [IdentificationEntry] = []
+  while try reader.read(upTo: 1000, { entries.append(IdentificationEntry(number: $0, label: $1)) })
+    > 0
+  {}
+  return entries
 }
 
 private func decodedBrotli(_ data: Data, in root: URL) async throws -> Data {

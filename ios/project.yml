@@ -37,15 +37,13 @@ configFiles:
 targetTemplates:
   SharedExtension:
     platform: iOS
+    # The Call Directory extension may use only 12 MB, so it links the caller file reader and no database or network code.
     sources:
-      - Native
       - path: Config/PrivacyInfo.xcprivacy
         buildPhase: resources
     dependencies:
       - package: Phonebook
         product: PhonebookCore
-      - package: Phonebook
-        product: PhonebookKit
     settings:
       base:
         APPLICATION_EXTENSION_API_ONLY: YES
