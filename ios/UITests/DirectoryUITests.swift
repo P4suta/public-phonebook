@@ -53,7 +53,7 @@ final class DirectoryUITests: XCTestCase {
     let app = prepared()
     search("facility", in: app)
     waitForLabel(app.staticTexts["directory-total"], "239件 見つかりました")
-    let hidden = app.buttons["Index facility 003の情報を見る"]
+    let hidden = app.buttons["Index facility 003の住所などを見る"]
     XCTAssertFalse(hidden.exists)
     let more = app.buttons["more-library"]
     reveal(more, in: app)
@@ -88,7 +88,11 @@ final class DirectoryUITests: XCTestCase {
     search("試験", in: app)
     waitForLabel(app.staticTexts["directory-total"], "1件 見つかりました")
     XCTAssertEqual(app.staticTexts["contact-region"].label, "Test prefecture 13Test city 13")
+    let name = "試験歯科 <script> & Test, clinic"
+    XCTAssertTrue(app.staticTexts[name].exists)
+    XCTAssertFalse(app.buttons[name].exists)
     let detail = app.buttons["contact-detail"].firstMatch
+    XCTAssertEqual(detail.label, "\(name)の住所などを見る")
     detail.tap()
     XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
     let address = app.buttons["address-link"]

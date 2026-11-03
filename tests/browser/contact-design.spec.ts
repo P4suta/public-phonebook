@@ -99,6 +99,7 @@ async function designIssues(
   return page
     .locator('article[data-layout="result"]')
     .evaluateAll((cards, columnsAt) => {
+      const framedDetailActions = 1;
       const issues: { rule: string; detail: string }[] = [];
       for (const card of cards) {
         const links = Array.from(
@@ -108,23 +109,36 @@ async function designIssues(
         const buttons = Array.from(
           card.querySelectorAll<HTMLButtonElement>("button"),
         );
-        const name = card.querySelector(":is(h2,h3) a[href]");
+        const name = card.querySelector(":is(h2,h3)");
+        const facility = name?.textContent?.trim() ?? "";
         if (links.some((link) => link.href.includes("google.com/maps/")))
           issues.push({
             rule: "result-address",
             detail:
               "Result cards leave the address and its map to the detail page",
           });
-        const region = name?.closest(":is(h2,h3)")?.nextElementSibling;
+        const region = name?.nextElementSibling;
         if (region?.tagName !== "P" || !region.textContent?.trim())
           issues.push({
             rule: "result-region",
             detail: "The prefecture and municipality follow the facility name",
           });
-        if (!name)
+        const details = links.filter((link) =>
+          link.pathname.startsWith("/contacts/"),
+        );
+        const detail = details[0];
+        const label = detail?.textContent?.trim() ?? "";
+        if (
+          !facility ||
+          name?.querySelector("a, button") ||
+          details.length !== 1 ||
+          !["住所などを見る", "くわしい情報を見る"].includes(label) ||
+          detail?.getAttribute("aria-label") !== `${facility}の${label}`
+        )
           issues.push({
             rule: "facility-navigation",
-            detail: "The facility heading must be the detail link",
+            detail:
+              "The facility name stays heading text, and one labelled action opens the details",
           });
         const chrome = [...links, ...buttons].filter((node) => {
           const style = getComputedStyle(node);
@@ -133,11 +147,22 @@ async function designIssues(
             style.backgroundColor === "rgb(0, 0, 0)"
           );
         });
-        if (chrome.length !== phones.length)
+        if (chrome.length !== phones.length + framedDetailActions)
           issues.push({
             rule: "action-chrome",
-            detail: `${chrome.length} framed actions for ${phones.length} phone numbers`,
+            detail: `${chrome.length} framed actions for ${phones.length} phone numbers and one detail action`,
           });
+        const lastCall = phones.at(-1);
+        if (detail && lastCall) {
+          const box = detail.getBoundingClientRect();
+          const above = lastCall.getBoundingClientRect();
+          if (box.top < above.bottom || Math.abs(box.left - above.left) > 1)
+            issues.push({
+              rule: "detail-placement",
+              detail:
+                "The detail action follows the telephone actions on their left edge",
+            });
+        }
         if (buttons.length !== phones.length)
           issues.push({
             rule: "copy-count",
@@ -168,6 +193,7 @@ async function designIssues(
         for (const link of links) {
           if (
             link.protocol !== "tel:" &&
+            !chrome.includes(link) &&
             !getComputedStyle(link).textDecorationLine.includes("underline")
           )
             issues.push({
@@ -321,18 +347,27 @@ test("the contact design gate detects displaced actions and duplicate framed nav
     const style = document.createElement("style");
     style.nonce = nonce;
     style.textContent =
-      'article [data-contact-part="phones"] { align-self: start !important; } article :is(h2,h3) a { border: 1px solid black !important; } article a[href^="tel:"] { width: 50% !important; } article :is(h2,h3) + p { margin-inline-start: 2rem !important; }';
+      'article [data-contact-part="phones"] { align-self: start !important; } article [data-phone] { border: 1px solid black !important; } article a[href^="tel:"] { width: 50% !important; } article :is(h2,h3) + p { margin-inline-start: 2rem !important; } article a[href^="/contacts/"] { margin-inline-start: 2rem !important; }';
     document.head.appendChild(style);
     const map = document.createElement("a");
     map.href = "https://www.google.com/maps/search/?api=1&query=planted";
     map.textContent = "planted";
     document.querySelector("article")?.appendChild(map);
+    const heading = document.querySelector("article :is(h2,h3)");
+    if (!heading) throw new Error("Missing facility heading");
+    const named = document.createElement("a");
+    named.href = "/contacts/planted";
+    named.textContent = heading.textContent;
+    heading.textContent = "";
+    heading.appendChild(named);
   });
   const rules = (await designIssues(page)).map((issue) => issue.rule);
   expect(rules).toContain("column-alignment");
   expect(rules).toContain("action-chrome");
   expect(rules).toContain("phone-column-width");
   expect(rules).toContain("result-address");
+  expect(rules).toContain("detail-placement");
+  expect(rules).toContain("facility-navigation");
   await page.locator('article a[href*="google.com/maps/"]').evaluate((map) => {
     map.remove();
   });
@@ -395,9 +430,8 @@ test("telephone values copy without initiating calls and keyboard feedback prese
   expect(await page.evaluate(async () => navigator.clipboard.readText())).toBe(
     "047-321-4055",
   );
-  const name = card.getByRole("heading").getByRole("link");
-  await name.focus();
-  await page.keyboard.press("Tab");
+  await card.getByRole("link", { name: /に電話をかける$/u }).focus();
+  await page.keyboard.press("Shift+Tab");
   const copy = value;
   await expect(copy).toBeFocused();
   expect(

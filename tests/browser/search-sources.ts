@@ -40,6 +40,9 @@ export async function holdIndex(page: Page): Promise<() => void> {
   return () => release?.();
 }
 
+/** Names a result's detail action: the facility name, then the visible label. */
+export const detailActionName = /^.+の(?:住所などを見る|くわしい情報を見る)$/u;
+
 export function contactLinks(page: Page): Locator {
-  return page.locator("article").getByRole("link", { name: /の情報を見る$/u });
+  return page.locator("article").getByRole("link", { name: detailActionName });
 }
