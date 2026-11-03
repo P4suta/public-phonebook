@@ -117,7 +117,7 @@ public struct ArchiveRecord: Sendable, Equatable {
   public var prefecture: String { String(region.prefix(2)) }
 
   static let fieldSeparator = UInt8(ascii: "\t")
-  static let listSeparator: Character = "\u{1F}"
+  static let listSeparator = UInt8(0x1F)
   static let spellingSeparator: Character = "\u{1E}"
 
   static func isRegion(_ code: String) -> Bool {
@@ -127,55 +127,173 @@ public struct ArchiveRecord: Sendable, Equatable {
   }
 
   init(line: Data, header: ArchiveHeader) throws {
-    let fields = line.split(separator: Self.fieldSeparator, omittingEmptySubsequences: false)
+    self = try line.withUnsafeBytes { try Self(bytes: $0.bindMemory(to: UInt8.self), header) }
+  }
+
+  /// Parses the nine fields from the line's bytes without copying any field twice.
+  ///
+  /// Each text field decodes like `String(data:encoding: .utf8)`, which drops one leading byte order mark.
+  /// The list and spelling separators are control characters, so splitting bytes at them splits the same places as splitting characters.
+  private init(bytes line: UnsafeBufferPointer<UInt8>, _ header: ArchiveHeader) throws {
+    var fields = FieldReader(line, separator: Self.fieldSeparator)
     guard fields.count == 9 else { throw ImportError.invalidRecord }
-    func text(_ index: Int) throws -> String {
-      guard let value = String(data: fields[index], encoding: .utf8) else {
-        throw ImportError.invalidRecord
-      }
-      return value
-    }
-    func index(_ value: Substring, below limit: Int) throws -> Int {
-      guard !value.isEmpty, value.utf8.count <= 9,
-        value.utf8.allSatisfy({ (48...57).contains($0) }),
-        let number = Int(value), number < limit, value == "0" || !value.hasPrefix("0")
-      else { throw ImportError.invalidRecord }
-      return number
-    }
-    category = try index(Substring(try text(0)), below: header.categories.count)
-    region = try text(1)
-    name = try text(2)
-    address = try text(3)
-    let website = try text(5)
+    category = try Self.index(fields.field(), below: header.categories.count)
+    region = try Self.text(fields.field())
+    name = try Self.text(fields.field())
+    address = try Self.text(fields.field())
+    let phoneField = try Self.text(fields.field())
+    let website = try Self.text(fields.field())
     self.website = website.isEmpty ? nil : website
-    provenance = try index(Substring(try text(6)), below: header.provenances.count)
-    origin = try text(7).split(separator: Self.listSeparator, omittingEmptySubsequences: false)
-      .map { try index($0, below: header.links.count) }
-    let confirmation = try text(8)
-    switch confirmation {
-    case "": self.confirmation = .none
-    case "*": self.confirmation = .unlinked
-    default:
-      self.confirmation = .link(try index(Substring(confirmation), below: header.links.count))
+    provenance = try Self.index(fields.field(), below: header.provenances.count)
+    let origin = Self.withoutByteOrderMark(fields.field())
+    let confirmation = Self.withoutByteOrderMark(fields.field())
+    var links: [Int] = []
+    for item in FieldReader(origin, separator: Self.listSeparator) {
+      guard links.count < 1024 else { throw ImportError.invalidRecord }
+      links.append(try Self.digits(item, below: header.links.count))
     }
-    phones = try text(4).split(separator: Self.listSeparator, omittingEmptySubsequences: false)
-      .map { entry in
-        let parts = entry.split(separator: Self.spellingSeparator, omittingEmptySubsequences: false)
-        guard (1...2).contains(parts.count) else { throw ImportError.invalidRecord }
-        let display = String(parts[parts.count - 1])
-        let national = parts.count == 2 ? String(parts[0]) : display.filter(\.isASCIIDigit)
-        let digits = Array(national.utf8)
-        guard (10...11).contains(digits.count), digits[0] == 48, (49...57).contains(digits[1]),
-          digits.allSatisfy({ (48...57).contains($0) }), !display.isEmpty,
-          display.utf8.count <= 128
-        else { throw ImportError.invalidRecord }
-        return Phone(display: display, e164: try CanonicalPhone("+81" + national.dropFirst()))
-      }
+    self.origin = links
+    if confirmation.isEmpty {
+      self.confirmation = .none
+    } else if confirmation.count == 1, confirmation[0] == UInt8(ascii: "*") {
+      self.confirmation = .unlinked
+    } else {
+      self.confirmation = .link(try Self.digits(confirmation, below: header.links.count))
+    }
+    phones = try Self.phones(phoneField)
     guard Self.isRegion(region), !name.isEmpty, name.utf8.count <= 4096,
       address.utf8.count <= 16_384, (1...32).contains(phones.count),
-      Set(phones.map(\.e164)).count == phones.count, (1...1024).contains(origin.count),
+      Self.distinct(phones), (1...1024).contains(self.origin.count),
       self.website.map(PublicURL.isValid) ?? true
     else { throw ImportError.invalidRecord }
+  }
+
+  private static let spellingByte = UInt8(0x1E)
+  private static let decimalDigits = UInt8(ascii: "0")...UInt8(ascii: "9")
+
+  private static func withoutByteOrderMark(_ bytes: UnsafeBufferPointer<UInt8>)
+    -> UnsafeBufferPointer<UInt8>
+  {
+    guard bytes.count >= 3, bytes[0] == 0xEF, bytes[1] == 0xBB, bytes[2] == 0xBF else {
+      return bytes
+    }
+    return UnsafeBufferPointer(rebasing: bytes[3...])
+  }
+
+  private static func text(_ bytes: UnsafeBufferPointer<UInt8>) throws -> String {
+    guard let value = String(validating: withoutByteOrderMark(bytes), as: UTF8.self) else {
+      throw ImportError.invalidRecord
+    }
+    return value
+  }
+
+  /// Parses a dictionary index field below `limit`.
+  private static func index(_ bytes: UnsafeBufferPointer<UInt8>, below limit: Int) throws -> Int {
+    try digits(withoutByteOrderMark(bytes), below: limit)
+  }
+
+  /// Parses up to nine decimal digits without a sign or a leading zero, as a value below `limit`.
+  private static func digits(_ bytes: UnsafeBufferPointer<UInt8>, below limit: Int) throws -> Int {
+    guard (1...9).contains(bytes.count), bytes.count == 1 || bytes[0] != decimalDigits.lowerBound
+    else { throw ImportError.invalidRecord }
+    var value = 0
+    for byte in bytes {
+      guard decimalDigits.contains(byte) else { throw ImportError.invalidRecord }
+      value = value * 10 + Int(byte - decimalDigits.lowerBound)
+    }
+    guard value < limit else { throw ImportError.invalidRecord }
+    return value
+  }
+
+  /// Parses each entry of the telephone field, which holds either a display or a national number and a display.
+  private static func phones(_ field: String) throws -> [Phone] {
+    var field = field
+    return try field.withUTF8 { bytes in
+      var phones: [Phone] = []
+      for entry in FieldReader(bytes, separator: listSeparator) {
+        guard phones.count < 32 else { throw ImportError.invalidRecord }
+        var parts = FieldReader(entry, separator: spellingByte)
+        guard (1...2).contains(parts.count) else { throw ImportError.invalidRecord }
+        let first = parts.field()
+        let displayBytes = parts.count == 2 ? parts.field() : first
+        let display = String(decoding: displayBytes, as: UTF8.self)
+        let national: String
+        if parts.count == 2 {
+          national = String(decoding: first, as: UTF8.self)
+        } else if displayBytes.allSatisfy({ $0 < 0x80 }) {
+          // In ASCII text every digit is its own character, so the byte filter matches the character filter.
+          national = String(decoding: displayBytes.filter(decimalDigits.contains), as: UTF8.self)
+        } else {
+          national = display.filter(\.isASCIIDigit)
+        }
+        let digits = national.utf8
+        guard (10...11).contains(digits.count), digits.first == decimalDigits.lowerBound,
+          digits.dropFirst().first.map({ (49...57).contains($0) }) == true,
+          digits.allSatisfy(decimalDigits.contains), !displayBytes.isEmpty,
+          displayBytes.count <= 128
+        else { throw ImportError.invalidRecord }
+        phones.append(
+          Phone(display: display, e164: try CanonicalPhone("+81" + national.dropFirst())))
+      }
+      return phones
+    }
+  }
+
+  /// A canonical number spells exactly one integer, so distinct integers mean distinct numbers.
+  private static func distinct(_ phones: [Phone]) -> Bool {
+    for (index, phone) in phones.enumerated() {
+      for other in phones[(index + 1)...] where other.e164.number == phone.e164.number {
+        return false
+      }
+    }
+    return true
+  }
+}
+
+/// Walks the fields of a byte buffer between single-byte separators, keeping empty fields.
+private struct FieldReader: Sequence, IteratorProtocol {
+  private let bytes: UnsafeBufferPointer<UInt8>
+  private let separator: UInt8
+  private var start = 0
+  private var finished = false
+  /// The number of fields, which is one more than the number of separators.
+  let count: Int
+
+  init(_ bytes: UnsafeBufferPointer<UInt8>, separator: UInt8) {
+    self.bytes = bytes
+    self.separator = separator
+    var fields = 1
+    var position = 0
+    while let end = Self.separator(separator, in: bytes, from: position) {
+      fields += 1
+      position = end + 1
+    }
+    count = fields
+  }
+
+  private static func separator(
+    _ byte: UInt8, in bytes: UnsafeBufferPointer<UInt8>, from start: Int
+  )
+    -> Int?
+  {
+    guard start < bytes.count, let base = bytes.baseAddress,
+      let found = memchr(base + start, Int32(byte), bytes.count - start)
+    else { return nil }
+    return base.distance(to: found.assumingMemoryBound(to: UInt8.self))
+  }
+
+  mutating func next() -> UnsafeBufferPointer<UInt8>? {
+    guard !finished else { return nil }
+    let end = Self.separator(separator, in: bytes, from: start) ?? bytes.count
+    let field = UnsafeBufferPointer(rebasing: bytes[start..<end])
+    finished = end == bytes.count
+    start = end + 1
+    return field
+  }
+
+  /// The next field, or an empty field after the last one.
+  mutating func field() -> UnsafeBufferPointer<UInt8> {
+    next() ?? UnsafeBufferPointer(rebasing: bytes[bytes.count...])
   }
 }
 
@@ -205,23 +323,29 @@ struct DirectoryArchiveReader {
 
   let url: URL
   var encoding = Encoding.brotli
+  var trace: any TraceSink = DiscardingTraceSink()
 
+  /// Passes the header and then batches of validated records, and traces the time spent decompressing and parsing.
   nonisolated(nonsending) func read(
     header receiveHeader: (ArchiveHeader) async throws -> Void,
     records receiveRecords: ([ArchiveRecord], Int) async throws -> Void
   ) async throws -> ArchiveHeader {
     var line = 0
     var header: ArchiveHeader?
-    var previous = Data()
+    // A separate copy keeps the reader's line buffer uniquely owned, so the reader reuses it.
+    var previous: [UInt8] = []
     var batch: [ArchiveRecord] = []
-    var counts: [String: Int] = [:]
+    // Indexed by prefecture number, which `ArchiveRecord` limits to 1 through 47.
+    var counts = [Int](repeating: 0, count: 48)
     var records = 0
+    var receiving = PhaseTimer()
+    let start = ContinuousClock.now
     let lines: any ArchiveLines =
       switch encoding {
       case .brotli: try BrotliLines(url: url)
       case .plain: try PlainLines(url: url)
       }
-    try await lines.eachLine { data, consumed in
+    let decoding = try await lines.eachLine { data, consumed in
       defer { line += 1 }
       switch line {
       case 0:
@@ -229,32 +353,47 @@ struct DirectoryArchiveReader {
       case 1:
         let decoded = try JSONDecoder().decode(ArchiveHeader.self, from: data).validated()
         header = decoded
-        try await receiveHeader(decoded)
+        try await receiving.measureAwaiting { try await receiveHeader(decoded) }
       default:
         guard let header else { throw ImportError.invalidSnapshot }
         guard records < header.contacts, !Self.precedes(data, previous) else {
           throw ImportError.invalidRecord
         }
         let record = try ArchiveRecord(line: data, header: header)
-        counts[record.prefecture, default: 0] += 1
+        counts[Self.prefectureNumber(record.region)] += 1
         records += 1
-        previous = data
+        previous.removeAll(keepingCapacity: true)
+        previous.append(contentsOf: data)
         batch.append(record)
         if batch.count == Self.batchSize {
-          try await receiveRecords(batch, consumed)
+          try await receiving.measureAwaiting { try await receiveRecords(batch, consumed) }
           batch.removeAll(keepingCapacity: true)
         }
       }
     }
     guard let header else { throw ImportError.invalidSnapshot }
-    if !batch.isEmpty { try await receiveRecords(batch, Int.max) }
+    if !batch.isEmpty {
+      try await receiving.measureAwaiting { try await receiveRecords(batch, Int.max) }
+    }
     guard records == header.contacts,
-      header.prefectures.allSatisfy({ counts[$0.code.rawValue, default: 0] == $0.contacts })
+      header.prefectures.allSatisfy({
+        counts[Self.prefectureNumber($0.code.rawValue)] == $0.contacts
+      })
     else { throw ImportError.unexpectedCount }
+    let parsing = ContinuousClock.now - start - decoding - receiving.elapsed
+    trace.record(TraceEvent(phase: .decompress, snapshot: header.snapshot, elapsed: decoding))
+    trace.record(TraceEvent(phase: .parse, snapshot: header.snapshot, elapsed: parsing))
     return header
   }
 
-  static func precedes(_ lhs: Data, _ rhs: Data) -> Bool {
+  /// The number that a validated region or prefecture code starts with.
+  private static func prefectureNumber(_ code: String) -> Int {
+    var number = 0
+    for byte in code.utf8.prefix(2) { number = number * 10 + Int(byte) - Int(UInt8(ascii: "0")) }
+    return number
+  }
+
+  static func precedes(_ lhs: Data, _ rhs: some ContiguousBytes) -> Bool {
     lhs.withUnsafeBytes { left in
       rhs.withUnsafeBytes { right in
         let common = min(left.count, right.count)

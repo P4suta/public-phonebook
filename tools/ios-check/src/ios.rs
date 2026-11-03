@@ -71,8 +71,15 @@ const UI_TESTS: [&str; 13] = [
     "testLandscapeLargeTextSettings",
     "testAboutStaysInTheAppAndLicenseIsReadable",
 ];
-const REQUIRED_TESTS: [&str; 37] = [
+const REQUIRED_TESTS: [&str; 44] = [
     "currentProviderArchiveImportsTheNationalDirectory",
+    "providerArchiveSavesTheExpectedGenerationContent",
+    "byteParserMatchesTheStringParserOnEveryMutatedLine",
+    "everyNameListUpToThreeMatchesTheSetBasedLabelRule",
+    "savedProgressFollowsTheSavedRows",
+    "cancellingWhileSavingKeepsTheSavedGeneration",
+    "anInterruptedImportKeepsTheActiveGenerationUntilTheNextSaveRemovesIt",
+    "importTracesTheDurationOfEachPhase",
     "archiveRecordsCarryEveryField",
     "malformedArchivesAreRejected",
     "archiveRowsMustBeSortedAndCounted",

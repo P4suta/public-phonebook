@@ -46,7 +46,7 @@ struct SystemTraceSink: TraceSink {
   private let logger = Logger(subsystem: "page.dial.publicphonebook", category: "directory")
   func record(_ event: TraceEvent) {
     logger.info(
-      "operation=\(event.operation.uuidString, privacy: .public) phase=\(event.phase.rawValue, privacy: .public) outcome=\(event.outcome.rawValue, privacy: .public) snapshot=\(event.snapshot?.rawValue ?? "none", privacy: .public) records=\(event.records ?? 0, privacy: .public)"
+      "operation=\(event.operation.uuidString, privacy: .public) phase=\(event.phase.rawValue, privacy: .public) outcome=\(event.outcome.rawValue, privacy: .public) snapshot=\(event.snapshot?.rawValue ?? "none", privacy: .public) records=\(event.records ?? 0, privacy: .public) milliseconds=\(event.milliseconds.map(String.init) ?? "none", privacy: .public)"
     )
   }
 }

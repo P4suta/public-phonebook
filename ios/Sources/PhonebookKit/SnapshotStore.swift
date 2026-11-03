@@ -30,6 +30,7 @@ private final class SnapshotDraft {
   var insertPhone: SQLiteStatement?
   var kinds = Data()
   var records = 0
+  var inserting = PhaseTimer()
   var phase: PublicationPhase = .staging
 
   init(
@@ -90,8 +91,9 @@ private struct CallerLabels {
 
   func finish() throws -> IdentificationEntry? {
     guard let current else { return nil }
-    let label = CallerLabel.make(
-      names: names, category: Set(categories).sorted().joined(separator: "・"))
+    let category =
+      categories.count == 1 ? categories[0] : Set(categories).sorted().joined(separator: "・")
+    let label = CallerLabel.make(names: names, category: category)
     guard label.utf8.count <= 1024 else { throw ImportError.projectionTooLarge }
     return IdentificationEntry(number: current, label: label)
   }
@@ -216,24 +218,44 @@ public actor SnapshotStore {
     guard draft.records + records.count <= draft.header.contacts else {
       throw ImportError.unexpectedCount
     }
+    try draft.inserting.measure {
+      try insert(records, into: draft, contact: insertContact, phone: insertPhone)
+    }
+  }
+
+  private func insert(
+    _ records: [ArchiveRecord], into draft: SnapshotDraft, contact insertContact: SQLiteStatement,
+    phone insertPhone: SQLiteStatement
+  ) throws {
     var names = Data()
     for record in records {
       draft.records += 1
       let id = Int64(draft.records)
+      var phones = ""
+      for phone in record.phones {
+        if !phones.isEmpty { phones += "\u{1F}" }
+        phones += phone.e164.rawValue + "\u{1E}" + phone.display
+      }
+      var origin = ""
+      for link in record.origin {
+        if !origin.isEmpty { origin += "," }
+        origin += String(link)
+      }
       try insertContact.run([
         .integer(id), .integer(Int64(record.category)), .text(record.region), .text(record.name),
-        .text(record.address),
-        .text(
-          record.phones.map { $0.e164.rawValue + "\u{1E}" + $0.display }.joined(separator: "\u{1F}")
-        ),
-        record.website.map { .text($0) } ?? .null, .integer(Int64(record.provenance)),
-        .text(record.origin.map(String.init).joined(separator: ",")),
+        .text(record.address), .text(phones), record.website.map { .text($0) } ?? .null,
+        .integer(Int64(record.provenance)), .text(origin),
         .text(Self.confirmationText(record.confirmation)),
       ])
       for phone in record.phones {
         try insertPhone.run([.integer(phone.e164.number), .integer(id)])
       }
-      names.append(contentsOf: SearchInput.normalizedName(record.name).utf8.filter { $0 != 0x0A })
+      let normalized = SearchInput.normalizedName(record.name).utf8
+      if normalized.contains(0x0A) {
+        names.append(contentsOf: normalized.filter { $0 != 0x0A })
+      } else {
+        names.append(contentsOf: normalized)
+      }
       names.append(0x0A)
       draft.kinds.append(UInt8(record.category))
     }
@@ -246,20 +268,28 @@ public actor SnapshotStore {
       (0...253_402_300_799).contains(date.timeIntervalSince1970)
     else { throw ImportError.invalidSnapshot }
     guard draft.records == draft.header.contacts else { throw ImportError.unexpectedCount }
+    let snapshot = draft.header.snapshot
+    trace.record(TraceEvent(phase: .insert, snapshot: snapshot, elapsed: draft.inserting.elapsed))
     try prepareNumbers(draft)
     guard
       PublicationDecision.decide(
         current: !Task.isCancelled, complete: true, snapshot: true, records: true) == .publish
     else { throw CancellationError() }
-    try draft.database.execute("COMMIT")
+    var committing = PhaseTimer()
+    try committing.measure { try draft.database.execute("COMMIT") }
+    trace.record(TraceEvent(phase: .commit, snapshot: snapshot, elapsed: committing.elapsed))
     draft.finalizeStatements()
     try draft.database.close()
     try draft.kinds.write(to: url(draft.generation, "kinds"), options: .withoutOverwriting)
-    try draft.names.synchronize()
-    try draft.names.close()
-    let database = try FileHandle(forUpdating: url(draft.generation, "sqlite"))
-    try database.synchronize()
-    try database.close()
+    var syncing = PhaseTimer()
+    try syncing.measure {
+      try draft.names.synchronize()
+      try draft.names.close()
+      let database = try FileHandle(forUpdating: url(draft.generation, "sqlite"))
+      try database.synchronize()
+      try database.close()
+    }
+    trace.record(TraceEvent(phase: .fsync, snapshot: snapshot, elapsed: syncing.elapsed))
     let previous = try manifest()
     let manifest = SnapshotManifest(
       format: SnapshotManifest.currentFormat, generation: draft.generation,
@@ -268,7 +298,6 @@ public actor SnapshotStore {
       origin: draft.origin)
     let data = try JSONEncoder().encode(manifest)
     draft.phase = draft.phase.applying(.prepare).applying(.beginActivation)
-    let snapshot = draft.header.snapshot
     trace.record(TraceEvent(phase: .activation, outcome: .started, snapshot: snapshot))
     do {
       try files.activateManifest(data, at: manifestURL)
@@ -345,10 +374,17 @@ public actor SnapshotStore {
 
   /// Lists every number once, checks its caller label, and writes the caller file before the generation can activate.
   private func prepareNumbers(_ draft: SnapshotDraft) throws {
+    let start = ContinuousClock.now
+    var writing = PhaseTimer()
     let database = draft.database
+    // The join below reads contacts in number order, so mapped reads replace one read call per row.
+    // Mapping starts only now because growing a mapped file during the inserts costs more than it saves.
+    try database.execute("PRAGMA mmap_size = 268435456")
     try database.execute("CREATE TABLE numbers (number INTEGER PRIMARY KEY)")
     let insert = try database.prepare("INSERT INTO numbers VALUES (?)")
-    let callers = try CallerFile.Writer(url: url(draft.generation, Self.callerExtension))
+    let callers = try writing.measure {
+      try CallerFile.Writer(url: url(draft.generation, Self.callerExtension))
+    }
     let rows = try database.prepare(
       """
       SELECT p.number, c.name, k.label
@@ -366,14 +402,18 @@ public actor SnapshotStore {
         category: try SQLiteDatabase.text(row, 2))
       {
         try insert.run([.integer(entry.number)])
-        try callers.append(number: entry.number, label: entry.label)
+        try writing.measure { try callers.append(number: entry.number, label: entry.label) }
       }
     }
     if let entry = try labels.finish() {
       try insert.run([.integer(entry.number)])
-      try callers.append(number: entry.number, label: entry.label)
+      try writing.measure { try callers.append(number: entry.number, label: entry.label) }
     }
-    try callers.finish()
+    try writing.measure { try callers.finish() }
+    let snapshot = draft.header.snapshot
+    let numbering = ContinuousClock.now - start - writing.elapsed
+    trace.record(TraceEvent(phase: .numbers, snapshot: snapshot, elapsed: numbering))
+    trace.record(TraceEvent(phase: .callers, snapshot: snapshot, elapsed: writing.elapsed))
   }
 
   /// The file that the Call Directory extension reads for a generation.

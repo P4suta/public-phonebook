@@ -26,8 +26,14 @@ When the listing has no file in that format, the app asks the reader to update i
 It downloads that `directory.tsv.br` in one request and accepts it only when its length, SHA-256 digest, and snapshot header match the listing.
 It decodes the Brotli stream with the system Compression framework and validates the signature, the header dictionaries, every row, the byte order of the rows, and the per-prefecture counts.
 It saves the rows in a new SQLite generation with a file of normalized names and a file of row categories, and activates the generation atomically.
+The store saves one batch of 1,000 rows while the reader parses the next batch, and it saves the batches in archive order.
 A failed or cancelled import keeps the existing generation, and the current and previous generations remain readable.
+An import that ends with the app process leaves the active generation in place, and the next save removes the unfinished files.
 The app saves over Wi-Fi and cellular networks, shows only the saved percentage, and updates about once a month.
+The percentage follows the transfer up to 40 percent and then the saved share of the archive's rows up to 95 percent.
+The last 5 percent covers the number table, the caller file, COMMIT, fsync, and activation.
+The directory trace reports the milliseconds of decompression, parsing, row insertion, the number table, the caller file, COMMIT, and fsync for every import.
+Parsing and row insertion overlap, so their durations add up to more than the time between the start of staging and the end of decoding.
 
 An update first looks for a snapshot delta when the dataset listing links `datasetDeltas`.
 The app reads that listing only when it already saved a directory, and it reads only deltas whose `format` is `public-phonebook-directory-delta/1`.

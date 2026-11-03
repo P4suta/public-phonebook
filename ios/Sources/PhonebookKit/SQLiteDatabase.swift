@@ -94,9 +94,18 @@ final class SQLiteStatement {
       let position = Int32(index + 1)
       let status: Int32
       switch value {
-      case .text(let text):
+      case .text(var text):
         guard let count = Int32(exactly: text.utf8.count) else { throw ImportError.invalidRecord }
-        status = sqlite3_bind_text(handle, position, text, count, phonebook_sqlite_transient())
+        // SQLite copies the bytes, so the string's own UTF-8 storage needs no C string copy.
+        // An empty string may have no storage, and a null pointer would bind NULL instead of empty text.
+        status = text.withUTF8 { bytes in
+          guard let base = bytes.baseAddress, count > 0 else {
+            return sqlite3_bind_text(handle, position, "", 0, phonebook_sqlite_transient())
+          }
+          return base.withMemoryRebound(to: CChar.self, capacity: bytes.count) {
+            sqlite3_bind_text(handle, position, $0, count, phonebook_sqlite_transient())
+          }
+        }
       case .integer(let number):
         status = sqlite3_bind_int64(handle, position, number)
       case .null:
