@@ -34,7 +34,8 @@ export type WorkflowRule =
   | "production-without-predecessor"
   | "publication-concurrency"
   | "doppler-environment-injection"
-  | "doppler-config-mismatch";
+  | "doppler-config-mismatch"
+  | "skipped-predecessor-unguarded";
 
 export interface WorkflowViolation {
   readonly file: string;
@@ -478,6 +479,48 @@ function releaseJobViolations(
   return violations;
 }
 
+const ConditionalJobSchema = v.looseObject({
+  needs: v.optional(v.union([v.string(), v.array(v.string())])),
+  if: v.optional(v.unknown()),
+});
+
+/**
+ * A job without `if` runs only when every earlier job in its chain succeeded, so it skips after a skipped ancestor.
+ * When it needs a conditional job that has needs of its own, that job can run after a skipped ancestor while this one silently skips.
+ */
+function skipPropagationViolations(
+  file: string,
+  jobs: Readonly<Record<string, unknown>>,
+): readonly WorkflowViolation[] {
+  const conditions = new Map(
+    Object.entries(jobs).map(([id, job]) => {
+      const { needs, if: condition } = v.parse(ConditionalJobSchema, job);
+      return [
+        id,
+        {
+          needs: needs === undefined ? [] : [needs].flat(),
+          conditional: condition !== undefined,
+        },
+      ];
+    }),
+  );
+  const violations: WorkflowViolation[] = [];
+  for (const [id, job] of conditions) {
+    if (job.conditional) continue;
+    const followsConditionalChain = job.needs.some((need) => {
+      const needed = conditions.get(need);
+      return needed?.conditional === true && needed.needs.length > 0;
+    });
+    if (followsConditionalChain)
+      violations.push({
+        file,
+        location: `jobs.${id}`,
+        rule: "skipped-predecessor-unguarded",
+      });
+  }
+  return violations;
+}
+
 export function workflowViolations(
   file: string,
   document: unknown,
@@ -539,6 +582,7 @@ export function workflowViolations(
       );
     violations.push(...releaseJobViolations(file, location, job));
   }
+  violations.push(...skipPropagationViolations(file, workflow.jobs));
   return violations;
 }
 
