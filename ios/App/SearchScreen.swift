@@ -47,15 +47,13 @@ struct SearchScreen: View {
         Text("施設や窓口の名前か、電話番号を入れてください。")
         Text("名前の一部でも、さがせます。")
         if integration.progress != nil {
-          SaveProgress(percent: integration.percent).padding(.top, 16)
+          SaveProgress(percent: integration.percent, remaining: integration.remainingSeconds)
+            .padding(.top, 16)
         }
-        if !model.ready, integration.progress == nil, integration.manifest == nil {
-          Text("全国の電話番号がまだ保存されていません。").bold().padding(.top, 16)
-          Button {
-            integration.update()
-          } label: {
-            IconLabel(icon: "download", text: "全国の電話番号を保存する")
-          }.buttonStyle(MonoButtonStyle(prominent: true))
+        if !model.ready, integration.progress == nil, integration.manifest == nil,
+          let problem = integration.problem
+        {
+          Text(problem).padding(.top, 16).accessibilityIdentifier("sync-error")
         }
       }
       .accessibilityElement(children: .contain)

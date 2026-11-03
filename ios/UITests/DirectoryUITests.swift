@@ -163,17 +163,18 @@ final class DirectoryUITests: XCTestCase {
     waitForLabel(app.staticTexts["directory-total"], "1件 見つかりました")
   }
 
-  func testDirectoryFailureShowsRetryAndRecovers() throws {
+  func testDirectoryFailureRecoversWithoutATap() throws {
     let app = application()
     try proxy().failNext(.dataset)
     app.launch()
     let start = app.buttons["onboarding-start"]
     XCTAssertTrue(start.waitForExistence(timeout: 15))
-    start.tap()
     let problem = app.staticTexts["sync-error"]
     XCTAssertTrue(problem.waitForExistence(timeout: 20))
+    XCTAssertTrue(problem.label.contains("自動でもう一度受け取ります"))
     capture(app, name: "directory-failure")
-    app.buttons["sync-retry"].tap()
+    XCTAssertFalse(app.buttons["sync-retry"].exists)
+    start.tap()
     app.buttons["onboarding-later"].tap()
     let finish = app.buttons["onboarding-finish"]
     XCTAssertTrue(finish.waitForExistence(timeout: 10))
@@ -182,26 +183,22 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertEqual(try proxy().injected, 1)
   }
 
-  func testUpdateCancellationKeepsTheSavedDirectory() throws {
+  func testFailedAutomaticUpdateKeepsTheSavedDirectory() throws {
     let app = prepared()
     openSettings(in: app)
-    let saved = app.staticTexts["saved-date"]
-    let label = saved.label
-    try proxy().failNext(.dataset, with: .incomplete)
-    let update = app.buttons["update-now"]
-    reveal(update, in: app)
-    update.tap()
-    let cancel = app.buttons["保存をやめる"]
-    XCTAssertTrue(cancel.waitForExistence(timeout: 15))
-    XCTAssertTrue(app.descendants(matching: .any)["sync-progress"].exists)
-    capture(app, name: "directory-downloading")
-    cancel.tap()
-    waitUntil(
-      "the save progress disappears", !app.descendants(matching: .any)["sync-progress"].exists,
-      timeout: 15)
-    XCTAssertEqual(saved.label, label)
+    let label = app.staticTexts["saved-date"].label
+    XCTAssertFalse(app.buttons["update-now"].exists)
     app.terminate()
+    try proxy().failNext(.dataset, with: .incomplete)
+    app.launchEnvironment["PHONEBOOK_REFRESH_DUE"] = "1"
     app.launch()
+    openSettings(in: app)
+    let problem = app.staticTexts["sync-error"]
+    XCTAssertTrue(problem.waitForExistence(timeout: 30))
+    XCTAssertTrue(problem.label.contains("前のデータのまま使えます"))
+    capture(app, name: "directory-update-failure")
+    XCTAssertEqual(app.staticTexts["saved-date"].label, label)
+    goBack(app)
     search("試験", in: app)
     waitForLabel(app.staticTexts["directory-total"], "1件 見つかりました")
   }
@@ -210,7 +207,7 @@ final class DirectoryUITests: XCTestCase {
     let app = prepared(textSize: "UICTContentSizeCategoryAccessibilityXXXL")
     XCUIDevice.shared.orientation = .landscapeLeft
     openSettings(in: app)
-    reveal(app.buttons["update-now"], in: app)
+    reveal(app.staticTexts["automatic-update"], in: app)
     try app.performAccessibilityAudit()
     capture(app, name: "landscape-large-settings")
   }

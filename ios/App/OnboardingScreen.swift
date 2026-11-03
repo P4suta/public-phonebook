@@ -1,7 +1,7 @@
 import PhonebookKit
 import SwiftUI
 
-/// The first-run steps: save the national directory, then turn on caller names.
+/// The first-run steps while the app's data downloads on its own: introduce the app, then turn on caller names.
 struct OnboardingScreen: View {
   @Bindable var integration: IntegrationModel
   let finish: () -> Void
@@ -54,7 +54,7 @@ struct OnboardingScreen: View {
         detail: "役所や病院などからの電話に、着信画面で名前を出せます。")
       Feature(
         icon: "search", title: "通信なしで、すぐにさがせます",
-        detail: "全国の電話番号をこのiPhoneに保存するので、電波がなくてもさがせます。")
+        detail: "アプリで使うデータを先に受け取っておくので、電波がなくてもさがせます。")
     case .caller:
       heading("着信に施設の名前を出す")
       Text("役所や病院などから電話がかかってきたとき、着信画面に施設の名前を出します。")
@@ -67,39 +67,30 @@ struct OnboardingScreen: View {
       heading(
         integration.manifest != nil
           ? "準備ができました"
-          : integration.progress == nil ? "全国の電話番号を保存できませんでした" : "全国の電話番号を保存しています")
+          : integration.progress == nil ? "データを受け取れませんでした" : "データを受け取っています")
       Text("施設や窓口の名前か電話番号を入れると、さがせます。")
       Text("着信に名前を出す設定は、あとから「設定」で変えられます。")
     }
     if let problem = integration.problem {
       Text(problem).fixedSize(horizontal: false, vertical: true)
         .accessibilityIdentifier("sync-error")
-      Button {
-        integration.update()
-      } label: {
-        IconLabel(icon: "retry", text: "もう一度保存する")
-      }
-      .buttonStyle(MonoButtonStyle())
-      .accessibilityIdentifier("sync-retry")
     }
   }
 
   private var footer: some View {
     VStack(alignment: .leading, spacing: 12) {
       if integration.progress != nil {
-        SaveProgress(percent: integration.percent)
+        SaveProgress(percent: integration.percent, remaining: integration.remainingSeconds)
       }
       switch step {
       case .welcome:
         Button {
-          if integration.manifest == nil { integration.update() }
           move(to: .caller)
         } label: {
           Text("はじめる")
         }
         .buttonStyle(MonoButtonStyle(prominent: true))
         .accessibilityIdentifier("onboarding-start")
-        Text("全国の施設や窓口の電話番号を、このiPhoneに保存します。").font(.footnote)
       case .caller:
         if integration.callerEnabled {
           next(.ready)
@@ -191,20 +182,27 @@ private struct Done: View {
 
 struct SaveProgress: View {
   let percent: Int
+  /// Seconds left, or nil while the estimate lacks data.
+  let remaining: Int?
+
+  private var remainingText: String {
+    remaining.map { "残り約\(IntegrationModel.duration($0))" } ?? "残りの時間を計っています"
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
       HStack {
-        Text("全国の電話番号を保存しています")
+        Text("アプリで使うデータを受け取っています")
         Spacer()
         Text("\(percent)%").monospacedDigit()
       }
       .font(.callout)
       ProgressView(value: Double(percent), total: 100).tint(.black)
+      Text(remainingText).font(.footnote).monospacedDigit()
     }
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel("全国の電話番号を保存しています")
-    .accessibilityValue("\(percent)パーセント")
+    .accessibilityLabel("アプリで使うデータを受け取っています")
+    .accessibilityValue("\(percent)パーセント、\(remainingText)")
     .accessibilityIdentifier("sync-progress")
   }
 }

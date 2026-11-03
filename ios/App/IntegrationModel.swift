@@ -74,10 +74,19 @@ final class IntegrationModel {
   var callerState = "確認しています"
   /// The saved share of an update from 0 to 1, or `nil` when no update runs.
   private(set) var progress: Double?
+  /// When the running download started, for its remaining-time estimate.
+  private(set) var startedAt: Date?
   var problem: String?
   var busy: Bool { progress != nil }
   private var refreshing = false
   @ObservationIgnored private var operation: Task<Void, Never>?
+  @ObservationIgnored private var retry: Task<Void, Never>?
+  @ObservationIgnored private var failures = 0
+  #if DEBUG
+    /// Lets a UI scenario make the saved data due once without waiting a month.
+    @ObservationIgnored private var forcedDue =
+      ProcessInfo.processInfo.environment["PHONEBOOK_REFRESH_DUE"] == "1"
+  #endif
   @ObservationIgnored private let sync: SyncEngine
   @ObservationIgnored private let store: SnapshotStore
   @ObservationIgnored private let origin: String
@@ -90,13 +99,22 @@ final class IntegrationModel {
 
   var percent: Int { Int(((progress ?? 0) * 100).rounded(.down)) }
 
+  /// Seconds left in the running download, or nil before the estimate has enough data.
+  var remainingSeconds: Int? {
+    guard let progress, let startedAt else { return nil }
+    return DownloadSchedule.remainingSeconds(
+      fraction: progress, elapsed: Date().timeIntervalSince(startedAt))
+  }
+
+  /// Reads the saved data and starts any download that is due, so no screen needs a download button.
   func refresh() async {
     guard !refreshing else { return }
     refreshing = true
     defer { refreshing = false }
     if progress == nil {
       do { manifest = try await store.manifest() } catch {
-        problem = "保存したデータを開けませんでした。データを保存し直してください。"
+        manifest = nil
+        problem = "アプリのデータを開けなかったので、受け取り直します。"
       }
     }
     if let manifest, progress == nil {
@@ -104,23 +122,37 @@ final class IntegrationModel {
     } else {
       await readExtensionStates()
     }
-    guard let manifest else { return }
+    guard !busy else { return }
+    guard let manifest else {
+      // The first download starts on its own, and returning to the app retries a failed one now.
+      update()
+      return
+    }
     try? BackgroundRefresh.schedule(manifest: manifest)
-    if manifest.origin != origin {
-      problem = "接続先が変わりました。データを更新してください。"
-    } else if !busy,
-      RefreshPolicy.nextDate(
-        updatedAt: manifest.updatedAt, lastAttempt: BackgroundRefresh.lastAttempt) <= Date()
-    {
+    if manifest.origin != origin || due(manifest) {
       BackgroundRefresh.lastAttempt = Date()
       update()
     }
   }
 
-  func update() {
+  private func due(_ manifest: SnapshotManifest) -> Bool {
+    #if DEBUG
+      if forcedDue {
+        forcedDue = false
+        return true
+      }
+    #endif
+    return RefreshPolicy.nextDate(
+      updatedAt: manifest.updatedAt, lastAttempt: BackgroundRefresh.lastAttempt) <= Date()
+  }
+
+  private func update() {
     guard progress == nil else { return }
+    retry?.cancel()
+    retry = nil
     problem = nil
     progress = 0
+    startedAt = Date()
     operation = Task { [weak self, sync] in
       guard let self else { return }
       do {
@@ -132,30 +164,49 @@ final class IntegrationModel {
         }
         manifest = result
         progress = nil
-        AccessibilityAnnouncement.post("全国の電話番号を保存しました。")
+        startedAt = nil
+        failures = 0
+        AccessibilityAnnouncement.post("アプリで使うデータを受け取りました。")
         await notifyExtensions(result)
         try? BackgroundRefresh.schedule(manifest: result)
       } catch is CancellationError {
         progress = nil
+        startedAt = nil
       } catch {
         progress = nil
+        startedAt = nil
+        failures += 1
+        let delay = DownloadSchedule.retryDelay(afterFailures: failures)
         switch error {
         case ImportError.activationUncertain:
-          problem = "保存できたかを確認できませんでした。アプリを開き直してください。"
+          problem = "データを受け取れたかを確かめられませんでした。アプリを開き直してください。"
         case ImportError.projectionTooLarge:
-          problem = "一つの電話番号に集まる情報が多すぎるため、保存できませんでした。"
+          problem = "一つの電話番号に集まる情報が多すぎるため、データを受け取れませんでした。"
         default:
           problem =
             manifest == nil
-            ? "全国の電話番号を保存できませんでした。インターネットにつながっているかを確かめてください。"
-            : "データを更新できませんでした。前に保存したデータで使えます。"
+            ? "データを受け取れませんでした。\(Self.duration(delay))後に、自動でもう一度受け取ります。"
+            : "データを新しくできませんでした。前のデータのまま使えます。"
         }
         AccessibilityAnnouncement.post(problem ?? "")
+        // Saved data stays usable, so only a missing first download retries on a timer.
+        if manifest == nil { scheduleRetry(after: delay) }
       }
     }
   }
 
-  func cancel() { operation?.cancel() }
+  private func scheduleRetry(after seconds: Int) {
+    retry = Task { [weak self] in
+      try? await Task.sleep(for: .seconds(seconds))
+      guard !Task.isCancelled, let self else { return }
+      self.retry = nil
+      self.update()
+    }
+  }
+
+  static func duration(_ seconds: Int) -> String {
+    seconds < 60 ? "\(seconds)秒" : "\((seconds + 59) / 60)分"
+  }
 
   private func readExtensionStates() async {
     do {
