@@ -94,10 +94,13 @@ final class DirectoryUITests: XCTestCase {
     let address = app.buttons["address-link"]
     reveal(address, in: app)
     address.tap()
-    let alert = app.alerts["ほかのサイトを開きます"]
+    let alert = app.alerts["マップで開きます"]
     XCTAssertTrue(alert.waitForExistence(timeout: 5))
     XCTAssertTrue(
-      alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "行き先：www.google.com"))
+      alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Appleのマップ"))
+        .firstMatch.exists)
+    XCTAssertTrue(
+      alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "名前と住所をAppleに送ります"))
         .firstMatch.exists)
     capture(app, name: "external-link-confirmation")
     alert.buttons["やめる"].tap()
