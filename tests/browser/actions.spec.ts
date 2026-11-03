@@ -34,7 +34,7 @@ test("a programmatic click cannot write to either clipboard path", async ({
   ).toBeNull();
 });
 
-test("the native selection path copies API URLs when the async clipboard is absent", async ({
+test("the native selection path copies a telephone number when the async clipboard is absent", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -44,18 +44,21 @@ test("the native selection path copies API URLs when the async clipboard is abse
         event.clipboardData?.getData("text/plain") ?? "";
     });
   });
-  await page.goto("/developers");
+  await page.goto("/?q=国立国会図書館");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
-  const button = page.getByRole("button", {
-    name: "API仕様書のURLをコピー",
+  const card = page.locator("article").first();
+  const button = card.getByRole("button", {
+    name: "03-3581-2331 コピーする（国立国会図書館の電話番号）",
     exact: true,
   });
   await button.click();
-  await expect(
-    page.getByText("API仕様書のURLをコピーしました。", { exact: true }),
-  ).toBeVisible();
-  const copied = await page.locator("html").getAttribute("data-selection-copy");
-  expect(new URL(copied ?? "").pathname).toBe("/api/openapi.json");
+  await expect(card.getByRole("status")).toHaveText(
+    "電話番号をコピーしました。",
+  );
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-selection-copy",
+    "03-3581-2331",
+  );
   await expect(button).toBeFocused();
   await expect(page.locator("textarea")).toHaveCount(0);
 });
@@ -270,9 +273,7 @@ test("an older clipboard rejection cannot replace a newer successful copy", asyn
   );
 });
 
-test("telephone and API URL copies use the complete displayed values", async ({
-  page,
-}) => {
+test("telephone copies use the complete displayed value", async ({ page }) => {
   await page.addInitScript(() => {
     let copied = "";
     Object.defineProperty(navigator, "clipboard", {
@@ -299,16 +300,6 @@ test("telephone and API URL copies use the complete displayed values", async ({
   expect(await page.evaluate(async () => navigator.clipboard.readText())).toBe(
     "03-3581-2331",
   );
-  await page.goto("/developers");
-  await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
-  await page
-    .getByRole("button", { name: "API仕様書のURLをコピー", exact: true })
-    .click();
-  const copied = await page.evaluate(async () =>
-    navigator.clipboard.readText(),
-  );
-  expect(new URL(copied).pathname).toBe("/api/openapi.json");
-  expect(new URL(copied).search).toBe("");
 });
 
 test("clipboard denial has a readable recovery message", async ({ page }) => {

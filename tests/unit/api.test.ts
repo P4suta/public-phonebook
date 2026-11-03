@@ -33,7 +33,11 @@ import {
   parseSearch,
   searchKey,
 } from "../../src/core/search.ts";
-import { api, type DirectoryApiBindings } from "../../src/server/api.ts";
+import {
+  api,
+  type DirectoryApiBindings,
+  openDataPath,
+} from "../../src/server/api.ts";
 import {
   categoryPreviews,
   contactPage,
@@ -77,9 +81,9 @@ const runtime = new Miniflare({
 });
 let bindings: DirectoryApiBindings;
 const snapshot = "1".repeat(64);
-const preChangePages = 121;
+const preChangePages = 94;
 const preChangeDigest =
-  "cc5edfaccda7d63591da9837f9d36b01640eed6aa8f8ac4df0085a6a9fecd428";
+  "534da13f65a03d21ba567eb4b3e21eb7a99a7d77661f57808a173ff15d578a2d";
 const preChangeCursors = [
   [
     "/api/contacts?limit=7",
@@ -563,6 +567,7 @@ describe("native D1 public API", () => {
       "cursor=abc",
       "q=x&q=y",
       "category=missing",
+      "limit=31",
       "limit=101",
       "debug=1",
     ]) {
@@ -625,35 +630,26 @@ describe("native D1 public API", () => {
       expect(response.status, path).toBe(200);
     }
   });
-  it("documents every accepted search parameter and the error contract", async () => {
-    const response = await request("/api/openapi.json");
-    expect(response.status).toBe(200);
-    const body: unknown = await response.json();
-    const documented = v.parse(
-      v.object({
-        paths: v.object({
-          "/api/contacts": v.object({
-            get: v.object({
-              parameters: v.array(
-                v.object({ name: v.string(), in: v.literal("query") }),
-              ),
-              responses: v.record(v.string(), v.unknown()),
-            }),
-          }),
-        }),
-      }),
-      body,
-    ).paths["/api/contacts"].get;
-    expect(documented.parameters.map((parameter) => parameter.name)).toEqual([
-      "q",
-      "prefecture",
-      "municipality",
-      "category",
-      "limit",
-      "cursor",
-    ]);
-    for (const status of ["400", "409", "503"])
-      expect(Object.hasOwn(documented.responses, status)).toBe(true);
+  it("serves no retired public API route", async () => {
+    for (const path of [
+      "/api",
+      "/api/openapi.json",
+      "/api/contacts.vcf",
+      "/api/v1/openapi.json",
+      "/api/v1/contacts",
+      "/api/v1/contacts.vcf",
+      "/api/v1/contact-groups",
+      "/api/v1/catalog",
+      "/api/v1/sources",
+      "/api/v1/contacts/fixture:000",
+      "/api/v1/search-index",
+    ]) {
+      const response = await request(path);
+      expect(response.status, path).toBe(404);
+      expect(response.headers.get("Content-Type"), path).toContain(
+        "application/problem+json",
+      );
+    }
   });
   it("rejects duplicate, looping, and mixed-snapshot result pages", async () => {
     const body: unknown = await (
@@ -731,6 +727,7 @@ describe("native D1 public API", () => {
     for (const query of [
       "q=x&q=y",
       "limit=0",
+      "limit=31",
       "limit=101",
       "limit=NaN",
       "prefecture=13&municipality=14100",
@@ -783,7 +780,6 @@ describe("native D1 public API", () => {
       "/api/contacts?category=library&limit=7",
       "/api/contacts?municipality=13101&limit=7",
       "/api/contacts?prefecture=14&category=medical&limit=7",
-      "/api/v1/contacts?limit=7",
     ]) {
       let path: string | null = start;
       for (let index = 0; path; index += 1) {
@@ -801,8 +797,6 @@ describe("native D1 public API", () => {
       "/api/contact-groups?limit=1",
       "/api/contact-groups?limit=2",
       "/api/contact-groups?prefecture=13",
-      "/api/v1/contact-groups",
-      "/api/contacts.vcf?limit=5",
     ]) {
       const response = await served(path);
       digests[path] =
@@ -968,9 +962,9 @@ describe("native D1 public API", () => {
     expect(previewPlan).toMatch(/USING (?:COVERING )?INDEX contact_category/);
     expect(previewPlan).not.toMatch(/SCAN (?:contacts|preview)\b/);
   });
-  it("supports public CORS, HEAD, OPTIONS, and cache revalidation", async () => {
+  it("supports HEAD and cache revalidation on the site routes and preflight only on open data", async () => {
     const response = await request("/api/catalog");
-    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
     const etag = response.headers.get("ETag");
     if (!etag) throw new Error("Catalog validator missing");
     expect(
@@ -980,20 +974,123 @@ describe("native D1 public API", () => {
     expect(
       await (await request("/api/catalog", { method: "HEAD" })).text(),
     ).toBe("");
-    expect(
-      (
-        await request("/api/catalog", {
-          method: "OPTIONS",
-          headers: {
-            Origin: "https://consumer.example",
-            "Access-Control-Request-Method": "GET",
-          },
-        })
-      ).status,
-    ).toBe(204);
+    const preflight = {
+      method: "OPTIONS",
+      headers: {
+        Origin: "https://consumer.example",
+        "Access-Control-Request-Method": "GET",
+      },
+    };
+    const refused = await request("/api/catalog", preflight);
+    expect(refused.status).toBe(405);
+    expect(refused.headers.get("Allow")).toBe("GET, HEAD");
+    expect(refused.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    const admitted = await request("/api/v1", preflight);
+    expect(admitted.status).toBe(204);
+    expect(admitted.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    const posted = await request("/api/v1", { method: "POST" });
+    expect(posted.status).toBe(405);
+    expect(posted.headers.get("Allow")).toBe("GET, HEAD, OPTIONS");
     expect((await request("/api/contacts", { method: "POST" })).status).toBe(
       405,
     );
+  });
+});
+
+describe("site and open-data route families", () => {
+  const senders = [
+    undefined,
+    "same-origin",
+    "same-site",
+    "cross-site",
+    "none",
+  ] as const;
+  const siteRoutes = [
+    "/api/catalog",
+    "/api/contacts?q=図書館",
+    "/api/contact-groups?q=図書館",
+    "/api/contacts/fixture:000",
+    "/api/contacts/fixture:000/contact.vcf",
+    "/api/sources",
+    `/api/contacts/row/${snapshot}/0`,
+  ];
+
+  async function sent(
+    path: string,
+    sender: (typeof senders)[number],
+  ): Promise<Response> {
+    return request(
+      path,
+      sender === undefined
+        ? undefined
+        : { headers: { "Sec-Fetch-Site": sender } },
+    );
+  }
+
+  it("refuses site routes to every sender but this origin and serves open data to all", async () => {
+    for (const sender of senders)
+      for (const [family, path] of [
+        ["site", "/api/catalog"],
+        ["open-data", "/api/v1"],
+      ] as const) {
+        const response = await sent(path, sender);
+        const label = `${family} ${String(sender)}`;
+        const refused =
+          family === "site" && sender !== undefined && sender !== "same-origin";
+        expect(response.status, label).toBe(refused ? 403 : 200);
+        expect(response.headers.get("Access-Control-Allow-Origin"), label).toBe(
+          family === "site" ? null : "*",
+        );
+        if (refused) {
+          const body: unknown = await response.json();
+          expect(v.parse(ProblemSchema, body).code, label).toBe("cross_origin");
+          expect(response.headers.get("Content-Type"), label).toContain(
+            "application/problem+json",
+          );
+        }
+      }
+  });
+
+  it("answers every site route to this origin without cross-origin headers", async () => {
+    for (const path of siteRoutes) {
+      for (const sender of [undefined, "same-origin"] as const) {
+        const response = await sent(path, sender);
+        expect(response.status, `${path} ${String(sender)}`).toBe(200);
+        expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
+        expect(
+          response.headers.get("Access-Control-Expose-Headers"),
+        ).toBeNull();
+      }
+      for (const sender of ["cross-site", "same-site", "none"] as const)
+        expect((await sent(path, sender)).status, `${path} ${sender}`).toBe(
+          403,
+        );
+    }
+    const missing = await request("/api/missing");
+    expect(missing.status).toBe(404);
+    expect(missing.headers.get("Access-Control-Allow-Origin")).toBeNull();
+  });
+
+  it("sends each path to exactly one route family", () => {
+    for (const [path, open] of [
+      ["/api/v1", true],
+      ["/api/v1/datasets", true],
+      ["/api/v1/dataset-deltas", true],
+      [`/api/v1/datasets/${snapshot}/${snapshot}/contacts.csv.gz`, true],
+      ["/api/v1/contacts", true],
+      ["/api/datasets", true],
+      [`/api/datasets/${snapshot}/${snapshot}/contacts.csv.gz`, true],
+      ["/api/dataset-deltas", true],
+      ["/api", false],
+      ["/api/v10", false],
+      ["/api/datasets-old", false],
+      ["/api/dataset-deltas/x", false],
+      ["/api/catalog", false],
+      ["/api/contacts", false],
+      ["/api/search-index", false],
+      ["/api/contacts.vcf", false],
+    ] as const)
+      expect(openDataPath(path), path).toBe(open);
   });
 });
 
@@ -1255,26 +1352,19 @@ describe("website search index and row locator", () => {
     }
   });
 
-  it("documents the website resources only in the unversioned contract", async () => {
-    const paths = async (base: string): Promise<string[]> => {
-      const body: unknown = await (await serve(`${base}/openapi.json`)).json();
-      return Object.keys(
-        v.parse(v.object({ paths: v.record(v.string(), v.unknown()) }), body)
-          .paths,
-      );
-    };
-    const unversioned = await paths("/api");
-    for (const path of [
-      "/api/search-index",
-      "/api/search-index/{snapshot}/{sha256}",
-      "/api/contacts/row/{snapshot}/{row}",
-    ])
-      expect(unversioned, path).toContain(path);
-    expect(
-      (await paths("/api/v1")).filter(
-        (path) => path.includes("search-index") || path.includes("/row/"),
-      ),
-    ).toEqual([]);
+  it("serves the index and its location only to this origin", async () => {
+    for (const path of ["/api/search-index", indexUrl]) {
+      const response = await serve(path, {
+        headers: { "Accept-Encoding": "br", "Sec-Fetch-Site": "cross-site" },
+      });
+      expect(response.status, path).toBe(403);
+      expect(await problemCode(response)).toBe("cross_origin");
+      const admitted = await serve(path, {
+        headers: { "Accept-Encoding": "br", "Sec-Fetch-Site": "same-origin" },
+      });
+      expect(admitted.status, path).toBe(200);
+      expect(admitted.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    }
   });
 });
 
@@ -1331,8 +1421,6 @@ describe("dataset-bound search cache", () => {
     for (const path of [
       "/api/contacts?q=図書館&limit=5",
       "/api/contact-groups?q=図書館",
-      `/api/v1/contacts?limit=5&snapshot=${snapshot}`,
-      "/api/v1/contact-groups",
     ]) {
       const cache = new MemoryCache();
       const miss = await cachedRequest(path, cache);
@@ -1407,7 +1495,6 @@ describe("dataset-bound search cache", () => {
       ["/api/contacts?q=x&q=y", 400],
       ["/api/contact-groups?cursor=abc", 400],
       [`/api/contacts?q=図書館&cursor=${stale}`, 409],
-      [`/api/v1/contacts?snapshot=${"2".repeat(64)}`, 409],
     ] as const)
       expect((await cachedRequest(path, cache)).status, path).toBe(status);
     expect([...cache.entries.keys()]).toEqual([
@@ -1430,12 +1517,7 @@ describe("dataset-bound search cache", () => {
       expect(
         (await cachedRequest("/api/contacts", cache, { version })).status,
       ).toBe(200);
-    for (const path of [
-      "/api/catalog",
-      "/api/contacts/fixture:000",
-      "/api/contacts.vcf?limit=1",
-      "/api/v1",
-    ])
+    for (const path of ["/api/catalog", "/api/contacts/fixture:000", "/api/v1"])
       expect((await cachedRequest(path, cache)).status, path).toBe(200);
     expect(cache.reads).toEqual([]);
     expect(cache.entries.size).toBe(0);

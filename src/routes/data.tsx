@@ -1,23 +1,63 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { getCatalog } from "../ui/client.ts";
-import { BackButton, OfficialLink } from "../ui/components.tsx";
+import type { DatasetManifest } from "../core/models.ts";
+import { getCatalog, getDatasets } from "../ui/client.ts";
+import { BackButton, LinkButton, OfficialLink } from "../ui/components.tsx";
 import { CategoryIcon } from "../ui/icons.tsx";
 import * as css from "../ui/styles.css.ts";
 
+const datasetFormats: Readonly<
+  Record<DatasetManifest["files"][number]["file"], string>
+> = {
+  "contacts.jsonl.gz": "JSON Lines（1行に1件のJSON）、gzipで圧縮",
+  "contacts.csv.gz": "CSV（表計算ソフトで開ける形式）、gzipで圧縮",
+  "contacts.vcf.gz": "vCard（電話帳の形式）、gzipで圧縮",
+  "directory.tsv.br": "iPhoneアプリが読む形式、Brotliで圧縮",
+};
+
 export const Route = createFileRoute("/data")({
-  loader: () => getCatalog(),
+  loader: async () => {
+    const [catalog, datasets] = await Promise.all([
+      getCatalog(),
+      getDatasets(),
+    ]);
+    return { catalog, datasets };
+  },
   component: DataPage,
 });
 
 function DataPage(): ReactElement {
-  const catalog = Route.useLoaderData();
+  const { catalog, datasets } = Route.useLoaderData();
   return (
     <main id="main" className={css.page}>
       <div className={css.stack}>
         <BackButton href="/about">サイトの説明にもどる</BackButton>
         <h1 className={css.heading}>データについて</h1>
         <p className={css.body}>施設や窓口が公開した電話番号をさがせます。</p>
+        <h2 className={css.subheading}>すべてのデータをダウンロードする</h2>
+        <p className={css.body}>
+          すべての施設や窓口のデータを、だれでも登録せずにダウンロードできます。
+          使うときの決まりは、施設ごとにファイルの中にあります。
+        </p>
+        <div>
+          {datasets.files.map((file) => (
+            <section key={file.file} className={css.dataRow}>
+              <h3>{file.file}</h3>
+              <p>形式：{datasetFormats[file.file]}</p>
+              <p>大きさ：{file.bytes.toLocaleString("ja-JP")}バイト</p>
+              <p className={css.status}>SHA-256：{file.sha256}</p>
+              <div className={css.actions}>
+                <LinkButton
+                  href={file.url}
+                  icon="download"
+                  accessibleLabel={`${file.file}をダウンロードする`}
+                >
+                  ダウンロードする
+                </LinkButton>
+              </div>
+            </section>
+          ))}
+        </div>
         <h2 className={css.subheading}>さがせる施設や窓口</h2>
         <p className={css.body}>
           {catalog.prefectures.length}都道府県、

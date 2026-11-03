@@ -1,7 +1,7 @@
 # Documentation
 
 - [Run locally and understand environment boundaries](deployment.md).
-- [Use the public read API](api.md).
+- [Download and verify the open data files](api.md).
 - [Review the Figma design and interface rules](design.md).
 - [Inspect retained data and provenance](data-sources.md).
 - [Run verification and understand its limits](verification.md).
@@ -11,7 +11,8 @@
 - [Prepare the native App Store distribution](ios-store-distribution.md).
 - [Track native release readiness](ios-release-readiness.md).
 - [Read the native Cloudflare architecture decision](adr/native-cloudflare-typescript-services.md).
-- [Render the API reference on the server](adr/server-rendered-api-reference.md).
+- [Serve the directory JSON to the site only](adr/serve-directory-json-to-the-site-only.md).
+- [Review the superseded server-rendered API reference decision](adr/server-rendered-api-reference.md).
 - [Review the superseded interactive API reference decision](adr/openapi-driven-interactive-reference.md).
 - [Verify release candidates in place before approval](adr/verify-release-candidates-in-place-before-approval.md).
 - [Recover complete Worker and dataset publications](adr/recover-complete-worker-and-dataset-publications.md).

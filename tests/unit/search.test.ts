@@ -69,6 +69,7 @@ describe("search contract", () => {
       "prefecture=13&municipality=14100",
       "limit=0",
       "limit=101",
+      "limit=31",
       "limit=1.5",
       "cursor=%7B",
       `q=${"あ".repeat(171)}`,

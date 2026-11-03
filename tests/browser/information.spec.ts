@@ -1,5 +1,4 @@
 import AxeBuilder from "@axe-core/playwright";
-import { referenceCopy } from "../../src/ui/api-reference-copy.ts";
 import { uiCopy } from "../../src/ui/copy.ts";
 import { serviceInformation } from "../../src/ui/service-information.ts";
 import { auditDesign } from "./design-policy.ts";
@@ -54,9 +53,7 @@ test("the initial screen gives a complete instruction and one project-informatio
   await expect(
     page.getByRole("link", { name: "データについてくわしく知る", exact: true }),
   ).toHaveAttribute("href", "/data");
-  await expect(
-    page.getByRole("link", { name: "APIの使い方を見る", exact: true }),
-  ).toHaveAttribute("href", "/developers");
+  await expect(page.getByRole("link", { name: /API/u })).toHaveCount(0);
   await page
     .getByRole("link", { name: "さがす画面にもどる", exact: true })
     .click();
@@ -67,11 +64,10 @@ test("each page action leads with its own icon", async ({ page, request }) => {
   const contact = `/contacts/${encodeURIComponent((await knownContact(request)).id)}`;
   const actions = [
     ["/about", "データについてくわしく知る", "database"],
-    ["/about", "APIの使い方を見る", "code"],
     ["/about", "プライバシーについて読む", "shield-check"],
     ["/about", "さがす画面にもどる", "arrow-left"],
+    ["/data", "contacts.csv.gzをダウンロードする", "download"],
     ["/support", "開発者にメールを送る", "mail"],
-    ["/developers", referenceCopy.openapi, "file-braces"],
     [contact, uiCopy.sourceAction, "file-search"],
     [contact, "電話帳に入れる", "book-user"],
     [`${contact}/source`, "開発者向けの記録を見る", "file-braces"],
@@ -83,16 +79,6 @@ test("each page action leads with its own icon", async ({ page, request }) => {
       `${path} ${name}`,
     ).toHaveAttribute("data-icon", icon);
   }
-  await page.goto("/developers");
-  await expect(
-    page
-      .getByRole("button", {
-        name: `${referenceCopy.attempt.submit}（GET /api/contacts）`,
-        exact: true,
-      })
-      .locator("svg")
-      .first(),
-  ).toHaveAttribute("data-icon", "send");
 });
 
 for (const width of [320, 1440])

@@ -14,6 +14,7 @@ export const httpStatus = {
 
 export type FailureStatus =
   | typeof httpStatus.badRequest
+  | typeof httpStatus.forbidden
   | typeof httpStatus.notFound
   | typeof httpStatus.methodNotAllowed
   | typeof httpStatus.notAcceptable

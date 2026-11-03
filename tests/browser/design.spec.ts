@@ -165,7 +165,6 @@ for (const width of [320, 390, 1440]) {
       ["results", "/?q=国立国会図書館&category=library"],
       ["empty", "/?q=存在しない施設000000"],
       ["data", "/data"],
-      ["api", "/developers"],
       ["detail", detail],
       ["source", `${detail}/source`],
       ["invalid", "/?q=国立国会図書館&category=unknown"],
@@ -293,26 +292,6 @@ for (const width of [320, 390, 1440]) {
             })),
         );
       expect(clippedActions, name).toEqual([]);
-      if (name === "api") {
-        const lines = await page
-          .getByRole("button", { name: "API仕様書のURLをコピー", exact: true })
-          .evaluate((button) => {
-            const tops = new Set<number>();
-            const walker = document.createTreeWalker(
-              button,
-              NodeFilter.SHOW_TEXT,
-            );
-            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-              if (!node.textContent?.trim()) continue;
-              const range = document.createRange();
-              range.selectNodeContents(node);
-              for (const rect of range.getClientRects())
-                tops.add(Math.round(rect.top));
-            }
-            return tops.size;
-          });
-        expect(lines, "The schema URL action should fit on one line").toBe(1);
-      }
       if (browserName !== "webkit") {
         if (name === "data")
           await page.screenshot({

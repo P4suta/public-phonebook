@@ -1,6 +1,9 @@
 import AxeBuilder from "@axe-core/playwright";
 import * as v from "valibot";
-import { SearchResponseSchema } from "../../src/core/models.ts";
+import {
+  DatasetManifestSchema,
+  SearchResponseSchema,
+} from "../../src/core/models.ts";
 import { checkedFetch } from "../../tools/public-request.ts";
 import { auditDesign } from "../browser/design-policy.ts";
 import { expect, test } from "./fixtures.ts";
@@ -46,26 +49,27 @@ test("published search, telephone normalization, detail, and source navigation w
   expect((await auditDesign(page)).violations).toEqual([]);
 });
 
-test("the published reference sends requests under the live security policy", async ({
+test("the published data page lists the complete files and reads the site routes under the live security policy", async ({
   page,
 }) => {
-  await page.goto("/developers#searchContacts");
-  await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
-  const operation = page.locator("section#searchContacts");
-  await expect(operation).toBeInViewport();
-  const sent = page.waitForResponse(
-    (response) => new URL(response.url()).pathname === "/api/contacts",
+  const manifest = v.parse(
+    DatasetManifestSchema,
+    await (await checkedFetch("/api/datasets")).json(),
   );
-  await operation
-    .getByRole("button", {
-      name: "リクエストを試す（GET /api/contacts）",
-      exact: true,
-    })
-    .click();
-  expect((await sent).status()).toBe(200);
-  await expect(
-    operation.locator("#searchContacts-response").getByRole("status"),
-  ).toHaveText("応答：200 成功");
+  await page.goto("/data");
+  await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
+  for (const file of manifest.files)
+    await expect(
+      page.getByRole("link", {
+        name: `${file.file}をダウンロードする`,
+        exact: true,
+      }),
+    ).toHaveAttribute("href", file.url);
+  expect(
+    await page.evaluate(
+      async () => (await fetch("/api/catalog", { credentials: "omit" })).status,
+    ),
+  ).toBe(200);
   expect((await auditDesign(page)).violations).toEqual([]);
   expect(
     (

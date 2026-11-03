@@ -73,7 +73,7 @@ test("the native national catalog and every region and category are searchable",
   console.info(
     JSON.stringify({
       operation: "national.api",
-      origin: new URL((await request.get("/api")).url()).origin,
+      origin: new URL((await request.get("/api/v1")).url()).origin,
       contacts: catalog.contacts,
       categories: catalog.categories.length,
       prefectures: catalog.prefectures.length,
@@ -109,7 +109,7 @@ test("the native national catalog and every region and category are searchable",
   }
 });
 
-test("public API details, vCards, source records, and headers agree", async ({
+test("site details, vCards, source records, and headers agree", async ({
   request,
 }) => {
   const response = await request.get("/api/contacts?q=国立国会図書館");
@@ -134,22 +134,37 @@ test("public API details, vCards, source records, and headers agree", async ({
   const text = await card.text();
   expect(text).toContain("TEL;TYPE=WORK,VOICE:+81335812331\r\n");
   expect(text).toContain("END:VCARD\r\n");
-  for (const path of [
-    "/api",
-    "/api/openapi.json",
-    "/api/catalog",
-    "/api/contacts",
-    "/api/contact-groups",
-    "/api/sources",
-    "/api/datasets",
-  ]) {
+  for (const [path, crossOrigin] of [
+    ["/api/catalog", false],
+    ["/api/contacts", false],
+    ["/api/contact-groups", false],
+    ["/api/sources", false],
+    ["/api/v1", true],
+    ["/api/datasets", true],
+    ["/api/dataset-deltas", true],
+  ] as const) {
     const result = await request.get(path);
     expect(result.status(), path).toBe(200);
-    expect(result.headers()["access-control-allow-origin"]).toBe("*");
+    expect(result.headers()["access-control-allow-origin"], path).toBe(
+      crossOrigin ? "*" : undefined,
+    );
     expect(result.headers()["x-content-type-options"]).toBe("nosniff");
     expect(result.headers()["x-request-id"]).toMatch(/^[a-f0-9-]{36}$/);
     expect(result.headers()["set-cookie"]).toBeUndefined();
+    const refused = await request.get(path, {
+      headers: { "Sec-Fetch-Site": "cross-site" },
+    });
+    expect(refused.status(), path).toBe(crossOrigin ? 200 : 403);
   }
+  for (const path of [
+    "/api",
+    "/api/openapi.json",
+    "/api/contacts.vcf",
+    "/api/v1/openapi.json",
+    "/api/v1/contacts",
+    "/developers",
+  ])
+    expect((await request.get(path)).status(), path).toBe(404);
 });
 
 test("complete dataset downloads match their published checksums", async ({

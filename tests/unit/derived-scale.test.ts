@@ -9,7 +9,7 @@ import {
 } from "../../src/ui/foundations.ts";
 
 const styleDirectory = "src/ui";
-const requiredStyleSheets = ["styles.css.ts", "api-reference.css.ts"];
+const requiredStyleSheets = ["styles.css.ts"];
 
 const approved = {
   font: {

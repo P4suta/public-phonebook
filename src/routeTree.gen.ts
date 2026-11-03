@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as DataRouteImport } from './routes/data'
-import { Route as DevelopersRouteImport } from './routes/developers'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as ContactsIdRouteImport } from './routes/contacts.$id'
@@ -32,11 +31,6 @@ const AboutRoute = AboutRouteImport.update({
 const DataRoute = DataRouteImport.update({
   id: '/data',
   path: '/data',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DevelopersRoute = DevelopersRouteImport.update({
-  id: '/developers',
-  path: '/developers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -69,7 +63,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/data': typeof DataRoute
-  '/developers': typeof DevelopersRoute
   '/privacy': typeof PrivacyRoute
   '/support': typeof SupportRoute
   '/contacts/$id': typeof ContactsIdRoute
@@ -80,7 +73,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/data': typeof DataRoute
-  '/developers': typeof DevelopersRoute
   '/privacy': typeof PrivacyRoute
   '/support': typeof SupportRoute
   '/contacts/$id': typeof ContactsIdRoute
@@ -92,7 +84,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/data': typeof DataRoute
-  '/developers': typeof DevelopersRoute
   '/privacy': typeof PrivacyRoute
   '/support': typeof SupportRoute
   '/contacts/$id': typeof ContactsIdRoute
@@ -105,7 +96,6 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/data'
-    | '/developers'
     | '/privacy'
     | '/support'
     | '/contacts/$id'
@@ -116,7 +106,6 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/data'
-    | '/developers'
     | '/privacy'
     | '/support'
     | '/contacts/$id'
@@ -127,7 +116,6 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/data'
-    | '/developers'
     | '/privacy'
     | '/support'
     | '/contacts/$id'
@@ -139,7 +127,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   DataRoute: typeof DataRoute
-  DevelopersRoute: typeof DevelopersRoute
   PrivacyRoute: typeof PrivacyRoute
   SupportRoute: typeof SupportRoute
   ContactsIdRoute: typeof ContactsIdRoute
@@ -168,13 +155,6 @@ declare module '@tanstack/react-router' {
       path: '/data'
       fullPath: '/data'
       preLoaderRoute: typeof DataRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/developers': {
-      id: '/developers'
-      path: '/developers'
-      fullPath: '/developers'
-      preLoaderRoute: typeof DevelopersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -219,7 +199,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   DataRoute: DataRoute,
-  DevelopersRoute: DevelopersRoute,
   PrivacyRoute: PrivacyRoute,
   SupportRoute: SupportRoute,
   ContactsIdRoute: ContactsIdRoute,

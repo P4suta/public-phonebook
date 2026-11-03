@@ -294,7 +294,7 @@ The upload creates a version without applying triggers, so custom domains and ot
 HTML responses use `no-store, no-transform` to prevent Cloudflare from adding scripts to the document.
 Browser checks reject scripts from other origins and verify that an inserted external script is detected.
 The publisher hashes build output before the upload and after it.
-Public Playwright checks exercise desktop and narrow search, telephone formatting, detail and provenance navigation, the API reference's request form, accessibility, security-policy failures, and the 512-byte query boundary.
+Public Playwright checks exercise desktop and narrow search, telephone formatting, detail and provenance navigation, the data page's file list, accessibility, security-policy failures, and the 512-byte query boundary.
 They also download every archive through HTTPS and compare its byte length and SHA-256 with the checked manifest.
 Failure evidence stays under `test-results`.
 
@@ -388,7 +388,8 @@ The zone publishes `v=DMARC1; p=reject; adkim=s; aspf=s` at `_dmarc.dial.page`, 
 
 ## Zone protection
 
-The zone's rate limiting rule blocks a client IP for 10 seconds after 60 requests in 10 seconds to `/`, `/api/contact*`, or `/api/v1/contact*`.
+The zone's rate limiting rule blocks a client IP for 10 seconds after 60 requests in 10 seconds to `/`, `/api/contact*`, `/api/source*`, `/api/catalog`, `/api/search-index*`, or `/contacts/`.
+The site routes rely on this rule for every client that omits `Sec-Fetch-Site`, as [the route split decision](adr/serve-directory-json-to-the-site-only.md) explains.
 The block answers 429 with `Retry-After` and sets no cookie, which keeps the privacy page accurate.
 Don't use a managed challenge or Bot Fight Mode on these hosts, because they set cookies.
 Release checks hold any request that would be their 40th in 10 seconds, so they stay below the limit.
