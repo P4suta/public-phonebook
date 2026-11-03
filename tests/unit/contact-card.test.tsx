@@ -153,7 +153,7 @@ it("keeps a result's name as heading text and labels its one detail action by th
       createElement(ResultCard, { card, onOpenRow: () => undefined }),
     );
     expect(markup).toContain(
-      `<h3 class="contactName" id="contact-${contact.id}">Public library</h3>`,
+      `<h3 class="contactName" id="contact-${contact.id}" tabindex="-1">Public library</h3>`,
     );
     expect(markup.match(/href="\/contacts\//gu)).toHaveLength(1);
     expect(markup).toMatch(

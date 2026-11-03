@@ -155,7 +155,9 @@ test("on the device, a continuation adds 30 cards without a request and focuses 
     .click();
   await expect(library.locator("article")).toHaveCount(before + 30);
   const first = library.locator("article").nth(before);
-  await expect(first.locator("[data-phone]").first()).toBeFocused();
+  const heading = first.getByRole("heading");
+  await expect(heading).toBeFocused();
+  await expect(heading).toHaveAttribute("tabindex", "-1");
   expect(requests).toEqual([]);
   expect(new URL(page.url()).searchParams.has("category")).toBe(false);
 });

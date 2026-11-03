@@ -258,7 +258,7 @@ export function ResultCard({
       aria-labelledby={headingId}
     >
       <div className={css.contactHeader}>
-        <h3 className={css.contactName} id={headingId}>
+        <h3 className={css.contactName} id={headingId} tabIndex={-1}>
           {card.name}
         </h3>
         {card.region && <p className={css.region}>{card.region}</p>}

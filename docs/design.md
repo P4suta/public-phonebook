@@ -177,7 +177,7 @@ Source details provide readable context before opening the publisher's original 
 Bulk export belongs in the complete files on the data page rather than the search interface.
 A category's labelled continuation expands only that category in the same result screen.
 Automatic continuation begins after that expansion or after opening a category continuation link.
-An explicit continuation moves focus to the first control of the first new card.
+An explicit continuation moves focus to the facility heading of the first new card, which takes focus only from script, so screen readers announce the facility first.
 Continuation preserves existing results on failure, prevents mixed snapshots and duplicate pages, and exposes recovery.
 A real continuation link works without JavaScript, and its `category` and `cursor` parameters carry that state.
 Old search URLs with `prefecture` or `municipality` redirect to the same search without them.

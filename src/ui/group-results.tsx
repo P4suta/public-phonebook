@@ -174,10 +174,7 @@ export function GroupResults({
     const from = focusFrom.current;
     if (from === null || rows.length <= from) return;
     focusFrom.current = null;
-    list.current?.children
-      .item(from)
-      ?.querySelector<HTMLElement>("a, button")
-      ?.focus();
+    list.current?.children.item(from)?.querySelector("h3")?.focus();
   }, [rows.length]);
 
   const continueOnView = useEffectEvent((): void => {
