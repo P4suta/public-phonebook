@@ -130,6 +130,51 @@ public enum CallerFile {
     }
   }
 
+  /// Passes the national records and one extra entry in ascending number order, as `verification/ios/CallerMerge.lean` models.
+  /// The extra label replaces the national label of the same number, because CallKit takes each number once.
+  public final class Merged {
+    private let national: Reader?
+    private var extra: CallerEntry?
+
+    public init(national: Reader?, extra: CallerEntry?) {
+      self.national = national
+      self.extra = extra
+    }
+
+    /// Reads up to `limit` national records, passes them with the extra entry where it belongs, and returns how many entries it passed, or 0 at the end.
+    public func read(upTo limit: Int, _ body: (Int64, String) -> Void) throws -> Int {
+      var passed = 0
+      let read =
+        try national?.read(upTo: limit) { number, label in
+          guard let pending = extra else {
+            body(number, label)
+            passed += 1
+            return
+          }
+          switch CallerMerge.decide(extra: pending.phone.number, national: number) {
+          case .national:
+            body(number, label)
+            passed += 1
+          case .extraFirst:
+            body(pending.phone.number, pending.label)
+            body(number, label)
+            passed += 2
+            extra = nil
+          case .extraReplaces:
+            body(pending.phone.number, pending.label)
+            passed += 1
+            extra = nil
+          }
+        } ?? 0
+      if read == 0, let pending = extra {
+        extra = nil
+        body(pending.phone.number, pending.label)
+        return 1
+      }
+      return passed
+    }
+  }
+
   public struct Active: Equatable, Sendable {
     public let generation: UUID
     public let file: URL

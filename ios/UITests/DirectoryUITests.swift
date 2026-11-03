@@ -203,6 +203,50 @@ final class DirectoryUITests: XCTestCase {
     capture(app, name: "search-caller-prompt-on")
   }
 
+  /// The harness runs the VerificationDebug build, which holds the QA verification screen.
+  /// Every fixture record shares 03-0000-0000, so the scenario saves the next number.
+  func testVerificationNumberAppearsInSearchAndClears() throws {
+    let app = prepared()
+    openVerification(in: app)
+    let telephone = app.textFields["verification-telephone"]
+    XCTAssertTrue(telephone.waitForExistence(timeout: 5))
+    XCTAssertEqual(app.textFields["verification-label"].value as? String, "確認用の番号")
+    telephone.tap()
+    telephone.typeText("03-0000-0001")
+    let save = app.buttons["verification-save"]
+    reveal(save, in: app)
+    save.tap()
+    let message = app.staticTexts["verification-message"]
+    waitUntil(
+      "the save message appears", message.exists && message.label.hasPrefix("保存し"),
+      observed: { message.exists ? "It shows “\(message.label)”." : "It doesn't exist." })
+    capture(app, name: "verification-saved")
+    goBack(app)
+    search("確認用", in: app)
+    let result = app.descendants(matching: .any)["verification-result"]
+    XCTAssertTrue(result.waitForExistence(timeout: 15))
+    XCTAssertEqual(app.staticTexts["phone-number"].firstMatch.label, "03-0000-0001")
+    XCTAssertTrue(app.buttons["03-0000-0001に電話をかける"].exists)
+    XCTAssertFalse(app.staticTexts["empty-results"].exists)
+    capture(app, name: "verification-search")
+    // An active search field hides the menu, and a new launch also reads the saved number back.
+    app.terminate()
+    app.launch()
+    openVerification(in: app)
+    XCTAssertEqual(telephone.value as? String, "03-0000-0001")
+    let clear = app.buttons["verification-clear"]
+    reveal(clear, in: app)
+    clear.tap()
+    waitUntil(
+      "the clear message appears", message.exists && message.label.hasPrefix("消し"),
+      observed: { message.exists ? "It shows “\(message.label)”." : "It doesn't exist." })
+    XCTAssertEqual(app.textFields["verification-label"].value as? String, "確認用の番号")
+    goBack(app)
+    search("確認用", in: app)
+    XCTAssertTrue(app.staticTexts["empty-results"].waitForExistence(timeout: 15))
+    XCTAssertFalse(result.exists)
+  }
+
   func testPortraitLandscapeRoundTrip() throws {
     let app = prepared()
     XCUIDevice.shared.orientation = .landscapeLeft
@@ -499,6 +543,16 @@ final class DirectoryUITests: XCTestCase {
     settings.tap()
     XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 5))
     XCTAssertTrue(app.descendants(matching: .any)["caller-state"].waitForExistence(timeout: 10))
+  }
+
+  private func openVerification(in app: XCUIApplication) {
+    let menu = app.buttons["メニュー"]
+    XCTAssertTrue(menu.waitForExistence(timeout: 15))
+    menu.tap()
+    let item = app.buttons["QA用の確認"]
+    XCTAssertTrue(item.waitForExistence(timeout: 5))
+    item.tap()
+    XCTAssertTrue(app.navigationBars["QA用の確認"].waitForExistence(timeout: 5))
   }
 
   /// Opens About and returns its line with the date of the saved data.

@@ -69,7 +69,7 @@ const textMeasurements = [
   ["0:1", 359],
   ["14:3", 22],
   ["14:4", 103],
-  ["468:1270", 232],
+  ["468:1270", 260],
   ["316:1010", 134],
 ] as const;
 const dialogGutter = 480;
@@ -90,6 +90,8 @@ const iphoneScreens = new Set([
   "471:1728",
   "512:1982",
   "471:1768",
+  "563:2295",
+  "563:2364",
 ]);
 
 async function readLayout(): Promise<v.InferOutput<typeof layoutSchema>> {

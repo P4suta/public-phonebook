@@ -370,6 +370,36 @@ final class IntegrationModel {
     }
   }
 
+  #if PHONEBOOK_VERIFICATION_TOOLS
+    /// Runs the update path once now, the monthly update when data is saved and the first download otherwise.
+    func updateNow() {
+      guard !busy else { return }
+      if manifest != nil { BackgroundRefresh.lastAttempt = Date() }
+      update(first: manifest == nil)
+    }
+
+    /// Asks iOS to load the caller names again after the test number changes, and reports the state that iOS gave.
+    func reloadCallerNames() async -> CallerStatus {
+      let enabled: Bool
+      do { enabled = try await ExtensionOperations.callerEnabled() } catch {
+        show(.unknown)
+        return .unknown
+      }
+      guard enabled else {
+        show(.off)
+        return .off
+      }
+      do {
+        try await ExtensionOperations.reloadCaller()
+        show(.on)
+        return .on
+      } catch {
+        // The next launch retries only a new generation, so Settings keeps its state and the QA screen asks for another save.
+        return .onRetrying
+      }
+    }
+  #endif
+
   func openCallerSettings() {
     CXCallDirectoryManager.sharedInstance.openSettings { [weak self] error in
       if error != nil {

@@ -7,6 +7,9 @@ struct SearchScreen: View {
   @Bindable var integration: IntegrationModel
   @State private var path: [Contact] = []
   @State private var announced: [String] = []
+  #if PHONEBOOK_VERIFICATION_TOOLS
+    @State private var verification = VerificationNumberModel()
+  #endif
 
   var body: some View {
     NavigationStack(path: $path) {
@@ -33,6 +36,11 @@ struct SearchScreen: View {
               AboutScreen(model: model, integration: integration)
             }
             NavigationLink("設定") { SettingsScreen(model: integration) }
+            #if PHONEBOOK_VERIFICATION_TOOLS
+              NavigationLink("QA用の確認") {
+                VerificationToolsScreen(model: verification, integration: integration)
+              }
+            #endif
           } label: {
             DesignIcon(name: "menu").frame(minWidth: 44, minHeight: 44)
           }
@@ -113,14 +121,24 @@ struct SearchScreen: View {
       }
       .buttonStyle(MonoButtonStyle()).padding(.vertical, 12)
     } else if let results = model.results {
-      if results.total == 0 {
-        Text("あてはまる施設は0件です").font(.title2.bold()).padding(.vertical, 12)
-          .accessibilityAddTraits(.isHeader)
-          .accessibilityIdentifier("empty-results")
-        Text("名前の一部を入れるか、別の言葉でさがしてください。")
-      }
+      #if PHONEBOOK_VERIFICATION_TOOLS
+        if let entry = verification.match(model.query) {
+          VerificationResult(entry: entry)
+        } else if results.total == 0 {
+          emptyResults
+        }
+      #else
+        if results.total == 0 { emptyResults }
+      #endif
       ForEach(results.groups) { group in groupView(group) }
     }
+  }
+
+  @ViewBuilder private var emptyResults: some View {
+    Text("あてはまる施設は0件です").font(.title2.bold()).padding(.vertical, 12)
+      .accessibilityAddTraits(.isHeader)
+      .accessibilityIdentifier("empty-results")
+    Text("名前の一部を入れるか、別の言葉でさがしてください。")
   }
 
   @ViewBuilder private func groupView(_ group: ResultGroup) -> some View {
