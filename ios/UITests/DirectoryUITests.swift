@@ -44,7 +44,8 @@ final class DirectoryUITests: XCTestCase {
     finish.tap()
     XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 10))
     XCTAssertTrue(app.descendants(matching: .any)["search-hint"].exists)
-    XCTAssertFalse(app.staticTexts["directory-total"].exists)
+    XCTAssertTrue(app.staticTexts["施設の名前か、電話番号を入れてください。"].exists)
+    XCTAssertFalse(app.staticTexts["名前の一部でも、さがせます。"].exists)
     XCTAssertEqual(try proxy().requests.filter { $0.hasPrefix("/api/v1/datasets/") }.count, 1)
     capture(app, name: "initial-search")
   }
@@ -52,7 +53,9 @@ final class DirectoryUITests: XCTestCase {
   func testSearchGroupsResultsAndShowsMore() throws {
     let app = prepared()
     search("facility", in: app)
-    waitForLabel(app.staticTexts["directory-total"], "239件 見つかりました")
+    // The 100 indexed libraries join the 46 regional libraries outside prefecture 13.
+    waitForGroup("library", "146件", in: app)
+    XCTAssertFalse(app.staticTexts["239件 見つかりました"].exists)
     let hidden = app.buttons["Index facility 003の住所などを見る"]
     XCTAssertFalse(hidden.exists)
     let more = app.buttons["more-library"]
@@ -67,18 +70,22 @@ final class DirectoryUITests: XCTestCase {
 
   func testTelephoneSearchFindsEveryRecordForTheNumber() throws {
     let app = prepared()
-    search("03-0000-0000", in: app)
-    waitForLabel(app.staticTexts["directory-total"], "241件 見つかりました")
-    search("０３（００００）００００", in: app)
-    waitForLabel(app.staticTexts["directory-total"], "241件 見つかりました")
+    for query in ["03-0000-0000", "０３（００００）００００"] {
+      search(query, in: app)
+      // Every one of the 241 fixture records shares the number: 147 libraries, 47 clinics, and 47 dentists.
+      waitForGroup("library", "147件", in: app)
+      waitForGroup("medical", "47件", in: app)
+      waitForGroup("dental", "47件", in: app)
+    }
   }
 
   func testEmptyResultsAndLargeText() throws {
     let app = prepared(textSize: "UICTContentSizeCategoryAccessibilityXXXL")
     search("No matching facility 123456789", in: app)
-    let empty = app.staticTexts["施設や窓口が見つかりませんでした"]
+    let empty = app.staticTexts["empty-results"]
     XCTAssertTrue(empty.waitForExistence(timeout: 15))
-    reveal(app.staticTexts["名前の一部だけを入れてみてください。"], in: app)
+    XCTAssertEqual(empty.label, "あてはまる施設は0件です")
+    reveal(app.staticTexts["名前の一部を入れるか、別の言葉でさがしてください。"], in: app)
     try app.performAccessibilityAudit()
     capture(app, name: "empty-large-text")
   }
@@ -86,7 +93,7 @@ final class DirectoryUITests: XCTestCase {
   func testContactDetailShowsRegionSourceAndExternalLinkConfirmation() throws {
     let app = prepared()
     search("試験", in: app)
-    waitForLabel(app.staticTexts["directory-total"], "1件 見つかりました")
+    waitForGroup("dental", "1件", in: app)
     XCTAssertEqual(app.staticTexts["contact-region"].label, "Test prefecture 13Test city 13")
     let name = "試験歯科 <script> & Test, clinic"
     XCTAssertTrue(app.staticTexts[name].exists)
@@ -95,9 +102,15 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertEqual(detail.label, "\(name)の住所などを見る")
     detail.tap()
     XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
-    let address = app.buttons["address-link"]
-    reveal(address, in: app)
-    address.tap()
+    let address = app.staticTexts["contact-address"]
+    XCTAssertTrue(address.waitForExistence(timeout: 5))
+    XCTAssertEqual(address.label, "Test, address; Suite 2\\東")
+    XCTAssertFalse(app.buttons["contact-address"].exists)
+    let map = app.buttons["map-button"]
+    reveal(map, in: app)
+    XCTAssertEqual(map.label, "\(name)の地図を見る")
+    capture(app, name: "contact-address")
+    map.tap()
     let alert = app.alerts["マップで開きます"]
     XCTAssertTrue(alert.waitForExistence(timeout: 5))
     XCTAssertTrue(
@@ -123,16 +136,65 @@ final class DirectoryUITests: XCTestCase {
     capture(app, name: "source")
   }
 
-  func testPhoneNumberCopyShowsFeedback() throws {
+  func testPhoneNumberIsTextOverTheCallButton() throws {
     let app = prepared()
     search("試験", in: app)
-    let copy = app.buttons["phone-copy"].firstMatch
-    XCTAssertTrue(copy.waitForExistence(timeout: 15))
-    XCTAssertTrue(copy.label.contains("コピーする"))
-    copy.tap()
-    let feedback = app.staticTexts["copy-feedback"]
-    XCTAssertTrue(feedback.waitForExistence(timeout: 5))
-    XCTAssertEqual(feedback.label, "電話番号をコピーしました。")
+    let number = app.staticTexts["phone-number"].firstMatch
+    XCTAssertTrue(number.waitForExistence(timeout: 15))
+    XCTAssertEqual(number.label, "03-0000-0000")
+    XCTAssertFalse(app.buttons["03-0000-0000"].exists)
+    let call = app.buttons["03-0000-0000に電話をかける"]
+    XCTAssertTrue(call.exists)
+    // Selectable text reports a frame with an inset around its glyphs, so its center marks its place.
+    XCTAssertLessThan(number.frame.midY, call.frame.minY)
+    XCTAssertFalse(
+      app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "コピー"))
+        .firstMatch.exists)
+    app.buttons["contact-detail"].firstMatch.tap()
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    XCTAssertEqual(app.staticTexts["phone-number"].firstMatch.label, "03-0000-0000")
+    XCTAssertFalse(
+      app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "コピー"))
+        .firstMatch.exists)
+  }
+
+  /// The simulator reports no extension state, so the debug build reads one from the launch environment.
+  func testCallerPromptAppearsOnlyWhileCallerNamesAreOff() throws {
+    let app = application()
+    app.launchEnvironment["PHONEBOOK_CALLER_STATUS"] = "off"
+    app.launch()
+    onboard(app)
+    let prompt = app.descendants(matching: .any)["caller-prompt"]
+    XCTAssertTrue(prompt.waitForExistence(timeout: 10))
+    XCTAssertTrue(
+      app.staticTexts["病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前を出せます。"].exists)
+    XCTAssertTrue(
+      app.staticTexts.matching(
+        NSPredicate(
+          format: "label BEGINSWITH %@ AND label ENDSWITH %@", "iPhoneの設定で、", "を許可してください。")
+      ).firstMatch.exists)
+    XCTAssertEqual(app.buttons["caller-prompt-settings"].label, "iPhoneの設定を開く")
+    XCTAssertTrue(app.searchFields.firstMatch.isHittable)
+    // The audit flags the placeholder of the system search field from `.searchable`, which the prompt doesn't touch.
+    try app.performAccessibilityAudit { issue in
+      issue.auditType == .textClipped && issue.element?.elementType == .searchField
+    }
+    capture(app, name: "search-caller-prompt-off")
+    let state = app.descendants(matching: .any)["caller-state"]
+    openSettings(in: app)
+    waitForLabel(state, "まだ許可していません")
+    capture(app, name: "settings-caller-off")
+    app.terminate()
+    app.launchEnvironment["PHONEBOOK_CALLER_STATUS"] = "on"
+    app.launch()
+    XCTAssertTrue(app.descendants(matching: .any)["search-hint"].waitForExistence(timeout: 15))
+    openSettings(in: app)
+    waitForLabel(state, "許可しています")
+    capture(app, name: "settings-caller-on")
+    goBack(app)
+    XCTAssertTrue(app.descendants(matching: .any)["search-hint"].waitForExistence(timeout: 5))
+    XCTAssertFalse(prompt.exists)
+    capture(app, name: "search-caller-prompt-on")
   }
 
   func testPortraitLandscapeRoundTrip() throws {
@@ -164,7 +226,7 @@ final class DirectoryUITests: XCTestCase {
     app.activate()
     XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
     goBack(app)
-    waitForLabel(app.staticTexts["directory-total"], "1件 見つかりました")
+    waitForGroup("dental", "1件", in: app)
   }
 
   func testDirectoryFailureRecoversWithoutATap() throws {
@@ -189,9 +251,7 @@ final class DirectoryUITests: XCTestCase {
 
   func testFailedAutomaticUpdateKeepsTheSavedDirectory() throws {
     let app = prepared()
-    openSettings(in: app)
-    let label = app.staticTexts["saved-date"].label
-    XCTAssertFalse(app.buttons["update-now"].exists)
+    let date = dataDate(in: app)
     app.terminate()
     try proxy().failNext(.dataset, with: .incomplete)
     app.launchEnvironment["PHONEBOOK_REFRESH_DUE"] = "1"
@@ -201,30 +261,35 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(problem.waitForExistence(timeout: 30))
     XCTAssertTrue(problem.label.contains("前のデータのまま使えます"))
     capture(app, name: "directory-update-failure")
-    XCTAssertEqual(app.staticTexts["saved-date"].label, label)
+    goBack(app)
+    XCTAssertEqual(dataDate(in: app), date)
     goBack(app)
     search("試験", in: app)
-    waitForLabel(app.staticTexts["directory-total"], "1件 見つかりました")
+    waitForGroup("dental", "1件", in: app)
   }
 
   func testLandscapeLargeTextSettings() throws {
     let app = prepared(textSize: "UICTContentSizeCategoryAccessibilityXXXL")
     XCUIDevice.shared.orientation = .landscapeLeft
     openSettings(in: app)
-    reveal(app.staticTexts["automatic-update"], in: app)
+    XCTAssertFalse(app.staticTexts["アプリのデータ"].exists)
+    reveal(app.buttons["caller-settings"], in: app)
     try app.performAccessibilityAudit()
     capture(app, name: "landscape-large-settings")
   }
 
   func testAboutStaysInTheAppAndLicenseIsReadable() throws {
     let app = prepared()
-    let menu = app.buttons["メニュー"]
-    XCTAssertTrue(menu.waitForExistence(timeout: 15))
-    menu.tap()
-    app.buttons["Public Phonebookについて"].tap()
-    XCTAssertTrue(app.descendants(matching: .any)["about-content"].waitForExistence(timeout: 5))
+    let date = dataDate(in: app)
+    XCTAssertTrue(date.hasPrefix("データの日付："))
     XCTAssertTrue(app.staticTexts["プライバシー"].waitForExistence(timeout: 5))
+    XCTAssertFalse(
+      app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "名前の一部でも"))
+        .firstMatch.exists)
     capture(app, name: "about")
+    let map = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "「地図で見る」から"))
+      .firstMatch
+    reveal(map, in: app)
     let sources = app.buttons["sources-link"]
     reveal(sources, in: app)
     sources.tap()
@@ -244,9 +309,8 @@ final class DirectoryUITests: XCTestCase {
     app.launch()
     onboard(app, timeout: 300)
     search("図書館", in: app)
-    XCTAssertTrue(app.staticTexts["directory-total"].waitForExistence(timeout: 30))
     let detail = app.buttons["contact-detail"].firstMatch
-    XCTAssertTrue(detail.waitForExistence(timeout: 10))
+    XCTAssertTrue(detail.waitForExistence(timeout: 30))
     capture(app, name: "live-public-directory-search")
     detail.tap()
     let source = app.buttons["source-link"]
@@ -337,7 +401,38 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(settings.waitForExistence(timeout: 5))
     settings.tap()
     XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 5))
-    XCTAssertTrue(app.staticTexts["saved-date"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.descendants(matching: .any)["caller-state"].waitForExistence(timeout: 10))
+  }
+
+  /// Opens About and returns its line with the date of the saved data.
+  private func dataDate(in app: XCUIApplication) -> String {
+    let menu = app.buttons["メニュー"]
+    XCTAssertTrue(menu.waitForExistence(timeout: 15))
+    menu.tap()
+    app.buttons["Public Phonebookについて"].tap()
+    XCTAssertTrue(app.descendants(matching: .any)["about-content"].waitForExistence(timeout: 5))
+    let date = app.staticTexts["data-date"]
+    XCTAssertTrue(date.waitForExistence(timeout: 10))
+    return date.label
+  }
+
+  /// Waits for results, finds a category heading wherever the lazy list puts it, and checks its count.
+  private func waitForGroup(
+    _ key: String, _ count: String, in app: XCUIApplication,
+    file: StaticString = #filePath, line: UInt = #line
+  ) {
+    waitUntil(
+      "results appear", app.buttons["contact-detail"].firstMatch.exists, timeout: 15,
+      file: file, line: line)
+    let heading = app.descendants(matching: .any)["group-\(key)"]
+    if !scroll(to: heading, in: app, swipes: 12) {
+      _ = scroll(to: heading, in: app, swipes: 12, towardTop: true)
+    }
+    waitUntil(
+      "the \(key) heading shows \(count)", heading.exists && heading.label.hasSuffix(" \(count)"),
+      timeout: 5,
+      observed: { heading.exists ? "It shows “\(heading.label)”." : "It doesn't exist." },
+      file: file, line: line)
   }
 
   /// Waits as a named step and, on timeout, fails at the caller with the elapsed time.
@@ -395,12 +490,19 @@ final class DirectoryUITests: XCTestCase {
   private func reveal(
     _ element: XCUIElement, in app: XCUIApplication, swipes: Int = 16, towardTop: Bool = false
   ) {
+    XCTAssertTrue(scroll(to: element, in: app, swipes: swipes, towardTop: towardTop))
+  }
+
+  /// Scrolls until the element is hittable inside the window, and reports whether it got there.
+  private func scroll(
+    to element: XCUIElement, in app: XCUIApplication, swipes: Int, towardTop: Bool = false
+  ) -> Bool {
     for _ in 0..<swipes {
       var scrollDown = towardTop
       if element.exists {
         let frame = element.frame
         let center = CGPoint(x: frame.midX, y: frame.midY)
-        if element.isHittable && app.windows.firstMatch.frame.contains(center) { return }
+        if element.isHittable && app.windows.firstMatch.frame.contains(center) { return true }
         let top =
           app.navigationBars.firstMatch.exists ? app.navigationBars.firstMatch.frame.maxY : 0
         if frame.midY < top { scrollDown = true }
@@ -413,6 +515,6 @@ final class DirectoryUITests: XCTestCase {
         withNormalizedOffset: CGVector(dx: 0.5, dy: scrollDown ? 0.7 : 0.45))
       start.press(forDuration: 0.01, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
     }
-    XCTAssertTrue(element.isHittable)
+    return element.exists && element.isHittable
   }
 }
