@@ -394,3 +394,19 @@ Don't use a managed challenge or Bot Fight Mode on these hosts, because they set
 Release checks hold any request that would be their 40th in 10 seconds, so they stay below the limit.
 A single redirect rule sends `https://dial.page/` with its path and query to `https://www.dial.page/` with status 301, through a proxied apex record.
 Browsers enforce HTTPS on every `.page` host through the preloaded top-level domain, so the Worker sets no HSTS header of its own.
+
+## Uptime checks
+
+Better Stack checks the public site every three minutes from its four regions, and it emails the team when a check fails.
+`tools/uptime-plan.ts` declares the checks, and each one requires text that only a page with its data emits.
+
+| Check | Address | Required text |
+| --- | --- | --- |
+| Top page | `https://www.dial.page/` | The search button label |
+| Search | The server-rendered results for 東京都庁 | `03-5321-1111`, which needs the database |
+| App data index | `https://www.dial.page/api/v1` | `"datasets"`, which the iPhone app reads for updates |
+
+Run `mise x -- just monitors` to print the plan, and `mise x -- just monitors --apply` to create or update the declared checks.
+The command matches checks by name, never deletes one, and lists every check it doesn't manage.
+It reads the team-scoped `BETTER_STACK_API_TOKEN` from the Doppler `prd` config, sends it only to the Better Stack monitors API, and prints no token.
+No workflow runs the command, so a change to the checks takes effect when the owner or an agent applies it after merge.
