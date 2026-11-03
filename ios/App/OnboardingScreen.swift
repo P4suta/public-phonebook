@@ -1,7 +1,7 @@
 import PhonebookKit
 import SwiftUI
 
-/// The first-run steps while the app's data downloads on its own: introduce the app, then turn on caller names.
+/// The first-run steps: introduce the app and start the download, turn on caller names, then wait for the data.
 struct OnboardingScreen: View {
   @Bindable var integration: IntegrationModel
   let finish: () -> Void
@@ -65,14 +65,22 @@ struct OnboardingScreen: View {
         Text("許可したら、このアプリにもどってください。")
       }
     case .ready:
-      heading(
-        integration.manifest != nil
-          ? "準備ができました"
-          : integration.progress == nil ? "データを受け取れませんでした" : "データを受け取っています")
-      Text("施設の名前か電話番号を入れると、さがせます。")
-      Text("電話の相手が分かるようにする設定は、あとから「設定」で変えられます。")
+      if integration.ready {
+        heading("準備ができました")
+        Text("施設の名前か電話番号を入れると、さがせます。")
+        Text("電話の相手が分かるようにする設定は、あとから「設定」で変えられます。")
+      } else if let stopped = integration.stopped {
+        heading("データの受け取りが止まりました")
+        Text(stopped).fixedSize(horizontal: false, vertical: true)
+          .accessibilityIdentifier("sync-error")
+      } else {
+        heading(FirstDownloadProgress.heading)
+        if let wait = integration.wait {
+          FirstDownloadProgress(wait: wait, fraction: integration.fraction, showsHeading: false)
+        }
+      }
     }
-    if let problem = integration.problem {
+    if step != .ready, let problem = integration.problem {
       Text(problem).fixedSize(horizontal: false, vertical: true)
         .accessibilityIdentifier("sync-error")
     }
@@ -80,12 +88,11 @@ struct OnboardingScreen: View {
 
   private var footer: some View {
     VStack(alignment: .leading, spacing: 12) {
-      if integration.progress != nil {
-        SaveProgress(percent: integration.percent, remaining: integration.remainingSeconds)
-      }
       switch step {
       case .welcome:
+        DataSizeNotice(megabytes: integration.megabytes, prominent: integration.costlyPath)
         Button {
+          integration.startFirstDownload()
           move(to: .caller)
         } label: {
           Text("はじめる")
@@ -110,7 +117,7 @@ struct OnboardingScreen: View {
           IconLabel(icon: "search", text: "さがしはじめる")
         }
         .buttonStyle(MonoButtonStyle(prominent: true))
-        .disabled(integration.manifest == nil)
+        .disabled(!integration.ready)
         .accessibilityIdentifier("onboarding-finish")
       }
     }
@@ -178,32 +185,5 @@ private struct Done: View {
       Text(text).bold()
     }
     .accessibilityElement(children: .combine)
-  }
-}
-
-struct SaveProgress: View {
-  let percent: Int
-  /// Seconds left, or nil while the estimate lacks data.
-  let remaining: Int?
-
-  private var remainingText: String {
-    remaining.map { "残り約\(IntegrationModel.duration($0))" } ?? "残りの時間を計っています"
-  }
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      HStack {
-        Text("アプリで使うデータを受け取っています")
-        Spacer()
-        Text("\(percent)%").monospacedDigit()
-      }
-      .font(.callout)
-      ProgressView(value: Double(percent), total: 100).tint(.black)
-      Text(remainingText).font(.footnote).monospacedDigit()
-    }
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel("アプリで使うデータを受け取っています")
-    .accessibilityValue("\(percent)パーセント、\(remainingText)")
-    .accessibilityIdentifier("sync-progress")
   }
 }

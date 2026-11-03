@@ -9,6 +9,8 @@ date: 2026-10-31
 Accepted.
 It supersedes the prefecture selection, the paged import, and the one-contact saves in [Share directory snapshots with iOS extensions](share-directory-snapshots-with-ios-extensions.md).
 The App Group generations, the per-number projections, and the activation order of that record still apply.
+Since #188, the first download starts from the start button and shows the steps of [Count the first download down toward a deadline that only moves earlier](count-the-first-download-down-toward-a-deadline-that-only-moves-earlier.md).
+Monthly updates since then use only paths that are neither expensive nor constrained.
 
 ## Context
 

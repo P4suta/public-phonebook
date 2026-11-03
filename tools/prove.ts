@@ -27,8 +27,8 @@ import { StepTimer } from "./step-timing.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 41;
-const declaredPostconditionCount = 77;
+const verifiedUnitCount = 47;
+const declaredPostconditionCount = 85;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -71,9 +71,15 @@ const expected = [
   "deltaPublication",
   "copyAdmission",
   "deltaAdmission",
+  "rangeVerdict",
+  "rangeStart",
+  "rangeEnd",
 ];
 const boundFiles = [
   "src/core/snapshot-policy.ts",
+  "src/core/byte-range-policy.ts",
+  "src/core/byte-range.ts",
+  "tests/unit/byte-range.test.ts",
   "src/core/catalog.ts",
   "src/routes/privacy.tsx",
   "src/routes/support.tsx",
@@ -240,6 +246,7 @@ const proofSources = [
   "src/core/local-search-policy.ts",
   "src/core/row-locator-policy.ts",
   "src/core/directory-delta-policy.ts",
+  "src/core/byte-range-policy.ts",
 ];
 const modelPaths = proofSources.map(
   (path) => `${proofRoot}/proof/generated/${path.replace(/\.ts$/u, ".dfy")}`,

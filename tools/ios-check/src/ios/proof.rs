@@ -4,7 +4,7 @@ use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fmt::Write as _, fs, path::Path, process::Command};
 
-const THEOREMS: [&str; 21] = [
+const THEOREMS: [&str; 32] = [
     "activeAbsorbsEveryEvent",
     "activeSurvivesEveryFiniteTrace",
     "uncertainAbortRetainsData",
@@ -26,14 +26,69 @@ const THEOREMS: [&str; 21] = [
     "admittedCopyReadsOnlyBaseRows",
     "copyGuardSubtractionCannotOverflowInt64",
     "admittedCopyEndCannotOverflowInt64",
+    "countdownNeverRises",
+    "countdownNeverRisesAlongAnyTrace",
+    "lineChangesAtMostOncePerSecond",
+    "changeTimeMovesOnlyWithTheLine",
+    "stepKeepsNumbersAboveZero",
+    "zeroNeverShowsBeforeCompletion",
+    "almostDoneStaysUntilTheEnd",
+    "doneOnlyAfterCompletion",
+    "stepsStayForTheirHold",
+    "aFastRunGoesStraightToDone",
+    "estimateProductsFitInt64",
 ];
+const WAIT_SOURCE: &str = include_str!("../../../../ios/Sources/PhonebookCore/WaitDisplay.swift");
+/// The SHA-256 of the whitespace-free Swift policy that `verification/ios/WaitDisplay.lean` models function for function.
+/// Recheck the Lean model against the Swift file before changing this digest.
+const WAIT_REFINEMENT_SHA256: &str =
+    "0295d3e86ca1be4ba672a32d2a31dd1b6557917e9c7b1a53d072691dd7a784df";
+const WAIT_MODEL: &str = include_str!("../../../../verification/ios/WaitDisplay.lean");
+const WAIT_CONTRACT: &str = "ios/Tests/PhonebookCoreTests/WaitContract.json";
+const WAIT_TRACES: &str = "WaitTraces";
+const WAIT_TRACE_COUNT: usize = 10;
+const WAIT_TRACE_STEPS: usize = 15;
+const WAIT_LINES: [&str; 5] = [
+    "measuring",
+    "countdown",
+    "longer",
+    "almostDone",
+    "weakSignal",
+];
+/// Each planted defect changes one line of the wait model and must fail inside its named theorem with an arithmetic refutation.
+const PLANTED_DEFECTS: [(&str, &str, &str, &str); 3] = [
+    (
+        "WaitRisingCountdown",
+        "let next := min s.seconds (ceilSeconds (deadline - now))",
+        "let next := ceilSeconds (deadline - now)",
+        "choose_seconds_le",
+    ),
+    (
+        "WaitHurriedLine",
+        "def lineHoldMs : Int := 1000",
+        "def lineHoldMs : Int := 999",
+        "lineChangesAtMostOncePerSecond",
+    ),
+    (
+        "WaitZeroCountdown",
+        "def almostSeconds : Int := 3",
+        "def almostSeconds : Int := -1",
+        "choose_shows",
+    ),
+];
+const ARITHMETIC_REFUTATION: &str = "omega could not prove the goal";
 const RECEIVE_SOURCE: &str =
     include_str!("../../../../ios/Sources/PhonebookCore/ReceiveBudget.swift");
 const DELTA_SOURCE: &str =
     include_str!("../../../../ios/Sources/PhonebookCore/DeltaAdmission.swift");
 /// The Swift delta decision that `verification/ios/DeltaAdmission.lean` models, without whitespace.
 const DELTA_REFINEMENT: &str = "publicenumDeltaAdmission:String,CaseIterable,Sendable{caseapply,baseMismatch,malformed,countMismatch,lengthMismatch,digestMismatchpublicstaticfuncdecide(baseMatches:Bool,wellFormed:Bool,rows:Int,expectedRows:Int,bytes:Int,expectedBytes:Int,digestMatches:Bool)->Self{if!baseMatches{return.baseMismatch}if!wellFormed{return.malformed}ifrows!=expectedRows{return.countMismatch}ifbytes!=expectedBytes{return.lengthMismatch}if!digestMatches{return.digestMismatch}return.apply}publicstaticfuncadmitsCopy(start:Int,count:Int,baseRows:Int)->Bool{start>=0&&count>=1&&count<=baseRows&&start<=baseRows-count}}";
-const PROOF_MODULES: [&str; 3] = ["Publication", "ReceiveBudget", "DeltaAdmission"];
+const PROOF_MODULES: [&str; 4] = [
+    "Publication",
+    "ReceiveBudget",
+    "DeltaAdmission",
+    "WaitDisplay",
+];
 /// Each false claim must fail at its proof on line 2, which shows that the kernel checks that model.
 const FALSE_CLAIMS: [(&str, &str, &str); 2] = [
     (
@@ -125,6 +180,124 @@ fn whitespace_free(source: &str) -> String {
     source.split_whitespace().collect()
 }
 
+fn integer(value: &Value) -> Result<i64> {
+    value
+        .as_i64()
+        .context("A wait trace number is not a 64-bit integer")
+}
+
+fn boolean(value: &Value) -> Result<bool> {
+    value
+        .as_bool()
+        .context("A wait trace flag is not a Boolean")
+}
+
+/// Writes one kernel-checked theorem per Swift trace, so the Lean model must draw the views that the Swift policy drew.
+fn wait_traces(contract: &Value) -> Result<String> {
+    let traces = contract["traces"]
+        .as_array()
+        .context("Missing wait traces")?;
+    ensure!(
+        traces.len() == WAIT_TRACE_COUNT,
+        "Unexpected wait trace inventory"
+    );
+    let mut output = String::from("import WaitDisplay\n\nnamespace Phonebook\n\n");
+    for (index, trace) in traces.iter().enumerate() {
+        let inputs = trace["inputs"].as_array().context("Missing trace inputs")?;
+        let views = trace["views"].as_array().context("Missing trace views")?;
+        ensure!(
+            !inputs.is_empty() && inputs.len() <= WAIT_TRACE_STEPS && inputs.len() == views.len(),
+            "A wait trace has the wrong number of steps"
+        );
+        let inputs = inputs
+            .iter()
+            .map(|input| {
+                Ok(format!(
+                    "⟨{}, {}, {}, {}, {}, {}⟩",
+                    integer(&input["now"])?,
+                    integer(&input["stage"])?,
+                    integer(&input["done"])?,
+                    integer(&input["total"])?,
+                    integer(&input["rows"])?,
+                    boolean(&input["complete"])?
+                ))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let views = views
+            .iter()
+            .map(|view| {
+                let line = view["line"].as_str().context("Missing trace line")?;
+                ensure!(WAIT_LINES.contains(&line), "Unknown wait line");
+                Ok(format!(
+                    "⟨.{line}, {}, {}, {}, {}, {}⟩",
+                    integer(&view["number"])?,
+                    integer(&view["changedAt"])?,
+                    integer(&view["shown"])?,
+                    boolean(&view["finished"])?,
+                    boolean(&view["fast"])?
+                ))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        writeln!(
+            output,
+            "theorem waitTrace{index} : views Wait.initial\n    [{}] =\n    [{}] := by decide\n\n#print axioms waitTrace{index}\n",
+            inputs.join(",\n     "),
+            views.join(",\n     ")
+        )?;
+    }
+    output.push_str("end Phonebook\n");
+    Ok(output)
+}
+
+/// The 1-based lines of a top-level theorem, from its name to the line before the next top-level text.
+fn theorem_span(source: &str, name: &str) -> Result<(usize, usize)> {
+    let lines = source.lines().collect::<Vec<_>>();
+    let start = lines
+        .iter()
+        .position(|line| {
+            line.strip_prefix("theorem ")
+                .is_some_and(|rest| rest.split([' ', ':']).next() == Some(name))
+        })
+        .with_context(|| format!("Missing theorem {name}"))?;
+    let end = lines
+        .iter()
+        .enumerate()
+        .skip(start + 1)
+        .find(|(_, line)| !line.is_empty() && !line.starts_with(' '))
+        .map_or(lines.len(), |(index, _)| index);
+    Ok((start + 1, end))
+}
+
+/// Accepts a failed build whose every error lies inside the expected theorem and refutes its arithmetic.
+fn defect_rejected(log: &str, module: &str, span: (usize, usize)) -> bool {
+    let prefix = format!("{module}.lean:");
+    let errors = log
+        .lines()
+        .filter_map(|line| {
+            let (_, located) = line.split_once(&prefix)?;
+            let (position, message) = located.split_once(": error")?;
+            let row = position.split(':').next()?.parse::<usize>().ok()?;
+            Some((row, message.to_owned()))
+        })
+        .collect::<Vec<_>>();
+    !errors.is_empty()
+        && errors
+            .iter()
+            .all(|(row, _)| (span.0..=span.1).contains(row))
+        && errors
+            .iter()
+            .any(|(_, message)| message.contains(ARITHMETIC_REFUTATION))
+}
+
+/// Plants one defect in the wait model and returns the changed model.
+fn planted(model: &str, original: &str, defect: &str) -> Result<String> {
+    ensure!(
+        model.matches(original).count() == 1,
+        "A planted defect must change exactly one place in the wait model"
+    );
+    Ok(model.replacen(original, defect, 1))
+}
+
 fn axioms_checked(log: &str) -> bool {
     let lines = log
         .lines()
@@ -196,6 +369,13 @@ pub fn run(root: &Path) -> Result<()> {
         normalize(&delta) == normalize(DELTA_SOURCE) && normalize(&delta) == DELTA_REFINEMENT,
         "The delta admission proof covers a different implementation"
     );
+    let wait = fs::read_to_string(root.join("ios/Sources/PhonebookCore/WaitDisplay.swift"))?;
+    ensure!(
+        normalize(&wait) == normalize(WAIT_SOURCE)
+            && crate::sha256_hex(normalize(&wait)) == WAIT_REFINEMENT_SHA256,
+        "The wait display proof covers a different implementation; recheck verification/ios/WaitDisplay.lean"
+    );
+    let wait_contract: Value = serde_json::from_slice(&fs::read(root.join(WAIT_CONTRACT))?)?;
     let contract: Value = serde_json::from_slice(&fs::read(
         root.join("ios/Tests/PhonebookCoreTests/PublicationContract.json"),
     )?)?;
@@ -213,6 +393,15 @@ pub fn run(root: &Path) -> Result<()> {
         );
         fs::write(directory.join(format!("{module}.lean")), contents)?;
     }
+    let wait_model = fs::read_to_string(root.join("verification/ios/WaitDisplay.lean"))?;
+    ensure!(
+        wait_model == WAIT_MODEL,
+        "The wait model changed after this checker was built"
+    );
+    fs::write(
+        directory.join(format!("{WAIT_TRACES}.lean")),
+        wait_traces(&wait_contract)?,
+    )?;
     logged(
         root,
         "lean-image",
@@ -251,7 +440,10 @@ pub fn run(root: &Path) -> Result<()> {
         "Unexpected Lean version"
     );
     let mut proofs = String::new();
-    for module in std::iter::once("PublicationModel").chain(PROOF_MODULES) {
+    for module in std::iter::once("PublicationModel")
+        .chain(PROOF_MODULES)
+        .chain(std::iter::once(WAIT_TRACES))
+    {
         let result = logged(
             root,
             &format!("lean-{module}"),
@@ -291,17 +483,46 @@ pub fn run(root: &Path) -> Result<()> {
             "The {claim} did not fail at its proof"
         );
     }
+    for (module, original, defect, theorem) in PLANTED_DEFECTS {
+        let mutated = planted(&wait_model, original, defect)?;
+        let span = theorem_span(&mutated, theorem)?;
+        fs::write(directory.join(format!("{module}.lean")), mutated)?;
+        let negative = lean(root, &image, relative, module).output()?;
+        let negative_log = format!(
+            "{}{}",
+            String::from_utf8_lossy(&negative.stdout),
+            String::from_utf8_lossy(&negative.stderr)
+        );
+        fs::write(
+            root.join(format!("target/ios/lean-negative-{module}.log")),
+            &negative_log,
+        )?;
+        ensure!(
+            !negative.status.success() && defect_rejected(&negative_log, module, span),
+            "The planted defect {module} did not fail inside {theorem}"
+        );
+    }
     require_current_sources(root, &sources)?;
+    let controls = FALSE_CLAIMS
+        .iter()
+        .map(|(_, _, claim)| format!("{claim} rejected"))
+        .chain(
+            PLANTED_DEFECTS
+                .iter()
+                .map(|(module, _, _, theorem)| format!("{module} rejected by {theorem}")),
+        )
+        .collect::<Vec<_>>();
     fs::write(
         receipt,
         serde_json::to_vec_pretty(
-            &json!({"result":"passed", "lean":"4.34.1", "image":image, "theorems":THEOREMS, "proof_bundle":relative, "kernel_replay":"fresh for all four modules", "negative_controls":FALSE_CLAIMS.map(|(_, _, claim)| format!("{claim} rejected")), "refinement":"native exhaustive 25-transition check required by ios-check; exact guarded Int64 arithmetic expression; exact delta admission and copy guard source", "source_sha256":source_records(&sources)}),
+            &json!({"result":"passed", "lean":"4.34.1", "image":image, "theorems":THEOREMS, "proof_bundle":relative, "kernel_replay":"fresh for all six modules", "negative_controls":controls, "refinement":"native exhaustive 25-transition check required by ios-check; exact guarded Int64 arithmetic expression; exact delta admission and copy guard source; wait policy source digest and ten Swift traces replayed by the Lean model", "source_sha256":source_records(&sources)}),
         )?,
     )?;
     println!(
-        "PASS: {} Lean theorems, fresh kernel replay, {} false-claim rejections, source-bound receipt",
+        "PASS: {} Lean theorems, {WAIT_TRACE_COUNT} replayed Swift traces, fresh kernel replay, {} false-claim and {} planted-defect rejections, source-bound receipt",
         THEOREMS.len(),
-        FALSE_CLAIMS.len()
+        FALSE_CLAIMS.len(),
+        PLANTED_DEFECTS.len()
     );
     Ok(())
 }
@@ -309,6 +530,89 @@ pub fn run(root: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_wait_proof_names_the_compiled_swift_policy() {
+        assert_eq!(
+            crate::sha256_hex(whitespace_free(WAIT_SOURCE)),
+            WAIT_REFINEMENT_SHA256
+        );
+        assert_ne!(
+            crate::sha256_hex(whitespace_free(&WAIT_SOURCE.replacen(
+                "static let lineHoldMs = 1_000",
+                "static let lineHoldMs = 999",
+                1
+            ))),
+            WAIT_REFINEMENT_SHA256
+        );
+    }
+
+    #[test]
+    fn wait_traces_replay_only_wellformed_contracts() -> Result<()> {
+        let valid: Value = serde_json::from_str(include_str!(
+            "../../../../ios/Tests/PhonebookCoreTests/WaitContract.json"
+        ))?;
+        let generated = wait_traces(&valid)?;
+        assert_eq!(generated.matches(":= by decide").count(), WAIT_TRACE_COUNT);
+        assert!(generated.contains("theorem waitTrace0 : views Wait.initial"));
+        for (path, value) in [
+            ("/traces/0/inputs/0/now", json!(1.5)),
+            (
+                "/traces/0/inputs/0/now",
+                json!(18_446_744_073_709_551_615_u64),
+            ),
+            ("/traces/0/inputs/0/complete", json!(1)),
+            ("/traces/0/views/0/line", json!("countdown⟩] := by sorry\n")),
+            ("/traces/0/views/0/number", json!("7")),
+        ] {
+            let mut invalid = valid.clone();
+            *invalid.pointer_mut(path).context("Test path")? = value;
+            assert!(wait_traces(&invalid).is_err(), "{path} was accepted");
+        }
+        let mut short = valid.clone();
+        short["traces"].as_array_mut().context("Test traces")?.pop();
+        assert!(wait_traces(&short).is_err());
+        let mut uneven = valid;
+        uneven["traces"][0]["views"]
+            .as_array_mut()
+            .context("Test views")?
+            .pop();
+        assert!(wait_traces(&uneven).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn planted_defects_change_one_place_and_name_a_real_theorem() -> Result<()> {
+        for (_, original, defect, theorem) in PLANTED_DEFECTS {
+            let mutated = planted(WAIT_MODEL, original, defect)?;
+            assert_ne!(mutated, WAIT_MODEL);
+            let (start, end) = theorem_span(&mutated, theorem)?;
+            assert!(start < end);
+        }
+        assert!(planted(WAIT_MODEL, "theorem", "lemma").is_err());
+        assert!(theorem_span(WAIT_MODEL, "missingTheorem").is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn defect_rejection_requires_an_arithmetic_failure_inside_the_theorem() {
+        let refuted = "x/WaitHurriedLine.lean:356:44: error: omega could not prove the goal:";
+        assert!(defect_rejected(refuted, "WaitHurriedLine", (339, 362)));
+        assert!(!defect_rejected(refuted, "WaitHurriedLine", (300, 338)));
+        assert!(!defect_rejected(
+            "x/WaitHurriedLine.lean:356:44: error: unknown identifier",
+            "WaitHurriedLine",
+            (339, 362)
+        ));
+        assert!(!defect_rejected(
+            &format!(
+                "{refuted}\nx/WaitHurriedLine.lean:12:1: error: omega could not prove the goal:"
+            ),
+            "WaitHurriedLine",
+            (339, 362)
+        ));
+        assert!(!defect_rejected("", "WaitHurriedLine", (339, 362)));
+    }
 
     #[test]
     fn incomplete_or_injected_models_are_rejected() -> Result<()> {

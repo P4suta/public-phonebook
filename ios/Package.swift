@@ -14,7 +14,7 @@ let package = Package(
     .target(name: "PhonebookKit", dependencies: ["PhonebookCore", "CSQLite"]),
     .testTarget(
       name: "PhonebookCoreTests", dependencies: ["PhonebookCore"],
-      resources: [.copy("PublicationContract.json")]),
+      resources: [.copy("PublicationContract.json"), .copy("WaitContract.json")]),
     .testTarget(
       name: "PhonebookKitTests", dependencies: ["PhonebookKit"],
       resources: [.copy("DirectoryContract.json")]),

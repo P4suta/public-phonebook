@@ -7,7 +7,7 @@ A user study would need to establish recognition of that meaning.
 The mark uses black and white and has separate optical drawings for small favicons.
 
 `design/icons.json` records each exported SVG's Figma node, dimensions, SHA-256 digest, category mapping, and native resource name.
-The checked-in sources comprise 92 product icons and 16 brand variants.
+The checked-in sources comprise 93 product icons and 16 brand variants.
 Production uses an unbadged app icon for both App Store and TestFlight.
 Development and verification builds use `DEV` and `QA` badges in all three appearances.
 The product icons keep their [Lucide and Feather notices](../design/licenses/Lucide.txt).

@@ -1,5 +1,6 @@
 export const httpStatus = {
   ok: 200,
+  partialContent: 206,
   movedPermanently: 301,
   seeOther: 303,
   notModified: 304,
@@ -9,6 +10,7 @@ export const httpStatus = {
   methodNotAllowed: 405,
   notAcceptable: 406,
   conflict: 409,
+  rangeNotSatisfiable: 416,
   unavailable: 503,
 } as const;
 

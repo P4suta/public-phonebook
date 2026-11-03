@@ -120,7 +120,7 @@ public struct APIClient: Sendable {
     }
   }
 
-  public func get(_ link: String) async throws -> HTTPResult {
+  public func get(_ link: String, paths: NetworkPaths = .every) async throws -> HTTPResult {
     let operation = TraceContext.operation ?? UUID()
     trace.record(TraceEvent(operation: operation, phase: .request, outcome: .started))
     do {
@@ -129,6 +129,7 @@ public struct APIClient: Sendable {
       var request = URLRequest(url: try resolve(link))
       request.timeoutInterval = 30
       request.setValue("application/json", forHTTPHeaderField: "Accept")
+      paths.apply(to: &request)
       let result = try await transport.send(request)
       try Task.checkCancellation()
       try await checkResponse(result.response)
@@ -195,8 +196,8 @@ public struct APIClient: Sendable {
   }
 
   /// Reads the dataset listing and picks the one archive in the format that this app imports.
-  public func datasets() async throws -> DatasetListing {
-    let response = try await get("/api/datasets")
+  public func datasets(paths: NetworkPaths = .every) async throws -> DatasetListing {
+    let response = try await get("/api/datasets", paths: paths)
     let listing = try JSONDecoder().decode(DirectoryDatasets.self, from: response.data)
     try validateIdentity(listing.snapshot, response: response.response)
     if let deltas = listing.datasetDeltas {
@@ -216,8 +217,10 @@ public struct APIClient: Sendable {
   }
 
   /// Lists the deltas in this app's format to the current archive, each bound to its base, file name, and immutable URL.
-  public func directoryDeltas(link: String) async throws -> [DatasetDelta] {
-    let response = try await get(link)
+  public func directoryDeltas(link: String, paths: NetworkPaths = .every) async throws
+    -> [DatasetDelta]
+  {
+    let response = try await get(link, paths: paths)
     let listing = try JSONDecoder().decode(DirectoryDeltaListing.self, from: response.data)
     try validateIdentity(listing.snapshot, response: response.response)
     try validateLink(link, snapshot: listing.snapshot)
@@ -241,51 +244,73 @@ public struct APIClient: Sendable {
     "/api/datasets/\(snapshot.rawValue)/\(sha256.rawValue)/\(file)"
   }
 
+  /// Downloads a dataset file into `partials`, keeps the received bytes after a failure, and resumes them with a Range request.
+  /// The returned file passed the listed length and SHA-256 over all its bytes, and the caller removes it once it no longer needs it.
+  /// Without `partials`, the download starts in a new temporary directory and resumes nothing.
   public func download(
-    _ archive: some DatasetFile, progress: @escaping @Sendable (Double) -> Void = { _ in }
+    _ archive: some DatasetFile, paths: NetworkPaths = .every, partials: URL? = nil,
+    progress: @escaping @Sendable (TransferProgress) -> Void = { _ in }
   ) async throws -> URL {
     let operation = TraceContext.operation ?? UUID()
     trace.record(TraceEvent(operation: operation, phase: .download, outcome: .started))
     do {
       try Task.checkCancellation()
       try await retryWindow.check(at: now())
-      let configuration = URLSessionConfiguration.ephemeral
-      configuration.httpShouldSetCookies = false
-      configuration.httpCookieStorage = nil
-      configuration.urlCredentialStorage = nil
-      configuration.timeoutIntervalForResource = 900
-      configuration.timeoutIntervalForRequest = 30
-      let observer = DownloadObserver(expected: archive.bytes, progress: progress)
-      let session = URLSession(configuration: configuration, delegate: observer, delegateQueue: nil)
-      defer { session.finishTasksAndInvalidate() }
       let requested = try resolve(archive.link)
       guard requested.query == nil, requested.path == archive.link else {
         throw ServiceError.invalidResponse
       }
+      let directory =
+        partials
+        ?? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+      let lock = try TransferLock(url: directory.appendingPathComponent(TransferLock.name))
+      defer { lock.release() }
+      let partial = directory.appendingPathComponent(
+        "\(archive.snapshot.rawValue)-\(archive.sha256.rawValue).partial")
+      // A changed snapshot or digest names a different file, so the bytes of every other file go.
+      for item in try FileManager.default.contentsOfDirectory(
+        at: directory, includingPropertiesForKeys: nil)
+      where item.lastPathComponent != partial.lastPathComponent
+        && item.lastPathComponent != TransferLock.name
+      {
+        try FileManager.default.removeItem(at: item)
+      }
+      if !FileManager.default.fileExists(atPath: partial.path) {
+        try Data().write(to: partial, options: .withoutOverwriting)
+      }
+      var offset = try Self.size(of: partial)
+      if offset >= archive.bytes {
+        if offset == archive.bytes,
+          try DatasetArchive.digest(of: partial) == archive.sha256.rawValue
+        {
+          progress(TransferProgress(resumed: offset, received: 0, total: archive.bytes))
+          trace.record(TraceEvent(operation: operation, phase: .download, outcome: .completed))
+          return partial
+        }
+        try Data().write(to: partial)
+        offset = 0
+      }
       var request = URLRequest(url: requested)
       request.setValue(DatasetArchive.mimeType, forHTTPHeaderField: "Accept")
-      let (temporary, response) = try await session.download(for: request, delegate: observer)
-      do {
-        guard let response = response as? HTTPURLResponse else {
-          throw ServiceError.invalidResponse
-        }
+      if offset > 0 { request.setValue("bytes=\(offset)-", forHTTPHeaderField: "Range") }
+      paths.apply(to: &request)
+      let transfer = DatasetTransfer(
+        partial: partial, offset: offset, expected: archive.bytes, snapshot: archive.snapshot,
+        progress: progress)
+      if let response = try await transfer.run(request) {
+        if response.statusCode == 416 { try Data().write(to: partial) }
         try await checkResponse(response)
-        try Task.checkCancellation()
-        let size = try temporary.resourceValues(forKeys: [.fileSizeKey]).fileSize
-        guard response.value(forHTTPHeaderField: "X-Dataset-Snapshot") == archive.snapshot.rawValue,
-          response.mimeType == DatasetArchive.mimeType,
-          response.value(forHTTPHeaderField: "Content-Encoding") == nil, size == archive.bytes,
-          try DatasetArchive.digest(of: temporary) == archive.sha256.rawValue
-        else { throw ServiceError.invalidResponse }
-        let retained = FileManager.default.temporaryDirectory.appendingPathComponent(
-          UUID().uuidString)
-        try FileManager.default.moveItem(at: temporary, to: retained)
-        trace.record(TraceEvent(operation: operation, phase: .download, outcome: .completed))
-        return retained
-      } catch {
-        try? FileManager.default.removeItem(at: temporary)
-        throw error
+        throw ServiceError.http(response.statusCode)
       }
+      try Task.checkCancellation()
+      guard try Self.size(of: partial) == archive.bytes else { throw ServiceError.invalidResponse }
+      guard try DatasetArchive.digest(of: partial) == archive.sha256.rawValue else {
+        try Data().write(to: partial)
+        throw ServiceError.invalidResponse
+      }
+      trace.record(TraceEvent(operation: operation, phase: .download, outcome: .completed))
+      return partial
     } catch {
       let failure: any Error = Task.isCancelled ? CancellationError() : error
       trace.record(
@@ -294,6 +319,33 @@ public struct APIClient: Sendable {
           outcome: failure is CancellationError ? .cancelled : .rejected))
       throw failure
     }
+  }
+
+  /// Reads the size from the file system each time, because a URL caches its resource values.
+  private static func size(of url: URL) throws -> Int {
+    let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+    return (attributes[.size] as? NSNumber)?.intValue ?? 0
+  }
+}
+
+/// Holds an exclusive advisory lock on one transfer directory, so two downloads never write the same partial file.
+private final class TransferLock: Sendable {
+  static let name = "transfer.lock"
+  private let descriptor: Int32
+
+  init(url: URL) throws {
+    let descriptor = open(url.path, O_CREAT | O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR)
+    guard descriptor >= 0 else { throw ImportError.unavailableStorage }
+    guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else {
+      close(descriptor)
+      throw ImportError.alreadyUpdating
+    }
+    self.descriptor = descriptor
+  }
+
+  func release() {
+    flock(descriptor, LOCK_UN)
+    close(descriptor)
   }
 }
 
@@ -307,36 +359,4 @@ private actor RetryWindow {
   func record(_ date: Date?) {
     if let date { earliest = max(earliest ?? date, date) }
   }
-}
-
-private final class DownloadObserver: NSObject, URLSessionDownloadDelegate, Sendable {
-  private let expected: Int
-  private let progress: @Sendable (Double) -> Void
-
-  init(expected: Int, progress: @escaping @Sendable (Double) -> Void) {
-    self.expected = expected
-    self.progress = progress
-  }
-
-  func urlSession(
-    _ session: URLSession, task: URLSessionTask,
-    willPerformHTTPRedirection response: HTTPURLResponse,
-    newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void
-  ) { completionHandler(nil) }
-
-  func urlSession(
-    _ session: URLSession, downloadTask: URLSessionDownloadTask,
-    didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64
-  ) {
-    if totalBytesWritten > expected || totalBytesExpectedToWrite > expected {
-      downloadTask.cancel()
-      return
-    }
-    progress(Double(totalBytesWritten) / Double(max(expected, 1)))
-  }
-
-  func urlSession(
-    _ session: URLSession, downloadTask: URLSessionDownloadTask,
-    didFinishDownloadingTo location: URL
-  ) {}
 }

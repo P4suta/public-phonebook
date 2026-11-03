@@ -46,7 +46,11 @@ import {
   directoryDatabase,
   searchSelection,
 } from "../../src/server/database.ts";
-import type { DatasetObject } from "../../src/server/datasets.ts";
+import type {
+  DatasetByteRange,
+  DatasetObject,
+  DatasetObjectMetadata,
+} from "../../src/server/datasets.ts";
 import type { SearchCache } from "../../src/server/search-cache.ts";
 import { databaseSchema } from "../../tools/database-schema.ts";
 import { contactSeedStatements } from "../../tools/directory-fixture.ts";
@@ -131,8 +135,18 @@ beforeAll(async () => {
   bindings = {
     DB,
     DATASETS: {
-      async get(key: string): Promise<DatasetObject | null> {
-        const object = await bucket.get(key, {});
+      async head(key: string): Promise<DatasetObjectMetadata | null> {
+        const object = await bucket.head(key);
+        return object && { size: object.size, httpEtag: object.httpEtag };
+      },
+      async get(
+        key: string,
+        options?: { readonly range?: DatasetByteRange },
+      ): Promise<DatasetObject | null> {
+        const object = await bucket.get(
+          key,
+          options?.range ? { range: options.range } : {},
+        );
         if (!object || !("body" in object)) return null;
         const reader = object.body.getReader();
         const chunks: Uint8Array[] = [];

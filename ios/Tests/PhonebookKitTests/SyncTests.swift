@@ -56,8 +56,8 @@ private func synchronizationPublishesOnlyCompleteValidatedArchives(_ mode: SyncF
   let reported = ProgressLog()
   let operation = Task {
     try await engine.synchronize { value in
-      await reported.append(value)
-      if mode == .cancellation, value > 0 { withUnsafeCurrentTask { $0?.cancel() } }
+      await reported.append(value.fraction)
+      if mode == .cancellation, value.fraction > 0 { withUnsafeCurrentTask { $0?.cancel() } }
     }
   }
   if mode == .valid {
@@ -117,7 +117,7 @@ private func batchedServer(rows: Int) async throws -> HTTPTestServer {
   let engine = SyncEngine(
     api: try APIClient(origin: server.origin), store: try SnapshotStore(root: root))
   let reported = ProgressLog()
-  let manifest = try await engine.synchronize { await reported.append($0) }
+  let manifest = try await engine.synchronize { await reported.append($0.fraction) }
   #expect(manifest.records == rows)
   // Transfer updates never exceed the download share, so every larger value comes from saving.
   let saving = await reported.values.filter { $0 > SyncEngine.downloadShare }
@@ -139,7 +139,7 @@ private func batchedServer(rows: Int) async throws -> HTTPTestServer {
   let engine = SyncEngine(api: try APIClient(origin: server.origin), store: store)
   let operation = Task {
     try await engine.synchronize { value in
-      if value > SyncEngine.downloadShare { withUnsafeCurrentTask { $0?.cancel() } }
+      if value.fraction > SyncEngine.downloadShare { withUnsafeCurrentTask { $0?.cancel() } }
     }
   }
   await #expect(throws: CancellationError.self) { try await operation.value }

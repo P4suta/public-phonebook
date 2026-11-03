@@ -156,6 +156,14 @@
       "sha256": "f0d3065b02d11412c4892f78e5117fe306116c9f2c8733f5a32c84675c9c6feb"
     },
     {
+      "name": "circle-half-filled",
+      "kind": "icon",
+      "nodeId": "552:1776",
+      "width": 24,
+      "height": 24,
+      "sha256": "a96febbe8353aa69899c1c0a6ca85a08ad57cb2f6faf62df14ce860c830b886f"
+    },
+    {
       "name": "clipboard-list",
       "kind": "icon",
       "nodeId": "191:420",

@@ -56,7 +56,7 @@ const RUNTIME: &str = "com.apple.CoreSimulator.SimRuntime.iOS-27-0";
 const DEVICE_TYPE: &str = "com.apple.CoreSimulator.SimDeviceType.iPhone-17";
 const DEVICE_NAME: &str = "Public Phonebook Checks";
 const LIVE_UI_TEST: &str = "testLivePublicDirectorySearchAndSource";
-const UI_TESTS: [&str; 13] = [
+const UI_TESTS: [&str; 16] = [
     "testOnboardingSavesTheDirectoryBeforeSearch",
     "testSearchGroupsResultsAndShowsMore",
     "testTelephoneSearchFindsEveryRecordForTheNumber",
@@ -66,12 +66,15 @@ const UI_TESTS: [&str; 13] = [
     "testCallerPromptAppearsOnlyWhileCallerNamesAreOff",
     "testPortraitLandscapeRoundTrip",
     "testBackgroundForegroundPreservesSearchAndDetail",
+    "testFirstDownloadWaitsForTheStartButton",
+    "testFirstDownloadShowsItsStepsWhileReceiving",
+    "testFirstDownloadResumesAfterAWeakSignalAndAStop",
     "testDirectoryFailureRecoversWithoutATap",
     "testFailedAutomaticUpdateKeepsTheSavedDirectory",
     "testLandscapeLargeTextSettings",
     "testAboutStaysInTheAppAndLicenseIsReadable",
 ];
-const REQUIRED_TESTS: [&str; 44] = [
+const REQUIRED_TESTS: [&str; 52] = [
     "currentProviderArchiveImportsTheNationalDirectory",
     "providerArchiveSavesTheExpectedGenerationContent",
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
@@ -116,6 +119,14 @@ const REQUIRED_TESTS: [&str; 44] = [
     "everyDeltaFaultIsRejectedBeforeStaging",
     "synchronizationAppliesDeltasAndFallsBackToTheCompleteArchive",
     "currentProviderDeltaRebuildsTheUpdatedArchive",
+    "everyWaitTraceRefinesTheProofContract",
+    "waitPromisesHoldOnSeededRandomTraces",
+    "waitArithmeticStaysWithinInt64AtTheClampedExtremes",
+    "anInterruptedDownloadResumesWithARangeRequest",
+    "aServerThatIgnoresTheRangeRestartsTheFile",
+    "aChangedSnapshotOrDigestDiscardsTheKeptBytes",
+    "aWrongContentRangeOrAnUnsatisfiableRangeKeepsNoBadBytes",
+    "synchronizationResumesTheBytesOfAFailedAttempt",
 ];
 const SCOPE: [&str; 19] = [
     "ios",

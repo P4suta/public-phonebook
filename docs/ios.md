@@ -19,19 +19,35 @@ Override PHONEBOOK_API_ORIGIN only for an explicitly selected test build.
 The generator inspects all six actual Xcode configurations and rejects missing or incorrect environment fields.
 
 The app keeps the whole national directory on the device.
-The first launch opens a setup flow that saves the directory and then explains caller identification, which the reader can turn on or postpone.
+The first launch opens a setup flow that starts the download when the reader presses the start button, explains caller identification, and then waits for the data.
+Over that button, a notice names the listed size rounded up to whole megabytes and suggests a fast connection.
+Without the listing, the notice names the 14 MB of the archive on 2026-11-04.
+The notice turns bold with the info icon on an expensive or constrained path, which `NWPathMonitor` reports.
+A relaunch after the start button continues the download without another press.
 The app adds nothing to the Contacts app, and deleting the app removes everything it saved.
 The app reads `/api/datasets` and picks the one file whose `format` is `public-phonebook-directory/1`, and it skips entries in other formats unread.
 When the listing has no file in that format, the app asks the reader to update it.
-It downloads that `directory.tsv.br` in one request and accepts it only when its length, SHA-256 digest, and snapshot header match the listing.
+It downloads that `directory.tsv.br` and accepts it only when its length, the SHA-256 digest of the whole file, and its snapshot header match the listing.
+The received bytes stay in the store's `transfers` directory after a failure or suspension, and the next attempt asks for the rest with a Range request.
+A 206 reply must start at the kept length and end at the listed length, a 200 reply starts the file again, and a 416 reply discards the kept bytes.
+A changed snapshot or digest names a different file, so the app discards the kept bytes of every other file.
+The app removes the file once its generation activates, and a file lock keeps two downloads from writing it at once.
 It decodes the Brotli stream with the system Compression framework and validates the signature, the header dictionaries, every row, the byte order of the rows, and the per-prefecture counts.
 It saves the rows in a new SQLite generation with a file of normalized names and a file of row categories, and activates the generation atomically.
 The store saves one batch of 1,000 rows while the reader parses the next batch, and it saves the batches in archive order.
 A failed or cancelled import keeps the existing generation, and the current and previous generations remain readable.
 An import that ends with the app process leaves the active generation in place, and the next save removes the unfinished files.
-The app saves over Wi-Fi and cellular networks, shows only the saved percentage, and updates about once a month.
-The percentage follows the transfer up to 40 percent and then the saved share of the archive's rows up to 95 percent.
-The last 5 percent covers the number table, the caller file, COMMIT, fsync, and activation.
+The first download uses any network path.
+Monthly updates stay silent and use only paths that are neither expensive nor constrained, through `allowsExpensiveNetworkAccess` and `allowsConstrainedNetworkAccess`.
+While the first download runs, the ready step and the search start screen show one heading, one bar, and three steps.
+The steps are receiving the data, preparing the search, and preparing caller names.
+The bar follows the transfer up to 40 percent and then the saved share of the archive's rows up to 95 percent.
+The last 5 percent covers the number table, the caller file, COMMIT, fsync, and activation, and the bar never falls, even across retries.
+The percentage stays in the accessibility value and out of sight.
+`PhonebookCore.WaitDisplay` decides the line under the current step, and [its decision record](adr/count-the-first-download-down-toward-a-deadline-that-only-moves-earlier.md) states its rules and thresholds.
+VoiceOver hears the start, a weak signal, a stop, and the end, and nothing for each step or second.
+A stopped first download names its automatic retry, which follows `DownloadSchedule.retryDelays`.
+The app transfers in the foreground, so it shows no background transfer line, and a suspended transfer resumes when the reader returns.
 The directory trace reports the milliseconds of decompression, parsing, row insertion, the number table, the caller file, COMMIT, and fsync for every import.
 Parsing and row insertion overlap, so their durations add up to more than the time between the start of staging and the end of decoding.
 
@@ -86,6 +102,7 @@ No commit, push, or pull request starts the Assurance workflow.
 The manual TestFlight workflow runs all four campaigns for one `main` commit before it signs and uploads that commit.
 
 The full UI harness creates and erases its own simulator and reinstalls the app for every scenario.
+Its proxy forwards Range requests and can drip or stall a reply, so the scenarios reach the receiving steps, a weak signal, and a resumed transfer.
 It turns off slide-to-type and its introduction, because that introduction can cover the screen under test.
 The UI and screenshot commands shut that simulator down when they return, including after a failed scenario.
 An interrupted command leaves it booted, so run `xcrun simctl shutdown all` afterward.

@@ -25,6 +25,7 @@ const httpOk = 200;
 const httpServerError = 500;
 const commandArgumentOffset = 2;
 const corpusDestination = "ios/Tests/PhonebookKitTests/DirectoryContract.json";
+const forwardedHeaders = ["range", "if-range", "if-none-match"] as const;
 
 interface ContractResponse {
   readonly revision: FixtureRevision;
@@ -150,8 +151,15 @@ async function serve(): Promise<void> {
           !loopbackHostnames.includes(parsed.hostname))
       )
         throw new Error("Invalid fixture origin");
+      const headers = new Headers();
+      // Resumed downloads send these, so the fixture answers them like the Worker.
+      for (const name of forwardedHeaders) {
+        const value = incoming.headers[name];
+        if (typeof value === "string") headers.set(name, value);
+      }
       const request = new Request(new URL(incoming.url ?? "/", origin), {
         method: incoming.method ?? "GET",
+        headers,
         signal: controller.signal,
       });
       const response = await fixture.fetch(request);
