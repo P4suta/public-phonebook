@@ -4,7 +4,7 @@ use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fmt::Write as _, fs, path::Path, process::Command};
 
-const THEOREMS: [&str; 32] = [
+const THEOREMS: [&str; 41] = [
     "activeAbsorbsEveryEvent",
     "activeSurvivesEveryFiniteTrace",
     "uncertainAbortRetainsData",
@@ -37,6 +37,15 @@ const THEOREMS: [&str; 32] = [
     "stepsStayForTheirHold",
     "aFastRunGoesStraightToDone",
     "estimateProductsFitInt64",
+    "extraGoesFirstExactlyBelow",
+    "extraReplacesExactlyTheSameNumber",
+    "nationalPassesExactlyBelowTheExtra",
+    "withoutAnExtraTheNationalEntriesPassUnchanged",
+    "mergedEntriesComeFromTheExtraOrTheNationalFile",
+    "theExtraEntryIsAlwaysMerged",
+    "otherNumbersKeepTheirNationalEntries",
+    "mergedCallersStayAscending",
+    "theExtraLabelWinsItsNumber",
 ];
 const WAIT_SOURCE: &str = include_str!("../../../../ios/Sources/PhonebookCore/WaitDisplay.swift");
 /// The SHA-256 of the whitespace-free Swift policy that `verification/ios/WaitDisplay.lean` models function for function.
@@ -83,14 +92,19 @@ const DELTA_SOURCE: &str =
     include_str!("../../../../ios/Sources/PhonebookCore/DeltaAdmission.swift");
 /// The Swift delta decision that `verification/ios/DeltaAdmission.lean` models, without whitespace.
 const DELTA_REFINEMENT: &str = "publicenumDeltaAdmission:String,CaseIterable,Sendable{caseapply,baseMismatch,malformed,countMismatch,lengthMismatch,digestMismatchpublicstaticfuncdecide(baseMatches:Bool,wellFormed:Bool,rows:Int,expectedRows:Int,bytes:Int,expectedBytes:Int,digestMatches:Bool)->Self{if!baseMatches{return.baseMismatch}if!wellFormed{return.malformed}ifrows!=expectedRows{return.countMismatch}ifbytes!=expectedBytes{return.lengthMismatch}if!digestMatches{return.digestMismatch}return.apply}publicstaticfuncadmitsCopy(start:Int,count:Int,baseRows:Int)->Bool{start>=0&&count>=1&&count<=baseRows&&start<=baseRows-count}}";
-const PROOF_MODULES: [&str; 4] = [
+const CALLER_MERGE_SOURCE: &str =
+    include_str!("../../../../ios/Sources/PhonebookCore/CallerMerge.swift");
+/// The Swift merge decision that `verification/ios/CallerMerge.lean` models, without whitespace.
+const CALLER_MERGE_REFINEMENT: &str = "publicenumCallerMerge:String,CaseIterable,Sendable{casenational,extraFirst,extraReplacespublicstaticfuncdecide(extra:Int64,national:Int64)->Self{ifextra<national{return.extraFirst}ifextra==national{return.extraReplaces}return.national}}";
+const PROOF_MODULES: [&str; 5] = [
     "Publication",
     "ReceiveBudget",
     "DeltaAdmission",
     "WaitDisplay",
+    "CallerMerge",
 ];
 /// Each false claim must fail at its proof on line 2, which shows that the kernel checks that model.
-const FALSE_CLAIMS: [(&str, &str, &str); 2] = [
+const FALSE_CLAIMS: [(&str, &str, &str); 3] = [
     (
         "FalseClaim",
         "import PublicationModel\nexample : Phonebook.step .active .abort = .discarded := by rfl\n",
@@ -100,6 +114,11 @@ const FALSE_CLAIMS: [(&str, &str, &str); 2] = [
         "FalseDeltaClaim",
         "import DeltaAdmission\nexample : Phonebook.decideDelta true true 1 1 1 1 false = .apply := by rfl\n",
         "false digest-mismatch admission",
+    ),
+    (
+        "FalseCallerMergeClaim",
+        "import CallerMerge\nexample : Phonebook.decideMerge 1 1 = .national := by rfl\n",
+        "false shared-number national label",
     ),
 ];
 const IDENTIFIER_LIMIT: usize = 32;
@@ -369,6 +388,12 @@ pub fn run(root: &Path) -> Result<()> {
         normalize(&delta) == normalize(DELTA_SOURCE) && normalize(&delta) == DELTA_REFINEMENT,
         "The delta admission proof covers a different implementation"
     );
+    let merge = fs::read_to_string(root.join("ios/Sources/PhonebookCore/CallerMerge.swift"))?;
+    ensure!(
+        normalize(&merge) == normalize(CALLER_MERGE_SOURCE)
+            && normalize(&merge) == CALLER_MERGE_REFINEMENT,
+        "The caller merge proof covers a different implementation"
+    );
     let wait = fs::read_to_string(root.join("ios/Sources/PhonebookCore/WaitDisplay.swift"))?;
     ensure!(
         normalize(&wait) == normalize(WAIT_SOURCE)
@@ -515,7 +540,7 @@ pub fn run(root: &Path) -> Result<()> {
     fs::write(
         receipt,
         serde_json::to_vec_pretty(
-            &json!({"result":"passed", "lean":"4.34.1", "image":image, "theorems":THEOREMS, "proof_bundle":relative, "kernel_replay":"fresh for all six modules", "negative_controls":controls, "refinement":"native exhaustive 25-transition check required by ios-check; exact guarded Int64 arithmetic expression; exact delta admission and copy guard source; wait policy source digest and ten Swift traces replayed by the Lean model", "source_sha256":source_records(&sources)}),
+            &json!({"result":"passed", "lean":"4.34.1", "image":image, "theorems":THEOREMS.as_slice(), "proof_bundle":relative, "kernel_replay":"fresh for all seven modules", "negative_controls":controls, "refinement":"native exhaustive 25-transition check required by ios-check; exact guarded Int64 arithmetic expression; exact delta admission and copy guard source; wait policy source digest and ten Swift traces replayed by the Lean model; exact caller merge decision source, with the streamed merge checked by seeded Swift tests against a transcription of the Lean merge", "source_sha256":source_records(&sources)}),
         )?,
     )?;
     println!(
@@ -634,6 +659,18 @@ mod tests {
             "'Phonebook.activeNeverPermitsDiscard' depends on axioms: [forged]"
         ));
         Ok(())
+    }
+
+    #[test]
+    fn the_caller_merge_proof_names_the_compiled_swift_decision() {
+        assert_eq!(
+            whitespace_free(CALLER_MERGE_SOURCE),
+            CALLER_MERGE_REFINEMENT
+        );
+        assert_ne!(
+            whitespace_free(&CALLER_MERGE_SOURCE.replace("extra == national", "extra <= national")),
+            CALLER_MERGE_REFINEMENT
+        );
     }
 
     #[test]

@@ -34,6 +34,7 @@ Later work removed the API explorer frames `202:1073` and `203:594`.
 | Earlier design notes | [Archive](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=258-852) |
 | iPhone app screens | [Current iPhone app](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=468-1283) |
 | iPhone app component masters | [iPhone app components](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=468-1284) |
+| iPhone QA build screens | [QA screens](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=563-2290) |
 | Brand marks, app icons, and the icon library | [Brand & icons](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=316-1010) |
 
 Current desktop viewports are 1440 by 900 pixels.
@@ -41,7 +42,8 @@ Current mobile viewports are 390 by 844 pixels, with a 320 by 900 compact exampl
 Current iPhone app viewports are 393 by 852 points.
 Long data and result content remains inside vertically scrolling viewports.
 The 27 current web screens use symmetric content gutters.
-The 13 current iPhone screens span the full width, and their content frames set the side margins.
+The 13 current iPhone screens and the two QA build screens span the full width, and their content frames set the side margins.
+The QA section holds the verification screen and its search result from the VerificationDebug and VerificationRelease builds.
 The two external-link confirmation screens center the dialog component on an opaque white page.
 Archived notes and earlier state studies preserve historical decisions and do not govern the current interface.
 
@@ -51,7 +53,7 @@ It measures an untruncated copy of each text node at its original width, then re
 It checks clipping, auto-layout sibling overlap, monochrome paints, opacity, effects, and text against the nearest opaque ancestor fill.
 Intentional vertical viewport overflow and absolute focus indicators are excluded from unintended clipping and sibling-overlap findings.
 Sibling-overlap findings also skip absolute overlays, such as the iPhone map confirmation alert.
-The retained capture contains 1,401 text measurements and 1,069 resolved instance references.
+The retained capture contains 1,429 text measurements and 1,199 resolved instance references.
 Unit checks independently recompute canvas overlap and section containment, validate text fit and contrasting colors, and enforce canonical web and iPhone viewport sizes and gutters.
 The same overlap check detects all ten overlapping pairs in the original desktop arrangement.
 These checks cover the retained capture and cannot detect later Figma edits until the audit is refreshed.
