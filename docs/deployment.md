@@ -410,3 +410,20 @@ Run `mise x -- just monitors` to print the plan, and `mise x -- just monitors --
 The command matches checks by name, never deletes one, and lists every check it doesn't manage.
 It reads the team-scoped `BETTER_STACK_API_TOKEN` from the Doppler `prd` config, sends it only to the Better Stack monitors API, and prints no token.
 No workflow runs the command, so a change to the checks takes effect when the owner or an agent applies it after merge.
+
+## Cloudflare notifications
+
+`tools/cloudflare-alerts-plan.ts` declares the account's notification policies for the service, and each one emails `CLOUDFLARE_ALERT_EMAIL` from the Doppler `prd` config.
+
+| Policy | Alert type | Fires when |
+| --- | --- | --- |
+| Worker issues | `workers_observability_real_time_issue` | Workers Observability finds an issue in any Worker of the account |
+| HTTP DDoS attacks | `dos_attack_l7` | Cloudflare mitigates an HTTP DDoS attack on a zone of the account |
+| Universal SSL | `universal_ssl_event_type` | A Universal SSL certificate changes state |
+| D1 rows read | `billing_usage_alert` | D1 reads 12.5 billion rows in a month, half of what Workers Paid includes |
+| D1 rows written | `billing_usage_alert` | D1 writes 25 million rows in a month, half of what Workers Paid includes |
+
+The account's earlier billing policies for Workers and R2 and its budget alert stay outside the declarations.
+Run `mise x -- just cloudflare-alerts` to print the plan, and `mise x -- just cloudflare-alerts --apply` to create or update the declared policies through the owner's cf sign-in.
+The command manages only policies whose names start with `Public Phonebook`, never deletes one, and prints no address.
+`tools/declared-plan.ts` holds the plan that both commands share.
