@@ -169,17 +169,6 @@ export const DatasetManifestSchema = v.pipe(
 );
 export type DatasetManifest = v.InferOutput<typeof DatasetManifestSchema>;
 
-export const VersionedDatasetManifestSchema = v.pipe(
-  CompleteDatasetManifestSchema,
-  v.check((manifest) =>
-    manifest.files.every(
-      (file) =>
-        file.url ===
-        `/api/v1/datasets/${manifest.snapshot}/${file.sha256}/${file.file}`,
-    ),
-  ),
-);
-
 export const SearchResponseSchema = v.strictObject({
   data: v.array(ContactSchema),
   meta: v.strictObject({

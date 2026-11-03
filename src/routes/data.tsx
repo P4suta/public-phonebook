@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import type { DatasetManifest } from "../core/models.ts";
+import type { DatasetFileListing } from "../core/dataset-storage.ts";
 import { getCatalog, getDatasets } from "../ui/client.ts";
 import { BackButton, LinkButton, OfficialLink } from "../ui/components.tsx";
 import { CategoryIcon } from "../ui/icons.tsx";
 import * as css from "../ui/styles.css.ts";
 
 const datasetFormats: Readonly<
-  Record<DatasetManifest["files"][number]["file"], string>
+  Record<DatasetFileListing["files"][number]["file"], string>
 > = {
   "contacts.jsonl.gz": "JSON Lines（1行に1件のJSON）、gzipで圧縮",
   "contacts.csv.gz": "CSV（表計算ソフトで開ける形式）、gzipで圧縮",

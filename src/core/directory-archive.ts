@@ -16,6 +16,8 @@ import {
 
 export const directoryArchiveFile = "directory.tsv.br";
 const archiveSignature = "public-phonebook-directory\t1";
+/** The format that the dataset listing declares for the archive, which line 1 spells with a TAB for the slash. */
+export const directoryArchiveFormat = archiveSignature.replace("\t", "/");
 const fieldSeparator = "\t";
 const lineTerminator = "\n";
 const listSeparator = "\u001f";

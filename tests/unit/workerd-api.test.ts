@@ -9,8 +9,8 @@ import {
   prefectureNames,
 } from "../../src/core/catalog.ts";
 import {
+  datasetFileListing,
   PreparedDatasetManifestSchema,
-  publicDatasetManifest,
   SearchIndexLocationSchema,
 } from "../../src/core/dataset-storage.ts";
 import { normalizeName } from "../../src/core/identity.ts";
@@ -289,7 +289,7 @@ describe("API responses from workerd", () => {
     const datasets = await request("/api/datasets");
     expect(datasets.status).toBe(200);
     expect(text(datasets.body)).toBe(
-      JSON.stringify(publicDatasetManifest(manifest)),
+      JSON.stringify(datasetFileListing(manifest)),
     );
   });
 });

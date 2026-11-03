@@ -405,7 +405,7 @@ Better Stack checks the public site every three minutes from its four regions, a
 | --- | --- | --- |
 | Top page | `https://www.dial.page/` | The search button label |
 | Search | The server-rendered results for 東京都庁 | `03-5321-1111`, which needs the database |
-| App data index | `https://www.dial.page/api/v1` | `"datasets"`, which the iPhone app reads for updates |
+| App data index | `https://www.dial.page/api/datasets` | `public-phonebook-directory/1`, the archive format that the iPhone app reads for updates |
 
 Run `mise x -- just monitors` to print the plan, and `mise x -- just monitors --apply` to create or update the declared checks.
 The command matches checks by name, never deletes one, and lists every check it doesn't manage.

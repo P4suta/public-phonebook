@@ -120,14 +120,21 @@ func publish(
   return try await store.publish(at: Date())
 }
 
-func discoveryFixture(snapshot: String, deltas: Bool = false) -> Data {
-  let link = deltas ? ",\"datasetDeltas\":\"/api/v1/dataset-deltas?snapshot=\(snapshot)\"" : ""
+/// A dataset listing with one archive in this app's format, which links the deltas when `deltas` is true.
+func datasetsFixture(
+  snapshot: String, contacts: Int, sha256: String, bytes: Int, url: String, deltas: Bool = false
+) -> Data {
+  let link = deltas ? ",\"datasetDeltas\":\"/api/dataset-deltas?snapshot=\(snapshot)\"" : ""
   return Data(
     """
-    {"version":"1","snapshot":"\(snapshot)","generatedAt":"2026-10-30T00:00:00Z",\
-    "datasets":"/api/v1/datasets?snapshot=\(snapshot)"\(link)}
+    {"snapshot":"\(snapshot)","generatedAt":"2026-10-30","contacts":\(contacts),\
+    "files":[{"file":"directory.tsv.br","format":"public-phonebook-directory/1",\
+    "sha256":"\(sha256)","bytes":\(bytes),"url":"\(url)"}]\(link)}
     """.utf8)
 }
+
+let notFoundResponse = Data(
+  "HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 0\r\n\r\n".utf8)
 
 func sha256Hex(_ data: Data) -> String {
   SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()

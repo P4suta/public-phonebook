@@ -1,9 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import * as v from "valibot";
-import {
-  DatasetManifestSchema,
-  SearchResponseSchema,
-} from "../../src/core/models.ts";
+import { DatasetFileListingSchema } from "../../src/core/dataset-storage.ts";
+import { SearchResponseSchema } from "../../src/core/models.ts";
 import { checkedFetch } from "../../tools/public-request.ts";
 import { auditDesign } from "../browser/design-policy.ts";
 import { expect, test } from "./fixtures.ts";
@@ -53,7 +51,7 @@ test("the published data page lists the complete files and reads the site routes
   page,
 }) => {
   const manifest = v.parse(
-    DatasetManifestSchema,
+    DatasetFileListingSchema,
     await (await checkedFetch("/api/datasets")).json(),
   );
   await page.goto("/data");

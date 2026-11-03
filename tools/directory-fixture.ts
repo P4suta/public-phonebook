@@ -5,10 +5,11 @@ import { createInterface } from "node:readline";
 import { createGunzip, gzipSync } from "node:zlib";
 import { Miniflare } from "miniflare";
 import * as v from "valibot";
-import { DirectoryDiscoverySchema } from "../src/core/api-contract.ts";
 import { categoryDefinitions, prefectureNames } from "../src/core/catalog.ts";
 import {
+  DatasetFileListingSchema,
   type DirectoryDeltaArtifact,
+  datasetListingPath,
   PreparedDatasetManifestSchema,
 } from "../src/core/dataset-storage.ts";
 import {
@@ -513,10 +514,10 @@ export async function directoryFixture(
     };
     const fetch = async (request: Request): Promise<Response> =>
       api.fetch(request, bindings);
-    const discovery: unknown = await (
-      await fetch(new Request(new URL("/api/v1", contractOrigin)))
+    const listing: unknown = await (
+      await fetch(new Request(new URL(datasetListingPath, contractOrigin)))
     ).json();
-    v.parse(DirectoryDiscoverySchema, discovery);
+    v.parse(DatasetFileListingSchema, listing);
     return { fetch, dispose: async () => runtime.dispose() };
   } catch (error) {
     await runtime.dispose();
