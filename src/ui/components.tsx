@@ -239,7 +239,7 @@ function plainActivation(event: MouseEvent<HTMLAnchorElement>): boolean {
   );
 }
 
-/** Shows a search result with its place and telephone actions; the address stays on the detail page. */
+/** Shows a search result with its place, telephone actions, and one labelled detail action; the address stays on the detail page. */
 export function ResultCard({
   card,
   onOpenRow,
@@ -249,6 +249,7 @@ export function ResultCard({
 }): ReactElement {
   const feedback = useCopyFeedback(card.key);
   const headingId = `contact-${card.key}`;
+  const detail = uiCopy.resultDetail.label(card.hasAddress);
   return (
     <article
       className={css.card}
@@ -258,23 +259,24 @@ export function ResultCard({
     >
       <div className={css.contactHeader}>
         <h3 className={css.contactName} id={headingId}>
-          <a
-            className={css.contactLink}
-            href={card.href}
-            aria-label={`${card.name}の情報を見る`}
-            onClick={(event) => {
-              if (!card.row || !plainActivation(event)) return;
-              event.preventDefault();
-              onOpenRow(card);
-            }}
-          >
-            <span>{card.name}</span>
-            <Icon name="chevron-right" />
-          </a>
+          {card.name}
         </h3>
         {card.region && <p className={css.region}>{card.region}</p>}
       </div>
       <PhoneActions phones={card.phones} name={card.name} feedback={feedback} />
+      <a
+        className={css.detailAction}
+        href={card.href}
+        aria-label={uiCopy.resultDetail.name(card.name, detail)}
+        onClick={(event) => {
+          if (!card.row || !plainActivation(event)) return;
+          event.preventDefault();
+          onOpenRow(card);
+        }}
+      >
+        <Icon name="chevron-right" />
+        {detail}
+      </a>
       <FeedbackRow feedback={feedback} />
     </article>
   );

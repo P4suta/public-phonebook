@@ -26,6 +26,11 @@ export const uiCopy = {
     searchedAgain:
       "新しいデータで、もう一度さがしました。施設をえらびなおしてください。" satisfies Instruction,
   },
+  resultDetail: {
+    label: (hasAddress: boolean): Action =>
+      hasAddress ? "住所などを見る" : "くわしい情報を見る",
+    name: (facility: string, label: Action): Action => `${facility}の${label}`,
+  },
   sourceTitle: "電話番号のもとの情報",
   sourceAction: "電話番号のもとの情報を見る" satisfies Action,
   copy: "コピーする" satisfies Action,

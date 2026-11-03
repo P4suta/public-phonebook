@@ -113,19 +113,24 @@ private struct ContactCard: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
-      Button(action: detail) {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-          Text(contact.name).font(.title3.bold()).multilineTextAlignment(.leading)
-          DesignIcon(name: "next", size: 16)
-        }
-      }
-      .buttonStyle(.plain)
-      .accessibilityLabel("\(contact.name)の情報を見る")
-      .accessibilityIdentifier("contact-detail")
+      Text(contact.name).font(.title3.bold()).multilineTextAlignment(.leading)
+        .accessibilityAddTraits(.isHeader)
       if !contact.region.isEmpty {
         Text(contact.region).font(.callout).accessibilityIdentifier("contact-region")
       }
       ForEach(contact.phones, id: \.e164) { PhoneActions(phone: $0, name: contact.name) }
+      // The one control that opens the details names its action, so the name stays plain heading text.
+      Button(action: detail) {
+        IconLabel(icon: "next", text: detailLabel)
+      }
+      .buttonStyle(MonoButtonStyle())
+      .accessibilityLabel("\(contact.name)の\(detailLabel)")
+      .accessibilityIdentifier("contact-detail")
     }.padding(.vertical, 16)
+  }
+
+  /// Names what the details add to the card in plain words: the address, or more about the facility when it has none.
+  private var detailLabel: String {
+    contact.address.isEmpty ? "くわしい情報を見る" : "住所などを見る"
   }
 }

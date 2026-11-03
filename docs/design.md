@@ -150,10 +150,15 @@ Programmatic clicks cannot initiate either write path.
 Only the latest copy request within a contact can publish completion feedback.
 It never carries a telephone URI or initiates calling.
 Calling uses a separate primary action labelled with its purpose.
-Facility headings link to details, and the prefecture and municipality follow the facility name as text.
+Facility names are heading text, and the prefecture and municipality follow the facility name as text.
+Below the telephone actions, one outline link opens the details, with a chevron before a label that names what the details add.
+The label is `住所などを見る` when the detail page shows an address and `くわしい情報を見る` when it doesn't.
+Its accessible name starts with the facility name and keeps the visible label, such as `高知大学の住所などを見る`.
+On wide screens, the detail link sits in the telephone column.
 Result cards leave the address and its map link to the detail page.
 A result that the device found opens its details through its index row, and a changed snapshot reloads the index and searches again.
-Those navigation links have visible underlines, icons, and minimum 44-pixel targets.
+The search index carries no addresses, so a result that the device found uses the address label.
+Navigation links have a visible underline or outline, an icon, and a target of at least 44 pixels.
 This follows the distinction between [native links](https://www.w3.org/WAI/ARIA/apg/patterns/link/) and [action buttons](https://www.w3.org/WAI/ARIA/apg/patterns/button/).
 No separate telephone-copy or address-copy control is rendered.
 Copy feedback occupies a full-width row below the contact content.
@@ -177,7 +182,7 @@ Source details provide readable context before opening the publisher's original 
 Bulk export belongs in the API rather than the search interface.
 A category's labelled continuation expands only that category in the same result screen.
 Automatic continuation begins after that expansion or after opening a category continuation link.
-An explicit continuation moves focus to the first new card.
+An explicit continuation moves focus to the first control of the first new card.
 Continuation preserves existing results on failure, prevents mixed snapshots and duplicate pages, and exposes recovery.
 A real continuation link works without JavaScript, and its `category` and `cursor` parameters carry that state.
 Old search URLs with `prefecture` or `municipality` redirect to the same search without them.
@@ -198,7 +203,8 @@ Map tests on the detail page confirm the dialog and then verify an actual new ta
 External-link checks open the dialog from every link type and check its description, host, initial and returned focus, Escape, cancellation, opener isolation, and design rules.
 They also require modifier-key and middle-button activations to bypass the dialog and links without JavaScript to open directly.
 The detector checks alignment, repeated framed actions, duplicate destinations, link affordances, native control roles, labels, target overlap, clipping, and accidental call links on telephone values.
-Planted displaced actions and redundant framed navigation must produce their specific violations.
+It also requires a plain-text facility heading and one labelled detail link on the telephone actions' left edge below them.
+Planted displaced actions, a displaced detail link, and extra framed actions must produce their specific violations.
 These constraints enforce this product's layout and interaction decisions rather than score arbitrary visual quality.
 Screenshots and failure traces remain local review artifacts.
 WebKit visual evidence uses native video to preserve the page's enforced CSP.

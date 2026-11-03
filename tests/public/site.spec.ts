@@ -17,8 +17,8 @@ test("published search, telephone normalization, detail, and source navigation w
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
   await page.getByRole("searchbox").fill("高知大学");
-  const contactLabel = `${contact.name}の情報を見る`;
-  const card = page.getByRole("article", { name: contactLabel, exact: true });
+  const detailLabel = `${contact.name}の住所などを見る`;
+  const card = page.getByRole("article", { name: contact.name, exact: true });
   await expect(card).toBeVisible();
   await expect(card.locator("[data-phone] > span").first()).toHaveText(
     "088-844-0111",
@@ -32,7 +32,7 @@ test("published search, telephone normalization, detail, and source navigation w
         .analyze()
     ).violations,
   ).toEqual([]);
-  await card.getByRole("link", { name: contactLabel, exact: true }).click();
+  await card.getByRole("link", { name: detailLabel, exact: true }).click();
   await expect(
     page.getByRole("heading", { level: 1, name: contact.name, exact: true }),
   ).toBeVisible();
