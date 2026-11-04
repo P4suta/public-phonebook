@@ -38,7 +38,7 @@ import { countWork, StepTimer } from "./step-timing.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 52;
+const verifiedUnitCount = 53;
 const declaredPostconditionCount = 104;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
