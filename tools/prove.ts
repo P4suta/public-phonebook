@@ -501,12 +501,19 @@ function negativeModel(control: NegativeControl): string {
   return `${proofRoot}/${generatedModels}/${negativeSources}/${control.name}.dfy`;
 }
 
-/** Holds when Dafny ran and reported at least one unproved contract, so a tool error or timeout can't count as a rejection. */
+/** Holds when Dafny printed its summary, which a run that the container's safety stop ended never prints. */
+function finished(result: CommandResult): boolean {
+  return /Dafny program verifier finished with/u.test(result.output);
+}
+
+/** Holds when Dafny finished and reported at least one unproved contract and no exhausted limit, so neither a tool error nor a limit counts as a rejection. */
 function rejectedByVerifier(result: CommandResult): boolean {
   return (
     result.code !== 0 &&
+    finished(result) &&
     /[1-9][0-9]* error/u.test(result.output) &&
-    /could not be proved|could not prove/u.test(result.output)
+    /could not be proved|could not prove/u.test(result.output) &&
+    !/out of resource|timed out|time outs?\b/u.test(result.output)
   );
 }
 
@@ -707,8 +714,8 @@ async function withVerifier<T>(
         verifierExecutable,
         "verify",
         ...models,
+        // The deterministic resource limit bounds each condition, and the container's lifetime is the only clock.
         "--resource-limit=5000000",
-        "--verification-time-limit=30",
         "--unicode-char=false",
         "--allow-deprecation",
         // Each verification condition's row carries the solver's deterministic resource count.
@@ -834,6 +841,10 @@ async function proveCompletely(): Promise<void> {
     await withVerifier(image, async (verify) => {
       const positive = await timer.time("proof", () => verify(modelPaths));
       console.info(positive.output);
+      if (!finished(positive))
+        throw new Error(
+          "Inconclusive: Dafny ended before its summary, as the container's safety stop does",
+        );
       if (
         positive.code !== 0 ||
         !new RegExp(
