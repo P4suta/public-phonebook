@@ -3,9 +3,7 @@ import Testing
 
 @testable import PhonebookCore
 
-private func temporaryFile() -> URL {
-  FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".callers")
-}
+private func temporaryFile(_ key: String = #function) -> URL { callerFile(key) }
 
 private func write(_ entries: [(Int64, String)], to url: URL) throws {
   let writer = try CallerFile.Writer(url: url)
@@ -54,7 +52,7 @@ func roundTripsAscendingEntriesAcrossChunkBoundaries(seed: Int) throws {
       (0..<length).map { _ in alphabet[Int(random.next() % UInt64(alphabet.count))] })
     entries.append((number, label))
   }
-  let url = temporaryFile()
+  let url = temporaryFile("\(#function)-\(seed)")
   defer { try? FileManager.default.removeItem(at: url) }
   try write(entries, to: url)
   // A chunk of the smallest allowed size forces records to span refills.
@@ -180,9 +178,7 @@ func readerFootprintStaysFlatWhenRunAlone() throws {
 }
 
 @Test func recordsTheGenerationThatIOSAcceptedAndFindsTheActiveFile() throws {
-  let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
-    UUID().uuidString, isDirectory: true)
-  try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+  let directory = testDirectory(#function)
   defer { try? FileManager.default.removeItem(at: directory) }
   #expect(try CallerFile.active(in: directory) == nil)
   #expect(CallerFile.loadedGeneration(in: directory) == nil)

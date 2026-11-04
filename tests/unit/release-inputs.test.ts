@@ -15,6 +15,7 @@ import {
   dispatchArguments,
   dispatchedRun,
   releaseWorkflow,
+  runIds,
   runListArguments,
   watchArguments,
 } from "../../tools/release.ts";
@@ -401,7 +402,7 @@ describe("release dispatch", () => {
       "--limit",
       "20",
       "--json",
-      "databaseId,createdAt,url",
+      "databaseId,url",
     ]);
     expect(watchArguments(7)).toEqual([
       "run",
@@ -415,27 +416,20 @@ describe("release dispatch", () => {
     ]);
   });
 
-  it("selects the earliest run created after the dispatch and ignores older runs", () => {
-    const dispatchedAt = Date.parse("2026-11-01T10:00:00Z");
-    const runs = [
-      {
-        databaseId: 3,
-        createdAt: "2026-11-01T10:00:20Z",
-        url: "https://github.com/x/y/actions/runs/3",
-      },
-      {
-        databaseId: 2,
-        createdAt: "2026-11-01T10:00:05Z",
-        url: "https://github.com/x/y/actions/runs/2",
-      },
-      {
-        databaseId: 1,
-        createdAt: "2026-11-01T09:30:00Z",
-        url: "https://github.com/x/y/actions/runs/1",
-      },
-    ];
-    expect(dispatchedRun(runs, dispatchedAt)?.databaseId).toBe(2);
-    expect(dispatchedRun(runs.slice(2), dispatchedAt)).toBeNull();
-    expect(() => dispatchedRun([{ databaseId: "x" }], dispatchedAt)).toThrow();
+  it("watches the one run absent from the list taken before the dispatch", () => {
+    const run = (databaseId: number): { databaseId: number; url: string } => ({
+      databaseId,
+      url: `https://github.com/x/y/actions/runs/${databaseId}`,
+    });
+    // Run 2 started half a minute before the dispatch, which a clock window can't tell from run 3.
+    const before = runIds([run(2), run(1)]);
+    expect(dispatchedRun(before, [run(2), run(1)])).toBeNull();
+    expect(dispatchedRun(before, [run(3), run(2), run(1)])).toEqual(run(3));
+    expect(dispatchedRun(before, [run(3), run(2)])).toEqual(run(3));
+    expect(() => dispatchedRun(before, [run(4), run(3), run(2)])).toThrow(
+      "Several release runs appeared after the dispatch: https://github.com/x/y/actions/runs/4, https://github.com/x/y/actions/runs/3",
+    );
+    expect(() => runIds([{ databaseId: "x" }])).toThrow();
+    expect(() => dispatchedRun(before, [{ databaseId: "x" }])).toThrow();
   });
 });

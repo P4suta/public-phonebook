@@ -1,4 +1,4 @@
-use crate::locations::{FIXTURE_PORT, LOOPBACK_HOST};
+use crate::locations::LOOPBACK_HOST;
 use anyhow::{Context, Result, bail, ensure};
 use clap::Subcommand;
 use serde_json::{Value, json};
@@ -60,6 +60,7 @@ impl Drop for GateLease {
 const RUNTIME: &str = "com.apple.CoreSimulator.SimRuntime.iOS-27-0";
 const DEVICE_TYPE: &str = "com.apple.CoreSimulator.SimDeviceType.iPhone-17";
 const DEVICE_NAME: &str = "Public Phonebook Checks";
+const DEVICE_SUFFIX_LENGTH: usize = 8;
 const LIVE_UI_TEST: &str = "testLivePublicDirectorySearchAndSource";
 /// A hang guard that exceeds the longest sum of one scenario's own waits.
 /// The live onboarding alone waits up to 300 s, and the transfer resume scenario's waits add up to about 135 s.
@@ -452,24 +453,32 @@ fn build_number(run_number: u32, run_attempt: u32, output: Option<&Path>) -> Res
     Ok(())
 }
 
+/// The variable that carries the fixture's port to `tools/native-fixture.ts` and, with xcodebuild's runner prefix, to the UI tests.
+const FIXTURE_PORT_VARIABLE: &str = "PHONEBOOK_FIXTURE_PORT";
+const TEST_RUNNER_PREFIX: &str = "TEST_RUNNER_";
+
 struct Fixture {
     child: Child,
+    port: u16,
 }
 
 impl Fixture {
+    /// Starts the fixture on a loopback port that the kernel reports free, so another process on the development port can't stop the gate.
     fn start(root: &Path) -> Result<Self> {
-        let address = (LOOPBACK_HOST, FIXTURE_PORT);
-        let listener = TcpListener::bind(address)
-            .context("The iOS fixture requires unused loopback port 3100")?;
+        let listener = TcpListener::bind((LOOPBACK_HOST, 0))
+            .context("The iOS fixture found no free loopback port")?;
+        let port = listener.local_addr()?.port();
         drop(listener);
+        let address = (LOOPBACK_HOST, port);
         let file = fs::File::create(root.join("target/ios/fixture-server.log"))?;
         let child = Command::new("node")
             .current_dir(root)
             .args(["tools/native-fixture.ts", "--serve"])
+            .env(FIXTURE_PORT_VARIABLE, port.to_string())
             .stdout(Stdio::from(file.try_clone()?))
             .stderr(Stdio::from(file))
             .spawn()?;
-        let mut fixture = Self { child };
+        let mut fixture = Self { child, port };
         let deadline = Instant::now() + FIXTURE_READINESS;
         loop {
             ensure!(
@@ -548,6 +557,15 @@ impl Drop for Simulator {
     }
 }
 
+/// The simulator of one checkout, named after a digest of its path so separate checkouts never share a device.
+fn device_name(root: &Path) -> String {
+    let digest = super::sha256_hex(root.as_os_str().as_encoded_bytes());
+    format!(
+        "{DEVICE_NAME} {}",
+        digest.get(..DEVICE_SUFFIX_LENGTH).unwrap_or(&digest)
+    )
+}
+
 fn device(root: &Path) -> Result<Simulator> {
     let output = logged(
         root,
@@ -555,10 +573,11 @@ fn device(root: &Path) -> Result<Simulator> {
         Command::new("xcrun").args(["simctl", "list", "devices", "available", "-j"]),
     )?;
     let devices: Value = serde_json::from_slice(&output.stdout)?;
+    let name = device_name(root);
     let existing = devices["devices"][RUNTIME].as_array().and_then(|values| {
         values
             .iter()
-            .find(|value| value["name"] == DEVICE_NAME)
+            .find(|value| value["name"] == name.as_str())
             .and_then(|value| value["udid"].as_str())
     });
     let identifier = if let Some(identifier) = existing {
@@ -567,7 +586,7 @@ fn device(root: &Path) -> Result<Simulator> {
         let result = logged(
             root,
             "create-simulator",
-            Command::new("xcrun").args(["simctl", "create", DEVICE_NAME, DEVICE_TYPE, RUNTIME]),
+            Command::new("xcrun").args(["simctl", "create", &name, DEVICE_TYPE, RUNTIME]),
         )?;
         String::from_utf8(result.stdout)?.trim().to_owned()
     };
@@ -890,11 +909,17 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
         fs::remove_dir_all(&evidence)?;
     }
     let sources = source_hashes(root)?;
-    let _fixture = if live {
+    let fixture = if live {
         None
     } else {
         Some(Fixture::start(root)?)
     };
+    let runner_port = fixture.as_ref().map(|fixture| {
+        (
+            format!("{TEST_RUNNER_PREFIX}{FIXTURE_PORT_VARIABLE}"),
+            fixture.port.to_string(),
+        )
+    });
     let simulator = device(root)?;
     let identifier = simulator.id().to_owned();
     let directory = tempfile::Builder::new()
@@ -980,10 +1005,14 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
             let result = directory.join(format!("{case}.xcresult"));
             let started = SystemTime::now();
             previous = started;
+            let mut scenario = ui_command(root, &identifier);
+            if let Some((variable, port)) = &runner_port {
+                scenario.env(variable, port);
+            }
             let execution = logged(
                 root,
                 &case,
-                ui_command(root, &identifier)
+                scenario
                     .arg("-resultBundlePath")
                     .arg(&result)
                     .arg(format!(
@@ -1537,6 +1566,16 @@ fn coverage(root: &Path) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn each_checkout_names_its_own_simulator() {
+        let first = device_name(Path::new("/work/public-phonebook"));
+        let second = device_name(Path::new("/work/public-phonebook-gate-port"));
+        assert_eq!(first, device_name(Path::new("/work/public-phonebook")));
+        assert_ne!(first, second);
+        assert!(first.starts_with("Public Phonebook Checks "));
+        assert_eq!(first.len(), DEVICE_NAME.len() + 1 + DEVICE_SUFFIX_LENGTH);
+    }
 
     #[test]
     fn only_an_exceeded_allowance_makes_a_failed_scenario_inconclusive() {

@@ -12,6 +12,10 @@ import {
   prefectureNames,
 } from "../../src/core/catalog.ts";
 import {
+  maximumDirectoryDeltas,
+  maximumPublishedDeltaBases,
+} from "../../src/core/dataset-storage.ts";
+import {
   type DirectoryArchiveContact,
   type DirectoryArchiveSource,
   decodeDirectoryArchive,
@@ -31,6 +35,7 @@ import {
 import {
   copyAdmission,
   deltaAdmission,
+  deltaBaseRetained,
   deltaPublication,
 } from "../../src/core/directory-delta-policy.ts";
 import {
@@ -41,7 +46,9 @@ import {
 } from "../../src/core/models.ts";
 import {
   type DeltaArchive,
+  type DeltaBaseCandidate,
   type DeltaSource,
+  deltaBasePlan,
   requireDistinctSources,
   writeDirectoryDeltas,
 } from "../../tools/directory-delta.ts";
@@ -622,7 +629,7 @@ describe("directory deltas", () => {
       for (const sources of [
         [source(baseSnapshot), source(baseSnapshot)],
         [source(targetSnapshot)],
-        Array.from({ length: 13 }, (_, index) =>
+        Array.from({ length: maximumDirectoryDeltas + 1 }, (_, index) =>
           source(index.toString(16).padStart(64, "d")),
         ),
       ])
@@ -633,7 +640,12 @@ describe("directory deltas", () => {
             sources,
             compressDirectoryArchive,
           ),
-        ).rejects.toThrow(/distinct earlier snapshots|At most 12/u);
+        ).rejects.toThrow(
+          new RegExp(
+            `distinct earlier snapshots|At most ${maximumDirectoryDeltas} `,
+            "u",
+          ),
+        );
       expect(() =>
         requireDistinctSources([source(baseSnapshot)]),
       ).not.toThrow();
@@ -683,5 +695,71 @@ describe("directory deltas", () => {
         expect(deltaPublication(deltaBytes, completeBytes)).toBe(
           deltaBytes * 2 <= completeBytes,
         );
+  });
+
+  it("retains every shipped base and the 12 newest published ones", () => {
+    for (const shipped of [false, true])
+      for (let newer = 0; newer <= maximumPublishedDeltaBases + 2; newer += 1)
+        expect(deltaBaseRetained(shipped, newer), `${shipped} ${newer}`).toBe(
+          shipped || newer < maximumPublishedDeltaBases,
+        );
+  });
+
+  it("plans the shipped bases and the newest distinct published snapshots once each", () => {
+    const snapshotPool = Array.from({ length: 20 }, (_, index) =>
+      index.toString(16).padStart(64, "e"),
+    );
+    const candidate = fc
+      .record({
+        snapshot: fc.constantFrom(...snapshotPool),
+        manifest: fc.integer({ min: 0, max: 3 }),
+      })
+      .map(
+        ({ snapshot, manifest }): DeltaBaseCandidate => ({
+          snapshot,
+          manifestSha256: `${manifest}${snapshot.slice(1)}`,
+        }),
+      );
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(candidate, {
+          maxLength: 6,
+          selector: (base) => base.snapshot,
+        }),
+        fc.array(candidate, { maxLength: 40 }),
+        (shipped, published) => {
+          const plan = deltaBasePlan(shipped, published);
+          const shippedSnapshots = new Set(
+            shipped.map((base) => base.snapshot),
+          );
+          const newestDistinct: string[] = [];
+          for (const base of published.toReversed())
+            if (!newestDistinct.includes(base.snapshot))
+              newestDistinct.push(base.snapshot);
+          const retainedPublished = newestDistinct
+            .slice(0, maximumPublishedDeltaBases)
+            .filter((snapshot) => !shippedSnapshots.has(snapshot));
+          expect(plan.map((base) => base.snapshot)).toEqual(
+            [...shippedSnapshots, ...retainedPublished].toSorted(),
+          );
+          for (const base of plan) {
+            const declared =
+              base.origin === "shipped"
+                ? shipped.find((entry) => entry.snapshot === base.snapshot)
+                : published.findLast(
+                    (entry) => entry.snapshot === base.snapshot,
+                  );
+            expect(base.manifestSha256).toBe(declared?.manifestSha256);
+            expect(base.origin).toBe(
+              shippedSnapshots.has(base.snapshot) ? "shipped" : "published",
+            );
+          }
+          expect(plan.length).toBeLessThanOrEqual(
+            shipped.length + maximumPublishedDeltaBases,
+          );
+        },
+      ),
+      { seed: 20261104, numRuns: 400 },
+    );
   });
 });

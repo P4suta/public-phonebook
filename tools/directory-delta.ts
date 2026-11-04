@@ -6,7 +6,6 @@ import * as v from "valibot";
 import {
   type DirectoryDeltaArtifact,
   maximumDirectoryDeltas,
-  PreparedDatasetManifestSchema,
 } from "../src/core/dataset-storage.ts";
 import { directoryArchiveFile } from "../src/core/directory-archive.ts";
 import {
@@ -17,7 +16,11 @@ import {
   encodeDirectoryDelta,
   readDirectoryText,
 } from "../src/core/directory-delta.ts";
-import { deltaPublication } from "../src/core/directory-delta-policy.ts";
+import {
+  deltaBaseRetained,
+  deltaPublication,
+} from "../src/core/directory-delta-policy.ts";
+import { CountSchema, DigestSchema } from "../src/core/models.ts";
 
 // Over ten times the 80 MB decoded national archive, so a corrupt base can't exhaust memory.
 const maximumDecodedArchiveBytes = 1_073_741_824;
@@ -66,11 +69,19 @@ export interface DeltaSource {
   readonly read: () => Promise<DeltaArchive>;
 }
 
+/** The part of a ready manifest that a delta base needs, so a dataset published before a later manifest field still serves as a base. */
+export const BaseManifestSchema = v.object({
+  snapshot: DigestSchema,
+  files: v.array(
+    v.object({ file: v.string(), sha256: DigestSchema, bytes: CountSchema }),
+  ),
+});
+
 async function listedArchive(
   bundle: string,
 ): Promise<{ readonly snapshot: string; readonly bytes: Uint8Array }> {
   const manifest = v.parse(
-    PreparedDatasetManifestSchema,
+    BaseManifestSchema,
     JSON.parse(await readFile(join(bundle, "manifest.ready.json"), "utf8")),
   );
   const listed = manifest.files.find(
@@ -139,6 +150,50 @@ export function requireDistinctSources(
     (target !== undefined && snapshots.has(target))
   )
     throw new Error("Delta bases must be distinct earlier snapshots");
+}
+
+/** A dataset that may serve as a delta base, named by its ready manifest's digest and its snapshot. */
+export interface DeltaBaseCandidate {
+  readonly manifestSha256: string;
+  readonly snapshot: string;
+}
+
+export interface PlannedDeltaBase extends DeltaBaseCandidate {
+  readonly origin: "shipped" | "published";
+}
+
+/**
+ * Chooses every shipped dataset and each of the 12 most recently published distinct snapshots, in snapshot order.
+ * `published` lists publications oldest first; a snapshot published again counts at its latest publication.
+ * A shipped declaration wins over a publication of the same snapshot, and still counts toward the 12.
+ */
+export function deltaBasePlan(
+  shipped: readonly DeltaBaseCandidate[],
+  published: readonly DeltaBaseCandidate[],
+): readonly PlannedDeltaBase[] {
+  const plan = new Map<string, PlannedDeltaBase>();
+  const planned = (
+    base: DeltaBaseCandidate,
+    origin: PlannedDeltaBase["origin"],
+  ): PlannedDeltaBase => ({
+    manifestSha256: base.manifestSha256,
+    snapshot: base.snapshot,
+    origin,
+  });
+  for (const base of shipped)
+    if (!plan.has(base.snapshot))
+      plan.set(base.snapshot, planned(base, "shipped"));
+  const ranked = new Set<string>();
+  for (const base of published.toReversed()) {
+    if (ranked.has(base.snapshot)) continue;
+    const shippedBase = plan.has(base.snapshot);
+    if (!shippedBase && deltaBaseRetained(false, ranked.size))
+      plan.set(base.snapshot, planned(base, "published"));
+    ranked.add(base.snapshot);
+  }
+  return [...plan.values()].toSorted((left, right) =>
+    left.snapshot < right.snapshot ? -1 : 1,
+  );
 }
 
 function identity(archive: DeltaArchive): {

@@ -276,7 +276,7 @@ A job in the `candidate`, `release-candidate`, `observe`, or `production` enviro
 A `production` job must follow another job, so the owner approves only after the candidate check.
 Jobs in `release-candidate` and `production` must share the non-cancelling `publication-production` concurrency group.
 A Doppler step must keep its secrets out of the job environment and fetch `ci_` plus its own environment's name.
-Only a step that continues on error may request another environment's config, which is how a refusal control works.
+Only a step that continues on error may request another environment's config.
 The unit tests keep a violating fixture for each rule.
 
 `tools/workflow-schedule.ts` models how GitHub schedules jobs: `needs`, job conditions, the status functions, the implicit `success()`, and skips that propagate through ancestors.
@@ -290,12 +290,14 @@ A condition outside the supported grammar fails the policy, so a new construct n
 
 `pipeline-controls.yml` fails unless each refusal happens for its expected reason.
 - The fake-provider tests refuse an unverified, displaced, removed, or different candidate, a second lease holder, and evidence from another tree, manifest, or signer.
-- The observe identity requests the `ci_production` config, and the next step requires that request to fail.
+- The observe identity exchanges its GitHub token with Doppler and requests the `ci_production` config, and the step requires a 403 answer that carries a Doppler error message.
+  A failed exchange, a network failure, another status, or an answer without that message fails the control, and a successful read fails it without printing the secrets.
 - The read-only token tries to deploy a version that doesn't exist, and the step requires an authorization refusal rather than a missing-version error.
 - The withdrawal drill stages an attested build at 0%, runs the real candidate checks, injects a probe failure, and requires the withdrawal to leave production unchanged.
 
 The drill and the two token controls need the owner's Cloudflare tokens and Doppler configs, so they haven't run yet.
 The authorization refusal's exact message is an assumption about the Cloudflare API, and the first run confirms it.
+Doppler documents no status for a config outside an identity's access, so the 403 that the foreign-secret control requires is also an assumption that the first run confirms.
 
 ## Release record
 
@@ -360,6 +362,10 @@ It records the transferred index bytes, the time until the index is ready, and t
 It also records input events of 16 ms or longer while typing, long tasks in Chromium, and the main-thread heap in Chromium.
 It estimates the decoded index's heap in V8 from Node, because browsers expose a Worker's heap only to cross-origin isolated pages.
 Safari on a physical iPhone and the Worker's own heap need a person and a debugger, so the record lists them as not run.
+The record also holds counts that depend only on the build, the dataset, and the fixed query sample, so they repeat on any machine.
+Node runs the production matcher over the decoded index for the 40 queries and for each prefix of the typed text, and counts the index rows it reads and the rows it matches.
+Each browser profile counts the search messages posted to the Worker during the 40 queries, the result messages it returns, and the UTF-8 bytes of their JSON.
+An optimization of the device search is judged by these counts, and the timings stay observations.
 The record holds measurements, not thresholds.
 
 Run `mise x -- just test` for the fast gate, national data reconciliation and phone profile, complete proof inventory, and national browser campaign.
