@@ -83,7 +83,7 @@ The transfer's 900-second resource timeout bounds the wait, and the first downlo
 For a waiting transfer, a refused connection also waits, because the session connects again only when the network path changes.
 Automatic transfers take the other transfer session, which doesn't wait, so a missing or costly path fails them at once and the update decision starts them again.
 It decodes the Brotli stream with the system Compression framework and validates the signature, the header dictionaries, every row, the byte order of the rows, and the per-prefecture counts.
-It saves the rows in a new SQLite generation with a file of normalized names and a file of row categories, and activates the generation atomically.
+It saves the rows in a new SQLite generation with files of normalized names, comparison names, row categories, and row regions, and activates the generation atomically.
 The store saves one batch of 1,000 rows while the reader parses the next batch, and it saves the batches in archive order.
 A failed or cancelled import keeps the existing generation, and the current and previous generations remain readable.
 An import that ends with the app process leaves the active generation in place, and the next save removes the unfinished files.
@@ -145,7 +145,7 @@ A cut transfer keeps its received bytes in the store's `transfers` directory, as
 Progress reports keep the three stages, so `WaitDisplay` and its proof stay unchanged.
 
 Search runs on the device and sends nothing.
-The search field matches facility names and complete Japanese telephone numbers, with the website's normalization and exact, prefix, and substring ranking.
+The search field matches complete Japanese telephone numbers and every word of a query in a facility's name, region, or category, with the website's folding and ranking.
 The start screen asks for a facility name or a telephone number in one sentence.
 While iOS reports the Call Directory extension as off, a rule, two sentences, and an outline button that opens the app's iPhone settings follow that hint.
 The sentences say what the feature shows and ask the reader to grant the app permission in the iPhone settings.

@@ -37,6 +37,7 @@ import {
   searchIndexFile,
   searchIndexRow,
 } from "../src/core/search-index.ts";
+import { searchForm } from "../src/core/search-text.ts";
 import { contactVCard } from "../src/core/vcard.ts";
 import { api, type DirectoryApiBindings } from "../src/server/api.ts";
 import { databaseSchema } from "./database-schema.ts";
@@ -270,6 +271,7 @@ export function contactSeedStatements(
         contact.id,
         contact.name,
         normalizeName(contact.name),
+        searchForm(contact.name),
         contact.prefectureCode,
         contact.municipalityCode,
         contact.category,
@@ -287,7 +289,7 @@ export function contactSeedStatements(
       "contact_search",
       contacts.map((contact) => [
         rowid(contact),
-        nameTokens(normalizeName(contact.name)).join(" "),
+        nameTokens(searchForm(contact.name)).join(" "),
       ]),
     ),
   ];

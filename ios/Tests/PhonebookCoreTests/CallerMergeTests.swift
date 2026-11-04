@@ -153,10 +153,13 @@ func mergedCallersMatchTheLeanModelOnSeededInputs(seed: Int) throws {
 
 @Test func callerEntriesMatchQueriesLikeDirectorySearch() throws {
   let entry = try fixture("03-0000-0000")
-  for query in ["確認用", "の番号", "確認用の番号", "03-0000-0000", "0300000000", "+81 3-0000-0000"] {
+  for query in [
+    "確認用", "の番号", "確認用の番号", "03-0000-0000", "0300000000", "+81 3-0000-0000", "確認 用",
+    "番号\u{3000}確認",
+  ] {
     #expect(entry.matches(query: query), "\(query)")
   }
-  for query in ["", "図書館", "03-0000-0001", "03-0000", "確認 用"] {
+  for query in ["", "図書館", "03-0000-0001", "03-0000", "確認 図書館", "確 認 用 の 番 号 確 認 用"] {
     #expect(!entry.matches(query: query), "\(query)")
   }
   #expect(try fixture("03-0000-0000", "ＱＡ用").matches(query: "qa"))

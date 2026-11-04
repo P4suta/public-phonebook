@@ -25,11 +25,13 @@ public struct CallerEntry: Codable, Equatable, Sendable {
     self.label = label
   }
 
-  /// Matches a query the way directory search does: a complete telephone number, or part of the normalized label.
+  /// Matches a query the way directory search does: a complete telephone number, or every word of the query in the folded label.
   public func matches(query: String) -> Bool {
     if let telephone = SearchInput.normalizedPhone(query) { return telephone == phone.rawValue }
-    return SearchInput.rank(
-      name: SearchInput.normalizedName(label), query: SearchInput.normalizedName(query)) != nil
+    let words = SearchInput.words(query)
+    return words.count <= SearchInput.maximumQueryWords
+      && SearchInput.rank(name: SearchInput.searchForm(label), words: words, placed: { _ in false })
+        != nil
   }
 
   private enum CodingKeys: String, CodingKey {

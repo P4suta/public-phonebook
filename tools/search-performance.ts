@@ -39,7 +39,13 @@ const searchTimeoutMs = 60_000;
 const typingDelayMs = 100;
 const typedText = "国立国会図書館";
 const sampleSeed = 0x0f_2026;
-const sampleCounts = { substrings: 20, names: 10, numbers: 10, absent: 0 };
+const sampleCounts = {
+  substrings: 20,
+  names: 10,
+  numbers: 10,
+  absent: 0,
+  places: 10,
+};
 const median = 0.5;
 const tail = 0.95;
 const unmeasurable = "not supported by this engine";
@@ -412,7 +418,12 @@ async function main(): Promise<void> {
   );
   const index = decodeSearchIndex(decoded);
   const queries = parityQueries(index, sampleSeed, sampleCounts);
-  const sample = [...queries.substrings, ...queries.names, ...queries.numbers];
+  const sample = [
+    ...queries.substrings,
+    ...queries.names,
+    ...queries.numbers,
+    ...queries.places,
+  ];
   const typed = Array.from(typedText);
   const work = {
     sample: searchWork(index, sample),

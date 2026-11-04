@@ -12,6 +12,7 @@ import {
   DigestSchema,
   TextSchema,
 } from "./models.ts";
+import { searchForm } from "./search-text.ts";
 
 export const searchIndexFile = "search-index.br";
 const indexSignature = "public-phonebook-search-index\t1";
@@ -89,6 +90,8 @@ export type SearchIndexHeader = v.InferOutput<typeof SearchIndexHeaderSchema>;
 
 export interface SearchIndexRow {
   readonly normalizedName: string;
+  /** The comparison form that search matches, which the index derives from the name instead of storing. */
+  readonly searchName: string;
   readonly name: string;
   readonly category: string;
   readonly region: string;
@@ -140,6 +143,7 @@ export function searchIndexRow(
 ): SearchIndexRow {
   return {
     normalizedName,
+    searchName: searchForm(contact.name),
     name: contact.name,
     category: contact.category,
     region: contact.municipalityCode ?? contact.prefectureCode,
@@ -416,6 +420,7 @@ export function decodeSearchIndex(bytes: Uint8Array): SearchIndex {
     checkPhones(phones);
     return {
       normalizedName,
+      searchName: searchForm(name),
       name,
       category: category.id,
       region,

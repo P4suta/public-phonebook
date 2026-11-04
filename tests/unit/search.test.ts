@@ -40,10 +40,13 @@ describe("search contract", () => {
     const first = parseSearch(new URLSearchParams({ q: "ＡＢＣ" }));
     const second = parseSearch(new URLSearchParams({ q: "abc" }));
     const expanded = parseSearch(
-      new URLSearchParams({ q: "\uFDFA".repeat(170) }),
+      new URLSearchParams({ q: "\u3300".repeat(170) }),
     );
     if (!first.ok || !second.ok || !expanded.ok)
       throw new Error("Valid query rejected");
+    expect(
+      parseSearch(new URLSearchParams({ q: "\uFDFA".repeat(170) })),
+    ).toEqual({ ok: false, error: "invalid_query" });
     expect(await searchKey(first.value)).toMatch(/^[a-f0-9]{64}$/);
     expect(await searchKey(first.value)).toBe(await searchKey(second.value));
     expect(await searchKey(expanded.value)).toMatch(/^[a-f0-9]{64}$/);

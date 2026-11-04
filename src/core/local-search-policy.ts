@@ -2,6 +2,7 @@ const unmatchedRank = -1;
 const exactRank = 0;
 const prefixRank = 1;
 const substringRank = 2;
+const placeRank = 3;
 const continuationPage = 30;
 
 export function nameRankAt(
@@ -19,6 +20,28 @@ export function nameRankAt(
   if (at < 0) return unmatchedRank;
   if (at > 0) return substringRank;
   return nameLength === queryLength ? exactRank : prefixRank;
+}
+
+/**
+ * Ranks a row from how many of the query's words its name holds and how many of the rest its region or category holds.
+ * `nameRank` is the one word's rank in the name, and only a one-word query that the name holds reads it.
+ */
+export function wordRank(
+  words: number,
+  named: number,
+  placed: number,
+  nameRank: number,
+): number {
+  //@ verify
+  //@ requires words >= 1 && named >= 0 && placed >= 0 && named + placed <= words
+  //@ requires nameRank >= 0 && nameRank <= 2
+  //@ ensures (\result === -1) === (named + placed < words)
+  //@ ensures (\result === 3) === (named + placed === words && named < words)
+  //@ ensures named === words && words === 1 ==> \result === nameRank
+  //@ ensures named === words && words > 1 ==> \result === 2
+  if (named + placed < words) return unmatchedRank;
+  if (named < words) return placeRank;
+  return words === 1 ? nameRank : substringRank;
 }
 
 export function groupPrecedes(

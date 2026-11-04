@@ -10,9 +10,11 @@ import {
   nameRankAt,
   nextVisible,
   searchSource,
+  wordRank,
 } from "../../src/core/local-search-policy.ts";
 import { nameRank, parseSearch, rankName } from "../../src/core/search.ts";
 import { previewLimit } from "../../src/core/search-policy.ts";
+import { maximumQueryWords } from "../../src/core/search-text.ts";
 
 const readiness: readonly IndexReadiness[] = [
   "loading",
@@ -35,6 +37,23 @@ describe("local search decisions", () => {
       nameRankAt(0, 4, 3),
       nameRankAt(1, 4, 3),
     ]).toEqual([nameRank.exact, nameRank.prefix, nameRank.substring]);
+  });
+
+  it("ranks every count of named and placed words like the decided tiers", () => {
+    for (let words = 1; words <= maximumQueryWords; words += 1)
+      for (let named = 0; named <= words; named += 1)
+        for (let placed = 0; named + placed <= words; placed += 1)
+          for (const single of [0, 1, 2]) {
+            const expected =
+              named + placed < words
+                ? -1
+                : named < words
+                  ? nameRank.place
+                  : words === 1
+                    ? single
+                    : nameRank.substring;
+            expect(wordRank(words, named, placed, single)).toBe(expected);
+          }
   });
 
   it("orders entries by rank and then by row", () => {

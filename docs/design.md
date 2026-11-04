@@ -148,7 +148,7 @@ Every contact appears under its fixed facility-category heading with one categor
 The count follows the category label 8 pixels after it, on the label's baseline.
 The category that holds an exact name comes first, and the exact name leads that category.
 Each category initially previews up to three contacts rather than filling the screen with one large category.
-The category order follows its best contact's exact-name, prefix, substring, normalized-name, and stable-ID order.
+The category order follows its best contact's exact-name, prefix, substring, region-or-category, normalized-name, and stable-ID order, as the [word search decision](adr/match-every-search-word-in-the-name-region-or-category.md) records.
 There is no grouping selector.
 The existing desktop and mobile result screens demonstrate the `高知大学` search.
 Grouped contacts inherit the shared heading's category and use third-level facility headings.

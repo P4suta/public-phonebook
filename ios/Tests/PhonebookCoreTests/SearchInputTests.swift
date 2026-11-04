@@ -41,10 +41,14 @@ private let phoneTable: [(text: String, phone: String?)] = [
     ("①丁目", "1丁目"), ("\u{3000}", ""),
   ]
   for (text, expected) in names { #expect(SearchInput.normalizedName(text) == expected) }
-  #expect(SearchInput.rank(name: "図書館", query: "図書館") == .exact)
-  #expect(SearchInput.rank(name: "図書館分室", query: "図書館") == .prefix)
-  #expect(SearchInput.rank(name: "中央図書館", query: "図書館") == .substring)
-  #expect(SearchInput.rank(name: "中央公民館", query: "図書館") == nil)
-  #expect(SearchInput.rank(name: "中央図書館", query: "") == nil)
-  #expect(NameRank.allCases.sorted() == [.exact, .prefix, .substring])
+  func rank(_ name: String, _ query: String) -> NameRank? {
+    SearchInput.rank(name: name, words: SearchInput.words(query), placed: { _ in false })
+  }
+  #expect(rank("図書館", "図書館") == .exact)
+  #expect(rank("図書館分室", "図書館") == .prefix)
+  #expect(rank("中央図書館", "図書館") == .substring)
+  #expect(rank("中央公民館", "図書館") == nil)
+  #expect(rank("中央図書館", "") == nil)
+  #expect(rank("中央図書館", "図書館　中央") == .substring)
+  #expect(NameRank.allCases.sorted() == [.exact, .prefix, .substring, .place])
 }

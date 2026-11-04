@@ -18,7 +18,7 @@ let package = Package(
       name: "PhonebookCoreTests", dependencies: ["PhonebookCore"],
       resources: [
         .copy("PublicationContract.json"), .copy("WaitContract.json"),
-        .copy("UpdateContract.json"),
+        .copy("UpdateContract.json"), .copy("SearchContract.json"),
       ]),
     .testTarget(
       name: "PhonebookKitTests", dependencies: ["PhonebookKit"],

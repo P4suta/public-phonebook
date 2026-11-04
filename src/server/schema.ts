@@ -14,6 +14,7 @@ export const contacts = sqliteTable(
     id: text("id").notNull(),
     name: text("name").notNull(),
     normalizedName: text("normalized_name").notNull(),
+    foldedName: text("folded_name").notNull(),
     prefecture: text("prefecture").notNull(),
     municipality: text("municipality"),
     category: text("category").$type<Category>().notNull(),

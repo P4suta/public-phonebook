@@ -44,6 +44,7 @@ import {
   categoryPreviews,
   contactPage,
   directoryDatabase,
+  readCatalog,
   searchSelection,
 } from "../../src/server/database.ts";
 import type {
@@ -1104,7 +1105,11 @@ describe("native D1 public API", () => {
     };
     const parsed = parseSearch(new URLSearchParams("limit=30"));
     if (!parsed.ok) throw new Error("Fixture query rejected");
-    const selection = await searchSelection(db, parsed.value);
+    const selection = await searchSelection(
+      db,
+      parsed.value,
+      await readCatalog(db),
+    );
     const after = {
       snapshot,
       query: await searchKey(parsed.value),

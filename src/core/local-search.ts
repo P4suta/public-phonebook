@@ -1,18 +1,19 @@
-import {
-  groupPrecedes,
-  nameRankAt,
-  nextVisible,
-} from "./local-search-policy.ts";
-import { normalizePhone } from "./phone.ts";
+import { groupPrecedes, nextVisible } from "./local-search-policy.ts";
 import type { Result } from "./result.ts";
 import {
   nameRank,
   nameRankValues,
-  normalizeName,
   parseSearch,
+  searchQuery,
 } from "./search.ts";
 import type { SearchIndex } from "./search-index.ts";
 import { previewLimit } from "./search-policy.ts";
+import {
+  placeHolds,
+  rankWords,
+  regionPlace,
+  wordPlaces,
+} from "./word-match.ts";
 
 export const localPageSize = 30;
 export const localPreviewSize = previewLimit(localPageSize);
@@ -23,7 +24,7 @@ const unmatchedRank = -1;
 export type LocalQuery =
   | { readonly kind: "empty" }
   | { readonly kind: "telephone"; readonly number: string }
-  | { readonly kind: "name"; readonly name: string };
+  | { readonly kind: "words"; readonly words: readonly string[] };
 
 export interface CategoryMatches {
   readonly category: string;
@@ -63,18 +64,16 @@ interface RankedCategory {
 export function localQuery(input: string): Result<LocalQuery, "invalid_query"> {
   const parsed = parseSearch(new URLSearchParams([["q", input]]));
   if (!parsed.ok) return { ok: false, error: "invalid_query" };
-  const { q } = parsed.value;
-  const name = normalizeName(q);
-  if (name === "") return { ok: true, value: { kind: "empty" } };
-  const phone = normalizePhone(q);
+  const query = searchQuery(parsed.value.q);
   return {
     ok: true,
-    value: phone.ok
-      ? {
-          kind: "telephone",
-          number: `${trunkPrefix}${phone.value.slice(countryPrefix.length)}`,
-        }
-      : { kind: "name", name },
+    value:
+      query.kind === "telephone"
+        ? {
+            kind: "telephone",
+            number: `${trunkPrefix}${query.number.slice(countryPrefix.length)}`,
+          }
+        : query,
   };
 }
 
@@ -82,17 +81,30 @@ function fail(message: string): never {
   throw new Error(message);
 }
 
+type RowRank = (row: SearchIndex["rows"][number]) => number;
+
 function rowRank(
-  row: SearchIndex["rows"][number],
+  index: SearchIndex,
   query: Exclude<LocalQuery, { kind: "empty" }>,
-): number {
+): RowRank {
   if (query.kind === "telephone")
-    return row.phones.includes(query.number) ? nameRank.exact : unmatchedRank;
-  return nameRankAt(
-    row.normalizedName.indexOf(query.name),
-    row.normalizedName.length,
-    query.name.length,
-  );
+    return (row) =>
+      row.phones.includes(query.number) ? nameRank.exact : unmatchedRank;
+  const places = query.words.map((word) => {
+    const holding = wordPlaces(index.header, word);
+    return {
+      prefectures: new Set(holding.prefectures),
+      municipalities: new Set(holding.municipalities),
+      categories: new Set(holding.categories),
+    };
+  });
+  return (row) =>
+    rankWords(row.searchName, query.words, (word) =>
+      placeHolds(
+        places[word] ?? fail("A word has no places"),
+        regionPlace(row.region, row.category),
+      ),
+    );
 }
 
 export function matchIndex(
@@ -102,9 +114,10 @@ export function matchIndex(
   if (query.kind === "empty") return { categories: [], total: 0 };
   const buckets = new Map<string, number[][]>();
   const { rows } = index;
+  const rankOf = rowRank(index, query);
   for (let position = 0; position < rows.length; position += 1) {
     const row = rows[position] ?? fail("A search index row is missing");
-    const rank = rowRank(row, query);
+    const rank = rankOf(row);
     if (rank === unmatchedRank) continue;
     let bucket = buckets.get(row.category);
     if (!bucket) {

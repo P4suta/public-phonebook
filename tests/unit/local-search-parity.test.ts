@@ -144,7 +144,10 @@ const catalog: Catalog = v.parse(CatalogSchema, {
       (item) => item.prefectureCode === String(index + 1).padStart(2, "0"),
     ).length,
   })),
-  municipalities: [],
+  municipalities: [
+    { code: "13101", prefectureCode: "13", name: "千代田区" },
+    { code: "14100", prefectureCode: "14", name: "横浜市" },
+  ],
 });
 
 function statements(): SqlStatement[] {
@@ -288,6 +291,19 @@ const queries = [
   "\t図書館\t",
   "図\t書",
   "存在しない名前",
+  "千代田 図書館",
+  "東京　分室",
+  "横浜  国立",
+  "神奈川 図書館 1",
+  "図書館 abc",
+  "横浜",
+  "東京都",
+  "病院",
+  "博物館 全国",
+  "トショカン",
+  "としょかん",
+  "ﾄｼｮｶﾝ 千代田",
+  "図 書 館 分 室 全 国 1",
   `${"図".repeat(170)}ab`,
 ];
 
@@ -388,7 +404,12 @@ describe("local search parity with the server", () => {
   });
 
   it("rejects the queries the server rejects", async () => {
-    for (const query of ["図書館\0", "\0", "図".repeat(171)]) {
+    for (const query of [
+      "図書館\0",
+      "\0",
+      "図".repeat(171),
+      "図 書 館 分 室 全 国 1 2",
+    ]) {
       expect(localQuery(query)).toEqual({ ok: false, error: "invalid_query" });
       const response = await request(
         `/api/contact-groups?q=${encodeURIComponent(query)}`,

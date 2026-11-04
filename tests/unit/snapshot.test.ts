@@ -30,6 +30,7 @@ import {
   encodeSearchIndex,
   searchIndexLimits,
 } from "../../src/core/search-index.ts";
+import { searchForm } from "../../src/core/search-text.ts";
 import { checkDataBundle } from "../../tools/check-data.ts";
 import {
   fetchDeltaBases,
@@ -116,8 +117,9 @@ it("prepares canonical native data with normalized addresses and complete archiv
   try {
     db.exec("BEGIN");
     db.exec(databaseSchema);
-    db.prepare("INSERT INTO contacts VALUES (1,?,?,?,?,?,?,?,?)").run(
+    db.prepare("INSERT INTO contacts VALUES (1,?,?,?,?,?,?,?,?,?)").run(
       contact.id,
+      contact.name,
       contact.name,
       contact.name,
       contact.prefectureCode,
@@ -263,7 +265,7 @@ function writeInput(
     db.exec("BEGIN");
     db.exec(databaseSchema);
     const insert = db.prepare(
-      "INSERT INTO contacts VALUES (?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO contacts VALUES (?,?,?,?,?,?,?,?,?,?)",
     );
     for (const [index, contact] of contacts.entries())
       insert.run(
@@ -271,6 +273,7 @@ function writeInput(
         contact.id,
         contact.name,
         normalizeName(contact.name),
+        searchForm(contact.name),
         contact.prefectureCode,
         contact.municipalityCode,
         contact.category,
@@ -390,7 +393,7 @@ it("numbers D1 rows by normalized name and identifier and rebuilds the search in
         expect(numbers, contact.id).toEqual(
           contact.phones.map((phone) => phone.e164).sort(),
         );
-        for (const term of nameTokens(normalizeName(contact.name))) {
+        for (const term of nameTokens(searchForm(contact.name))) {
           const matched = db
             .prepare(
               "SELECT rowid FROM contact_search WHERE contact_search MATCH ? ORDER BY rowid",
@@ -400,7 +403,7 @@ it("numbers D1 rows by normalized name and identifier and rebuilds the search in
           expect(matched, `${contact.id} ${term}`).toEqual(
             contacts
               .filter((other) =>
-                nameTokens(normalizeName(other.name)).includes(term),
+                nameTokens(searchForm(other.name)).includes(term),
               )
               .map((other) => rowids.get(other.id))
               .sort((left = 0, right = 0) => left - right),

@@ -28,6 +28,7 @@ import {
   searchIndexFile,
   searchIndexRow,
 } from "../../src/core/search-index.ts";
+import { searchForm } from "../../src/core/search-text.ts";
 import { databaseSchema } from "../../tools/database-schema.ts";
 import { compressSearchIndex } from "../../tools/search-index.ts";
 import { contactRowNumbers } from "../../tools/snapshot.ts";
@@ -204,12 +205,13 @@ beforeAll(async () => {
   await DB.batch([
     ...contacts.map((contact) =>
       DB.prepare(
-        "INSERT INTO contacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO contacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       ).bind(
         rowNumbers.get(contact.id) ?? 0,
         contact.id,
         contact.name,
         normalizeName(contact.name),
+        searchForm(contact.name),
         contact.prefectureCode,
         contact.municipalityCode,
         contact.category,

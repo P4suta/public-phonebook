@@ -18,6 +18,7 @@ import {
 } from "../src/core/models.ts";
 import { nameTokens, normalizeName } from "../src/core/search.ts";
 import { searchIndexFile } from "../src/core/search-index.ts";
+import { searchForm } from "../src/core/search-text.ts";
 import { contactVCard } from "../src/core/vcard.ts";
 import { categorySources } from "./category-sources.ts";
 import { databaseSchema } from "./database-schema.ts";
@@ -165,11 +166,14 @@ export async function writeCheckFixture(directory: string): Promise<void> {
     for (const contact of contacts) {
       const rowid = rowNumbers.get(contact.id);
       if (rowid === undefined) throw new Error("Missing fixture row number");
-      db.prepare("INSERT INTO contacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      db.prepare(
+        "INSERT INTO contacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      ).run(
         rowid,
         contact.id,
         contact.name,
         normalizeName(contact.name),
+        searchForm(contact.name),
         contact.prefectureCode,
         contact.municipalityCode,
         contact.category,
@@ -182,7 +186,7 @@ export async function writeCheckFixture(directory: string): Promise<void> {
       );
       db.prepare("INSERT INTO contact_search(rowid, terms) VALUES (?, ?)").run(
         rowid,
-        nameTokens(normalizeName(contact.name)).join(" "),
+        nameTokens(searchForm(contact.name)).join(" "),
       );
     }
     db.prepare("INSERT INTO metadata VALUES ('catalog', ?)").run(

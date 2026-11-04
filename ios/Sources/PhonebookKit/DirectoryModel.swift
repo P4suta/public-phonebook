@@ -54,7 +54,7 @@ public final class DirectoryModel {
   /// The task ends once `results`, `failed`, and `searching` describe the query, or once a newer search cancels it.
   @discardableResult
   public func search() -> Task<Void, Never>? {
-    let normalized = SearchInput.normalizedName(query)
+    let normalized = SearchInput.searchForm(query)
     guard normalized != searched else {
       if let results, results.query == normalized, results.input != query {
         self.results = SearchResults(query: normalized, input: query, groups: results.groups)
@@ -83,7 +83,8 @@ public final class DirectoryModel {
           let ids = try await store.contactIDs(generation: generation, number: phone.number)
           groups = try index.exact(ids)
         } else {
-          let work = Task.detached(priority: .userInitiated) { try index.search(normalized) }
+          let words = SearchInput.words(normalized)
+          let work = Task.detached(priority: .userInitiated) { try index.search(words) }
           groups = try await withTaskCancellationHandler {
             try await work.value
           } onCancel: {
@@ -93,7 +94,7 @@ public final class DirectoryModel {
         try Task.checkCancellation()
         // A later edit that keeps the normalized query, such as a trailing space, reuses this search.
         let result = SearchResults(
-          query: normalized, input: SearchInput.normalizedName(query) == normalized ? query : typed,
+          query: normalized, input: SearchInput.searchForm(query) == normalized ? query : typed,
           groups: groups.compactMap { matches in
             guard let first = matches.first else { return nil }
             let category = index.category(row: first.row)

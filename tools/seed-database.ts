@@ -8,6 +8,7 @@ import {
   importDecision,
 } from "../src/core/publication-policy.ts";
 import { nameTokens } from "../src/core/search.ts";
+import { searchForm } from "../src/core/search-text.ts";
 import { databaseSchema } from "./database-schema.ts";
 import {
   insertStatements,
@@ -21,6 +22,7 @@ import {
 const maximumBatchStatements = 256;
 const maximumRequestBytes = 2_000_000;
 const midpointDivisor = 2;
+const foldedColumn = seedColumns.contacts.indexOf("folded_name");
 
 const stages = [
   "contacts",
@@ -36,7 +38,7 @@ const queries: Record<SeedTable, string> = {
     "SELECT number,contact_rowid FROM phones ORDER BY number,contact_rowid LIMIT -1 OFFSET ?",
   sources: "SELECT id,payload FROM sources ORDER BY id LIMIT -1 OFFSET ?",
   contact_search:
-    "SELECT rowid,normalized_name FROM contacts ORDER BY rowid LIMIT -1 OFFSET ?",
+    "SELECT rowid,name FROM contacts ORDER BY rowid LIMIT -1 OFFSET ?",
   metadata: "SELECT key,payload FROM metadata ORDER BY key LIMIT -1 OFFSET ?",
 };
 const ValueSchema = v.union([
@@ -62,7 +64,15 @@ function* sourceRows(
     if (stage === "contact_search") {
       yield [
         v.parse(CountSchema, row.rowid),
-        nameTokens(v.parse(v.string(), row.normalized_name)).join(" "),
+        nameTokens(searchForm(v.parse(v.string(), row.name))).join(" "),
+      ];
+    } else if (stage === "contacts") {
+      // The comparison form derives from the display name, so a bundle built before the column existed still seeds it.
+      const values = v.parse(v.array(ValueSchema), Object.values(row));
+      yield [
+        ...values.slice(0, foldedColumn),
+        searchForm(v.parse(v.string(), row.name)),
+        ...values.slice(foldedColumn),
       ];
     } else yield v.parse(v.array(ValueSchema), Object.values(row));
   }

@@ -7,6 +7,7 @@ export const seedColumns = {
     "id",
     "name",
     "normalized_name",
+    "folded_name",
     "prefecture",
     "municipality",
     "category",
