@@ -1,17 +1,28 @@
 import { randomUUID } from "node:crypto";
 import {
   chmod,
+  cp,
   mkdir,
+  mkdtemp,
   open,
   readFile,
   rename,
   rm,
   writeFile,
 } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import * as v from "valibot";
 import type { Result } from "../src/core/result.ts";
-import { type CommandResult, command, requireCommand } from "./process.ts";
+import {
+  type CommandResult,
+  command,
+  mapConcurrently,
+  ownInstructions,
+  prepareMeter,
+  requireCommand,
+  useMeter,
+} from "./process.ts";
 import {
   digestOrNull,
   observeProof,
@@ -22,7 +33,7 @@ import {
   staleProof,
 } from "./proof-receipt.ts";
 import { fileDigest } from "./snapshot.ts";
-import { StepTimer } from "./step-timing.ts";
+import { countWork, StepTimer } from "./step-timing.ts";
 
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
@@ -32,6 +43,9 @@ const declaredPostconditionCount = 92;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
+const verifierCpus = 2;
+const safetyStopSeconds = 900;
+const generatorProcesses = 4;
 const releaseControlVerifiedUnits = 2;
 const releaseControlPostconditions = 16;
 const provenUnitCount = verifiedUnitCount + releaseControlVerifiedUnits;
@@ -199,6 +213,7 @@ const boundFiles = [
   "cloudflare.config.ts",
   "tools/prove.ts",
   "tools/process.ts",
+  "tests/unit/process.test.ts",
   "tools/snapshot.ts",
   "tools/proof-receipt.ts",
   "tools/step-timing.ts",
@@ -253,7 +268,268 @@ const modelPaths = proofSources.map(
   (path) => `${proofRoot}/proof/generated/${path.replace(/\.ts$/u, ".dfy")}`,
 );
 const receiptPath = ".local/proof-receipt.json";
-const negativeSources = "proof/negative/";
+const negativeSources = "proof/negative";
+const generatedModels = "proof/generated";
+
+/** A copied policy source with one mutation that must make Dafny report an unproved contract. */
+interface NegativeControl {
+  readonly name: string;
+  readonly source: string;
+  readonly from: string;
+  readonly to: string;
+}
+
+const searchPolicy = "src/core/search-policy.ts";
+const triggerPolicy = "src/core/search-trigger-policy.ts";
+const sitePolicy = "src/core/site-request-policy.ts";
+const publicationPolicy = "src/core/publication-policy.ts";
+const collectionPolicy = "src/core/collection-policy.ts";
+const localSearchPolicy = "src/core/local-search-policy.ts";
+const rowPolicy = "src/core/row-locator-policy.ts";
+const deltaPolicy = "src/core/directory-delta-policy.ts";
+const negativeControls: readonly NegativeControl[] = [
+  {
+    name: "search-policy",
+    source: searchPolicy,
+    from: "const maximumSearchLimit = 100;",
+    to: "const maximumSearchLimit = 101;",
+  },
+  {
+    name: "total-scope",
+    source: searchPolicy,
+    from: "if (queried || municipality) return",
+    to: "if (queried) return",
+  },
+  {
+    name: "cache-status",
+    source: searchPolicy,
+    from: "return status === cacheableStatus;",
+    to: "return status >= cacheableStatus;",
+  },
+  {
+    name: "trigger-composition",
+    source: triggerPolicy,
+    from: '  if (composing) return "wait";\n',
+    to: "",
+  },
+  {
+    name: "trigger-telephone",
+    source: triggerPolicy,
+    from: 'return completeTelephone ? "settle" : "wait";',
+    to: 'return "settle";',
+  },
+  {
+    name: "trigger-pause",
+    source: triggerPolicy,
+    from: "const minimumPauseIntervals = 2;",
+    to: "const minimumPauseIntervals = 1;",
+  },
+  {
+    name: "site-admission",
+    source: sitePolicy,
+    from: '  if (!sameOrigin) return "cross_origin";\n',
+    to: "",
+  },
+  {
+    name: "site-page",
+    source: sitePolicy,
+    from: "const sitePageSize = 30;",
+    to: "const sitePageSize = 31;",
+  },
+  {
+    name: "import-identity",
+    source: publicationPolicy,
+    from: 'if (current === "") return "start";',
+    to: 'if (current !== "") return "start";',
+  },
+  {
+    name: "verification-binding",
+    source: publicationPolicy,
+    from: '  if (!bound) return "verify";\n',
+    to: '  if (!bound || complete) return "verify";\n',
+  },
+  {
+    name: "verification-digest",
+    source: publicationPolicy,
+    from: "evidencePresent &&\n    (evidenceDatabase !== database || evidenceResource !== resource)",
+    to: "evidencePresent &&\n    evidenceResource !== resource",
+  },
+  {
+    name: "promotion-verified",
+    source: publicationPolicy,
+    from: '  if (!verified) return "unverified";\n',
+    to: "",
+  },
+  {
+    name: "promotion-current",
+    source: publicationPolicy,
+    from: '  if (currentVersion !== previousVersion) return "current-changed";\n',
+    to: "",
+  },
+  {
+    name: "promotion-version",
+    source: publicationPolicy,
+    from: '  if (deployedCandidate !== verifiedVersion) return "different-version";\n',
+    to: "",
+  },
+  {
+    name: "withdrawal-ownership",
+    source: publicationPolicy,
+    from: 'return candidateOwned ? "remove-candidate" : "refuse";',
+    to: 'return "remove-candidate";',
+  },
+  {
+    name: "recovery-ownership",
+    source: publicationPolicy,
+    from: 'if (!previousPresent) return "refuse";',
+    to: 'if (previousPresent) return "refuse";',
+  },
+  {
+    name: "retention-pending",
+    source: publicationPolicy,
+    from: "return owned && !active && !rollback && !pending;",
+    to: "return owned && !active && !rollback;",
+  },
+  {
+    name: "coverage-retention",
+    source: publicationPolicy,
+    from: "return candidate * coverageScale >= previous * coverageRetained;",
+    to: "return candidate * coverageScale >= previous * (coverageRetained - 1);",
+  },
+  {
+    name: "lease-expiry",
+    source: publicationPolicy,
+    from: "if (serverTimeMs >= expiresAtMs) return",
+    to: "if (serverTimeMs > expiresAtMs) return",
+  },
+  {
+    name: "probe-hold",
+    source: publicationPolicy,
+    from: "return oldestMs + windowMs - nowMs;",
+    to: "return oldestMs + windowMs - nowMs + 1;",
+  },
+  {
+    name: "evidence-signer",
+    source: publicationPolicy,
+    from: '  if (signer !== expectedSigner) return "different-signer";\n',
+    to: "",
+  },
+  {
+    name: "evidence-inputs",
+    source: publicationPolicy,
+    from: '  if (inputs !== expectedInputs) return "stale-inputs";\n',
+    to: "",
+  },
+  {
+    name: "collection-ambiguity",
+    source: collectionPolicy,
+    from: "return count === 1;",
+    to: "return count === 0;",
+  },
+  {
+    name: "collection-accounting",
+    source: collectionPolicy,
+    from: "return rows === accepted + missing + invalid + duplicate + excluded;",
+    to: "return rows === accepted + missing + invalid + excluded;",
+  },
+  {
+    name: "collection-name-evidence",
+    source: collectionPolicy,
+    from: "  return (\n    namePresent &&",
+    to: "  return (\n    true &&",
+  },
+  {
+    name: "snapshot-policy",
+    source: "src/core/snapshot-policy.ts",
+    from: 'if (supplied && !matches) return "snapshot_changed";',
+    to: 'if (!supplied && !matches) return "snapshot_changed";',
+  },
+  {
+    name: "local-rank",
+    source: localSearchPolicy,
+    from: "if (at > 0) return substringRank;",
+    to: "if (at > 1) return substringRank;",
+  },
+  {
+    name: "local-group-order",
+    source: localSearchPolicy,
+    from: "(rank === otherRank && row < otherRow);",
+    to: "(rank === otherRank && row <= otherRow);",
+  },
+  {
+    name: "local-source",
+    source: localSearchPolicy,
+    from: 'return index === "ready" ? "local" : "server";',
+    to: 'return index !== "unavailable" ? "local" : "server";',
+  },
+  {
+    name: "local-continuation",
+    source: localSearchPolicy,
+    from: "const continuationPage = 30;",
+    to: "const continuationPage = 31;",
+  },
+  {
+    name: "local-admission",
+    source: localSearchPolicy,
+    from: '  if (!digestMatches) return "digest_mismatch";\n',
+    to: "",
+  },
+  {
+    name: "row-range",
+    source: rowPolicy,
+    from: 'if (row >= contacts) return "not_found";',
+    to: 'if (row > contacts) return "not_found";',
+  },
+  {
+    name: "row-snapshot",
+    source: rowPolicy,
+    from: '  if (!current) return "snapshot_changed";\n',
+    to: "",
+  },
+  {
+    name: "delta-budget",
+    source: deltaPolicy,
+    from: "const deltaBudgetDenominator = 2;",
+    to: "const deltaBudgetDenominator = 1;",
+  },
+  {
+    name: "delta-range",
+    source: deltaPolicy,
+    from: "return start >= 0 && count >= 1 && start + count <= baseRows;",
+    to: "return start >= 0 && count >= 1 && start + count <= baseRows + 1;",
+  },
+  {
+    name: "delta-digest",
+    source: deltaPolicy,
+    from: '  if (!digestMatches) return "digest_mismatch";\n',
+    to: "",
+  },
+];
+
+function negativeSource(control: NegativeControl): string {
+  return `${negativeSources}/${control.name}.ts`;
+}
+
+function negativeModel(control: NegativeControl): string {
+  return `${proofRoot}/${generatedModels}/${negativeSources}/${control.name}.dfy`;
+}
+
+/** Holds when Dafny printed its summary, which a run that the container's safety stop ended never prints. */
+function finished(result: CommandResult): boolean {
+  return /Dafny program verifier finished with/u.test(result.output);
+}
+
+/** Holds when Dafny finished and reported at least one unproved contract and no exhausted limit, so neither a tool error nor a limit counts as a rejection. */
+function rejectedByVerifier(result: CommandResult): boolean {
+  return (
+    result.code !== 0 &&
+    finished(result) &&
+    /[1-9][0-9]* error/u.test(result.output) &&
+    /could not be proved|could not prove/u.test(result.output) &&
+    !/out of resource|timed out|time outs?\b/u.test(result.output)
+  );
+}
+
 const inventory: ProofInventory = {
   boundFiles,
   inputRoot: proofRoot,
@@ -262,25 +538,26 @@ const inventory: ProofInventory = {
   verifiedUnits: provenUnitCount,
   postconditions: provenPostconditionCount,
 };
-const timer = new StepTimer();
+const timer = new StepTimer(undefined, ownInstructions);
+/** The resource count is the second field from the end of each CSV row. */
+const resourceCountField = -2;
+const resourceLogHeader =
+  "TestResult.DisplayName,TestResult.Outcome,TestResult.Duration,TestResult.ResourceCount,RandomSeed";
 
-function generateModel(path: string): Promise<void> {
-  return timer.time(
-    path.startsWith(negativeSources) ? "negative models" : "models",
-    () => runGenerator(path),
-  );
-}
-
-function verifyModel(
-  image: string,
-  models: readonly string[],
-): Promise<CommandResult> {
-  return timer.time(
-    models.every((model) => model.includes(`/${negativeSources}`))
-      ? "negative proofs"
-      : "proof",
-    () => runVerifier(image, models),
-  );
+/** Splits Dafny's output from the CSV that `--log-format csv` appends, and sums the solver resource units of its rows. */
+function resourceLog(output: string): {
+  readonly report: string;
+  readonly resourceUnits: number | null;
+} {
+  const lines = output.split("\n");
+  const header = lines.indexOf(resourceLogHeader);
+  if (header < 0) return { report: output, resourceUnits: null };
+  let resourceUnits = 0;
+  for (const row of lines.slice(header + 1)) {
+    const units = row.split(",").at(resourceCountField);
+    if (units && /^[0-9]+$/u.test(units)) resourceUnits += Number(units);
+  }
+  return { report: lines.slice(0, header).join("\n"), resourceUnits };
 }
 
 async function verifierImage(): Promise<string> {
@@ -301,6 +578,7 @@ async function verifierImage(): Promise<string> {
   const image = build.output.trim().split("\n").at(-1) ?? "";
   if (build.code !== 0 || !/^sha256:[a-f0-9]{64}$/u.test(image))
     throw new Error(`Verifier image build failed: ${build.output}`);
+  countWork("image builds", 1);
   return image;
 }
 
@@ -309,7 +587,7 @@ function installedPackages(): Promise<string | null> {
   return digestOrNull("node_modules/.package-lock.json");
 }
 
-async function runGenerator(path: string): Promise<void> {
+async function generatorPath(): Promise<string> {
   const metadata: unknown = JSON.parse(
     await readFile("node_modules/lemmascript/package.json", "utf8"),
   );
@@ -317,31 +595,162 @@ async function runGenerator(path: string): Promise<void> {
     v.object({ bin: v.object({ lsc: v.string() }) }),
     metadata,
   );
-  await requireCommand(
+  return resolve("node_modules/lemmascript", bin.lsc);
+}
+
+/** Type-checks `files` with only the snapshot and the ES2023 library, without any type package. */
+async function checkWithoutPackages(
+  scratch: string,
+  files: readonly string[],
+): Promise<CommandResult> {
+  const project = join(scratch, `tsconfig.${randomUUID()}.json`);
+  await writeFile(
+    project,
+    JSON.stringify({
+      extends: "./input/tsconfig.json",
+      compilerOptions: { lib: ["ES2023"], types: [] },
+      include: [],
+      files,
+    }),
+  );
+  return command(
     process.execPath,
     [
-      resolve("node_modules/lemmascript", bin.lsc),
-      "gen",
-      "--backend=dafny",
-      path,
+      resolve("node_modules/typescript/bin/tsc"),
+      "--noEmit",
+      "--pretty",
+      "false",
+      "--project",
+      project,
     ],
-    resolve(proofRoot),
+    true,
   );
 }
 
-async function runVerifier(
-  image: string,
-  models: readonly string[],
-): Promise<CommandResult> {
-  const name = `dial-proof-${randomUUID()}`;
-  let result: Result<CommandResult, unknown>;
+/**
+ * Requires every proof source to resolve each name within the snapshot and the ES2023 library.
+ * A copy outside the checkout sees no package types, and the pinned type packages only add members to `ErrorConstructor` and `ImportMeta` among ES2023 declarations, so such a source translates to the same model there.
+ * The check must also refuse a planted package import and a planted ambient type.
+ */
+async function requireSelfContainedSources(scratch: string): Promise<void> {
+  const sources = await checkWithoutPackages(
+    scratch,
+    proofSources.map((path) => `input/${path}`),
+  );
+  if (sources.code !== 0)
+    throw new Error(
+      `A proof source needs a declaration outside its snapshot: ${sources.output}`,
+    );
+  const control = "source-isolation-control.ts";
+  await writeFile(
+    join(scratch, control),
+    'import type { InferOutput } from "valibot";\nexport type Imported = InferOutput<never>;\nexport type Ambient = CfProperties;\n',
+  );
+  const planted = await checkWithoutPackages(scratch, [control]);
+  if (
+    planted.code === 0 ||
+    !planted.output.includes("TS2307") ||
+    !planted.output.includes("TS2304")
+  )
+    throw new Error(
+      `The source isolation control was inconclusive: ${planted.output}`,
+    );
+}
+
+async function runGenerator(
+  generator: string,
+  snapshot: string,
+  path: string,
+): Promise<void> {
+  const generated = await command(
+    process.execPath,
+    [generator, "gen", "--backend=dafny", path],
+    true,
+    snapshot,
+  );
+  if (generated.code !== 0)
+    throw new Error(
+      `Model generation failed (${generated.code}) for ${path}: ${generated.output}`,
+    );
+  countWork("model generations", 1);
+}
+
+/**
+ * Generates every positive and negative model in a per-run copy of the snapshot outside the checkout, where the generator's TypeScript project finds no installed packages.
+ * The models and negative sources then return to their paths in the snapshot.
+ */
+async function generateModels(): Promise<void> {
+  const scratch = await mkdtemp(join(tmpdir(), "public-phonebook-proof-"));
   try {
-    result = {
-      ok: true,
-      value: await command(
+    const snapshot = join(scratch, "input");
+    await cp(proofRoot, snapshot, { recursive: true });
+    await requireSelfContainedSources(scratch);
+    await mkdir(join(snapshot, negativeSources), { recursive: true });
+    for (const control of negativeControls) {
+      const source = await readFile(join(snapshot, control.source), "utf8");
+      const broken = source.replace(control.from, control.to);
+      if (broken === source)
+        throw new Error(
+          `The ${control.name} negative control did not mutate the implementation`,
+        );
+      await writeFile(join(snapshot, negativeSource(control)), broken);
+    }
+    const generator = await generatorPath();
+    await mapConcurrently(
+      [...proofSources, ...negativeControls.map(negativeSource)],
+      generatorProcesses,
+      (path) => runGenerator(generator, snapshot, path),
+    );
+    for (const directory of [generatedModels, negativeSources])
+      await cp(join(snapshot, directory), join(proofRoot, directory), {
+        recursive: true,
+      });
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+}
+
+type Verifier = (models: readonly string[]) => Promise<CommandResult>;
+
+/** Runs `action` with one verifier container that has the proof limits, and runs each verification as its own Dafny process in that container. */
+async function withVerifier<T>(
+  image: string,
+  action: (verify: Verifier) => Promise<T>,
+): Promise<T> {
+  const name = `dial-proof-${randomUUID()}`;
+  const verify: Verifier = async (models) => {
+    const result = await command(
+      "docker",
+      [
+        "exec",
+        name,
+        verifierExecutable,
+        "verify",
+        ...models,
+        // The deterministic resource limit bounds each condition, and the container's lifetime is the only clock.
+        "--resource-limit=5000000",
+        "--unicode-char=false",
+        "--allow-deprecation",
+        // Each verification condition's row carries the solver's deterministic resource count.
+        "--log-format=csv;LogFileName=/dev/stdout",
+      ],
+      true,
+    );
+    const { report, resourceUnits } = resourceLog(result.output);
+    countWork("Dafny processes", 1);
+    if (resourceUnits !== null)
+      countWork("solver resource units", resourceUnits);
+    return { ...result, output: report };
+  };
+  let result: Result<T, unknown>;
+  try {
+    const started = await timer.time("container", async () => {
+      countWork("container starts", 1);
+      return command(
         "docker",
         [
           "run",
+          "--detach",
           "--rm",
           "--platform=linux/amd64",
           "--name",
@@ -350,7 +759,7 @@ async function runVerifier(
           "--read-only",
           "--memory=2048m",
           "--memory-swap=2048m",
-          "--cpus=2",
+          `--cpus=${verifierCpus}`,
           "--pids-limit=256",
           "--cap-drop=ALL",
           "--security-opt=no-new-privileges",
@@ -358,20 +767,17 @@ async function runVerifier(
           "--mount",
           `type=bind,src=${process.cwd()},dst=/work,readonly`,
           "--workdir=/work",
-          "--entrypoint=/usr/bin/timeout",
+          // The container's lifetime is the safety stop for every Dafny process in it.
+          "--entrypoint=/usr/bin/sleep",
           image,
-          "900",
-          verifierExecutable,
-          "verify",
-          ...models,
-          "--resource-limit=5000000",
-          "--verification-time-limit=30",
-          "--unicode-char=false",
-          "--allow-deprecation",
+          String(safetyStopSeconds),
         ],
         true,
-      ),
-    };
+      );
+    });
+    if (started.code !== 0)
+      throw new Error(`Proof container start failed: ${started.output}`);
+    result = { ok: true, value: await action(verify) };
   } catch (error) {
     result = { ok: false, error };
   }
@@ -420,7 +826,7 @@ async function proveCompletely(): Promise<void> {
   let complete = false;
   try {
     const bindings = await timer.time("inputs", copyInputs);
-    for (const path of proofSources) await generateModel(path);
+    await timer.time("models", generateModels);
     const models: string[] = [];
     for (const path of modelPaths) {
       const generated = await readFile(path, "utf8");
@@ -445,447 +851,34 @@ async function proveCompletely(): Promise<void> {
         throw new Error(`Missing proof: ${name}`);
     }
     const image = await timer.time("image", verifierImage);
-    const positive = await verifyModel(image, modelPaths);
-    console.info(positive.output);
-    if (
-      positive.code !== 0 ||
-      !new RegExp(
-        `finished with ${provenUnitCount} verified, 0 errors`,
-        "u",
-      ).test(positive.output)
-    )
-      throw new Error("The complete proof inventory did not pass");
-    const source = await readFile(
-      `${proofRoot}/src/core/search-policy.ts`,
-      "utf8",
-    );
-    const broken = source.replace(
-      "const maximumSearchLimit = 100;",
-      "const maximumSearchLimit = 101;",
-    );
-    if (broken === source)
-      throw new Error(
-        "The proof negative control did not mutate the implementation",
+    await withVerifier(image, async (verify) => {
+      const positive = await timer.time("proof", () => verify(modelPaths));
+      console.info(positive.output);
+      if (!finished(positive))
+        throw new Error(
+          "Inconclusive: Dafny ended before its summary, as the container's safety stop does",
+        );
+      if (
+        positive.code !== 0 ||
+        !new RegExp(
+          `finished with ${provenUnitCount} verified, 0 errors`,
+          "u",
+        ).test(positive.output)
+      )
+        throw new Error("The complete proof inventory did not pass");
+      const negatives = await timer.time("negative proofs", () =>
+        mapConcurrently(negativeControls, verifierCpus, (control) =>
+          verify([negativeModel(control)]),
+        ),
       );
-    await mkdir(`${proofRoot}/proof/negative`, { recursive: true });
-    await writeFile(`${proofRoot}/proof/negative/search-policy.ts`, broken);
-    await generateModel("proof/negative/search-policy.ts");
-    const negative = await verifyModel(image, [
-      `${proofRoot}/proof/generated/proof/negative/search-policy.dfy`,
-    ]);
-    if (
-      negative.code === 0 ||
-      !/[1-9][0-9]* error/u.test(negative.output) ||
-      !/could not be proved|could not prove/u.test(negative.output)
-    )
-      throw new Error(
-        `The negative control was inconclusive: ${negative.output}`,
-      );
-    for (const control of [
-      {
-        name: "total-scope",
-        from: "if (queried || municipality) return",
-        to: "if (queried) return",
-      },
-      {
-        name: "cache-status",
-        from: "return status === cacheableStatus;",
-        to: "return status >= cacheableStatus;",
-      },
-    ]) {
-      const brokenSearch = source.replace(control.from, control.to);
-      if (brokenSearch === source)
-        throw new Error(
-          `The ${control.name} negative control did not mutate the implementation`,
-        );
-      const path = `proof/negative/${control.name}.ts`;
-      await writeFile(`${proofRoot}/${path}`, brokenSearch);
-      await generateModel(path);
-      const rejected = await verifyModel(image, [
-        `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
-      ]);
-      if (
-        rejected.code === 0 ||
-        !/[1-9][0-9]* error/u.test(rejected.output) ||
-        !/could not be proved|could not prove/u.test(rejected.output)
-      )
-        throw new Error(
-          `The ${control.name} negative control was inconclusive: ${rejected.output}`,
-        );
-    }
-    const triggerSource = await readFile(
-      `${proofRoot}/src/core/search-trigger-policy.ts`,
-      "utf8",
-    );
-    for (const control of [
-      {
-        name: "trigger-composition",
-        from: '  if (composing) return "wait";\n',
-        to: "",
-      },
-      {
-        name: "trigger-telephone",
-        from: 'return completeTelephone ? "settle" : "wait";',
-        to: 'return "settle";',
-      },
-      {
-        name: "trigger-pause",
-        from: "const minimumPauseIntervals = 2;",
-        to: "const minimumPauseIntervals = 1;",
-      },
-    ]) {
-      const brokenTrigger = triggerSource.replace(control.from, control.to);
-      if (brokenTrigger === triggerSource)
-        throw new Error(
-          `The ${control.name} negative control did not mutate the implementation`,
-        );
-      const path = `proof/negative/${control.name}.ts`;
-      await writeFile(`${proofRoot}/${path}`, brokenTrigger);
-      await generateModel(path);
-      const rejected = await verifyModel(image, [
-        `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
-      ]);
-      if (
-        rejected.code === 0 ||
-        !/[1-9][0-9]* error/u.test(rejected.output) ||
-        !/could not be proved|could not prove/u.test(rejected.output)
-      )
-        throw new Error(
-          `The ${control.name} negative control was inconclusive: ${rejected.output}`,
-        );
-    }
-    const siteSource = await readFile(
-      `${proofRoot}/src/core/site-request-policy.ts`,
-      "utf8",
-    );
-    for (const control of [
-      {
-        name: "site-admission",
-        from: '  if (!sameOrigin) return "cross_origin";\n',
-        to: "",
-      },
-      {
-        name: "site-page",
-        from: "const sitePageSize = 30;",
-        to: "const sitePageSize = 31;",
-      },
-    ]) {
-      const brokenSite = siteSource.replace(control.from, control.to);
-      if (brokenSite === siteSource)
-        throw new Error(
-          `The ${control.name} negative control did not mutate the implementation`,
-        );
-      const path = `proof/negative/${control.name}.ts`;
-      await writeFile(`${proofRoot}/${path}`, brokenSite);
-      await generateModel(path);
-      const rejected = await verifyModel(image, [
-        `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
-      ]);
-      if (
-        rejected.code === 0 ||
-        !/[1-9][0-9]* error/u.test(rejected.output) ||
-        !/could not be proved|could not prove/u.test(rejected.output)
-      )
-        throw new Error(
-          `The ${control.name} negative control was inconclusive: ${rejected.output}`,
-        );
-    }
-    const publicationSource = await readFile(
-      `${proofRoot}/src/core/publication-policy.ts`,
-      "utf8",
-    );
-    for (const control of [
-      {
-        name: "import-identity",
-        from: 'if (current === "") return "start";',
-        to: 'if (current !== "") return "start";',
-      },
-      {
-        name: "verification-binding",
-        from: '  if (!bound) return "verify";\n',
-        to: '  if (!bound || complete) return "verify";\n',
-      },
-      {
-        name: "verification-digest",
-        from: "evidencePresent &&\n    (evidenceDatabase !== database || evidenceResource !== resource)",
-        to: "evidencePresent &&\n    evidenceResource !== resource",
-      },
-      {
-        name: "promotion-verified",
-        from: '  if (!verified) return "unverified";\n',
-        to: "",
-      },
-      {
-        name: "promotion-current",
-        from: '  if (currentVersion !== previousVersion) return "current-changed";\n',
-        to: "",
-      },
-      {
-        name: "promotion-version",
-        from: '  if (deployedCandidate !== verifiedVersion) return "different-version";\n',
-        to: "",
-      },
-      {
-        name: "withdrawal-ownership",
-        from: 'return candidateOwned ? "remove-candidate" : "refuse";',
-        to: 'return "remove-candidate";',
-      },
-      {
-        name: "recovery-ownership",
-        from: 'if (!previousPresent) return "refuse";',
-        to: 'if (previousPresent) return "refuse";',
-      },
-      {
-        name: "retention-pending",
-        from: "return owned && !active && !rollback && !pending;",
-        to: "return owned && !active && !rollback;",
-      },
-      {
-        name: "coverage-retention",
-        from: "return candidate * coverageScale >= previous * coverageRetained;",
-        to: "return candidate * coverageScale >= previous * (coverageRetained - 1);",
-      },
-      {
-        name: "lease-expiry",
-        from: "if (serverTimeMs >= expiresAtMs) return",
-        to: "if (serverTimeMs > expiresAtMs) return",
-      },
-      {
-        name: "probe-hold",
-        from: "return oldestMs + windowMs - nowMs;",
-        to: "return oldestMs + windowMs - nowMs + 1;",
-      },
-      {
-        name: "evidence-signer",
-        from: '  if (signer !== expectedSigner) return "different-signer";\n',
-        to: "",
-      },
-      {
-        name: "evidence-inputs",
-        from: '  if (inputs !== expectedInputs) return "stale-inputs";\n',
-        to: "",
-      },
-    ]) {
-      const brokenPublication = publicationSource.replace(
-        control.from,
-        control.to,
-      );
-      if (brokenPublication === publicationSource)
-        throw new Error(
-          `The ${control.name} negative control did not mutate the implementation`,
-        );
-      const path = `proof/negative/${control.name}.ts`;
-      await writeFile(`${proofRoot}/${path}`, brokenPublication);
-      await generateModel(path);
-      const rejected = await verifyModel(image, [
-        `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
-      ]);
-      if (
-        rejected.code === 0 ||
-        !/[1-9][0-9]* error/u.test(rejected.output) ||
-        !/could not be proved|could not prove/u.test(rejected.output)
-      )
-        throw new Error(
-          `The ${control.name} negative control was inconclusive: ${rejected.output}`,
-        );
-    }
-    const collectionSource = await readFile(
-      `${proofRoot}/src/core/collection-policy.ts`,
-      "utf8",
-    );
-    for (const control of [
-      {
-        name: "collection-ambiguity",
-        from: "return count === 1;",
-        to: "return count === 0;",
-      },
-      {
-        name: "collection-accounting",
-        from: "return rows === accepted + missing + invalid + duplicate + excluded;",
-        to: "return rows === accepted + missing + invalid + excluded;",
-      },
-      {
-        name: "collection-name-evidence",
-        from: "  return (\n    namePresent &&",
-        to: "  return (\n    true &&",
-      },
-    ]) {
-      const broken = collectionSource.replace(control.from, control.to);
-      if (broken === collectionSource)
-        throw new Error(
-          `The ${control.name} negative control did not mutate the implementation`,
-        );
-      const path = `proof/negative/${control.name}.ts`;
-      await writeFile(`${proofRoot}/${path}`, broken);
-      await generateModel(path);
-      const rejected = await verifyModel(image, [
-        `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
-      ]);
-      if (
-        rejected.code === 0 ||
-        !/[1-9][0-9]* error/u.test(rejected.output) ||
-        !/could not be proved|could not prove/u.test(rejected.output)
-      )
-        throw new Error(
-          `The ${control.name} negative control was inconclusive: ${rejected.output}`,
-        );
-    }
-    const snapshotSource = await readFile(
-      `${proofRoot}/src/core/snapshot-policy.ts`,
-      "utf8",
-    );
-    const brokenSnapshot = snapshotSource.replace(
-      'if (supplied && !matches) return "snapshot_changed";',
-      'if (!supplied && !matches) return "snapshot_changed";',
-    );
-    if (brokenSnapshot === snapshotSource)
-      throw new Error(
-        "The snapshot negative control did not mutate the implementation",
-      );
-    await writeFile(
-      `${proofRoot}/proof/negative/snapshot-policy.ts`,
-      brokenSnapshot,
-    );
-    await generateModel("proof/negative/snapshot-policy.ts");
-    const rejectedSnapshot = await verifyModel(image, [
-      `${proofRoot}/proof/generated/proof/negative/snapshot-policy.dfy`,
-    ]);
-    if (
-      rejectedSnapshot.code === 0 ||
-      !/[1-9][0-9]* error/u.test(rejectedSnapshot.output) ||
-      !/could not be proved|could not prove/u.test(rejectedSnapshot.output)
-    )
-      throw new Error(
-        `The snapshot negative control was inconclusive: ${rejectedSnapshot.output}`,
-      );
-    const localSearchSource = await readFile(
-      `${proofRoot}/src/core/local-search-policy.ts`,
-      "utf8",
-    );
-    for (const control of [
-      {
-        name: "local-rank",
-        from: "if (at > 0) return substringRank;",
-        to: "if (at > 1) return substringRank;",
-      },
-      {
-        name: "local-group-order",
-        from: "(rank === otherRank && row < otherRow);",
-        to: "(rank === otherRank && row <= otherRow);",
-      },
-      {
-        name: "local-source",
-        from: 'return index === "ready" ? "local" : "server";',
-        to: 'return index !== "unavailable" ? "local" : "server";',
-      },
-      {
-        name: "local-continuation",
-        from: "const continuationPage = 30;",
-        to: "const continuationPage = 31;",
-      },
-      {
-        name: "local-admission",
-        from: '  if (!digestMatches) return "digest_mismatch";\n',
-        to: "",
-      },
-    ]) {
-      const broken = localSearchSource.replace(control.from, control.to);
-      if (broken === localSearchSource)
-        throw new Error(
-          `The ${control.name} negative control did not mutate the implementation`,
-        );
-      const path = `proof/negative/${control.name}.ts`;
-      await writeFile(`${proofRoot}/${path}`, broken);
-      await generateModel(path);
-      const rejected = await verifyModel(image, [
-        `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
-      ]);
-      if (
-        rejected.code === 0 ||
-        !/[1-9][0-9]* error/u.test(rejected.output) ||
-        !/could not be proved|could not prove/u.test(rejected.output)
-      )
-        throw new Error(
-          `The ${control.name} negative control was inconclusive: ${rejected.output}`,
-        );
-    }
-    const rowSource = await readFile(
-      `${proofRoot}/src/core/row-locator-policy.ts`,
-      "utf8",
-    );
-    for (const control of [
-      {
-        name: "row-range",
-        from: 'if (row >= contacts) return "not_found";',
-        to: 'if (row > contacts) return "not_found";',
-      },
-      {
-        name: "row-snapshot",
-        from: '  if (!current) return "snapshot_changed";\n',
-        to: "",
-      },
-    ]) {
-      const brokenRow = rowSource.replace(control.from, control.to);
-      if (brokenRow === rowSource)
-        throw new Error(
-          `The ${control.name} negative control did not mutate the implementation`,
-        );
-      const path = `proof/negative/${control.name}.ts`;
-      await writeFile(`${proofRoot}/${path}`, brokenRow);
-      await generateModel(path);
-      const rejected = await verifyModel(image, [
-        `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
-      ]);
-      if (
-        rejected.code === 0 ||
-        !/[1-9][0-9]* error/u.test(rejected.output) ||
-        !/could not be proved|could not prove/u.test(rejected.output)
-      )
-        throw new Error(
-          `The ${control.name} negative control was inconclusive: ${rejected.output}`,
-        );
-    }
-    const deltaSource = await readFile(
-      `${proofRoot}/src/core/directory-delta-policy.ts`,
-      "utf8",
-    );
-    for (const control of [
-      {
-        name: "delta-budget",
-        from: "const deltaBudgetDenominator = 2;",
-        to: "const deltaBudgetDenominator = 1;",
-      },
-      {
-        name: "delta-range",
-        from: "return start >= 0 && count >= 1 && start + count <= baseRows;",
-        to: "return start >= 0 && count >= 1 && start + count <= baseRows + 1;",
-      },
-      {
-        name: "delta-digest",
-        from: '  if (!digestMatches) return "digest_mismatch";\n',
-        to: "",
-      },
-    ]) {
-      const brokenDelta = deltaSource.replace(control.from, control.to);
-      if (brokenDelta === deltaSource)
-        throw new Error(
-          `The ${control.name} negative control did not mutate the implementation`,
-        );
-      const path = `proof/negative/${control.name}.ts`;
-      await writeFile(`${proofRoot}/${path}`, brokenDelta);
-      await generateModel(path);
-      const rejected = await verifyModel(image, [
-        `${proofRoot}/proof/generated/proof/negative/${control.name}.dfy`,
-      ]);
-      if (
-        rejected.code === 0 ||
-        !/[1-9][0-9]* error/u.test(rejected.output) ||
-        !/could not be proved|could not prove/u.test(rejected.output)
-      )
-        throw new Error(
-          `The ${control.name} negative control was inconclusive: ${rejected.output}`,
-        );
-    }
+      for (const [index, control] of negativeControls.entries()) {
+        const rejected = negatives[index];
+        if (!rejected || !rejectedByVerifier(rejected))
+          throw new Error(
+            `The ${control.name} negative control was inconclusive: ${rejected?.output}`,
+          );
+      }
+    });
     const receipt = {
       formatVersion: proofReceiptFormat,
       bindings,
@@ -977,6 +970,7 @@ async function receiptControls(): Promise<void> {
 
 async function main(): Promise<void> {
   await mkdir(".local", { recursive: true });
+  useMeter(await prepareMeter());
   const lock = await open(".local/proof.lock", "wx");
   try {
     const outcome = await provedOrReused(inventory, {
@@ -999,6 +993,7 @@ async function main(): Promise<void> {
           ? { result: "reused", receipt: receiptPath }
           : {
               negativeControl: "rejected",
+              negativeControls: negativeControls.length,
               receiptControls: "rejected",
               result: "verified",
               reason: outcome.reason,

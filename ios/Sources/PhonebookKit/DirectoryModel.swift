@@ -50,23 +50,33 @@ public final class DirectoryModel {
     } catch { failed = true }
   }
 
-  public func search() {
+  /// Searches for the current query and returns the task that answers it, or nil when the query needs no search.
+  /// The task ends once `results`, `failed`, and `searching` describe the query, or once a newer search cancels it.
+  @discardableResult
+  public func search() -> Task<Void, Never>? {
     let normalized = SearchInput.normalizedName(query)
-    guard normalized != searched else { return }
+    guard normalized != searched else {
+      if let results, results.query == normalized, results.input != query {
+        self.results = SearchResults(query: normalized, input: query, groups: results.groups)
+      }
+      return operation
+    }
     searched = normalized
     operation?.cancel()
     paging?.cancel()
     shown = [:]
     guard !normalized.isEmpty, let index, let generation else {
+      operation = nil
       results = nil
       searching = false
-      return
+      return nil
     }
     searching = true
     let store = store
     let categories = categories
     let phone = SearchInput.normalizedPhone(query).flatMap { try? CanonicalPhone($0) }
-    operation = Task {
+    let typed = query
+    let task = Task {
       do {
         let groups: [[LocalSearch.Match]]
         if let phone {
@@ -81,8 +91,9 @@ public final class DirectoryModel {
           }
         }
         try Task.checkCancellation()
+        // A later edit that keeps the normalized query, such as a trailing space, reuses this search.
         let result = SearchResults(
-          query: normalized,
+          query: normalized, input: SearchInput.normalizedName(query) == normalized ? query : typed,
           groups: groups.compactMap { matches in
             guard let first = matches.first else { return nil }
             let category = index.category(row: first.row)
@@ -105,6 +116,8 @@ public final class DirectoryModel {
         searching = false
       }
     }
+    operation = task
+    return task
   }
 
   public func retry() {
@@ -122,11 +135,15 @@ public final class DirectoryModel {
 
   public func expanded(_ group: ResultGroup) -> Bool { shown[group.category] != nil }
 
-  public func more(_ group: ResultGroup) {
-    guard expandable(group), paging == nil else { return }
+  /// Shows the next page of the group and returns the task that loads it, or the page task already running.
+  /// It returns nil when the group already shows every match.
+  @discardableResult
+  public func more(_ group: ResultGroup) -> Task<Void, Never>? {
+    guard expandable(group) else { return nil }
+    if let paging { return paging }
     let target = min(group.total, (shown[group.category] ?? Self.previewSize) + Self.pageSize)
     let ids = Array(group.ids.prefix(target))
-    paging = Task {
+    let task = Task {
       defer { paging = nil }
       do {
         let loaded = try await fetch(ids, cached: contacts)
@@ -136,6 +153,8 @@ public final class DirectoryModel {
       } catch is CancellationError {
       } catch { failed = true }
     }
+    paging = task
+    return task
   }
 
   private func fetch(_ ids: [Int64], cached: [Int64: Contact]) async throws -> [Int64: Contact] {

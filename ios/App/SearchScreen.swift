@@ -16,6 +16,10 @@ struct SearchScreen: View {
       ScrollView {
         LazyVStack(alignment: .leading, spacing: 0) { content }
           .padding(.horizontal, 16).padding(.vertical, 12)
+          // The value names the typed query that the shown results answer, so a UI scenario never reads stale results.
+          .accessibilityElement(children: .contain)
+          .accessibilityIdentifier("search-results")
+          .accessibilityValue(model.results?.input ?? "")
       }
       .scrollDismissesKeyboard(.interactively)
       .background(.white)

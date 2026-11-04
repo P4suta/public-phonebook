@@ -9,6 +9,7 @@ use std::{
 mod icons;
 mod ios;
 mod locations;
+mod steps;
 
 const ADVISORIES: &str = "2295466c4e9df26647fd67d8fa1c705ac2fc7f81";
 
@@ -131,5 +132,14 @@ fn main() -> Result<()> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .canonicalize()?;
-    ios::run(&root, Arguments::parse().action)
+    let result = ios::run(&root, Arguments::parse().action);
+    let report = steps::report(step_meter::process_instructions(std::process::id()));
+    if report["steps"]
+        .as_array()
+        .is_some_and(|steps| !steps.is_empty())
+    {
+        println!("{report}");
+        eprintln!("{}", steps::table(&report));
+    }
+    result
 }
