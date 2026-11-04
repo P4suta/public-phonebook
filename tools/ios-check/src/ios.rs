@@ -58,6 +58,31 @@ const RUNTIME: &str = "com.apple.CoreSimulator.SimRuntime.iOS-27-0";
 const DEVICE_TYPE: &str = "com.apple.CoreSimulator.SimDeviceType.iPhone-17";
 const DEVICE_NAME: &str = "Public Phonebook Checks";
 const LIVE_UI_TEST: &str = "testLivePublicDirectorySearchAndSource";
+/// A hang guard that exceeds the longest sum of one scenario's own waits.
+/// The live onboarding alone waits up to 300 s, and the transfer resume scenario's waits add up to about 135 s.
+const SCENARIO_ALLOWANCE_SECONDS: u32 = 600;
+/// The longest single wait in a scenario, the live onboarding's `timeout: 300` in `DirectoryUITests.swift`.
+const LONGEST_SCENARIO_WAIT_SECONDS: u32 = 300;
+const _: () = assert!(SCENARIO_ALLOWANCE_SECONDS > LONGEST_SCENARIO_WAIT_SECONDS);
+const PASSED: &str = "passed";
+const FAILED: &str = "failed";
+const INCONCLUSIVE: &str = "inconclusive";
+
+/// Holds when XCTest ended a test on its execution time allowance rather than on an assertion.
+fn exceeded_allowance(text: &str) -> bool {
+    text.to_ascii_lowercase()
+        .contains("exceeded execution time allowance")
+}
+
+fn scenario_outcome(passed: bool, hung: bool) -> &'static str {
+    if passed {
+        PASSED
+    } else if hung {
+        INCONCLUSIVE
+    } else {
+        FAILED
+    }
+}
 /// Measures the process footprint, so it runs in its own invocation where no concurrent test allocates.
 const ISOLATED_FOOTPRINT_TEST: &str = "readerFootprintStaysFlatWhenRunAlone";
 const ISOLATED_FOOTPRINT_VARIABLE: &str = "PHONEBOOK_ISOLATED_FOOTPRINT";
@@ -612,6 +637,7 @@ fn persist_app_trace(root: &Path, identifier: &str) -> Result<Output> {
 }
 
 fn ui_command(root: &Path, identifier: &str) -> Command {
+    let allowance = SCENARIO_ALLOWANCE_SECONDS.to_string();
     let mut command = Command::new("xcodebuild");
     command.current_dir(root).args([
         "-quiet",
@@ -636,9 +662,9 @@ fn ui_command(root: &Path, identifier: &str) -> Command {
         "-test-timeouts-enabled",
         "YES",
         "-default-test-execution-time-allowance",
-        "120",
+        &allowance,
         "-maximum-test-execution-time-allowance",
-        "120",
+        &allowance,
     ]);
     command.args([
         "CODE_SIGN_IDENTITY=-",
@@ -964,6 +990,7 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
                 require_ui_case(&read_result("summary")?, &read_result("tests")?, name)
             });
             let error = verdict.as_ref().err().map(|error| format!("{error:#}"));
+            let mut hung = error.as_deref().is_some_and(exceeded_allowance);
             let evidence = error.as_ref().map(|error| {
                 println!("FAIL: {case}: {error}");
                 let scenario = failure::Scenario {
@@ -975,6 +1002,10 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
                 };
                 match failure::keep(&scenario, &failure::Xcode) {
                     Ok(kept) => {
+                        hung |= kept
+                            .failures
+                            .iter()
+                            .any(|failed| exceeded_allowance(&failed.text));
                         for failed in &kept.failures {
                             println!("  failure: {}", failed.text);
                             for location in &failed.locations {
@@ -996,22 +1027,31 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
             if error.is_none() {
                 println!("PASS: {case}");
             }
+            let outcome = scenario_outcome(verdict.is_ok(), hung);
+            if outcome == INCONCLUSIVE {
+                println!(
+                    "INCONCLUSIVE: {case} reached its {SCENARIO_ALLOWANCE_SECONDS} s hang guard"
+                );
+            }
             completed.push(json!({
                 "test":name,
-                "result":if verdict.is_ok() { "passed" } else { "failed" },
+                "result":outcome,
                 "error":error,"bundle":result,"evidence":evidence
             }));
         }
     }
     require_current_sources(root, &sources)?;
-    let failed = completed
-        .iter()
-        .filter(|case| case["result"] != "passed")
-        .count();
+    let count = |outcome: &str| {
+        completed
+            .iter()
+            .filter(|case| case["result"] == outcome)
+            .count()
+    };
+    let (failed, inconclusive) = (count(FAILED), count(INCONCLUSIVE));
     fs::write(
         receipt,
         serde_json::to_vec_pretty(&json!({
-        "result":if failed == 0 { "passed" } else { "failed" }, "complete_controlled_inventory":selected.is_empty() && !live,
+        "result":if failed > 0 { FAILED } else if inconclusive > 0 { INCONCLUSIVE } else { PASSED }, "complete_controlled_inventory":selected.is_empty() && !live,
         "api_environment":if live { "configured public service" } else { "controlled real service fixture" },
         "live_api_origin":if live { Some(plist_string(&application.join("Info.plist"), "PhonebookAPIOrigin")?) } else { None },
             "tests":completed, "simulator_recoveries":recoveries, "source_sha256":source_records(&sources),
@@ -1023,6 +1063,11 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
     ensure!(
         failed == 0,
         "{failed} native iOS UI scenarios failed; inspect {}",
+        evidence.display()
+    );
+    ensure!(
+        inconclusive == 0,
+        "Inconclusive: {inconclusive} native iOS UI scenarios reached their {SCENARIO_ALLOWANCE_SECONDS} s hang guard; inspect {}",
         evidence.display()
     );
     println!(
@@ -1463,6 +1508,21 @@ fn coverage(root: &Path) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_an_exceeded_allowance_makes_a_failed_scenario_inconclusive() {
+        // XCTestCore's format: "Test Case '%@' exceeded execution time allowance of %@. The test may have hung; ..."
+        assert!(exceeded_allowance(
+            "Test Case '-[PhonebookUITests.DirectoryUITests testLivePublicDirectorySearchAndSource]' exceeded execution time allowance of 10 minutes. The test may have hung; check Xcode's test report for more details."
+        ));
+        assert!(!exceeded_allowance(
+            "XCTAssertTrue failed - the start button appears"
+        ));
+        assert_eq!(scenario_outcome(true, false), PASSED);
+        assert_eq!(scenario_outcome(true, true), PASSED);
+        assert_eq!(scenario_outcome(false, false), FAILED);
+        assert_eq!(scenario_outcome(false, true), INCONCLUSIVE);
+    }
 
     #[test]
     fn unit_inventory_rejects_missing_skipped_duplicate_and_substituted_tests() -> Result<()> {
