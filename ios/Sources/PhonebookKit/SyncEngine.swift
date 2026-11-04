@@ -12,13 +12,18 @@ public struct SyncProgress: Sendable, Equatable {
   public let rows: Int
   /// The share of the whole run from 0 to 1, counting bytes kept from earlier attempts.
   public let fraction: Double
+  /// The transfer waits for a network connection.
+  public let waiting: Bool
 
-  public init(stage: Int, done: Int, total: Int, rows: Int, fraction: Double) {
+  public init(
+    stage: Int, done: Int, total: Int, rows: Int, fraction: Double, waiting: Bool = false
+  ) {
     self.stage = stage
     self.done = done
     self.total = total
     self.rows = rows
     self.fraction = fraction
+    self.waiting = waiting
   }
 
   public static let transfer = 0
@@ -189,7 +194,7 @@ public actor SyncEngine {
               stage: SyncProgress.transfer, done: part.received, total: part.total - part.resumed,
               rows: rows,
               fraction: Double(part.resumed + part.received) / Double(max(part.total, 1))
-                * transfer))
+                * transfer, waiting: part.waiting))
         }
       }
       defer { try? FileManager.default.removeItem(at: file) }
@@ -233,7 +238,7 @@ public actor SyncEngine {
             stage: SyncProgress.transfer, done: part.received, total: part.total - part.resumed,
             rows: rows,
             fraction: Double(part.resumed + part.received) / Double(max(part.total, 1))
-              * Self.downloadShare))
+              * Self.downloadShare, waiting: part.waiting))
       }
     }
     defer { try? FileManager.default.removeItem(at: file) }
@@ -315,7 +320,7 @@ public actor SyncEngine {
             stage: SyncProgress.transfer, done: part.received, total: part.total - part.resumed,
             rows: rows,
             fraction: Double(part.resumed + part.received) / Double(max(part.total, 1))
-              * Self.downloadShare))
+              * Self.downloadShare, waiting: part.waiting))
       }
     }
     try await stage(
@@ -356,7 +361,7 @@ public actor SyncEngine {
               stage: SyncProgress.transfer, done: part.received, total: part.total - part.resumed,
               rows: rows,
               fraction: Double(part.resumed + part.received) / Double(max(part.total, 1))
-                * transfer))
+                * transfer, waiting: part.waiting))
         }
       }
       defer { try? FileManager.default.removeItem(at: file) }

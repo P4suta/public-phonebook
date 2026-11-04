@@ -2,11 +2,51 @@ import Foundation
 import PhonebookCore
 import Synchronization
 
+/// Sends every JSON request of one client through one ephemeral session, so the requests share its connections.
 public struct URLSessionTransport: HTTPTransport {
+  let owned = OwnedSession(OwnedSession.json())
+
   public init() {}
 
   public func send(_ request: URLRequest) async throws -> HTTPResult {
-    try await JSONTransfer().send(request)
+    try await JSONTransfer().send(request, in: owned.session)
+  }
+}
+
+/// One ephemeral session that its last owner invalidates, which cancels any task still running.
+/// Each task carries its own delegate, so the session retains no delegate and its owner can go away.
+final class OwnedSession: Sendable {
+  let session: URLSession
+
+  init(_ configuration: URLSessionConfiguration) {
+    session = URLSession(configuration: configuration)
+  }
+
+  deinit { session.invalidateAndCancel() }
+
+  /// JSON requests fail at once without a connection, so the listing and its retries keep their timing.
+  static func json() -> URLSessionConfiguration {
+    let configuration = base()
+    configuration.timeoutIntervalForRequest = 30
+    configuration.timeoutIntervalForResource = 60
+    return configuration
+  }
+
+  /// A transfer waits for a connection, and the resource timeout bounds that wait with the transfer.
+  static func transfers() -> URLSessionConfiguration {
+    let configuration = base()
+    configuration.waitsForConnectivity = true
+    configuration.timeoutIntervalForResource = 900
+    configuration.timeoutIntervalForRequest = 30
+    return configuration
+  }
+
+  private static func base() -> URLSessionConfiguration {
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.httpShouldSetCookies = false
+    configuration.httpCookieStorage = nil
+    configuration.urlCredentialStorage = nil
+    return configuration
   }
 }
 
@@ -23,24 +63,23 @@ private final class JSONTransfer: NSObject, URLSessionDataDelegate {
   private let state = Mutex(TransferState())
   private let maximumBytes = 8_388_608
 
-  func send(_ request: URLRequest) async throws -> HTTPResult {
-    let configuration = URLSessionConfiguration.ephemeral
-    configuration.httpShouldSetCookies = false
-    configuration.httpCookieStorage = nil
-    configuration.urlCredentialStorage = nil
-    configuration.timeoutIntervalForRequest = 30
-    configuration.timeoutIntervalForResource = 60
-    let session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
-    defer { session.invalidateAndCancel() }
-    return try await withTaskCancellationHandler {
+  func send(_ request: URLRequest, in session: URLSession) async throws -> HTTPResult {
+    try await withTaskCancellationHandler {
       try await withCheckedThrowingContinuation { continuation in
         let task = session.dataTask(with: request)
+        task.delegate = self
         let cancelled = state.withLock {
           $0.continuation = continuation
           $0.task = task
           return $0.cancelled
         }
-        if cancelled { finish(CancellationError()) } else { task.resume() }
+        // The shared session outlives this request, so a task that never starts must still end.
+        if cancelled {
+          task.cancel()
+          finish(CancellationError())
+        } else {
+          task.resume()
+        }
       }
     } onCancel: {
       let task = self.state.withLock {

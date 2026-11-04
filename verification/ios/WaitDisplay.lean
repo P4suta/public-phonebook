@@ -17,6 +17,7 @@ structure WaitInput where
   total : Int
   rows : Int
   complete : Bool
+  waiting : Bool
 deriving DecidableEq
 
 structure WaitChoice where
@@ -137,9 +138,9 @@ def advance (s t : Wait) (now stage : Int) : Wait :=
     { t with shown := s.shown + 1, shownAt := now }
   else t
 
-def choose (s t : Wait) (now left stage : Int) : WaitChoice :=
+def choose (s t : Wait) (now left stage : Int) (waiting : Bool) : WaitChoice :=
   let keep : WaitChoice := ⟨s.line, s.seconds, s.minutes, t.deadline, t.stableSince⟩
-  if stage = 0 ∧ now - t.progressAt ≥ stallMs then
+  if stage = 0 ∧ (waiting = true ∨ now - t.progressAt ≥ stallMs) then
     ⟨.weakSignal, s.seconds, s.minutes, t.deadline, -1⟩
   else if s.line = .almostDone then keep
   else if left < 0 then
@@ -186,7 +187,7 @@ def step (s : Wait) (input : WaitInput) : Wait :=
       let r := advance s refined now stage
       if r.fast = true ∨ now - s.changedAt < lineHoldMs then r
       else
-        let c := choose s r now left stage
+        let c := choose s r now left stage input.waiting
         let visible := decide (c.line ≠ s.line ∨
           numberOf c.line c.seconds c.minutes ≠ numberOf s.line s.seconds s.minutes)
         { r with line := c.line, seconds := c.seconds, minutes := c.minutes,
@@ -220,7 +221,7 @@ def Shows (s : Wait) : Prop :=
 
 section Bookkeeping
 
-variable (s t : Wait) (now stage done total rows left : Int)
+variable (s t : Wait) (now stage done total rows left : Int) (waiting : Bool)
 
 theorem track_keeps :
     (track s now stage done total rows).line = s.line ∧
@@ -267,15 +268,16 @@ theorem advance_shown :
     exact Or.inr ⟨rfl, h.2.2⟩
   · exact Or.inl rfl
 
-theorem choose_seconds_le : (choose s t now left stage).seconds ≤ s.seconds := by
+theorem choose_seconds_le : (choose s t now left stage waiting).seconds ≤ s.seconds := by
   unfold choose
   simp only
   repeat' split
   all_goals simp_all <;> omega
 
 theorem choose_shows : Shows s →
-    ((choose s t now left stage).line = .countdown → (choose s t now left stage).seconds ≥ 1) ∧
-    (choose s t now left stage).minutes ≥ 1 := by
+    ((choose s t now left stage waiting).line = .countdown →
+      (choose s t now left stage waiting).seconds ≥ 1) ∧
+    (choose s t now left stage waiting).minutes ≥ 1 := by
   intro h
   unfold Shows at *
   unfold choose ceilSeconds coarseMinutes almostSeconds almostMs millisecondsPerSecond
@@ -285,11 +287,26 @@ theorem choose_shows : Shows s →
   all_goals simp_all <;> omega
 
 theorem choose_almost : s.line = .almostDone →
-    (choose s t now left stage).line = .almostDone ∨
-      (choose s t now left stage).line = .weakSignal := by
+    (choose s t now left stage waiting).line = .almostDone ∨
+      (choose s t now left stage waiting).line = .weakSignal := by
   intro h
   unfold choose
-  by_cases hStall : stage = 0 ∧ now - t.progressAt ≥ stallMs <;> simp [h, hStall]
+  simp only
+  split
+  · simp
+  · simp [h]
+
+theorem choose_waiting : stage = 0 → waiting = true →
+    (choose s t now left stage waiting).line = .weakSignal := by
+  intro hStage hWaiting
+  unfold choose
+  simp [hStage, hWaiting]
+
+theorem refine_slow : now > fastLimitMs → (refine s t now left).fast = false := by
+  intro h
+  unfold refine
+  simp only
+  split <;> split <;> split <;> simp_all
 
 end Bookkeeping
 
@@ -310,14 +327,16 @@ macro_rules
       generalize track $s now stage done total rows = tracked at *
       generalize remaining tracked now total rows = left at *
       have kr := refine_keeps $s tracked now left
+      have kf := refine_slow $s tracked now left
       generalize refine $s tracked now left = refined at *
       have ka := advance_keeps $s refined now stage
       have kn := advance_shown $s refined now stage
       generalize advance $s refined now stage = r at *
-      have kc := choose_seconds_le $s r now stage left
-      have ks := choose_shows $s r now stage left
-      have kd := choose_almost $s r now stage left
-      generalize choose $s r now left stage = c at *))
+      have kc := choose_seconds_le $s r now stage left ($input).waiting
+      have ks := choose_shows $s r now stage left ($input).waiting
+      have kd := choose_almost $s r now stage left ($input).waiting
+      have kw := choose_waiting $s r now stage left ($input).waiting
+      generalize choose $s r now left stage ($input).waiting = c at *))
 
 /-- The countdown's seconds never rise after any one sample. -/
 theorem countdownNeverRises (s : Wait) (input : WaitInput) :
@@ -425,6 +444,37 @@ theorem almostDoneStaysUntilTheEnd (s : Wait) (input : WaitInput) (h : s.line = 
       · simp_all
       · exact kd h
 
+/-- A waiting transfer keeps the line it shows or reports a weak signal, and never shows a new estimate. -/
+theorem waitingNeverShowsANewEstimate (s : Wait) (input : WaitInput)
+    (hTransfer : clamp input.stage 0 lastStage = 0) (hWaiting : input.waiting = true) :
+    (step s input).line = s.line ∨ (step s input).line = .weakSignal := by
+  open_step s input
+  by_cases h1 : s.finished = true ∨ now < s.now
+  · simp [h1]
+  · by_cases h2 : input.complete = true
+    · simp [h1, h2]
+      simp_all
+    · by_cases h3 : r.fast = true ∨ now - s.changedAt < lineHoldMs
+      · simp [h1, h2, h3]
+        simp_all
+      · simp [h1, h2, h3]
+        exact Or.inr (kw hTransfer hWaiting)
+
+/-- Once the fast time and the line hold pass, a waiting transfer reports a weak signal at once. -/
+theorem waitingShowsTheWeakSignal (s : Wait) (input : WaitInput) (hOpen : s.finished = false)
+    (hOrdered : clamp input.now 0 maximumMilliseconds ≥ s.now) (hRunning : input.complete = false)
+    (hTransfer : clamp input.stage 0 lastStage = 0) (hWaiting : input.waiting = true)
+    (hSlow : clamp input.now 0 maximumMilliseconds > fastLimitMs)
+    (hHeld : clamp input.now 0 maximumMilliseconds - s.changedAt ≥ lineHoldMs) :
+    (step s input).line = .weakSignal := by
+  open_step s input
+  have h1 : ¬(s.finished = true ∨ now < s.now) := by simp [hOpen]; omega
+  have h3 : ¬(r.fast = true ∨ now - s.changedAt < lineHoldMs) := by
+    simp only [ka.2.2.2.2.2, kf hSlow, Bool.false_eq_true, false_or, Int.not_lt]
+    omega
+  simp [h1, hRunning, h3]
+  exact kw hTransfer hWaiting
+
 /-- The done state appears only once the work completes. -/
 theorem doneOnlyAfterCompletion (s : Wait) (input : WaitInput)
     (h : (step s input).finished = true) : s.finished = true ∨ input.complete = true := by
@@ -494,6 +544,8 @@ theorem estimateProductsFitInt64 (left elapsed : Int) (hLeft : 0 ≤ left ∧ le
 #print axioms stepKeepsNumbersAboveZero
 #print axioms zeroNeverShowsBeforeCompletion
 #print axioms almostDoneStaysUntilTheEnd
+#print axioms waitingNeverShowsANewEstimate
+#print axioms waitingShowsTheWeakSignal
 #print axioms doneOnlyAfterCompletion
 #print axioms stepsStayForTheirHold
 #print axioms aFastRunGoesStraightToDone

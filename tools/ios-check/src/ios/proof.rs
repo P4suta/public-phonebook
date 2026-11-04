@@ -6,7 +6,7 @@ use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fmt::Write as _, fs, path::Path, process::Command};
 
-const THEOREMS: [&str; 59] = [
+const THEOREMS: [&str; 61] = [
     "activeAbsorbsEveryEvent",
     "activeSurvivesEveryFiniteTrace",
     "uncertainAbortRetainsData",
@@ -35,6 +35,8 @@ const THEOREMS: [&str; 59] = [
     "stepKeepsNumbersAboveZero",
     "zeroNeverShowsBeforeCompletion",
     "almostDoneStaysUntilTheEnd",
+    "waitingNeverShowsANewEstimate",
+    "waitingShowsTheWeakSignal",
     "doneOnlyAfterCompletion",
     "stepsStayForTheirHold",
     "aFastRunGoesStraightToDone",
@@ -82,11 +84,11 @@ const WAIT_SOURCE: &str = include_str!("../../../../ios/Sources/PhonebookCore/Wa
 /// The SHA-256 of the whitespace-free Swift policy that `verification/ios/WaitDisplay.lean` models function for function.
 /// Recheck the Lean model against the Swift file before changing this digest.
 const WAIT_REFINEMENT_SHA256: &str =
-    "0295d3e86ca1be4ba672a32d2a31dd1b6557917e9c7b1a53d072691dd7a784df";
+    "a816537f6e3c903a27c62633a24b1476d0a82a79e95a327a70eb0d7ebe1c8772";
 const WAIT_MODEL: &str = include_str!("../../../../verification/ios/WaitDisplay.lean");
 const WAIT_CONTRACT: &str = "ios/Tests/PhonebookCoreTests/WaitContract.json";
 const WAIT_TRACES: &str = "WaitTraces";
-const WAIT_TRACE_COUNT: usize = 10;
+const WAIT_TRACE_COUNT: usize = 11;
 const WAIT_TRACE_STEPS: usize = 15;
 const WAIT_LINES: [&str; 5] = [
     "measuring",
@@ -133,7 +135,7 @@ const CALLER_DELTA_SOURCE: &str =
 /// Swift compares the labels' UTF-8 bytes, which Lean's string equality matches because UTF-8 encodes each string one way.
 const CALLER_DELTA_REFINEMENT: &str = "publicenumCallerChange:String,CaseIterable,Sendable{caseremove,add,keep,replacepublicstaticfuncdecide(held:Int64,heldLabel:String,wanted:Int64,wantedLabel:String)->Self{ifheld<wanted{return.remove}ifwanted<held{return.add}ifheldLabel.utf8.elementsEqual(wantedLabel.utf8){return.keep}return.replace}}";
 /// Each planted defect changes one place in its model and must fail inside every theorem it names and nowhere else.
-const DELTA_DEFECTS: [(&str, &str, &str, &str, &[&str]); 6] = [
+const DELTA_DEFECTS: [(&str, &str, &str, &str, &[&str]); 7] = [
     (
         "CallerDeltaKeepsAChangedLabel",
         "CallerDelta",
@@ -175,6 +177,13 @@ const DELTA_DEFECTS: [(&str, &str, &str, &str, &[&str]); 6] = [
         "if reply != .notModified && path.inexpensive then",
         "if path.inexpensive then",
         &["unchangedListingsStartNothing"],
+    ),
+    (
+        "WaitWaitingNeedsAStall",
+        "WaitDisplay",
+        "(waiting = true ∨ now - t.progressAt ≥ stallMs)",
+        "(waiting = true ∧ now - t.progressAt ≥ stallMs)",
+        &["choose_waiting"],
     ),
 ];
 const PROOF_MODULES: [&str; 7] = [
@@ -347,13 +356,14 @@ fn wait_traces(contract: &Value) -> Result<String> {
             .iter()
             .map(|input| {
                 Ok(format!(
-                    "⟨{}, {}, {}, {}, {}, {}⟩",
+                    "⟨{}, {}, {}, {}, {}, {}, {}⟩",
                     integer(&input["now"])?,
                     integer(&input["stage"])?,
                     integer(&input["done"])?,
                     integer(&input["total"])?,
                     integer(&input["rows"])?,
-                    boolean(&input["complete"])?
+                    boolean(&input["complete"])?,
+                    boolean(&input["waiting"])?
                 ))
             })
             .collect::<Result<Vec<_>>>()?;
@@ -884,7 +894,7 @@ pub fn run(root: &Path) -> Result<()> {
     fs::write(
         receipt,
         serde_json::to_vec_pretty(
-            &json!({"result":"passed", "lean":"4.34.1", "image":image, "theorems":THEOREMS.as_slice(), "proof_bundle":relative, "kernel_replay":REPLAY_ROOTS.iter().map(|(replay, members)| json!({"root":replay, "imports":members, "replay":"fresh"})).collect::<Vec<_>>(), "negative_controls":controls, "refinement":"native exhaustive 25-transition check required by ios-check; exact guarded Int64 arithmetic expression; exact delta admission and copy guard source; wait policy source digest and ten Swift traces replayed by the Lean model; update decision source digest and ten Swift traces replayed by the Lean model; exact caller merge decision source, with the streamed merge checked by seeded Swift tests against a transcription of the Lean merge; exact caller change decision source, with the streamed changes checked by seeded Swift tests against a transcription of the Lean difference", "source_sha256":source_records(&sources)}),
+            &json!({"result":"passed", "lean":"4.34.1", "image":image, "theorems":THEOREMS.as_slice(), "proof_bundle":relative, "kernel_replay":REPLAY_ROOTS.iter().map(|(replay, members)| json!({"root":replay, "imports":members, "replay":"fresh"})).collect::<Vec<_>>(), "negative_controls":controls, "refinement":"native exhaustive 25-transition check required by ios-check; exact guarded Int64 arithmetic expression; exact delta admission and copy guard source; wait policy source digest and eleven Swift traces replayed by the Lean model; update decision source digest and ten Swift traces replayed by the Lean model; exact caller merge decision source, with the streamed merge checked by seeded Swift tests against a transcription of the Lean merge; exact caller change decision source, with the streamed changes checked by seeded Swift tests against a transcription of the Lean difference", "source_sha256":source_records(&sources)}),
         )?,
     )?;
     println!(
@@ -984,6 +994,7 @@ mod tests {
                 json!(18_446_744_073_709_551_615_u64),
             ),
             ("/traces/0/inputs/0/complete", json!(1)),
+            ("/traces/0/inputs/0/waiting", json!("true")),
             ("/traces/0/views/0/line", json!("countdown⟩] := by sorry\n")),
             ("/traces/0/views/0/number", json!("7")),
         ] {
@@ -1088,6 +1099,7 @@ mod tests {
             let model = match name {
                 "CallerDelta" => include_str!("../../../../verification/ios/CallerDelta.lean"),
                 "UpdateCheck" => include_str!("../../../../verification/ios/UpdateCheck.lean"),
+                "WaitDisplay" => WAIT_MODEL,
                 _ => anyhow::bail!("Unknown defect model {name}"),
             };
             assert_eq!(model.matches(original).count(), 1);

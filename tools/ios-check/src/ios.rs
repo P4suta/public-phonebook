@@ -116,7 +116,7 @@ const UI_TESTS: [&str; 17] = [
     "testLandscapeLargeTextSettings",
     "testAboutStaysInTheAppAndLicenseIsReadable",
 ];
-const REQUIRED_TESTS: [&str; 82] = [
+const REQUIRED_TESTS: [&str; 87] = [
     "currentProviderArchiveImportsTheNationalDirectory",
     "providerArchiveSavesTheExpectedGenerationContent",
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
@@ -199,6 +199,11 @@ const REQUIRED_TESTS: [&str; 82] = [
     "aTransferThePersonStartsUsesAnExpensivePath",
     "refreshCountsTheMonthFromTheSnapshotsGeneratedDate",
     "expiryDuringTheActivationReleasesTheLeaseBeforeTheHandlerReturns",
+    "requestsOfOneClientShareOneSessionForJSONAndOneForTransfers",
+    "aCancelledRequestLeavesTheSharedSessionUsable",
+    "aTransferWaitsForAConnectionWhileJSONRequestsFailAtOnce",
+    "aClientsSessionsGoAwayWithTheClient",
+    "theWeakSignalFollowsTheWaitingAndTheStallOnEveryLine",
 ];
 const SCOPE: [&str; 19] = [
     "ios",
