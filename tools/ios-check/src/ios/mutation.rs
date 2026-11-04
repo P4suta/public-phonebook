@@ -6,9 +6,14 @@ use std::{
     fs,
     path::Path,
     process::Command,
+    time::{Duration, Instant},
 };
 
 const VERSION: &str = "1.6.4";
+/// The pinned tool limits each mutant's test run in wall-clock seconds and offers no CPU-time limit.
+/// The guard is a multiple of the unmutated run, so only a hang reaches it, and it never drops below the floor.
+const GUARD_FACTOR: u32 = 5;
+const GUARD_FLOOR: Duration = Duration::from_secs(20);
 const OPERATORS: [&str; 7] = [
     "RelationalOperatorReplacement",
     "BooleanLiteralReplacement",
@@ -23,6 +28,44 @@ const OPERATORS: [&str; 7] = [
 struct Counts {
     killed: usize,
     compiler_rejected: usize,
+    /// Mutants that reached the hang guard, about which the run holds no evidence.
+    inconclusive: Vec<String>,
+}
+
+/// The hang guard in whole seconds, rounded up.
+fn hang_guard(baseline: Duration) -> u64 {
+    let guard = (baseline * GUARD_FACTOR).max(GUARD_FLOOR);
+    guard.as_secs() + u64::from(guard.subsec_nanos() > 0)
+}
+
+/// Builds the tests, then times one unmutated run of the profile's test target.
+fn baseline(root: &Path, name: &str, target: &str) -> Result<Duration> {
+    logged(
+        root,
+        &format!("mutation-{name}-baseline-build"),
+        Command::new("xcrun").current_dir(root).args([
+            "swift",
+            "build",
+            "--package-path",
+            "ios",
+            "--build-tests",
+        ]),
+    )?;
+    let started = Instant::now();
+    logged(
+        root,
+        &format!("mutation-{name}-baseline"),
+        Command::new("xcrun").current_dir(root).args([
+            "swift",
+            "test",
+            "--package-path",
+            "ios",
+            "--skip-build",
+            "--filter",
+            &format!("^{target}\\."),
+        ]),
+    )?;
+    Ok(started.elapsed())
 }
 
 fn declaration_rejection(root: &Path, mutant: &Value, log: &str) -> bool {
@@ -165,14 +208,15 @@ fn results(
                     );
                     counts.compiler_rejected += 1;
                 }
+                Some("Timeout") => counts.inconclusive.push(fingerprint.to_owned()),
                 status => anyhow::bail!(
-                    "Mutation {fingerprint} is {status:?}; a survivor, timeout, or uncovered mutant cannot pass"
+                    "Mutation {fingerprint} is {status:?}; a survivor or uncovered mutant cannot pass"
                 ),
             }
         }
     }
     ensure!(
-        observed.len() == expected.len() && counts.killed > 0,
+        observed.len() == expected.len() && (counts.killed > 0 || !counts.inconclusive.is_empty()),
         "The mutation result inventory is incomplete or unexecuted"
     );
     Ok(counts)
@@ -199,6 +243,7 @@ pub fn run(root: &Path) -> Result<()> {
         .tempdir_in(root.join("target/ios"))?
         .keep();
     let mut profiles = Vec::new();
+    let mut inconclusive = Vec::new();
     for (name, source, target) in [
         ("core", "Sources/PhonebookCore", "PhonebookCoreTests"),
         (
@@ -236,6 +281,8 @@ pub fn run(root: &Path) -> Result<()> {
                 && plan["scope"]["sourcesPath"] == source,
             "The mutation plan has an unexpected target or source scope"
         );
+        let measured = baseline(root, name, target)?;
+        let guard = hang_guard(measured);
         logged(
             root,
             &format!("mutation-{name}"),
@@ -243,11 +290,9 @@ pub fn run(root: &Path) -> Result<()> {
                 .current_dir(root.join("ios"))
                 .args(["run", ".", "--plan"])
                 .arg(&plan_path)
+                .args(["--concurrency", "1", "--timeout"])
+                .arg(guard.to_string())
                 .args([
-                    "--concurrency",
-                    "1",
-                    "--timeout",
-                    "20",
                     "--build-timeout",
                     "120",
                     "--no-cache",
@@ -269,15 +314,27 @@ pub fn run(root: &Path) -> Result<()> {
             &hash,
             &logs,
         )?;
-        profiles.push(json!({"scope":source,"target":target,"plan":plan_path,"report":report_path,"plan_sha256":hash,"killed":counts.killed,"compiler_rejected_declaration_renames":counts.compiler_rejected,"survived":0,"timeouts":0,"uncovered":0}));
+        profiles.push(json!({"scope":source,"target":target,"plan":plan_path,"report":report_path,"plan_sha256":hash,"baseline_seconds":measured.as_secs_f64(),"hang_guard_seconds":guard,"killed":counts.killed,"compiler_rejected_declaration_renames":counts.compiler_rejected,"survived":0,"uncovered":0,"inconclusive_timeouts":counts.inconclusive}));
+        inconclusive.extend(counts.inconclusive);
     }
     require_current_sources(root, &sources)?;
+    let result = if inconclusive.is_empty() {
+        "passed"
+    } else {
+        "inconclusive"
+    };
     fs::write(
         receipt,
         serde_json::to_vec_pretty(
-            &json!({"result":"passed","tool":"swift-mutation-testing","version":VERSION,"workers":1,"operators":OPERATORS,"profiles":profiles,"source_sha256":source_records(&sources),"scope_limit":"pure core and extension notification policy; not every application or framework path","compiler_rejection":"Only source-checked renames of the required Comparable operator with the matching compiler diagnostic; never counted as killed"}),
+            &json!({"result":result,"tool":"swift-mutation-testing","version":VERSION,"workers":1,"operators":OPERATORS,"hang_guard":format!("{GUARD_FACTOR} times the unmutated test run, at least {} s, in wall-clock time because the tool has no CPU-time limit", GUARD_FLOOR.as_secs()),"profiles":profiles,"source_sha256":source_records(&sources),"scope_limit":"pure core and extension notification policy; not every application or framework path","compiler_rejection":"Only source-checked renames of the required Comparable operator with the matching compiler diagnostic; never counted as killed"}),
         )?,
     )?;
+    ensure!(
+        inconclusive.is_empty(),
+        "INCONCLUSIVE: {} mutants reached the hang guard, so the gate holds no evidence about them: {}",
+        inconclusive.len(),
+        inconclusive.join(", ")
+    );
     println!(
         "PASS: source-bound Swift mutation gate; {}",
         directory.display()
@@ -328,7 +385,18 @@ mod tests {
             results(root.path(), &plan, &report, "hash", root.path())?,
             Counts {
                 killed: 1,
-                compiler_rejected: 0
+                compiler_rejected: 0,
+                inconclusive: Vec::new()
+            }
+        );
+        let mut timed_out = report.clone();
+        timed_out["files"]["/Sources/Example.swift"]["mutants"][0]["status"] = json!("Timeout");
+        assert_eq!(
+            results(root.path(), &plan, &timed_out, "hash", root.path())?,
+            Counts {
+                killed: 0,
+                compiler_rejected: 0,
+                inconclusive: vec!["one".to_owned()]
             }
         );
         let mut invalid = report.clone();
@@ -339,7 +407,6 @@ mod tests {
         assert!(results(root.path(), &plan, &report, "wrong", root.path()).is_err());
         for status in [
             "Survived",
-            "Timeout",
             "NoCoverage",
             "CompileError",
             "Pending",
@@ -359,5 +426,13 @@ mod tests {
             assert!(results(root.path(), &plan, &invalid, "hash", root.path()).is_err());
         }
         Ok(())
+    }
+
+    #[test]
+    fn the_hang_guard_scales_the_baseline_above_its_floor() {
+        assert_eq!(hang_guard(Duration::ZERO), 20);
+        assert_eq!(hang_guard(Duration::from_secs(4)), 20);
+        assert_eq!(hang_guard(Duration::from_millis(4_001)), 21);
+        assert_eq!(hang_guard(Duration::from_secs(30)), 150);
     }
 }
