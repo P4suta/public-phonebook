@@ -3,9 +3,7 @@ import Testing
 
 @testable import PhonebookCore
 
-private func temporaryFile() -> URL {
-  FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".callers")
-}
+private func temporaryFile(_ key: String = #function) -> URL { callerFile(key) }
 
 private func size(_ url: URL) throws -> Int {
   try #require(FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int)

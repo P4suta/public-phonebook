@@ -3,9 +3,7 @@ import Testing
 
 @testable import PhonebookCore
 
-private func temporaryFile() -> URL {
-  FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".callers")
-}
+private func temporaryFile(_ key: String) -> URL { callerFile(key) }
 
 private func write(_ entries: [(Int64, String)], to url: URL) throws {
   let writer = try CallerFile.Writer(url: url)
@@ -14,12 +12,13 @@ private func write(_ entries: [(Int64, String)], to url: URL) throws {
 }
 
 private func merged(
-  _ national: [(Int64, String)]?, extra: CallerEntry?, chunk: Int = 65_536, batch: Int = 1000
+  _ national: [(Int64, String)]?, extra: CallerEntry?, chunk: Int = 65_536, batch: Int = 1000,
+  key: String = #function
 ) throws -> [(Int64, String)] {
   var reader: CallerFile.Reader?
   var url: URL?
   if let national {
-    let file = temporaryFile()
+    let file = temporaryFile(key)
     try write(national, to: file)
     reader = try CallerFile.Reader(url: file, chunk: chunk)
     url = file
@@ -85,7 +84,8 @@ func mergedCallersMatchTheLeanModelOnSeededInputs(seed: Int) throws {
   let extra = try fixture("0" + digits, "確認用\(seed)")
   let expected = model((extra.phone.number, extra.label), national)
   let actual = try merged(
-    national, extra: extra, chunk: Int(random.next() % 64) + 1, batch: Int(random.next() % 5) + 1)
+    national, extra: extra, chunk: Int(random.next() % 64) + 1, batch: Int(random.next() % 5) + 1,
+    key: "\(#function)-\(seed)")
   #expect(actual.map(\.0) == expected.map(\.0))
   #expect(actual.map(\.1) == expected.map(\.1))
   #expect(zip(actual, actual.dropFirst()).allSatisfy { $0.0 < $1.0 })
