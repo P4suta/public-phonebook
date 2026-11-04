@@ -173,6 +173,12 @@ private func rank(name: String, places: [String], query: String) -> NameRank? {
   #expect(rank(name: "山\u{FA11}図書館", places: tokyo, query: "山崎") == .prefix)
   #expect(rank(name: "高田医院", places: tokyo, query: "髙田") == .prefix)
   #expect(rank(name: "髙田医院", places: tokyo, query: "高田") == .prefix)
+  for (old, standard) in [("澤田", "沢田"), ("渡邊", "渡辺"), ("齋藤", "斎藤"), ("國立", "国立")] {
+    #expect(rank(name: old + "会館", places: tokyo, query: standard) == .prefix)
+    #expect(rank(name: standard + "会館", places: tokyo, query: old) == .prefix)
+  }
+  #expect(SearchInput.searchForm("壹 濱 龜 辨") == "壱 浜 亀 弁")
+  #expect(SearchInput.searchForm("邉") == "邉")
   #expect(SearchInput.searchForm("葛\u{E0100}") == SearchInput.searchForm("葛"))
   #expect(SearchInput.searchForm("辻\u{FE00}") == "辻")
   #expect(SearchInput.searchForm("か\u{FE0F}\u{3099}") == "が")

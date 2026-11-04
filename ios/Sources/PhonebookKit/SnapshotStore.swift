@@ -2,7 +2,7 @@ import Foundation
 import PhonebookCore
 
 public struct SnapshotManifest: Codable, Sendable {
-  public static let currentFormat = 3
+  public static let currentFormat = 4
 
   public let format: Int
   public let generation: UUID

@@ -95,12 +95,13 @@ import Testing
   #expect(try files(of: unfinished).isEmpty)
 }
 
-@Test func earlierStorageFormatsAreTreatedAsUnsaved() async throws {
+@Test(arguments: [1, SnapshotManifest.currentFormat - 1])
+func earlierStorageFormatsAreTreatedAsUnsaved(format: Int) async throws {
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }
   let legacy = Data(
     """
-    {"format":1,"generation":"\(UUID().uuidString)","snapshot":"\(String(repeating: "a", count: 64))",\
+    {"format":\(format),"generation":"\(UUID().uuidString)","snapshot":"\(String(repeating: "a", count: 64))",\
     "prefectures":["13"],"updatedAt":0,"records":1,"categories":{}}
     """.utf8)
   try legacy.write(to: root.appendingPathComponent("active.json"))

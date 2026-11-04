@@ -180,8 +180,10 @@ Search-trigger controls ignore composition, search an incomplete telephone numbe
 The word rank decision proves that a row matches exactly when every word occurs in its name or its region or category, and that region and category matches rank after every name match.
 Its control ranks a region or category match with the name matches and must fail verification.
 Fixed-seed property tests compare the word splitting, the folding, and the match-and-rank decision with a plain reference on both platforms.
-`mise x -- just check` requires, without the network, that both kanji variant tables carry the same pairs under the pinned Unihan provenance.
-`mise x -- just check-build` fetches the pinned Unihan archive, verifies its SHA-256, regenerates both tables, and requires the committed bytes.
+`mise x -- just check` requires, without the network, that both kanji variant tables carry the same pairs under the pinned provenance.
+It also requires the committed 364 traditional forms of the Joyo Kanji Table to sit beside 362 standard characters and to fold into them through the table.
+`mise x -- just check-build` fetches the pinned Unihan archive and the pinned Joyo Kanji Table notice, verifies their SHA-256 digests, regenerates both tables and the traditional forms, and requires the committed bytes.
+The regeneration requires the notice's 2136 characters to equal Unihan's kJoyoKanji list and its traditional forms to equal both kJapaneseNewVariant and kJapaneseOldVariant.
 Both platforms' tests fold every table entry to a representative that folding keeps.
 `node tools/search-form-parity.ts ARCHIVE FORMS` writes the website's comparison form of every name in a directory archive.
 `BundledAdmission --search-forms FORMS` then requires the app's form to equal it for every name, and `mise x -- just ios-check` runs both for the national and fixture archives that it bundles.
