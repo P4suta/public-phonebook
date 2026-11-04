@@ -68,7 +68,12 @@ struct TargetSettings {
     build_settings: BTreeMap<String, Value>,
 }
 
-fn validate(settings: &TargetSettings, environment: Environment, debug: bool) -> Result<()> {
+fn validate(
+    settings: &TargetSettings,
+    config: &str,
+    environment: Environment,
+    debug: bool,
+) -> Result<()> {
     let (bundle, name, icon, origin) = environment.identity();
     let expected = [
         ("PHONEBOOK_BUNDLE_ID", bundle.to_owned()),
@@ -102,6 +107,16 @@ fn validate(settings: &TargetSettings, environment: Environment, debug: bool) ->
             .and_then(Value::as_str)
             == Some(expected_bundle.as_str()),
         "Incorrect target identity"
+    );
+    let list = super::app_info::selected_list(&settings.target, config)?;
+    ensure!(
+        settings
+            .build_settings
+            .get("INFOPLIST_FILE")
+            .and_then(Value::as_str)
+            == Some(list),
+        "{}: {config} must take its property list from {list}",
+        settings.target
     );
     let conditions = settings
         .build_settings
@@ -224,7 +239,7 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
             })
             .collect::<Vec<_>>()
     });
-    for ((_, environment, debug), output) in configurations.into_iter().zip(outputs) {
+    for ((config, environment, debug), output) in configurations.into_iter().zip(outputs) {
         let output = output?;
         let mut targets: Vec<TargetSettings> = serde_json::from_slice(&output.stdout)?;
         targets.retain(|target| {
@@ -240,12 +255,18 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
         );
         let mut visited = std::collections::BTreeSet::new();
         for mut target in targets {
-            validate(&target, environment, debug)?;
+            validate(&target, config, environment, debug)?;
             if !visited.insert(target.target.clone()) {
                 continue;
             }
             ensure!(
-                validate(&flip_verification_tools(&target), environment, debug).is_err(),
+                validate(
+                    &flip_verification_tools(&target),
+                    config,
+                    environment,
+                    debug
+                )
+                .is_err(),
                 "Configuration negative control was accepted: {}",
                 super::store_build::CONDITION
             );
@@ -256,17 +277,18 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
                 "PHONEBOOK_CALL_DIRECTORY",
                 "ASSETCATALOG_COMPILER_APPICON_NAME",
                 "PRODUCT_BUNDLE_IDENTIFIER",
+                "INFOPLIST_FILE",
             ] {
                 let previous = target
                     .build_settings
                     .insert(key.to_owned(), json!("incorrect-environment"));
                 ensure!(
-                    validate(&target, environment, debug).is_err(),
+                    validate(&target, config, environment, debug).is_err(),
                     "Configuration negative control was accepted: {key}"
                 );
                 target.build_settings.remove(key);
                 ensure!(
-                    validate(&target, environment, debug).is_err(),
+                    validate(&target, config, environment, debug).is_err(),
                     "Missing configuration field was accepted: {key}"
                 );
                 match previous {
@@ -281,7 +303,7 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
         }
     }
     println!(
-        "PASS: all six build configurations, both native targets each, and 156 rejected environment defects"
+        "PASS: all six build configurations, both native targets each, and 180 rejected environment defects"
     );
     Ok(())
 }

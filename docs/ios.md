@@ -22,6 +22,14 @@ A DevRelease simulator build for one simulator needs no `ONLY_ACTIVE_ARCH` overr
 Override PHONEBOOK_API_ORIGIN only for an explicitly selected test build.
 The generator inspects all six actual Xcode configurations and rejects missing or incorrect environment fields.
 
+The app's property list declares a [launch screen](https://developer.apple.com/documentation/xcode/specifying-your-apps-launch-screen) with the `LaunchBackground` color from `ios/Config/Launch.xcassets`.
+That color matches the first screen's white background, as the [launching guidelines](https://developer.apple.com/design/human-interface-guidelines/launching) ask, and the launch screen shows no text or logo.
+XcodeGen writes `ios/Config/App-Info.plist` from `ios/project.yml`, and Release and VerificationRelease take that list.
+The generator writes `ios/Config/App-Info-LocalNetworking.plist` from it with `NSAllowsLocalNetworking` added, and the generator rejects any other difference.
+Debug, DevRelease, VerificationDebug, and ProductionDebug take that second list, because they reach the loopback fixture for development, the UI scenarios, and the store screenshots.
+Since iOS 17, [App Transport Security](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking) refuses IP addresses such as `127.0.0.1` without that key.
+The builds for TestFlight and the App Store carry no transport exception.
+
 The app keeps the whole national directory on the device.
 The first launch opens a setup flow that starts the download when the reader presses the start button, explains caller identification, and then waits for the data.
 Over that button, a notice names the listed size rounded up to whole megabytes and suggests a fast connection.
@@ -52,6 +60,10 @@ The percentage stays in the accessibility value and out of sight.
 VoiceOver hears the start, a weak signal, a stop, and the end, and nothing for each step or second.
 A stopped first download names its automatic retry, which follows `DownloadSchedule.retryDelays`.
 The app transfers in the foreground, so it shows no background transfer line, and a suspended transfer resumes when the reader returns.
+The transfer holds a file lock and the import holds an exclusive SQLite transaction, and iOS terminates an app that it suspends while it holds either one.
+A first download or update that the open app starts runs under background execution time from `beginBackgroundTask(withName:expirationHandler:)`.
+When that time expires, the app cancels the synchronization, which releases both locks, and ends the background task once the synchronization has unwound.
+`PhonebookCore.BackgroundTime` decides when to cancel and when to end, and the background processing task keeps its own expiry handler.
 The directory trace reports the milliseconds of decompression, parsing, row insertion, the number table, the caller file, COMMIT, and fsync for every import.
 Parsing and row insertion overlap, so their durations add up to more than the time between the start of staging and the end of decoding.
 
@@ -136,6 +148,8 @@ No commit, push, or pull request starts the Assurance workflow.
 The manual TestFlight workflow runs all four campaigns for one `main` commit before it signs and uploads that commit.
 
 The full UI harness creates and erases its own simulator and reinstalls the app for every scenario.
+Each scenario runs with a 600-second execution time allowance, a hang guard that exceeds the longest sum of one scenario's own waits.
+A scenario that reaches the allowance counts as inconclusive rather than failed, and the gate still stops on it.
 Its proxy forwards Range requests and can drip or stall a reply, so the scenarios reach the receiving steps, a weak signal, and a resumed transfer.
 It turns off slide-to-type and its introduction, because that introduction can cover the screen under test.
 The UI and screenshot commands shut that simulator down when they return, including after a failed scenario.

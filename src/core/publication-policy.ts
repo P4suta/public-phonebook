@@ -16,6 +16,45 @@ export function importDecision(
   return "conflict";
 }
 
+export type DatabaseVerification =
+  | "verify"
+  | "accept-evidence"
+  | "accept-publication"
+  | "foreign-evidence"
+  | "incomplete-database"
+  | "unverified-binding";
+
+/** Scans a remote database in full only while no Worker version binds it, and otherwise requires evidence of an earlier full verification of this exact database and resource. */
+export function databaseVerification(
+  evidencePresent: boolean,
+  evidenceDatabase: string,
+  database: string,
+  evidenceResource: string,
+  resource: string,
+  complete: boolean,
+  bound: boolean,
+  publicationVerified: boolean,
+): DatabaseVerification {
+  //@ verify
+  //@ ensures \result === "verify" ==> !bound
+  //@ ensures (\result === "foreign-evidence") === (evidencePresent && (evidenceDatabase !== database || evidenceResource !== resource))
+  //@ ensures (\result === "accept-evidence") === (evidencePresent && evidenceDatabase === database && evidenceResource === resource && complete)
+  //@ ensures (\result === "incomplete-database") === (!complete && ((evidencePresent && evidenceDatabase === database && evidenceResource === resource) || (!evidencePresent && bound)))
+  //@ ensures (\result === "verify") === (!evidencePresent && !bound)
+  //@ ensures (\result === "unverified-binding") === (!evidencePresent && bound && complete && !publicationVerified)
+  //@ ensures (\result === "accept-publication") === (!evidencePresent && bound && complete && publicationVerified)
+  if (
+    evidencePresent &&
+    (evidenceDatabase !== database || evidenceResource !== resource)
+  )
+    return "foreign-evidence";
+  if (evidencePresent)
+    return complete ? "accept-evidence" : "incomplete-database";
+  if (!bound) return "verify";
+  if (!complete) return "incomplete-database";
+  return publicationVerified ? "accept-publication" : "unverified-binding";
+}
+
 export type PromotionAdmission =
   | "promote"
   | "unverified"

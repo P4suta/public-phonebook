@@ -98,6 +98,7 @@ export function isConflict(
 const keySegment = /^[a-z0-9][a-z0-9._-]*$/u;
 const treeSchema = v.pipe(v.string(), v.regex(/^[a-f0-9]{40}$/u));
 const stageSchema = v.pipe(v.string(), v.regex(/^[a-z][a-z0-9-]*$/u));
+const databaseIdSchema = v.pipe(v.string(), v.uuid());
 const historyWidth = 12;
 const minimumKeySegments = 2;
 const maximumSequence = 999_999_999_999;
@@ -147,6 +148,10 @@ export const controlKeys = {
     `leases/${environment}.json`,
   evidence: (scope: string, sha256: string): string =>
     checkedKey(`evidence/${scope}/${v.parse(DigestSchema, sha256)}.json`),
+  databaseEvidence: (databaseSha256: string, databaseId: string): string =>
+    checkedKey(
+      `evidence/databases/${v.parse(DigestSchema, databaseSha256)}/${v.parse(databaseIdSchema, databaseId)}.json`,
+    ),
 } as const;
 
 export function writePolicy(key: string): WritePolicy {
