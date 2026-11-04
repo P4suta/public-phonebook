@@ -55,7 +55,12 @@ public final class DirectoryModel {
   @discardableResult
   public func search() -> Task<Void, Never>? {
     let normalized = SearchInput.normalizedName(query)
-    guard normalized != searched else { return operation }
+    guard normalized != searched else {
+      if let results, results.query == normalized, results.input != query {
+        self.results = SearchResults(query: normalized, input: query, groups: results.groups)
+      }
+      return operation
+    }
     searched = normalized
     operation?.cancel()
     paging?.cancel()
@@ -70,6 +75,7 @@ public final class DirectoryModel {
     let store = store
     let categories = categories
     let phone = SearchInput.normalizedPhone(query).flatMap { try? CanonicalPhone($0) }
+    let typed = query
     let task = Task {
       do {
         let groups: [[LocalSearch.Match]]
@@ -85,8 +91,9 @@ public final class DirectoryModel {
           }
         }
         try Task.checkCancellation()
+        // A later edit that keeps the normalized query, such as a trailing space, reuses this search.
         let result = SearchResults(
-          query: normalized,
+          query: normalized, input: SearchInput.normalizedName(query) == normalized ? query : typed,
           groups: groups.compactMap { matches in
             guard let first = matches.first else { return nil }
             let category = index.category(row: first.row)
