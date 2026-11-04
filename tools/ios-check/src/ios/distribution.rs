@@ -181,7 +181,7 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
             && metadata["primaryLocale"] == "ja"
             && metadata["bundleId"] == Environment::Production.identity().0
             && metadata["version"] == "1.0"
-            && metadata["releaseType"] == "MANUAL"
+            && metadata["releaseType"] == "AFTER_APPROVAL"
             && metadata["signInRequired"] == false,
         "Incorrect App Store identity or release policy"
     );

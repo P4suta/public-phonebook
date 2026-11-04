@@ -4,7 +4,7 @@
   "sku": "public-phonebook-ios",
   "primaryLocale": "ja",
   "version": "1.0",
-  "releaseType": "MANUAL",
+  "releaseType": "AFTER_APPROVAL",
   "name": "Public Phonebook",
   "subtitle": "公開施設の電話番号・着信識別",
   "promotionalText": "学校や役所、病院などの電話番号を、iPhoneの中でさがせます。\n病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前が出ます。",
