@@ -34,7 +34,11 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(start.waitForExistence(timeout: 15))
     let notice = app.descendants(matching: .any)["data-size-notice"]
     XCTAssertTrue(notice.waitForExistence(timeout: 5))
-    XCTAssertTrue(notice.label.contains("受け取るデータは約1MBです。"))
+    // The notice shows the national archive's known size until the listing answers with the fixture's size.
+    waitUntil(
+      "the notice shows the listed size",
+      notice.exists && notice.label.contains("受け取るデータは約1MBです。"), timeout: 15,
+      observed: { notice.exists ? "It shows “\(notice.label)”." : "It doesn't exist." })
     XCTAssertTrue(notice.label.contains("Wi-Fiなどの速い回線につなぐと、早く終わります。"))
     capture(app, name: "onboarding-welcome")
     XCTAssertEqual(try datasetFiles(), 0)
