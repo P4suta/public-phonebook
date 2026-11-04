@@ -103,7 +103,8 @@ private func moving(_ display: WaitDisplay, at now: Int, stableSince: Int = -1) 
   #expect(WaitDisplay.choose(start, start, 9_999, -1, 0, false).line == .measuring)
   let short = WaitDisplay.choose(start, moving(start, at: 1_000), 1_000, 60_000, 0, false)
   #expect(short.line == .countdown && short.seconds == 60)
-  #expect(WaitDisplay.choose(start, moving(start, at: 1_000), 1_000, 60_001, 0, false).line == .longer)
+  #expect(
+    WaitDisplay.choose(start, moving(start, at: 1_000), 1_000, 60_001, 0, false).line == .longer)
 }
 
 /// A display that reached each line, so the waiting decision meets every line that the screen can show.
@@ -137,7 +138,8 @@ private let everyLine = [
 }
 
 @Test func aCountdownTurnsLongerOnlyPastItsSlackAndTheShortTime() {
-  let behind = WaitDisplay.choose(nineSeconds, moving(nineSeconds, at: 2_000), 2_000, 11_100, 0, false)
+  let behind = WaitDisplay.choose(
+    nineSeconds, moving(nineSeconds, at: 2_000), 2_000, 11_100, 0, false)
   #expect(behind.line == .countdown && behind.seconds == 9)
   #expect(
     WaitDisplay.choose(nineSeconds, moving(nineSeconds, at: 2_000), 2_000, 11_101, 0, false).line
@@ -156,7 +158,8 @@ private let everyLine = [
     WaitDisplay.choose(oneMinute, moving(oneMinute, at: 12_200), 12_200, 200_000, 0, false).minutes
       == 3)
   #expect(
-    WaitDisplay.choose(oneMinute, moving(oneMinute, at: 8_000), 8_000, 200_000, 0, false).minutes == 1)
+    WaitDisplay.choose(oneMinute, moving(oneMinute, at: 8_000), 8_000, 200_000, 0, false).minutes
+      == 1)
 }
 
 @Test func coarseMinutesCountDownAgainOnlyAfterAStableShortEstimate() {

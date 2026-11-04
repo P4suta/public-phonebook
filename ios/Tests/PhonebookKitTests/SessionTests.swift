@@ -49,7 +49,8 @@ private func keptServer() async throws -> HTTPTestServer {
 @Test(.timeLimit(.minutes(1))) func aCancelledRequestLeavesTheSharedSessionUsable() async throws {
   let server = try await HTTPTestServer(finish: false, keepAlive: true) { request in
     request.hasPrefix("GET /api/held ")
-      ? Data("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 1000\r\n\r\n[".utf8)
+      ? Data(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 1000\r\n\r\n[".utf8)
       : keptOpen(json, type: "application/json")
   }
   defer { server.close() }
