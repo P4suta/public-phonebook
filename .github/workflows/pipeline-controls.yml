@@ -43,19 +43,26 @@ jobs:
     steps:
       - name: Require the main branch
         run: test "$GITHUB_REF" = refs/heads/main
-      - id: foreign
-        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
-        continue-on-error: true
-        with:
-          auth-method: oidc
-          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
-          doppler-project: public-phonebook
-          doppler-config: ci_production
-          inject-env-vars: "false"
-      - name: Require the refusal
+      - name: Require Doppler to refuse the ci_production config to the observe identity
         env:
-          OUTCOME: ${{ steps.foreign.outcome }}
-        run: test "$OUTCOME" = failure
+          DOPPLER_IDENTITY_ID: ${{ vars.DOPPLER_IDENTITY_ID }}
+        run: |
+          set -o pipefail
+          oidc=$(printf 'Authorization: bearer %s\n' "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" | curl --silent --show-error --fail --retry 4 --header @- "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq --exit-status --raw-output .value)
+          echo "::add-mask::$oidc"
+          token=$(jq --null-input --arg identity "$DOPPLER_IDENTITY_ID" --arg token "$oidc" '{identity: $identity, token: $token}' | curl --silent --show-error --fail-with-body --retry 4 --header 'Content-Type: application/json' --data @- https://api.doppler.com/v3/auth/oidc | jq --exit-status --raw-output .token)
+          echo "::add-mask::$token"
+          body="$RUNNER_TEMP/foreign-config.json"
+          status=$(printf 'Authorization: Bearer %s\n' "$token" | curl --silent --show-error --retry 4 --header @- --output "$body" --write-out '%{http_code}' 'https://api.doppler.com/v3/configs/config/secrets?project=public-phonebook&config=ci_production')
+          if [ "$status" = 200 ]; then
+            rm -f "$body"
+            echo "::error::The observe identity read the ci_production config"
+            exit 1
+          fi
+          messages=$(jq --exit-status --raw-output '.messages | select(length > 0) | join(" ")' "$body")
+          rm -f "$body"
+          echo "Doppler answered $status: $messages"
+          test "$status" = 403
   read-only-deploy:
     name: Refuse a deployment with the read-only token
     runs-on: ubuntu-24.04
