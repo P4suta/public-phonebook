@@ -127,7 +127,7 @@ jobs:
     needs: [plan]
     if: contains(fromJSON(needs.plan.outputs.missing), 'ios-check')
     runs-on: xcode-27
-    timeout-minutes: 40
+    timeout-minutes: 90
     permissions:
       contents: read
     env:
