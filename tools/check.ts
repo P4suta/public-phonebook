@@ -1,8 +1,14 @@
 import { copyFile, mkdir, readFile, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import * as v from "valibot";
-import { command, requireCommand } from "./process.ts";
-import { StepTimer } from "./step-timing.ts";
+import {
+  command,
+  ownInstructions,
+  prepareMeter,
+  requireCommand,
+  useMeter,
+} from "./process.ts";
+import { countWork, StepTimer } from "./step-timing.ts";
 import { requireWorkflowPolicy } from "./workflow-policy.ts";
 
 const minimumScanFiles = 20;
@@ -36,6 +42,7 @@ async function scanSecrets(): Promise<void> {
   }
   if (files < minimumScanFiles)
     throw new Error("The secret scan inventory is incomplete");
+  countWork("scanned files", files);
   await requireCommand("gitleaks", [
     "dir",
     "--no-banner",
@@ -47,22 +54,32 @@ async function scanSecrets(): Promise<void> {
   console.info(JSON.stringify({ operation: "secrets", files }));
 }
 
-const timer = new StepTimer();
+const timer = new StepTimer(undefined, ownInstructions);
 try {
+  useMeter(await prepareMeter());
   for (const [step, script] of [
     ["typecheck", "typecheck"],
     ["lint", "lint"],
-    ["unit tests", "test"],
-    ["audit", "audit"],
   ] as const)
     await timer.time(step, () => requireCommand("npm", ["run", script]));
-  const decoded: unknown = JSON.parse(
-    await readFile("test-results/unit.json", "utf8"),
-  );
-  const results = v.parse(
-    v.object({ numPassedTests: v.number(), numFailedTests: v.literal(0) }),
-    decoded,
-  );
+  const results = await timer.time("unit tests", async () => {
+    await requireCommand("npm", ["run", "test"]);
+    const decoded: unknown = JSON.parse(
+      await readFile("test-results/unit.json", "utf8"),
+    );
+    const parsed = v.parse(
+      v.object({
+        numPassedTests: v.number(),
+        numFailedTests: v.literal(0),
+        testResults: v.array(v.unknown()),
+      }),
+      decoded,
+    );
+    countWork("test files", parsed.testResults.length);
+    countWork("tests", parsed.numPassedTests);
+    return parsed;
+  });
+  await timer.time("audit", () => requireCommand("npm", ["run", "audit"]));
   if (results.numPassedTests < minimumBehavioralTests)
     throw new Error("The behavioral test inventory is incomplete");
   await timer.time("secrets", scanSecrets);

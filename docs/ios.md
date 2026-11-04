@@ -123,6 +123,16 @@ Set `PHONEBOOK_FIXTURE_CONTACTS` and `PHONEBOOK_FIXTURE_CATALOG` to a production
 Run `mise x -- just ios-unit-test` for all compiled Swift package tests, strict lints, and coverage.
 Run `mise x -- just ios-check` for those checks, unsigned simulator and device builds, and the complete isolated simulator UI inventory.
 Run `mise x -- just ios-prove`, `mise x -- just ios-sanitize`, and `mise x -- just ios-mutate` for the heavier assurance checks.
+`just ios-prove` compiles the seven Lean modules and replays two generated roots, `PublicationModels` and `OmegaModels`, with `leanchecker --fresh`.
+`--fresh` replays every constant of a root's import closure, and the roots import each module exactly once, so they replay every constant that one run per module would.
+`PublicationModel` and `WaitDisplay` both declare `Phonebook.step`, so one root can't import every module.
+Each iOS command prints a final JSON line with the step record that [verification](verification.md#required-fast-gate) describes, and `ownInstructions` for the checker's own work.
+Steps in a container, Xcode's build service, or CoreSimulator report that work as outside the measured processes.
+`just ios-check` reads the build settings of its six configurations at once and checks them in a fixed order.
+Every iOS command except `ios-prove` and `ios-unit-test` holds the machine lease, a `flock` on `/tmp/public-phonebook-ios-gate.flock`.
+It's the same lock that `lockf -k` takes, so the two exclude each other, and the kernel releases it when its holder exits.
+A second command waits, polling every 30 s for at most 90 minutes, and a wait that runs out fails as inconclusive.
+Don't wrap these commands in `lockf` on the same file, because they would then wait for their own wrapper.
 Pull requests run none of these native or proof checks.
 The manual Assurance workflow runs `just ios-check` on the hosted `xcode-27` runner, and `just prove` and `just ios-prove` on Linux.
 Its `campaigns` input adds the sanitizer and mutation campaigns.
