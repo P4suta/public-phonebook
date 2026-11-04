@@ -346,6 +346,10 @@ It records the transferred index bytes, the time until the index is ready, and t
 It also records input events of 16 ms or longer while typing, long tasks in Chromium, and the main-thread heap in Chromium.
 It estimates the decoded index's heap in V8 from Node, because browsers expose a Worker's heap only to cross-origin isolated pages.
 Safari on a physical iPhone and the Worker's own heap need a person and a debugger, so the record lists them as not run.
+The record also holds counts that depend only on the build, the dataset, and the fixed query sample, so they repeat on any machine.
+Node runs the production matcher over the decoded index for the 40 queries and for each prefix of the typed text, and counts the index rows it reads and the rows it matches.
+Each browser profile counts the search messages posted to the Worker during the 40 queries, the result messages it returns, and the UTF-8 bytes of their JSON.
+An optimization of the device search is judged by these counts, and the timings stay observations.
 The record holds measurements, not thresholds.
 
 Run `mise x -- just test` for the fast gate, national data reconciliation and phone profile, complete proof inventory, and national browser campaign.

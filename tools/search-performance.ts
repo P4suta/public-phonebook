@@ -15,7 +15,14 @@ import {
 import * as v from "valibot";
 import { PreparedDatasetManifestSchema } from "../src/core/dataset-storage.ts";
 import {
+  type LocalMatches,
+  type LocalQuery,
+  localQuery,
+  matchIndex,
+} from "../src/core/local-search.ts";
+import {
   decodeSearchIndex,
+  type SearchIndex,
   searchIndexFile,
 } from "../src/core/search-index.ts";
 import { serveBuiltWorker } from "./built-worker-server.ts";
@@ -38,12 +45,18 @@ const tail = 0.95;
 const unmeasurable = "not supported by this engine";
 const jsonIndentation = 2;
 const eventThresholdMs = 16;
+const rowIndex = /^(?:0|[1-9]\d*)$/u;
 
 const RecordSchema = v.object({
   ready: v.nullable(v.number()),
   searches: v.array(v.number()),
   longTasks: v.array(v.number()),
   events: v.array(v.object({ name: v.string(), duration: v.number() })),
+  messages: v.object({
+    searchesPosted: v.number(),
+    resultsReceived: v.number(),
+    resultJsonBytes: v.number(),
+  }),
   heap: v.nullable(v.number()),
 });
 
@@ -119,14 +132,70 @@ export function summarize(values: readonly number[]): {
   };
 }
 
-/** Runs in the page before its scripts: times the Worker's search round trips and the moment the index is ready. */
+function counted(values: readonly number[]): ReturnType<typeof summarize> & {
+  readonly total: number;
+} {
+  return {
+    ...summarize(values),
+    total: values.reduce((sum, value) => sum + value, 0),
+  };
+}
+
+/** Counts, per query, the index rows that `match` reads and the rows it matches; the counts depend only on the index, the queries, and `match`. */
+export function searchWork(
+  index: SearchIndex,
+  queries: readonly string[],
+  match: (
+    searched: SearchIndex,
+    query: LocalQuery,
+  ) => LocalMatches = matchIndex,
+): {
+  readonly queries: number;
+  readonly rowsScanned: ReturnType<typeof counted>;
+  readonly rowsMatched: ReturnType<typeof counted>;
+} {
+  const scanned: number[] = [];
+  const matched: number[] = [];
+  for (const input of queries) {
+    const query = localQuery(input);
+    if (!query.ok) throw new Error(`The sampled query is invalid: ${input}`);
+    let reads = 0;
+    const rows = new Proxy(index.rows, {
+      get(target, property, receiver): unknown {
+        if (typeof property === "string" && rowIndex.test(property)) reads += 1;
+        return Reflect.get(target, property, receiver);
+      },
+    });
+    matched.push(match({ ...index, rows }, query.value).total);
+    scanned.push(reads);
+  }
+  return {
+    queries: queries.length,
+    rowsScanned: counted(scanned),
+    rowsMatched: counted(matched),
+  };
+}
+
+/** Runs in the page before its scripts: times the Worker's search round trips and the moment the index is ready, and counts the search messages and result bytes. */
 function installRecorder(eventThreshold: number): void {
   const record: {
     ready: number | null;
     searches: number[];
     longTasks: number[];
     events: { name: string; duration: number }[];
-  } = { ready: null, searches: [], longTasks: [], events: [] };
+    messages: {
+      searchesPosted: number;
+      resultsReceived: number;
+      resultJsonBytes: number;
+    };
+  } = {
+    ready: null,
+    searches: [],
+    longTasks: [],
+    events: [],
+    messages: { searchesPosted: 0, resultsReceived: 0, resultJsonBytes: 0 },
+  };
+  const utf8 = new TextEncoder();
   Reflect.set(window, "__searchPerformance", record);
   new MutationObserver(() => {
     const search = document.querySelector("search[data-local-search]");
@@ -156,8 +225,10 @@ function installRecorder(eventThreshold: number): void {
             typeof message === "object" &&
             message !== null &&
             Reflect.get(message, "type") === "search"
-          )
+          ) {
+            record.messages.searchesPosted += 1;
             pending.set(Number(Reflect.get(message, "id")), performance.now());
+          }
           if (typeof post === "function")
             Reflect.apply(post, this, [message, options]);
         },
@@ -165,6 +236,12 @@ function installRecorder(eventThreshold: number): void {
       this.addEventListener("message", (event: MessageEvent<unknown>) => {
         const data = event.data;
         if (typeof data !== "object" || data === null) return;
+        if (Reflect.get(data, "type") === "results") {
+          record.messages.resultsReceived += 1;
+          record.messages.resultJsonBytes += utf8.encode(
+            JSON.stringify(data),
+          ).byteLength;
+        }
         const id = Number(Reflect.get(data, "id"));
         const started = pending.get(id);
         if (started === undefined || Reflect.get(data, "type") !== "results")
@@ -259,6 +336,7 @@ async function measureProfile(
         { timeout: searchTimeoutMs },
       );
     }
+    const sampled = await readRecord(page);
     await input.fill("");
     await input.focus();
     await page.keyboard.type(typedText, { delay: typingDelayMs });
@@ -275,6 +353,7 @@ async function measureProfile(
       browser: browser.version(),
       cpuThrottling: profile.cpuThrottling,
       transferredIndexBytes: transferred,
+      sampledWorkerMessages: sampled.messages,
       readyMs: record.ready,
       searchRoundTripMs: summarize(record.searches),
       inputEventsOver16Ms: supportsEvents
@@ -331,12 +410,17 @@ async function main(): Promise<void> {
   const decoded = new Uint8Array(
     brotliDecompressSync(await readFile(join(directory, searchIndexFile))),
   );
-  const queries = parityQueries(
-    decodeSearchIndex(decoded),
-    sampleSeed,
-    sampleCounts,
-  );
+  const index = decodeSearchIndex(decoded);
+  const queries = parityQueries(index, sampleSeed, sampleCounts);
   const sample = [...queries.substrings, ...queries.names, ...queries.numbers];
+  const typed = Array.from(typedText);
+  const work = {
+    sample: searchWork(index, sample),
+    typedPrefixes: searchWork(
+      index,
+      typed.map((_, end) => typed.slice(0, end + 1).join("")),
+    ),
+  };
   const port = Number(values.port ?? defaultPort);
   const runtime = await serveBuiltWorker({
     port,
@@ -366,6 +450,7 @@ async function main(): Promise<void> {
       decodedIndexHeapBytesInNode: decodedIndexHeapBytes(decoded),
       queries: sample.length,
       typedText,
+      work,
       profiles: measured,
       manual: manualMeasurements,
       generatedAt: new Date().toISOString(),
