@@ -67,12 +67,9 @@ impl MachineLease {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::process::Command;
 
     const SHORT: Duration = Duration::from_millis(10);
     const LONG: Duration = Duration::from_secs(5);
-    /// `lockf` exits with `EX_TEMPFAIL` when its wait runs out.
-    const LOCKF_TIMED_OUT: i32 = 75;
 
     fn lease_path() -> Result<(tempfile::TempDir, std::path::PathBuf)> {
         let parent = tempfile::tempdir()?;
@@ -119,6 +116,9 @@ mod tests {
     #[cfg(target_os = "macos")]
     #[test]
     fn the_lease_and_lockf_exclude_each_other() -> Result<()> {
+        use std::process::Command;
+        /// `lockf` exits with `EX_TEMPFAIL` when its wait runs out.
+        const LOCKF_TIMED_OUT: i32 = 75;
         let (_parent, path) = lease_path()?;
         let lease = MachineLease::acquire_at(&path, SHORT, LONG)?;
         let blocked = Command::new("lockf")
