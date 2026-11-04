@@ -793,18 +793,22 @@ mod tests {
     fn the_file_size_cap_turns_a_runaway_write_into_an_error() -> Result<()> {
         let directory = tempfile::tempdir()?;
         let file = directory.path().join("runaway");
+        let cap = 1024 * 1024;
+        // BSD and GNU dd both read a block size written in plain bytes.
         let output = limit_file_size(
             Command::new("dd")
                 .arg("if=/dev/zero")
                 .arg(format!("of={}", file.display()))
-                .args(["bs=1m", "count=64"]),
-            1024 * 1024,
+                .arg(format!("bs={cap}"))
+                .arg("count=64"),
+            cap,
         )
         .output()?;
-        assert!(!output.status.success());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(!output.status.success(), "{stderr}");
         assert!(output.status.code().is_some(), "dd ended by a signal");
-        assert!(String::from_utf8_lossy(&output.stderr).contains(FILE_LIMIT_ERROR));
-        assert!(fs::metadata(&file)?.len() <= 1024 * 1024);
+        assert!(stderr.contains(FILE_LIMIT_ERROR), "{stderr}");
+        assert!(fs::metadata(&file)?.len() <= cap);
         Ok(())
     }
 
