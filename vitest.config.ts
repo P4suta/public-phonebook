@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config";
 
-const testWorkers = 2;
+const testWorkers = "50%";
 const testTimeoutMs = 15000;
 const fixtureTimeoutMs = 30000;
 
