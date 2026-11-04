@@ -321,10 +321,11 @@ public struct APIClient: Sendable {
     }
   }
 
-  /// Reads the size from the file system each time, because a URL caches its resource values.
+  /// Reads the size from the open file each time, because a URL caches its resource values and file attributes need a declared reason.
   private static func size(of url: URL) throws -> Int {
-    let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
-    return (attributes[.size] as? NSNumber)?.intValue ?? 0
+    let handle = try FileHandle(forReadingFrom: url)
+    defer { try? handle.close() }
+    return Int(try handle.seekToEnd())
   }
 }
 

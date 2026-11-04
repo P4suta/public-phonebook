@@ -21,6 +21,7 @@ mod log_privacy;
 mod mutation;
 mod proof;
 mod receipts;
+mod required_reasons;
 mod screenshots;
 mod signing;
 mod store_build;
@@ -1187,6 +1188,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
             }
             let sources = source_hashes(root)?;
             log_privacy::check(root)?;
+            required_reasons::check(root)?;
             logged(
                 root,
                 "swiftlint",
