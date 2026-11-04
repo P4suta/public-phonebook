@@ -253,7 +253,7 @@ describe("search index", () => {
         );
         expect(encodeSearchIndex(decoded.rows, input)).toEqual(bytes);
       }),
-      { numRuns: 200 },
+      { seed: 20261106, numRuns: 200 },
     );
   });
 
