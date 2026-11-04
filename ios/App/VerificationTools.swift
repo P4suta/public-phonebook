@@ -194,8 +194,8 @@
       VStack(alignment: .leading, spacing: 12) {
         Text("データの自動の受け取り").font(.headline).accessibilityAddTraits(.isHeader)
         Text("データの日付：\(dataDate)")
-        Text("前に確かめた日時：\(lastCheck)")
-        Text("次に確かめる日時：\(nextDue)")
+        Text("前にたしかめた日時：\(lastCheck)")
+        Text("次にたしかめる日時：\(nextDue)")
         Text("待っている受け取り：\(waiting)")
         Text("問題：\(integration.problem ?? integration.stopped ?? "なし")")
           .fixedSize(horizontal: false, vertical: true)

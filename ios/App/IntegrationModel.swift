@@ -445,7 +445,7 @@ final class IntegrationModel {
     let reason: String?
     switch error {
     case ImportError.activationUncertain:
-      reason = "データを受け取れたかを確かめられませんでした。アプリを開き直してください。"
+      reason = "データを受け取れたかをたしかめられませんでした。アプリを開き直してください。"
     case ImportError.projectionTooLarge:
       reason = "一つの電話番号に集まる情報が多すぎるため、データを受け取れませんでした。"
     case ServiceError.unsupportedFormat:

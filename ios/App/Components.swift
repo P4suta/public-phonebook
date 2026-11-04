@@ -91,7 +91,7 @@ enum ExternalDestination {
 
   var description: String {
     switch self {
-    case .facility: "この施設のページを開きます。"
+    case .facility: "この施設のホームページを開きます。"
     case .publication: "このデータを公開しているページを開きます。"
     case .license: "データを使うときの決まりのページを開きます。"
     case .source: "電話番号のもとになった資料を開きます。"
@@ -150,12 +150,12 @@ struct MapButton: View {
       }
       Button("キャンセル", role: .cancel) {}
     } message: {
-      Text("この施設の場所を、Appleのマップで表示します。\n場所を探すために、施設の名前と住所をAppleに送ります。")
+      Text("この施設の場所を、Appleのマップで表示します。\n場所をさがすために、施設の名前と住所をAppleに送ります。")
     }
     .alert("場所を見つけられませんでした", isPresented: $missing) {
       Button("閉じる", role: .cancel) {}
     } message: {
-      Text("インターネットにつながっているか確かめて、もう一度試してください。")
+      Text("インターネットにつながっているかたしかめて、もう一度試してください。")
     }
   }
 }

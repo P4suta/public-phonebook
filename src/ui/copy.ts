@@ -45,8 +45,8 @@ export const uiCopy = {
     heading: "ほかのサイトを開きます",
     destinations: {
       address:
-        "この施設の場所を、Googleマップで表示します。場所を探すために、施設の名前と住所をGoogleに送ります。" satisfies Statement,
-      facility: "この施設のページを開きます。" satisfies Statement,
+        "この施設の場所を、Googleマップで表示します。場所をさがすために、施設の名前と住所をGoogleに送ります。" satisfies Statement,
+      facility: "この施設のホームページを開きます。" satisfies Statement,
       publication:
         "このデータを公開しているページを開きます。" satisfies Statement,
       license:

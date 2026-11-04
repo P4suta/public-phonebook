@@ -30,7 +30,7 @@ struct SearchScreen: View {
       .toolbarBackground(.surface, for: .navigationBar)
       .searchable(
         text: $model.query, placement: .navigationBarDrawer(displayMode: .always),
-        prompt: "施設の名前や電話番号"
+        prompt: "施設の名前か、電話番号"
       )
       .onChange(of: model.query) { model.search() }
       .onSubmit(of: .search) { model.search() }
