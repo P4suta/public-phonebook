@@ -8,6 +8,7 @@ date: 2026-11-01
 
 Proposed.
 Amends [recover complete Worker and dataset publications](recover-complete-worker-and-dataset-publications.md), which kept the journal under `.local/releases`.
+[Verify each D1 database once before a Worker binds it](verify-each-database-once-before-a-worker-binds-it.md) adds database verification evidence under `evidence/databases/`.
 
 ## Context
 

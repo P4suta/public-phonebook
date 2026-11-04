@@ -2,6 +2,8 @@ import { DatabaseSync } from "node:sqlite";
 import * as v from "valibot";
 import type { DatasetManifest } from "../src/core/models.ts";
 import {
+  type DatabaseVerification,
+  databaseVerification,
   type ImportDecision,
   importDecision,
 } from "../src/core/publication-policy.ts";
@@ -150,14 +152,156 @@ export async function checkImportIdentity(
   return decision;
 }
 
+async function importProgress(
+  port: SqlPort,
+  databaseSha256: string,
+): Promise<v.InferOutput<typeof ProgressSchema>> {
+  const progress = v.parse(
+    ProgressSchema,
+    await port.execute([
+      {
+        sql: "SELECT stage,snapshot,completed FROM __dial_import",
+        params: [],
+      },
+    ]),
+  );
+  if (
+    progress.length !== stages.length ||
+    new Set(progress.map((item) => item.stage)).size !== stages.length ||
+    progress.some((item) => item.snapshot !== databaseSha256)
+  )
+    throw new Error("Incomplete import progress");
+  return progress;
+}
+
+function sourceRowCount(source: DatabaseSync, stage: SeedTable): number {
+  const table = stage === "contact_search" ? "contacts" : stage;
+  return v.parse(
+    CountSchema,
+    source.prepare(`SELECT count(*) AS count FROM ${table}`).get()?.count,
+  );
+}
+
+/** Compares the catalog and fixed records by primary key, which reads a handful of rows even from a database that serves traffic. */
+async function compareRecords(
+  port: SqlPort,
+  source: DatabaseSync,
+  manifest: DatasetManifest,
+): Promise<void> {
+  for (const offset of [
+    0,
+    Math.floor(manifest.contacts / midpointDivisor),
+    manifest.contacts - 1,
+  ]) {
+    const expected = source
+      .prepare(
+        "SELECT id,payload FROM contacts ORDER BY rowid LIMIT 1 OFFSET ?",
+      )
+      .get(offset);
+    if (!expected) throw new Error("Missing source comparison record");
+    const actual = await port.execute([
+      {
+        sql: "SELECT id,payload FROM contacts WHERE id=?",
+        params: [v.parse(v.string(), expected.id)],
+      },
+    ]);
+    if (actual[0]?.payload !== expected.payload)
+      throw new Error("Remote payload comparison failed");
+  }
+  const catalog = await port.execute([
+    { sql: "SELECT payload FROM metadata WHERE key='catalog'", params: [] },
+  ]);
+  if (
+    catalog[0]?.payload !==
+    source.prepare("SELECT payload FROM metadata WHERE key='catalog'").get()
+      ?.payload
+  )
+    throw new Error("Remote catalog mismatch");
+}
+
+const countsQuery =
+  "SELECT (SELECT count(*) FROM contacts) AS contacts,(SELECT count(*) FROM phones) AS relations,(SELECT count(DISTINCT number) FROM phones) AS phones,(SELECT count(*) FROM sources) AS sources,(SELECT count(*) FROM contact_search) AS indexed,(SELECT count(DISTINCT category) FROM contacts) AS categories,(SELECT count(DISTINCT prefecture) FROM contacts) AS prefectures";
+export const RemoteCountsSchema = v.strictObject({
+  contacts: CountSchema,
+  relations: CountSchema,
+  phones: CountSchema,
+  sources: CountSchema,
+  indexed: CountSchema,
+  categories: CountSchema,
+  prefectures: CountSchema,
+});
+export type RemoteCounts = v.InferOutput<typeof RemoteCountsSchema>;
+
+/** What the preparation knows before it reads the database: the evidence stored for its digest and resource, and the journal's bindings. */
+export interface VerificationFacts {
+  readonly resource: string;
+  readonly evidence: {
+    readonly databaseSha256: string;
+    readonly database: string;
+  } | null;
+  readonly bound: boolean;
+  readonly publicationVerified: boolean;
+}
+
+export type SeedResult =
+  | { readonly verification: "verify"; readonly counts: RemoteCounts }
+  | { readonly verification: "accept-evidence" | "accept-publication" };
+
+const refusals = {
+  "foreign-evidence":
+    "The database's verification evidence names another database",
+  "incomplete-database":
+    "Refusing to import into a database that verification evidence or a Worker binding names",
+  "unverified-binding":
+    "Refusing to scan a database that a Worker version may bind, because no evidence of its full verification exists",
+} as const satisfies Partial<Record<DatabaseVerification, string>>;
+
+/**
+ * Imports and fully verifies a database that no Worker version binds, or accepts the evidence of its earlier full verification after cheap identity checks.
+ * The decision runs before any write or full-table read.
+ */
 export async function seedDatabase(
   port: SqlPort,
   path: string,
   manifest: DatasetManifest,
-): Promise<void> {
+  facts: VerificationFacts,
+): Promise<SeedResult> {
   const source = new DatabaseSync(path, { readOnly: true });
   try {
     const decision = await checkImportIdentity(port, manifest.databaseSha256);
+    let progress =
+      decision === "start"
+        ? null
+        : await importProgress(port, manifest.databaseSha256);
+    const complete =
+      progress?.every(
+        (item) => item.completed === sourceRowCount(source, item.stage),
+      ) ?? false;
+    const verification = databaseVerification(
+      facts.evidence !== null,
+      facts.evidence?.databaseSha256 ?? "",
+      manifest.databaseSha256,
+      facts.evidence?.database ?? "",
+      facts.resource,
+      complete,
+      facts.bound,
+      facts.publicationVerified,
+    );
+    if (
+      verification === "accept-evidence" ||
+      verification === "accept-publication"
+    ) {
+      await compareRecords(port, source, manifest);
+      console.info(
+        JSON.stringify({
+          operation: "data.remote.verified",
+          verification,
+          snapshot: manifest.snapshot,
+        }),
+      );
+      return { verification };
+    }
+    if (verification !== "verify") throw new Error(refusals[verification]);
     if (decision === "start") {
       await port.execute([
         ...databaseSchema
@@ -174,31 +318,12 @@ export async function seedDatabase(
           params: [stage, manifest.databaseSha256],
         })),
       ]);
+      progress = await importProgress(port, manifest.databaseSha256);
     }
-    const progress = v.parse(
-      ProgressSchema,
-      await port.execute([
-        {
-          sql: "SELECT stage,snapshot,completed FROM __dial_import",
-          params: [],
-        },
-      ]),
-    );
-    if (
-      progress.length !== stages.length ||
-      new Set(progress.map((item) => item.stage)).size !== stages.length ||
-      progress.some((item) => item.snapshot !== manifest.databaseSha256)
-    )
-      throw new Error("Incomplete import progress");
     for (const stage of stages) {
-      const previous = progress.find((item) => item.stage === stage);
+      const previous = progress?.find((item) => item.stage === stage);
       if (!previous) throw new Error("Missing import stage");
-      const expectedTable = stage === "contact_search" ? "contacts" : stage;
-      const expected = v.parse(
-        CountSchema,
-        source.prepare(`SELECT count(*) AS count FROM ${expectedTable}`).get()
-          ?.count,
-      );
+      const expected = sourceRowCount(source, stage);
       if (previous.completed > expected)
         throw new Error("Import checkpoint exceeds its source");
       if (
@@ -212,17 +337,8 @@ export async function seedDatabase(
       )
         throw new Error(`Incomplete remote stage: ${stage}`);
     }
-    const counts = await port.execute([
-      {
-        sql: "SELECT (SELECT count(*) FROM contacts) AS contacts,(SELECT count(*) FROM phones) AS relations,(SELECT count(DISTINCT number) FROM phones) AS phones,(SELECT count(*) FROM sources) AS sources,(SELECT count(*) FROM contact_search) AS indexed,(SELECT count(DISTINCT category) FROM contacts) AS categories,(SELECT count(DISTINCT prefecture) FROM contacts) AS prefectures",
-        params: [],
-      },
-    ]);
-    const expectedCounts = source
-      .prepare(
-        "SELECT (SELECT count(*) FROM contacts) AS contacts,(SELECT count(*) FROM phones) AS relations,(SELECT count(DISTINCT number) FROM phones) AS phones,(SELECT count(*) FROM sources) AS sources,(SELECT count(*) FROM contact_search) AS indexed,(SELECT count(DISTINCT category) FROM contacts) AS categories,(SELECT count(DISTINCT prefecture) FROM contacts) AS prefectures",
-      )
-      .get();
+    const counts = await port.execute([{ sql: countsQuery, params: [] }]);
+    const expectedCounts = source.prepare(countsQuery).get();
     for (const [key, value] of Object.entries(expectedCounts ?? {}))
       if (counts[0]?.[key] !== value)
         throw new Error(`Remote count mismatch: ${key}`);
@@ -231,42 +347,17 @@ export async function seedDatabase(
     ]);
     if (foreignKeys.length !== 0)
       throw new Error("Remote foreign key violation");
-    for (const offset of [
-      0,
-      Math.floor(manifest.contacts / midpointDivisor),
-      manifest.contacts - 1,
-    ]) {
-      const expected = source
-        .prepare(
-          "SELECT id,payload FROM contacts ORDER BY rowid LIMIT 1 OFFSET ?",
-        )
-        .get(offset);
-      if (!expected) throw new Error("Missing source comparison record");
-      const actual = await port.execute([
-        {
-          sql: "SELECT id,payload FROM contacts WHERE id=?",
-          params: [v.parse(v.string(), expected.id)],
-        },
-      ]);
-      if (actual[0]?.payload !== expected.payload)
-        throw new Error("Remote payload comparison failed");
-    }
-    const catalog = await port.execute([
-      { sql: "SELECT payload FROM metadata WHERE key='catalog'", params: [] },
-    ]);
-    if (
-      catalog[0]?.payload !==
-      source.prepare("SELECT payload FROM metadata WHERE key='catalog'").get()
-        ?.payload
-    )
-      throw new Error("Remote catalog mismatch");
+    await compareRecords(port, source, manifest);
+    const verified = v.parse(RemoteCountsSchema, counts[0]);
     console.info(
       JSON.stringify({
         operation: "data.remote.verified",
-        ...counts[0],
+        verification,
+        ...verified,
         snapshot: manifest.snapshot,
       }),
     );
+    return { verification, counts: verified };
   } finally {
     source.close();
   }
