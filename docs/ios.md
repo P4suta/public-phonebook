@@ -162,7 +162,11 @@ Below the telephone actions, one outline button opens the detail screen.
 Its label is `住所などを見る` when the facility has an address and `くわしい情報を見る` when it has none.
 VoiceOver reads the facility name before that label.
 The detail screen shows the address as selectable text, and an outline `地図で見る` button below it opens Apple Maps after a confirmation.
-VoiceOver reads that button as the facility name followed by `の地図を見る`, and a facility without an address has no map button.
+VoiceOver reads that button as the facility name followed by `を地図で見る`, and a facility without an address has no map button.
+The app then geocodes the address once and opens that point in Apple Maps as a map item named after the facility, without a search by the facility name.
+iOS 26 and later use `MKGeocodingRequest`, and iOS 18 to 25 search MapKit for the address alone, because iOS 26 deprecates `CLGeocoder`.
+While the lookup runs, an activity indicator replaces the map pin, the label reads `場所をさがしています`, and VoiceOver reads the facility name followed by `の場所をさがしています`.
+A lookup that finds no place shows `場所を見つけられませんでした`.
 Settings holds the caller section, which shows a filled check circle with `許可しています` or an empty circle with `まだ許可していません`.
 When iOS refuses a reload, `PhonebookCore.CallerReply` decides the state from the [Call Directory error code](https://developer.apple.com/documentation/callkit/cxerrorcodecalldirectorymanagererror-swift.struct/code).
 `currentlyLoading` shows `許可しています・iPhoneが準備しています`, `extensionDisabled` shows the off state, and any other error shows `許可しています・次にアプリを開くと使えるようになります`.
