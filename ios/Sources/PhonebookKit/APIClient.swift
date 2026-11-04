@@ -304,7 +304,9 @@ public struct APIClient: Sendable {
         throw ServiceError.http(response.statusCode)
       }
       try Task.checkCancellation()
-      guard try FileSize.bytes(of: partial) == archive.bytes else { throw ServiceError.invalidResponse }
+      guard try FileSize.bytes(of: partial) == archive.bytes else {
+        throw ServiceError.invalidResponse
+      }
       guard try DatasetArchive.digest(of: partial) == archive.sha256.rawValue else {
         try Data().write(to: partial)
         throw ServiceError.invalidResponse

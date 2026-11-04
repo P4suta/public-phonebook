@@ -98,6 +98,19 @@ The rebuilt archive then passes every check of a complete download before its ge
 After any delta failure, the app keeps the saved generation and downloads the complete `directory.tsv.br`.
 A cancelled update keeps the saved generation and downloads nothing more.
 
+`PhonebookCore.FirstRunPlan` maps the bundle state and the listing outcome to the first run's transfer and welcome notice, as the bundled-data decision's table states.
+`BundledDataset.open` checks the bundled archive's length, SHA-256, format line, and header with its entry, and a missing or failing bundle counts as no bundle.
+`SyncEngine.firstRun` reads the listing, and the delta listing when the listing names another snapshot.
+With a listed delta from the bundled snapshot, it decodes the bundled archive into a temporary plain file and records where each row starts.
+A `DeltaBase` over that file serves the copied rows, and the delta header's decoded base length and SHA-256 must match the file.
+The engine rebuilds the listed archive, stages it with the plain reader, and activates one generation.
+With nothing to receive, it stages the bundled archive directly.
+With a readable bundle, a failed listing, transfer, rebuild, or check stages the bundled archive alone, and the result reports that fallback.
+Bundled rows that fail during staging count as an unreadable bundle.
+The decoded base and the rebuilt archive leave with the run after success, failure, or cancellation.
+A cut transfer keeps its received bytes in the store's `transfers` directory, as every download does.
+Progress reports keep the three stages, so `WaitDisplay` and its proof stay unchanged.
+
 Search runs on the device and sends nothing.
 The search field matches facility names and complete Japanese telephone numbers, with the website's normalization and exact, prefix, and substring ranking.
 The start screen asks for a facility name or a telephone number in one sentence.

@@ -91,10 +91,11 @@ fn scenario_outcome(passed: bool, hung: bool) -> &'static str {
 /// Measures the process footprint, so it runs in its own invocation where no concurrent test allocates.
 const ISOLATED_FOOTPRINT_TEST: &str = "readerFootprintStaysFlatWhenRunAlone";
 const ISOLATED_FOOTPRINT_VARIABLE: &str = "PHONEBOOK_ISOLATED_FOOTPRINT";
-const SANITIZED_CONTRACTS: [&str; 3] = [
+const SANITIZED_CONTRACTS: [&str; 4] = [
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
     "readerBufferStaysBoundedOverMoreEntriesThanTheNationalDirectory",
     "cancellationBeforeAndDuringRealRequestsAlwaysCompletes",
+    "firstRunAppliesTheListedDeltaToTheBundleOnce",
 ];
 const UI_TESTS: [&str; 17] = [
     "testOnboardingSavesTheDirectoryBeforeSearch",
@@ -115,7 +116,7 @@ const UI_TESTS: [&str; 17] = [
     "testLandscapeLargeTextSettings",
     "testAboutStaysInTheAppAndLicenseIsReadable",
 ];
-const REQUIRED_TESTS: [&str; 67] = [
+const REQUIRED_TESTS: [&str; 74] = [
     "currentProviderArchiveImportsTheNationalDirectory",
     "providerArchiveSavesTheExpectedGenerationContent",
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
@@ -183,6 +184,13 @@ const REQUIRED_TESTS: [&str; 67] = [
     "theLoadedRecordNamesWhatIOSHoldsAndReadsTheEarlierText",
     "everySynchronizationIntervalEndsOnceAfterSuccessFailureAndCancellation",
     "aRepeatedStartEndsTheEarlierIntervalAndADecodeEndsTheStaging",
+    "providerArchiveOpensAndPassesTheBuildAdmission",
+    "everyDifferingEntryFieldIsNamed",
+    "firstRunPlanFollowsTheRecordForEveryPair",
+    "providerDeltaRebuildsTheUpdatedArchiveFromTheBundle",
+    "firstRunAppliesTheListedDeltaToTheBundleOnce",
+    "failedFirstRunsSaveTheBundledSnapshot",
+    "cancelledFirstRunLeavesNoTemporaryFileAndNoSnapshot",
 ];
 const SCOPE: [&str; 19] = [
     "ios",

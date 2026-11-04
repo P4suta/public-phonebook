@@ -2,13 +2,21 @@ import CryptoKit
 import Foundation
 import PhonebookCore
 
-/// The saved generation that a delta copies rows from, in archive order.
+/// The length and SHA-256 of a decoded base archive, which a delta header names.
+struct DecodedIdentity: Sendable, Equatable {
+  let bytes: Int
+  let sha256: SnapshotID
+}
+
+/// The saved generation or decoded archive that a delta copies rows from, in archive order.
 struct DeltaBase: Sendable {
   let snapshot: SnapshotID
   let contacts: Int
   let categories: Int
   let provenances: Int
   let links: Int
+  /// The decoded archive's identity, which a saved generation can't give because it keeps rows instead of the file.
+  var decoded: DecodedIdentity?
   let rows: @Sendable (_ start: Int, _ count: Int) async throws -> [Data]
 }
 
@@ -22,6 +30,92 @@ extension DeltaBase {
       links: header.links.count,
       rows: { start, count in
         try await store.archiveRows(generation: generation, from: start, count: count)
+      })
+  }
+}
+
+/// A Brotli archive decoded into a plain file, with the offset of every row, which a delta copies rows from.
+struct DecodedArchive: Sendable {
+  private static let lineFeed = UInt8(ascii: "\n")
+  private static let flushBytes = 1_048_576
+
+  let url: URL
+  let header: ArchiveHeader
+  let identity: DecodedIdentity
+  /// The start of each row and then the end of the last one.
+  let offsets: [Int]
+
+  /// Decodes `archive` into `url`, hashing the decoded bytes and recording where each row starts.
+  /// The decoded file holds every byte of the decoded stream, because each line of a readable archive ends with a line feed.
+  static func decode(_ archive: URL, into url: URL) async throws -> DecodedArchive {
+    guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
+      throw ImportError.unavailableStorage
+    }
+    let writer = try FileHandle(forWritingTo: url)
+    defer { try? writer.close() }
+    var hasher = SHA256()
+    var buffer = Data()
+    var written = 0
+    var line = 0
+    var header: ArchiveHeader?
+    var offsets: [Int] = []
+    func flush() throws {
+      hasher.update(data: buffer)
+      try writer.write(contentsOf: buffer)
+      buffer.removeAll(keepingCapacity: true)
+    }
+    try await BrotliLines(url: archive).eachLine { data, _ in
+      defer { line += 1 }
+      switch line {
+      case 0:
+        guard data == DirectoryArchiveReader.signature else { throw ImportError.invalidSnapshot }
+      case 1:
+        header = try JSONDecoder().decode(ArchiveHeader.self, from: data).validated()
+      default:
+        try Task.checkCancellation()
+        offsets.append(written)
+      }
+      buffer.append(data)
+      buffer.append(lineFeed)
+      written += data.count + 1
+      if buffer.count >= flushBytes { try flush() }
+    }
+    try flush()
+    guard let header, offsets.count == header.contacts else { throw ImportError.unexpectedCount }
+    offsets.append(written)
+    let digest = hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    return DecodedArchive(
+      url: url, header: header,
+      identity: DecodedIdentity(bytes: written, sha256: try SnapshotID(digest)), offsets: offsets)
+  }
+
+  /// A delta base that reads rows from the decoded file and names its identity.
+  var base: DeltaBase {
+    let url = url
+    let offsets = offsets
+    return DeltaBase(
+      snapshot: header.snapshot, contacts: header.contacts, categories: header.categories.count,
+      provenances: header.provenances.count, links: header.links.count, decoded: identity,
+      rows: { start, count in
+        guard start >= 0, count >= 0, start + count < offsets.count else {
+          throw ImportError.invalidSnapshot
+        }
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        try handle.seek(toOffset: UInt64(offsets[start]))
+        let data = try handle.read(upToCount: offsets[start + count] - offsets[start]) ?? Data()
+        var rows: [Data] = []
+        rows.reserveCapacity(count)
+        var lineStart = data.startIndex
+        for index in 0..<count {
+          let end = data.startIndex + offsets[start + index + 1] - offsets[start] - 1
+          guard end < data.endIndex, data[end] == Self.lineFeed else {
+            throw ImportError.invalidSnapshot
+          }
+          rows.append(data[lineStart..<end])
+          lineStart = end + 1
+        }
+        return rows
       })
   }
 }
@@ -193,7 +287,11 @@ private final class DeltaRebuild {
     guard header.accountsForEveryRow else { throw DeltaRejection(admission: .malformed) }
     guard header.base.snapshot == base.snapshot, header.base.contacts == base.contacts,
       header.categories.count == base.categories, header.provenances.count == base.provenances,
-      header.links.count == base.links
+      header.links.count == base.links,
+      base.decoded.map({
+        $0 == DecodedIdentity(bytes: header.base.bytes, sha256: header.base.sha256)
+      })
+        ?? true
     else { throw DeltaRejection(admission: .baseMismatch) }
     copied = Array(repeating: 0, count: (base.contacts + Self.bitsPerWord - 1) / Self.bitsPerWord)
     return header
