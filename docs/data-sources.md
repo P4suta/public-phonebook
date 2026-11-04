@@ -114,9 +114,10 @@ The owner starts it by hand on `main`, it has no schedule, and it stops on any o
    It hands the collection and its source cache to the next job as an artifact that expires after one day.
 2. The `store` job runs in the `data` environment and fetches the Doppler `ci_data` config through GitHub OIDC.
    It downloads the base database that `sources/base-dataset.json` pins and refuses one whose manifest, size, or digest differs from the pin.
-3. It prepares the publication from that base and the collection with `just data-prepare`.
+3. It fetches the delta bases that the next section describes, and it fails before any write when it can't fetch or verify one.
+4. It prepares the publication from that base, the collection, and the delta bases with `just data-prepare`.
    Then it runs `just data-check` and `just phone-quality` on the complete publication.
-4. Only after those checks pass, it writes to the private `dial-control` bucket under write-once keys.
+5. Only after those checks pass, it writes to the private `dial-control` bucket under write-once keys.
    It refuses a collection file that differs from the report and a source byte that differs from its digest.
    It also refuses a publication whose source database isn't the pinned base.
    The publication must hold as many contacts as the base and the collection together.
@@ -136,6 +137,20 @@ The store step prints the report digest and the manifest digest that a release n
 The base is the retained publication `d5d630…`, whose database `03a3424b…` holds 650,933 contacts.
 The pin names its manifest digest, its database digest and size, and the database's `blobs/sha256/` key in `dial-control`.
 Change the pin only together with a reviewed base in `dial-control`.
+
+### Delta bases
+
+`node tools/collection-store.ts delta-bases DIRECTORY` chooses the datasets that the new publication gets deltas from.
+It takes every dataset in `sources/shipped-snapshots.json`, which lists each dataset that a TestFlight or App Store build bundles, by its ready manifest digest and snapshot, with the first app version that ships it.
+It also takes the datasets of the 12 most recent verified production releases in the `dial-control` release records, counting each snapshot once.
+The cap of 12 applies only to those published datasets.
+A published dataset whose manifest lists no `directory.tsv.br` can't be a base, so the step logs it and skips it.
+For each base it fetches the ready manifest and `directory.tsv.br` by dataset digest, and no database.
+It requires each manifest to match its digest and snapshot, and each archive to match the manifest's size and digest.
+It writes only local files, so a base that it can't fetch or verify fails the job before the store step writes anything.
+Preparation keeps the rule that a delta's Brotli bytes stay at or below half of the complete archive, and it logs each base and the size of its delta.
+The store step reports each shipped dataset that gets no delta as a warning, because that calls for a newer bundle in the next app release.
+An entry leaves `sources/shipped-snapshots.json` in a reviewed change, at least 12 months after the App Store stopped offering a version that bundles it.
 
 ### Owner setup
 
