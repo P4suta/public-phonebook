@@ -22,7 +22,8 @@ struct AboutScreen: View {
 
         section("データについて")
         Text("全国の施設が公開した電話番号のデータを、アプリの中に受け取って使います。")
-        Text("新しいデータは、月に1回くらい自動で受け取ります。")
+        Text("新しいデータが出ると、自動で受け取ります。")
+        Text("モバイルデータ通信や省データモードのときは、ほかの回線につながるまで待ちます。")
         if let manifest = integration.manifest {
           Text("データの日付：\(manifest.dataDate.formatted(date: .long, time: .omitted))")
             .accessibilityIdentifier("data-date")
