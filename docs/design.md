@@ -48,12 +48,17 @@ The two external-link confirmation screens center the dialog component on an opa
 Archived notes and earlier state studies preserve historical decisions and do not govern the current interface.
 
 The retained [layout audit](figma-layout.json) captures native bounds, intrinsic text measurements, text colors, and instance-reference counts.
+Each placement's `leftInset` and `rightInset` record its content inset rather than its padding property.
+The left inset is the horizontal distance from the node's left edge to the left edge of its leftmost visible child.
+The right inset is the distance from its right edge to the right edge of its rightmost visible child.
+Sections and nodes without visible children record `null` for both insets.
+Padding and a centered fixed-width content frame therefore both report the visible gutter, which matches the website's centered container with a width limit.
 The audit checks all six pages, including archived and future content.
 It measures an untruncated copy of each text node at its original width, then removes that temporary copy.
 It checks clipping, auto-layout sibling overlap, monochrome paints, opacity, effects, and text against the nearest opaque ancestor fill.
 Intentional vertical viewport overflow and absolute focus indicators are excluded from unintended clipping and sibling-overlap findings.
 Sibling-overlap findings also skip absolute overlays, such as the iPhone map confirmation alert.
-The retained capture contains 1,568 text measurements and 1,234 resolved instance references.
+The retained capture contains 1,593 text measurements and 1,260 resolved instance references.
 Unit checks independently recompute canvas overlap and section containment, validate text fit and contrasting colors, and enforce canonical web and iPhone viewport sizes and gutters.
 The same overlap check detects all ten overlapping pairs in the original desktop arrangement.
 These checks cover the retained capture and cannot detect later Figma edits until the audit is refreshed.

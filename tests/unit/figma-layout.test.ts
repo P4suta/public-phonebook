@@ -65,8 +65,8 @@ const layoutSchema = v.object({
 const originalPages = ["0:1", "14:2", "14:3", "14:4"];
 const removedFrames = new Set(["202:1073", "203:594"]);
 const textMeasurements = [
-  ["14:2", 551],
-  ["0:1", 359],
+  ["14:2", 570],
+  ["0:1", 365],
   ["14:3", 22],
   ["14:4", 103],
   ["468:1270", 399],
