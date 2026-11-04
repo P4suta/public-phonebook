@@ -2,7 +2,7 @@ FROM docker.io/library/debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e27
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-ADD --checksum=sha256:3f6f833ae2fd533a0c9238310aef1148f51a64aa5d5f1278451ddc793d4d6d15 https://snapshot.debian.org/file/057c825b2f18561731d40baf16258a0cbd548b5e /tmp/zstd_1.5.4+dfsg2-5_amd64.deb
+ADD --checksum=sha256:3f6f833ae2fd533a0c9238310aef1148f51a64aa5d5f1278451ddc793d4d6d15 https://deb.debian.org/debian/pool/main/libz/libzstd/zstd_1.5.4+dfsg2-5_amd64.deb /tmp/zstd_1.5.4+dfsg2-5_amd64.deb
 RUN dpkg --install /tmp/zstd_1.5.4+dfsg2-5_amd64.deb \
     && rm /tmp/zstd_1.5.4+dfsg2-5_amd64.deb
 

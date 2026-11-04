@@ -50,6 +50,25 @@ jobs:
         with:
           tools: node just biome actionlint zizmor gitleaks
       - run: mise x -- just check
+  build:
+    name: Build budget
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      MISE_AUTO_INSTALL: "false"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/toolchain
+        with:
+          tools: node just
+      - name: Build the client and Worker
+        run: mise x -- npm run build
+      - name: Check the build against its size budget
+        run: mise x -- node tools/build-budget.ts
   rust:
     name: Rust
     needs: [scope]
@@ -72,7 +91,7 @@ jobs:
   gate:
     name: Checks
     if: always()
-    needs: [scope, verify, rust]
+    needs: [scope, verify, build, rust]
     runs-on: ubuntu-24.04
     timeout-minutes: 1
     permissions: {}
@@ -81,9 +100,11 @@ jobs:
         env:
           SCOPE_RESULT: ${{ needs.scope.result }}
           VERIFY_RESULT: ${{ needs.verify.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
           RUST_REQUIRED: ${{ needs.scope.outputs.rust }}
           RUST_RESULT: ${{ needs.rust.result }}
         run: |
           test "$SCOPE_RESULT" = success
           test "$VERIFY_RESULT" = success
+          test "$BUILD_RESULT" = success
           test "$RUST_REQUIRED:$RUST_RESULT" = true:success || test "$RUST_REQUIRED:$RUST_RESULT" = false:skipped
