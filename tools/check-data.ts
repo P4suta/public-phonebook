@@ -26,6 +26,7 @@ import {
   type Source,
   SourceSchema,
 } from "../src/core/models.ts";
+import { searchForm } from "../src/core/search-text.ts";
 import { readGzipArchive } from "./archive-stream.ts";
 import { decodeUtf8, requireDirectoryText } from "./directory-delta.ts";
 import { command } from "./process.ts";
@@ -162,6 +163,7 @@ export async function checkDataBundle(
         row.id !== contact.id ||
         row.name !== contact.name ||
         row.normalized_name !== normalizeName(contact.name) ||
+        row.folded_name !== searchForm(contact.name) ||
         row.prefecture !== contact.prefectureCode ||
         row.municipality !== contact.municipalityCode ||
         row.category !== contact.category ||

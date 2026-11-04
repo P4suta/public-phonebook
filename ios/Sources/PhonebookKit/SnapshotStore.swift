@@ -2,7 +2,7 @@ import Foundation
 import PhonebookCore
 
 public struct SnapshotManifest: Codable, Sendable {
-  public static let currentFormat = 2
+  public static let currentFormat = 3
 
   public let format: Int
   public let generation: UUID
@@ -25,24 +25,29 @@ private final class SnapshotDraft {
   let database: SQLiteDatabase
   let lease: WriterLease
   let names: FileHandle
+  let folded: FileHandle
   let origin: String?
+  let regionIndexes: [String: UInt16]
   var insertContact: SQLiteStatement?
   var insertPhone: SQLiteStatement?
   var kinds = Data()
+  var regions = Data()
   var records = 0
   var inserting = PhaseTimer()
   var phase: PublicationPhase = .staging
 
   init(
     generation: UUID, header: ArchiveHeader, database: SQLiteDatabase, lease: WriterLease,
-    names: FileHandle, origin: String?
+    names: FileHandle, folded: FileHandle, origin: String?
   ) throws {
     self.generation = generation
     self.header = header
     self.database = database
     self.lease = lease
     self.names = names
+    self.folded = folded
     self.origin = origin
+    regionIndexes = header.searchRegionIndexes
     insertContact = try database.prepare(
       "INSERT INTO contacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
     insertPhone = try database.prepare("INSERT OR IGNORE INTO phones VALUES (?, ?)")
@@ -134,7 +139,7 @@ public actor SnapshotStore {
     root.appendingPathComponent("transfers", isDirectory: true)
   }
 
-  private static let generationExtensions = ["sqlite", "names", "kinds"]
+  private static let generationExtensions = ["sqlite", "names", "folded", "kinds", "regions"]
   /// A generation saved before the caller file existed still opens, so the file isn't one of the required extensions.
   private static let callerExtension = "callers"
   private var manifestURL: URL { root.appendingPathComponent("active.json") }
@@ -173,6 +178,7 @@ public actor SnapshotStore {
     let generation = makeGeneration()
     try Data().write(to: url(generation, "sqlite"), options: .withoutOverwriting)
     try Data().write(to: url(generation, "names"), options: .withoutOverwriting)
+    try Data().write(to: url(generation, "folded"), options: .withoutOverwriting)
     do {
       // Nothing else opens a staging generation, so its connection takes no file lock that iOS could find held at suspension.
       let database = try SQLiteDatabase(
@@ -207,6 +213,7 @@ public actor SnapshotStore {
       draft = try SnapshotDraft(
         generation: generation, header: header, database: database, lease: lease,
         names: try FileHandle(forWritingTo: url(generation, "names")),
+        folded: try FileHandle(forWritingTo: url(generation, "folded")),
         origin: origin?.absoluteString)
       trace.record(TraceEvent(phase: .stage, outcome: .started, snapshot: header.snapshot))
     } catch {
@@ -233,6 +240,7 @@ public actor SnapshotStore {
     phone insertPhone: SQLiteStatement
   ) throws {
     var names = Data()
+    var folded = Data()
     for record in records {
       draft.records += 1
       let id = Int64(draft.records)
@@ -262,9 +270,17 @@ public actor SnapshotStore {
         names.append(contentsOf: normalized)
       }
       names.append(0x0A)
+      // Whitespace folds to single spaces, so a comparison name never holds a line feed.
+      folded.append(contentsOf: SearchInput.searchForm(record.name).utf8)
+      folded.append(0x0A)
       draft.kinds.append(UInt8(record.category))
+      let region =
+        draft.regionIndexes[record.region] ?? draft.regionIndexes[record.prefecture] ?? 0
+      draft.regions.append(UInt8(truncatingIfNeeded: region))
+      draft.regions.append(UInt8(truncatingIfNeeded: region >> 8))
     }
     try draft.names.write(contentsOf: names)
+    try draft.folded.write(contentsOf: folded)
   }
 
   public func publish(at date: Date) throws -> SnapshotManifest {
@@ -286,10 +302,13 @@ public actor SnapshotStore {
     draft.finalizeStatements()
     try draft.database.close()
     try draft.kinds.write(to: url(draft.generation, "kinds"), options: .withoutOverwriting)
+    try draft.regions.write(to: url(draft.generation, "regions"), options: .withoutOverwriting)
     var syncing = PhaseTimer()
     try syncing.measure {
       try draft.names.synchronize()
       try draft.names.close()
+      try draft.folded.synchronize()
+      try draft.folded.close()
       let database = try FileHandle(forUpdating: url(draft.generation, "sqlite"))
       try database.synchronize()
       try database.close()
@@ -345,6 +364,7 @@ public actor SnapshotStore {
     }
     draft.finalizeStatements()
     try? draft.names.close()
+    try? draft.folded.close()
     try draft.database.close()
     if draft.phase.applying(.abort).canDiscard { try removeGeneration(draft.generation) }
   }
@@ -474,8 +494,11 @@ public actor SnapshotStore {
   }
 
   public func searchIndex(generation: UUID) throws -> LocalSearch {
-    _ = try readable(generation)
-    return try LocalSearch(names: url(generation, "names"), kinds: url(generation, "kinds"))
+    let (database, generation) = try readable(generation)
+    return try LocalSearch(
+      names: url(generation, "names"), folded: url(generation, "folded"),
+      kinds: url(generation, "kinds"), regions: url(generation, "regions"),
+      places: index(database, generation).header.searchPlaces)
   }
 
   /// The most saved rows that one call returns, which bounds the memory of copying a national base.

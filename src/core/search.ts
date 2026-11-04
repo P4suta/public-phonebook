@@ -15,17 +15,25 @@ import { DigestSchema } from "./models.ts";
 import { normalizePhone } from "./phone.ts";
 import type { Result } from "./result.ts";
 import { compatibleRegion } from "./search-policy.ts";
+import { maximumQueryWords, searchWords } from "./search-text.ts";
 import { fitsSitePage } from "./site-request-policy.ts";
 
 const maximumQueryBytes = 512;
 const maximumCursorLength = 4096;
 const prefectureCodeWidth = 2;
 const hexadecimalRadix = 16;
-export const nameRank = { exact: 0, prefix: 1, substring: 2 } as const;
+/** The search tiers: a one-word query's exact, prefix, and substring name matches, then rows that match through their region or category. */
+export const nameRank = {
+  exact: 0,
+  prefix: 1,
+  substring: 2,
+  place: 3,
+} as const;
 export const nameRankValues = [
   nameRank.exact,
   nameRank.prefix,
   nameRank.substring,
+  nameRank.place,
 ] as const;
 export type NameRank = (typeof nameRankValues)[number];
 
@@ -88,6 +96,9 @@ export function parseSearch(
   if (!compatibleRegion(search.prefecture, search.municipality)) {
     return { ok: false, error: "conflicting_region" };
   }
+  const query = searchQuery(search.q);
+  if (query.kind === "words" && query.words.length > maximumQueryWords)
+    return { ok: false, error: "invalid_query" };
   return {
     ok: true,
     value: {
@@ -106,6 +117,20 @@ export function parseSearch(
 }
 
 export { normalizeName };
+
+/** A query as search reads it: nothing, a complete telephone number, or the folded words of a name. */
+export type SearchQuery =
+  | { readonly kind: "empty" }
+  | { readonly kind: "telephone"; readonly number: string }
+  | { readonly kind: "words"; readonly words: readonly string[] };
+
+/** Reads a telephone spelling before splitting, so the spaces of a telephone number never split it into words. */
+export function searchQuery(q: string): SearchQuery {
+  const phone = normalizePhone(q);
+  if (phone.ok) return { kind: "telephone", number: phone.value };
+  const words = searchWords(q);
+  return words.length ? { kind: "words", words } : { kind: "empty" };
+}
 
 export function nameTokens(normalized: string): readonly string[] {
   const points = Array.from(
@@ -135,9 +160,14 @@ export function showsAddress(address: string): boolean {
 }
 
 export async function searchKey(search: Search): Promise<string> {
-  const phone = normalizePhone(search.q);
+  const query = searchQuery(search.q);
+  // A search without words keeps the identity it had before word search, so cursors issued earlier stay valid.
   const canonical = JSON.stringify([
-    phone.ok ? ["phone", phone.value] : ["name", normalizeName(search.q)],
+    query.kind === "telephone"
+      ? ["phone", query.number]
+      : query.kind === "words"
+        ? ["words", query.words]
+        : ["name", ""],
     search.prefecture,
     search.municipality,
     search.category,

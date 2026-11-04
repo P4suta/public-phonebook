@@ -44,6 +44,7 @@ import {
   categoryPreviews,
   contactPage,
   directoryDatabase,
+  readCatalog,
   searchSelection,
 } from "../../src/server/database.ts";
 import type {
@@ -1088,6 +1089,38 @@ describe("native D1 public API", () => {
       }
     }
   });
+  it("keeps the most words within D1's 100 bound parameters", async () => {
+    const DB = await runtime.getD1Database("DB");
+    const db = directoryDatabase(DB);
+    const catalog = await readCatalog(db);
+    const words = ["県", "市", "館", "都", "区", "町", "所", "府"];
+    const parsed = parseSearch(
+      new URLSearchParams([
+        ["q", words.join(" ")],
+        ["prefecture", "13"],
+        ["municipality", "13101"],
+        ["category", "library"],
+      ]),
+    );
+    if (!parsed.ok) throw new Error("The word fixture was rejected");
+    const selection = await searchSelection(db, parsed.value, catalog);
+    const after = {
+      snapshot,
+      query: await searchKey(parsed.value),
+      rank: 3,
+      name: "全国の図書館106",
+      id: "fixture:106",
+    } as const;
+    for (const page of [
+      contactPage(db, selection, null, 30),
+      contactPage(db, selection, after, 30),
+    ])
+      expect(page.toSQL().params.length).toBeLessThanOrEqual(100);
+    expect(
+      contactPage(db, selection, after, 30).toSQL().params.length,
+    ).toBeGreaterThan(words.length * 4);
+  });
+
   it("plans searches without a name term through the contact_name index", async () => {
     const DB = await runtime.getD1Database("DB");
     const db = directoryDatabase(DB);
@@ -1104,7 +1137,11 @@ describe("native D1 public API", () => {
     };
     const parsed = parseSearch(new URLSearchParams("limit=30"));
     if (!parsed.ok) throw new Error("Fixture query rejected");
-    const selection = await searchSelection(db, parsed.value);
+    const selection = await searchSelection(
+      db,
+      parsed.value,
+      await readCatalog(db),
+    );
     const after = {
       snapshot,
       query: await searchKey(parsed.value),

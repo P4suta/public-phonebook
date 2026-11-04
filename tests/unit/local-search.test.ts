@@ -14,7 +14,17 @@ import {
 } from "../../src/core/local-search.ts";
 import { normalizePhone } from "../../src/core/phone.ts";
 import { decodeSearchIndex } from "../../src/core/search-index.ts";
-import { type ModelContact, modelDirectory } from "./local-search-fixture.ts";
+import { maximumQueryWords } from "../../src/core/search-text.ts";
+import {
+  indexInput,
+  type ModelContact,
+  modelDirectory,
+} from "./local-search-fixture.ts";
+import {
+  referenceForm,
+  referenceRank,
+  referenceWords,
+} from "./search-reference.ts";
 
 const snapshot = "b".repeat(64);
 const maximumQueryBytes = 512;
@@ -47,6 +57,21 @@ const namePieces = [
   "﨑",
   "ｰ",
   " ",
+  "と",
+  "ト",
+  "ー",
+  "-",
+  "千代田",
+  "東京",
+] as const;
+/** Words that occur in the model's region names and category labels, typed alone or beside name words. */
+const placeWords = [
+  "千代田",
+  "東京",
+  "図書館",
+  "病院",
+  "博物館",
+  "神奈川",
 ] as const;
 const sharedNames = [
   "図書館",
@@ -59,6 +84,22 @@ const sharedNames = [
   "𠮷田図書館",
   "﨑山図書館",
 ] as const;
+
+const modelCatalog = indexInput(snapshot).catalog;
+
+/** A model contact's prefecture name, municipality name, and category label. */
+function modelPlaces(contact: ModelContact): string[] {
+  return [
+    modelCatalog.prefectures.find(
+      (item) => item.code === contact.prefectureCode,
+    )?.name ?? "",
+    modelCatalog.municipalities.find(
+      (item) => item.code === contact.municipalityCode,
+    )?.name ?? "",
+    modelCatalog.categories.find((item) => item.id === contact.category)
+      ?.label ?? "",
+  ];
+}
 
 interface ReferenceGroup {
   readonly category: string;
@@ -75,10 +116,12 @@ function referenceSearch(
   )
     return "invalid_query";
   const text = input.trim();
-  const name = normalizeName(text);
-  if (name === "") return [];
   const phone = normalizePhone(text);
   const national = phone.ok ? `0${phone.value.slice(3)}` : null;
+  const words = referenceWords(text);
+  if (national === null && words.length > maximumQueryWords)
+    return "invalid_query";
+  if (national === null && words.length === 0) return [];
   const matched = contacts.flatMap((contact, row) => {
     const normalized = normalizeName(contact.name);
     if (national !== null)
@@ -87,9 +130,8 @@ function referenceSearch(
       )
         ? [{ contact, normalized, row, rank: 0 }]
         : [];
-    if (!normalized.includes(name)) return [];
-    const rank = normalized === name ? 0 : normalized.startsWith(name) ? 1 : 2;
-    return [{ contact, normalized, row, rank }];
+    const rank = referenceRank(contact.name, modelPlaces(contact), words);
+    return rank < 0 ? [] : [{ contact, normalized, row, rank }];
   });
   matched.sort(
     (left, right) =>
@@ -199,6 +241,24 @@ function queryArbitrary(
     fc
       .tuple(
         contact,
+        fc.nat(),
+        fc.constantFrom(...placeWords),
+        fc.constantFrom(" ", "　", "  ", " \t"),
+        fc.boolean(),
+      )
+      .map(([item, length, place, separator, before]) => {
+        const points = Array.from(item.name);
+        const fragment = points.slice(0, 1 + (length % points.length)).join("");
+        return before
+          ? `${place}${separator}${fragment}`
+          : `${fragment}${separator}${place}`;
+      }),
+    fc
+      .array(fc.constantFrom(...placeWords), { minLength: 1, maxLength: 3 })
+      .map((words) => words.join(" ")),
+    fc
+      .tuple(
+        contact,
         fc.constantFrom(
           (digits: string) => digits,
           (digits: string) => `0${digits.slice(3)}`,
@@ -266,8 +326,22 @@ describe("local search", () => {
               )
             )
               seen.add("pages");
-            if (query.includes("\t") && parsed.value.kind === "name")
+            if (query.includes("\t") && parsed.value.kind === "words")
               seen.add("tab");
+            if (parsed.value.kind === "words" && parsed.value.words.length > 1)
+              seen.add("several");
+            const placed = matches.categories.some((group) =>
+              group.rows.some(
+                (row) =>
+                  parsed.value.kind === "words" &&
+                  !parsed.value.words.every((word) =>
+                    referenceForm(directory.contacts[row]?.name ?? "").includes(
+                      word,
+                    ),
+                  ),
+              ),
+            );
+            if (placed) seen.add("place");
             if (
               expected.some((group) =>
                 group.rows.some(
@@ -284,8 +358,9 @@ describe("local search", () => {
                 .filter(
                   (contact) =>
                     contact !== undefined &&
-                    parsed.value.kind === "name" &&
-                    normalizeName(contact.name) === parsed.value.name,
+                    parsed.value.kind === "words" &&
+                    parsed.value.words.length === 1 &&
+                    referenceForm(contact.name) === parsed.value.words[0],
                 )
                 .map((contact) => contact?.category),
             );
@@ -317,13 +392,15 @@ describe("local search", () => {
     expect([...seen].sort()).toEqual([
       "folded",
       "groups",
-      "name",
       "nul",
       "oversize",
       "pages",
+      "place",
       "same-name",
+      "several",
       "tab",
       "telephone",
+      "words",
     ]);
   });
 
@@ -395,7 +472,9 @@ describe("local search", () => {
     expect(rows("A")).toEqual([0, 1, 2]);
     expect(rows("abc")).toEqual([0]);
     expect(rows("\tａ図書館 ")).toEqual([1, 2]);
-    expect(rows("a\t図書館")).toEqual([]);
+    expect(rows("a\t図書館")).toEqual([1, 2, 0]);
+    expect(rows("ａ　図書館　ａ")).toEqual([1, 2, 0]);
+    expect(rows("図書館 分室")).toEqual([0]);
     expect(rows("図書館\0")).toBe("invalid_query");
     expect(rows("図".repeat(171))).toBe("invalid_query");
     expect(rows(`${"図".repeat(170)}ab`)).toEqual([]);

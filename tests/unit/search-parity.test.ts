@@ -26,7 +26,13 @@ const contacts: ModelContact[] = [
   phones: [{ e164 }],
 }));
 const index = decodeSearchIndex(modelDirectory(contacts, snapshot).bytes);
-const counts = { substrings: 40, names: 20, numbers: 20, absent: 10 } as const;
+const counts = {
+  substrings: 40,
+  names: 20,
+  numbers: 20,
+  absent: 10,
+  places: 20,
+} as const;
 
 const results: ComparedResults = {
   total: 3,

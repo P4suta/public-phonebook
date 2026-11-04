@@ -36,6 +36,7 @@ import {
   type RowKey,
   searchIndexFile,
 } from "../src/core/search-index.ts";
+import { searchForm } from "../src/core/search-text.ts";
 import { contactVCard } from "../src/core/vcard.ts";
 import { categorySources } from "./category-sources.ts";
 import { mergeContacts, readCollectionOverlay } from "./collection/overlay.ts";
@@ -240,7 +241,7 @@ export async function prepareSnapshot(
       "PRAGMA foreign_keys=ON; PRAGMA journal_mode=OFF; PRAGMA synchronous=OFF; BEGIN",
     );
     const insert = output.prepare(
-      "INSERT INTO contacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO contacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     );
     const phoneInsert = output.prepare(
       "INSERT OR IGNORE INTO phones VALUES (?, ?)",
@@ -283,12 +284,14 @@ export async function prepareSnapshot(
       if (rowid === undefined)
         throw new Error(`The contact order changed: ${contact.id}`);
       const normalized = normalizeName(contact.name);
+      const folded = searchForm(contact.name);
       const payload = JSON.stringify(contact);
       insert.run(
         rowid,
         contact.id,
         contact.name,
         normalized,
+        folded,
         contact.prefectureCode,
         contact.municipalityCode,
         contact.category,
@@ -296,7 +299,7 @@ export async function prepareSnapshot(
         payload,
       );
       for (const phone of contact.phones) phoneInsert.run(phone.e164, rowid);
-      searchInsert.run(rowid, nameTokens(normalized).join(" "));
+      searchInsert.run(rowid, nameTokens(folded).join(" "));
       archive.add(contact);
       categoryCounts.set(
         contact.category,

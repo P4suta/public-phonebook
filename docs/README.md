@@ -28,3 +28,4 @@
 - [Start from a bundled directory archive and catch up through deltas](adr/start-from-a-bundled-directory-archive-and-catch-up-through-deltas.md).
 - [Number TestFlight builds from the workflow run and upload them with altool](adr/number-testflight-builds-from-the-workflow-run.md).
 - [Run only the fast gate on pull requests and verify at the release gate](adr/run-only-the-fast-gate-on-pull-requests-and-verify-at-the-release-gate.md).
+- [Match every search word in the name, region, or category](adr/match-every-search-word-in-the-name-region-or-category.md).

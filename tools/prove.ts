@@ -38,8 +38,8 @@ import { countWork, StepTimer } from "./step-timing.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 51;
-const declaredPostconditionCount = 100;
+const verifiedUnitCount = 53;
+const declaredPostconditionCount = 104;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -79,6 +79,7 @@ const expected = [
   "snapshotAdmission",
   "listingReply",
   "nameRankAt",
+  "wordRank",
   "groupPrecedes",
   "searchSource",
   "nextVisible",
@@ -458,6 +459,12 @@ const negativeControls: readonly NegativeControl[] = [
     source: localSearchPolicy,
     from: "if (at > 0) return substringRank;",
     to: "if (at > 1) return substringRank;",
+  },
+  {
+    name: "local-word-rank",
+    source: localSearchPolicy,
+    from: "if (named < words) return placeRank;",
+    to: "if (named < words) return substringRank;",
   },
   {
     name: "local-group-order",

@@ -46,6 +46,7 @@ export interface ParityCounts {
   readonly names: number;
   readonly numbers: number;
   readonly absent: number;
+  readonly places: number;
 }
 
 export const parityCounts: ParityCounts = {
@@ -53,11 +54,14 @@ export const parityCounts: ParityCounts = {
   names: 1000,
   numbers: 1000,
   absent: 200,
+  places: 500,
 };
 const deepLimit = 100;
 const previewSize = 3;
 const exampleLimit = 20;
 const swappedPairs = 50;
+const placeKinds = 3;
+const prefectureCodeWidth = 2;
 const rowLocatorSamples = 100;
 const progressInterval = 500;
 const longestSubstring = 6;
@@ -112,6 +116,7 @@ export interface ParityQueries {
   readonly names: readonly string[];
   readonly numbers: readonly string[];
   readonly absent: readonly string[];
+  readonly places: readonly string[];
 }
 
 /** Mulberry32, a small seeded generator, so a run repeats exactly. */
@@ -163,7 +168,7 @@ export function parityQueries(
     const start = Math.floor(random() * (characters.length - length + 1));
     const text = characters.slice(start, start + length).join("");
     const parsed = localQuery(text);
-    if (parsed.ok && parsed.value.kind === "name") substrings.push(text);
+    if (parsed.ok && parsed.value.kind === "words") substrings.push(text);
   }
   const names = Array.from(
     { length: counts.names },
@@ -182,7 +187,30 @@ export function parityQueries(
     if (!listed.has(national) && normalizePhone(national).ok)
       absent.push(national);
   }
-  return { substrings, names, numbers, absent };
+  const places = Array.from({ length: counts.places }, (_, position) => {
+    const row = pick(rows, random);
+    const characters = Array.from(row.name);
+    const fragment = characters
+      .slice(0, 1 + Math.floor(random() * characters.length))
+      .join("");
+    const prefecture = index.header.prefectures.find(
+      (item) => item.code === row.region.slice(0, prefectureCodeWidth),
+    )?.name;
+    const municipality = index.header.municipalities.find(
+      (item) => item.code === row.region,
+    )?.name;
+    const category = index.header.categories.find(
+      (item) => item.id === row.category,
+    )?.label;
+    const place =
+      [municipality, prefecture, category][position % placeKinds] ??
+      category ??
+      "";
+    return position % spellings === 0
+      ? `${place}　${fragment}`
+      : `${fragment} ${place}`;
+  });
+  return { substrings, names, numbers, absent, places };
 }
 
 function rowsDiffer(left: ComparedRow, right: ComparedRow): boolean {
@@ -579,6 +607,7 @@ async function main(): Promise<void> {
       ...queries.names,
       ...queries.numbers,
       ...queries.absent,
+      ...queries.places,
     ];
     const differences: Difference[] = [];
     const compared: {
@@ -643,6 +672,7 @@ async function main(): Promise<void> {
         names: queries.names.length,
         numbers: queries.numbers.length,
         absent: queries.absent.length,
+        places: queries.places.length,
       },
       compared: compared.length,
       deepCompared,

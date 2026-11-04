@@ -3,7 +3,6 @@ import {
   asc,
   count,
   eq,
-  gt,
   or,
   type Query,
   type SQL,
@@ -12,6 +11,7 @@ import {
 import { type DrizzleD1Database, drizzle } from "drizzle-orm/d1";
 import * as v from "valibot";
 import { CategorySchema } from "../core/catalog.ts";
+import { compareUtf8 } from "../core/directory-archive.ts";
 import {
   type Catalog,
   CatalogSchema,
@@ -23,7 +23,6 @@ import {
   type Source,
   SourceSchema,
 } from "../core/models.ts";
-import { normalizePhone } from "../core/phone.ts";
 import type { Result } from "../core/result.ts";
 import {
   type Cursor,
@@ -32,9 +31,9 @@ import {
   nameRank,
   nameRankValues,
   nameTokens,
-  normalizeName,
   type Search,
   searchKey,
+  searchQuery,
 } from "../core/search.ts";
 import {
   boundedLimit,
@@ -42,6 +41,7 @@ import {
   previewLimit,
   totalSource,
 } from "../core/search-policy.ts";
+import { hasPlaces, type WordPlaces, wordPlaces } from "../core/word-match.ts";
 import * as schema from "./schema.ts";
 
 const nameCandidateLimit = 48;
@@ -151,7 +151,7 @@ export async function searchContacts(
     );
     if (decision !== "accepted") return { ok: false, error: decision };
   }
-  const selection = await searchSelection(db, search);
+  const selection = await searchSelection(db, search, catalog);
   const total =
     catalogTotal(catalog, search) ??
     (
@@ -194,7 +194,7 @@ export async function searchContacts(
 function catalogTotal(catalog: Catalog, search: Search): number | null {
   switch (
     totalSource(
-      normalizeName(search.q) !== "",
+      searchQuery(search.q).kind !== "empty",
       search.prefecture !== "",
       search.municipality !== "",
       search.category !== "",
@@ -228,15 +228,7 @@ export function contactPage(
   const continuation = !after
     ? undefined
     : ranked
-      ? or(
-          gt(rank, after.rank),
-          and(eq(rank, after.rank), gt(name, after.name)),
-          and(
-            eq(rank, after.rank),
-            eq(name, after.name),
-            gt(schema.contacts.id, after.id),
-          ),
-        )
+      ? sql`(${rank}, ${name}, ${schema.contacts.id}) > (${after.rank}, ${after.name}, ${after.id})`
       : after.rank === nameRank.exact
         ? sql`(${name}, ${schema.contacts.id}) > (${after.name}, ${after.id})`
         : sql`0`;
@@ -253,12 +245,112 @@ export function contactPage(
     .limit(limit + 1);
 }
 
+function codeList(codes: readonly string[]): SQL {
+  return sql`(SELECT value FROM json_each(${JSON.stringify(codes)}))`;
+}
+
+/** The rows whose region or category holds a word, as conditions on indexed codes. */
+function placeConditions(places: WordPlaces): SQL[] {
+  const { prefecture, municipality, category } = schema.contacts;
+  return [
+    ...(places.prefectures.length
+      ? [sql`${prefecture} IN ${codeList(places.prefectures)}`]
+      : []),
+    ...(places.municipalities.length
+      ? [
+          sql`(${prefecture}, ${municipality}) IN (SELECT substr(value, 1, 2), value FROM json_each(${JSON.stringify(places.municipalities)}))`,
+        ]
+      : []),
+    ...(places.categories.length
+      ? [sql`${category} IN ${codeList(places.categories)}`]
+      : []),
+  ];
+}
+
+function wordTerms(word: string, limit: number): readonly string[] {
+  const tokens = nameTokens(word);
+  const bigrams = tokens.filter((term) => term.includes("x"));
+  return (bigrams.length ? bigrams : tokens).slice(0, limit);
+}
+
+/** How many rows a word's region and category matches may hold, from the catalog's counts. */
+function placeRows(places: WordPlaces, catalog: Catalog): number {
+  const perMunicipality = Math.ceil(
+    catalog.contacts / Math.max(catalog.municipalities.length, 1),
+  );
+  const prefectureRows = catalog.prefectures
+    .filter((item) => places.prefectures.includes(item.code))
+    .reduce((sum, item) => sum + item.contacts, 0);
+  const categoryRows = catalog.categories
+    .filter((item) => places.categories.includes(item.id))
+    .reduce((sum, item) => sum + item.contacts, 0);
+  return (
+    prefectureRows +
+    categoryRows +
+    places.municipalities.length * perMunicipality
+  );
+}
+
+/**
+ * Narrows the rows to those of one word: its rarest name term, joined with the rows its region or category holds.
+ * Every matching row holds every word, so any one word's candidates cover the result.
+ */
+async function wordCandidates(
+  db: DirectoryDatabase,
+  words: readonly string[],
+  places: readonly WordPlaces[],
+  catalog: Catalog,
+): Promise<SQL> {
+  const perWord = Math.max(1, Math.floor(nameCandidateLimit / words.length));
+  const terms = words.map((word) => wordTerms(word, perWord));
+  const unique = Array.from(new Set(terms.flat()));
+  const counts = new Map(
+    (
+      await db.all<{ term: string; doc: number }>(
+        sql`SELECT term, doc FROM search_vocabulary WHERE term IN (${sql.join(
+          unique.map((term) => sql`${term}`),
+          sql`, `,
+        )})`,
+      )
+    ).map((row) => [row.term, row.doc]),
+  );
+  const choices = words.map((_, index) => {
+    const [rarest = ""] = (terms[index] ?? []).toSorted(
+      (left, right) =>
+        (counts.get(left) ?? 0) - (counts.get(right) ?? 0) ||
+        compareUtf8(left, right),
+    );
+    const wordPlaces = places[index] ?? noPlaces;
+    return {
+      rarest,
+      wordPlaces,
+      rows:
+        (counts.get(rarest) ?? 0) +
+        (hasPlaces(wordPlaces) ? placeRows(wordPlaces, catalog) : 0),
+    };
+  });
+  const chosen = choices.reduce((best, choice) =>
+    choice.rows < best.rows ? choice : best,
+  );
+  const named = sql`SELECT rowid FROM contact_search WHERE contact_search MATCH ${chosen.rarest}`;
+  const placed = placeConditions(chosen.wordPlaces).map(
+    (condition) => sql` UNION SELECT rowid FROM contacts WHERE ${condition}`,
+  );
+  return sql`${schema.contacts.rowid} IN (${named}${sql.join(placed)})`;
+}
+
+const noPlaces: WordPlaces = {
+  prefectures: [],
+  municipalities: [],
+  categories: [],
+};
+
 export async function searchSelection(
   db: DirectoryDatabase,
   search: Search,
+  catalog: Catalog,
 ): Promise<SearchSelection> {
-  const normalized = normalizeName(search.q);
-  const number = normalizePhone(search.q);
+  const query = searchQuery(search.q);
   const clauses: SQL[] = [];
   if (search.prefecture)
     clauses.push(eq(schema.contacts.prefecture, search.prefecture));
@@ -266,43 +358,36 @@ export async function searchSelection(
     clauses.push(eq(schema.contacts.municipality, search.municipality));
   if (search.category)
     clauses.push(eq(schema.contacts.category, search.category));
-  if (normalized) {
-    if (number.ok) {
-      clauses.push(
-        sql`${schema.contacts.rowid} IN (SELECT contact_rowid FROM phones WHERE number = ${number.value})`,
-      );
-    } else {
-      const tokens = nameTokens(normalized);
-      const bigrams = tokens.filter((term) => term.includes("x"));
-      const candidates = (bigrams.length ? bigrams : tokens).slice(
-        0,
-        nameCandidateLimit,
-      );
-      if (candidates.length) {
-        const termList = sql.join(
-          candidates.map((term) => sql`${term}`),
-          sql`, `,
-        );
-        const rarest = await db.get<{ term: string }>(
-          sql`SELECT term FROM search_vocabulary WHERE term IN (${termList}) ORDER BY doc, term LIMIT 1`,
-        );
-        const term = rarest?.term ?? candidates[0];
-        if (term)
-          clauses.push(
-            sql`${schema.contacts.rowid} IN (SELECT rowid FROM contact_search WHERE contact_search MATCH ${term})`,
-          );
-      }
-      clauses.push(
-        sql`instr(${schema.contacts.normalizedName}, ${normalized}) > 0`,
-      );
-    }
-  }
-  const condition = and(...clauses);
-  const ranked = normalized !== "" && !number.ok;
-  const rank = ranked
-    ? sql<number>`CASE WHEN ${schema.contacts.normalizedName} = ${normalized} THEN 0 WHEN instr(${schema.contacts.normalizedName}, ${normalized}) = 1 THEN 1 ELSE 2 END`
-    : sql<number>`CAST(0 AS INTEGER)`;
-  return { condition, rank, ranked };
+  if (query.kind === "telephone")
+    clauses.push(
+      sql`${schema.contacts.rowid} IN (SELECT contact_rowid FROM phones WHERE number = ${query.number})`,
+    );
+  if (query.kind !== "words")
+    return {
+      condition: and(...clauses),
+      rank: sql<number>`CAST(0 AS INTEGER)`,
+      ranked: false,
+    };
+  const { words } = query;
+  const name = schema.contacts.foldedName;
+  const places = words.map((word) => wordPlaces(catalog, word));
+  clauses.push(await wordCandidates(db, words, places, catalog));
+  for (const [index, word] of words.entries())
+    clauses.push(
+      or(
+        sql`instr(${name}, ${word}) > 0`,
+        ...placeConditions(places[index] ?? noPlaces),
+      ) ?? sql`0`,
+    );
+  const [single] = words;
+  const rank =
+    words.length === 1 && single !== undefined
+      ? sql<number>`CASE WHEN ${name} = ${single} THEN 0 WHEN instr(${name}, ${single}) = 1 THEN 1 WHEN instr(${name}, ${single}) > 0 THEN 2 ELSE 3 END`
+      : sql<number>`CASE WHEN ${sql.join(
+          words.map((word) => sql`instr(${name}, ${word}) > 0`),
+          sql` AND `,
+        )} THEN 2 ELSE 3 END`;
+  return { condition: and(...clauses), rank, ranked: true };
 }
 
 export function categoryPreviews(
@@ -367,17 +452,20 @@ async function indexedPreviewRows(
 async function rankedPreviewRows(
   db: DirectoryDatabase,
   search: Search,
+  catalog: Catalog,
 ): Promise<GroupRow[]> {
-  const { condition, rank } = await searchSelection(db, search);
+  const { condition, rank } = await searchSelection(db, search, catalog);
   const raw: unknown = await db.all(sql`
-    WITH candidates AS (
-      SELECT rowid, category, id, normalized_name AS name,
-        ${rank} AS rank,
+    WITH ranked AS (
+      SELECT rowid, category, id, normalized_name AS name, ${rank} AS rank
+      FROM contacts WHERE ${condition ?? sql`1`}
+    ), candidates AS (
+      SELECT rowid, category, id, name, rank,
         count(*) OVER (PARTITION BY category) AS total,
         row_number() OVER (
-          PARTITION BY category ORDER BY ${rank}, normalized_name, id
+          PARTITION BY category ORDER BY rank, name, id
         ) AS position
-      FROM contacts WHERE ${condition ?? sql`1`}
+      FROM ranked
     )
     SELECT candidates.category, candidates.total, candidates.id,
       candidates.name, candidates.rank, contacts.payload
@@ -418,7 +506,7 @@ export async function searchContactGroups(
   const populated = catalog.categories.filter((item) => item.contacts > 0);
   const indexed =
     totalSource(
-      normalizeName(search.q) !== "",
+      searchQuery(search.q).kind !== "empty",
       search.prefecture !== "",
       search.municipality !== "",
       false,
@@ -427,7 +515,7 @@ export async function searchContactGroups(
     boundedLimit(populated.length + 1);
   const rows = indexed
     ? await indexedPreviewRows(db, populated, previewLimit(search.limit))
-    : await rankedPreviewRows(db, search);
+    : await rankedPreviewRows(db, search, catalog);
   const byCategory = new Map<string, GroupRow[]>();
   for (const row of rows) {
     const group = byCategory.get(row.category);

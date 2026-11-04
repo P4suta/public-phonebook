@@ -61,6 +61,9 @@ const names = [
   "abc分室",
   "国立国会図書館",
   "国立国会図書館 分室",
+  "山崎図書館",
+  "髙田医院",
+  "高田医院",
 ] as const;
 const categories = ["library", "library", "medical", "museum"] as const;
 const phones = [
@@ -144,7 +147,10 @@ const catalog: Catalog = v.parse(CatalogSchema, {
       (item) => item.prefectureCode === String(index + 1).padStart(2, "0"),
     ).length,
   })),
-  municipalities: [],
+  municipalities: [
+    { code: "13101", prefectureCode: "13", name: "千代田区" },
+    { code: "14100", prefectureCode: "14", name: "横浜市" },
+  ],
 });
 
 function statements(): SqlStatement[] {
@@ -288,6 +294,24 @@ const queries = [
   "\t図書館\t",
   "図\t書",
   "存在しない名前",
+  "山\u{fa11}",
+  "山崎",
+  "髙田",
+  "高田",
+  "崎",
+  "千代田 図書館",
+  "東京　分室",
+  "横浜  国立",
+  "神奈川 図書館 1",
+  "図書館 abc",
+  "横浜",
+  "東京都",
+  "病院",
+  "博物館 全国",
+  "トショカン",
+  "としょかん",
+  "ﾄｼｮｶﾝ 千代田",
+  "図 書 館 分 室 全 国 1",
   `${"図".repeat(170)}ab`,
 ];
 
@@ -387,8 +411,41 @@ describe("local search parity with the server", () => {
     ]);
   });
 
+  it("finds either form of a kanji variant from the other on the server and in the browser", async () => {
+    for (const [query, name] of [
+      ["山\u{fa11}", "山崎図書館"],
+      ["崎", "\u{fa11}山図書館"],
+      ["髙田", "高田医院"],
+      ["高田", "髙田医院"],
+    ] as const) {
+      const grouped = v.parse(
+        GroupedSearchResponseSchema,
+        await json(`/api/contact-groups?q=${encodeURIComponent(query)}`),
+      );
+      expect(
+        grouped.groups.flatMap((group) =>
+          group.results.data.map((item) => item.name),
+        ),
+        query,
+      ).toContain(name);
+      const parsed = localQuery(query);
+      if (!parsed.ok) throw new Error(`The query must be valid: ${query}`);
+      expect(
+        previewGroups(matchIndex(index, parsed.value)).groups.flatMap((group) =>
+          group.rows.map((row) => index.rows[row]?.name),
+        ),
+        query,
+      ).toContain(name);
+    }
+  });
+
   it("rejects the queries the server rejects", async () => {
-    for (const query of ["図書館\0", "\0", "図".repeat(171)]) {
+    for (const query of [
+      "図書館\0",
+      "\0",
+      "図".repeat(171),
+      "図 書 館 分 室 全 国 1 2",
+    ]) {
       expect(localQuery(query)).toEqual({ ok: false, error: "invalid_query" });
       const response = await request(
         `/api/contact-groups?q=${encodeURIComponent(query)}`,

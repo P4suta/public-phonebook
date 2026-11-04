@@ -177,6 +177,15 @@ It also admits search page sizes from 1 through 30, the page size that the site 
 Separate negative controls accept limit 101, ignore a municipality when choosing a catalog total, store a failure status, admit a site-route request from another site, and accept a 31-row site page while retaining their contracts.
 Each must fail verification.
 Search-trigger controls ignore composition, search an incomplete telephone number, and pause after one keystroke interval, and each must fail verification too.
+The word rank decision proves that a row matches exactly when every word occurs in its name or its region or category, and that region and category matches rank after every name match.
+Its control ranks a region or category match with the name matches and must fail verification.
+Fixed-seed property tests compare the word splitting, the folding, and the match-and-rank decision with a plain reference on both platforms.
+`mise x -- just check` requires, without the network, that both kanji variant tables carry the same pairs under the pinned Unihan provenance.
+`mise x -- just check-build` fetches the pinned Unihan archive, verifies its SHA-256, regenerates both tables, and requires the committed bytes.
+Both platforms' tests fold every table entry to a representative that folding keeps.
+`node tools/search-form-parity.ts ARCHIVE FORMS` writes the website's comparison form of every name in a directory archive.
+`BundledAdmission --search-forms FORMS` then requires the app's form to equal it for every name, and `mise x -- just ios-check` runs both for the national and fixture archives that it bundles.
+D1 and the browser index derive their forms from the same TypeScript function, and the data check requires each D1 row's `folded_name` to equal it.
 A conflicting import identity also has a source-mutating negative control that must fail verification.
 The database verification decision scans a database in full only when it has no evidence and no Worker version binds it.
 Its controls let a bound database reach the full verification and accept evidence for another digest.
@@ -352,6 +361,7 @@ Run `mise x -- node tools/search-parity.ts BUNDLE` after `mise x -- just data-lo
 It loads the bundle's index through the service that the browser Worker runs, with its admission checks.
 It asks the actual API against the seeded D1 for the same queries.
 A fixed seed draws 2,000 substrings and 1,000 display names from the index, 1,000 listed telephone numbers in two spellings, and 200 valid numbers that no contact lists.
+It also draws 500 queries that pair the start of a name with its municipality, prefecture, or category label.
 Each query compares the total, the category order, each category's count, and each preview row's contact ID, name, category, region, numbers, and whether its details show an address.
 For the first category of 4 to 100 rows, it also compares the complete ordered category.
 It checks 100 row positions with the row locator, the lookup that opens a device result's details.

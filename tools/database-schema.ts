@@ -4,6 +4,7 @@ CREATE TABLE contacts (
   id TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
   normalized_name TEXT NOT NULL,
+  folded_name TEXT NOT NULL,
   prefecture TEXT NOT NULL,
   municipality TEXT,
   category TEXT NOT NULL,

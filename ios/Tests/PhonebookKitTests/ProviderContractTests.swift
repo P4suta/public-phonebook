@@ -65,7 +65,7 @@ func corpusServer(_ entries: [CorpusEntry], requests: RequestLog = RequestLog())
   let header = try await store.header(generation: manifest.generation)
   #expect(header.prefectures.count == 47)
   let search = try await store.searchIndex(generation: manifest.generation)
-  let groups = try search.search(SearchInput.normalizedName("公開図書館"))
+  let groups = try search.search(SearchInput.words("公開図書館"))
   let library = try #require(groups.first?.first)
   #expect(library.rank == .exact)
   let contact = try #require(
@@ -146,6 +146,8 @@ private func generationDigests(root: URL, generation: UUID) throws -> [String: S
     },
     "numbers": try table("SELECT number FROM numbers ORDER BY number") { [integer($0, 0)] },
     "names": try file("names"),
+    "folded": try file("folded"),
+    "regions": try file("regions"),
     "kinds": try file("kinds"),
     "callers": try file("callers"),
   ]
@@ -189,6 +191,8 @@ private let expectedGenerationDigests = [
   "phones": "242 b68f529984c2d8a1f4f39943ce0d5aa9a7cf22369bb5f825c3637eb28c350f8d",
   "numbers": "2 eca00b202bc735e58d1f0416753b9423c8ce0ba6532752036beaf042eff65c73",
   "names": "e5b1be0beb6b351f1d186f61dd80bedd77ab5b3b3940e54c96f6ce00bddb163a",
+  "folded": "e5b1be0beb6b351f1d186f61dd80bedd77ab5b3b3940e54c96f6ce00bddb163a",
+  "regions": "1251138e16d3f8aea43d9ef3417013ce2eea40066d6ac17e0278298614cab2d1",
   "kinds": "fd516d49024e15e7e9e2af783a92190b843b3ae99ffede6b8d1e135edf080bc9",
   "callers": "e184b14d93ca6fd6754863e5cd71096dc47f10bfad014961a1fd6241dbae7706",
 ]

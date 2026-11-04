@@ -21,6 +21,7 @@ import {
   searchIndexLimits,
   searchIndexRow,
 } from "../../src/core/search-index.ts";
+import { searchForm } from "../../src/core/search-text.ts";
 
 const snapshot = "a".repeat(64);
 const libraryIndex = categoryDefinitions.findIndex(
@@ -61,6 +62,7 @@ const input: SearchIndexInput = {
 };
 const library: SearchIndexRow = {
   normalizedName: "a図書館",
+  searchName: "a図書館",
   name: "Ａ図書館",
   category: "library",
   region: "13101",
@@ -69,6 +71,7 @@ const library: SearchIndexRow = {
 };
 const clinic: SearchIndexRow = {
   normalizedName: "例診療所",
+  searchName: "例診療所",
   name: "例診療所",
   category: "medical",
   region: "01",
@@ -189,7 +192,11 @@ const rowArbitrary = fc
     ),
     hasAddress: fc.boolean(),
   })
-  .map((row) => ({ ...row, normalizedName: normalizeName(row.name) }))
+  .map((row) => ({
+    ...row,
+    normalizedName: normalizeName(row.name),
+    searchName: searchForm(row.name),
+  }))
   .filter((row) => row.normalizedName !== "");
 
 function sorted(rows: readonly SearchIndexRow[]): SearchIndexRow[] {
@@ -294,6 +301,7 @@ describe("search index", () => {
       }),
     ).toEqual({
       normalizedName: "a図書館",
+      searchName: "a図書館",
       name: "Ａ図書館",
       category: "library",
       region: "13",

@@ -21,18 +21,73 @@ private func index(_ lines: [ArchiveLine]) async throws -> (LocalSearch, Snapsho
   ]
   let (search, store, generation, root) = try await index(lines)
   defer { try? FileManager.default.removeItem(at: root) }
-  let groups = try search.search(SearchInput.normalizedName("図書館"))
+  let groups = try search.search(SearchInput.words("図書館"))
   #expect(groups.count == 2)
   let names = { (group: [LocalSearch.Match]) async throws -> [String] in
     try await store.contacts(generation: generation, ids: group.map(\.id)).map(\.name)
   }
-  #expect(try await names(groups[0]) == ["図書館", "図書館分室", "中央図書館"])
-  #expect(groups[0].map(\.rank) == [.exact, .prefix, .substring])
+  // The library category's label holds the word, so the category's other rows follow every name match.
+  #expect(
+    try await names(groups[0]) == ["図書館", "図書館分室", "中央図書館", "ＴＯＳＨＯ Library", "公民館"])
+  #expect(groups[0].map(\.rank) == [.exact, .prefix, .substring, .place, .place])
   #expect(try await names(groups[1]) == ["図書館前クリニック"])
-  #expect(try search.search(SearchInput.normalizedName("tosho")).count == 1)
-  #expect(try search.search("館\n公").isEmpty)
-  #expect(try search.search("").isEmpty)
-  #expect(try search.search("見つからない").isEmpty)
+  #expect(try search.search(SearchInput.words("tosho")).count == 1)
+  #expect(try search.search(["館\n公"]).isEmpty)
+  #expect(try search.search([]).isEmpty)
+  #expect(try search.search(["見つからない"]).isEmpty)
+  #expect(try !search.search(Array(repeating: "館", count: SearchInput.maximumQueryWords)).isEmpty)
+  #expect(
+    try search.search(Array(repeating: "館", count: SearchInput.maximumQueryWords + 1)).isEmpty)
+  #expect(try search.search([String(repeating: "館", count: 171)]).isEmpty)
+}
+
+@Test func localSearchMatchesEveryWordInTheNameRegionOrCategory() async throws {
+  let lines = [
+    ArchiveLine(name: "市川市中央図書館"), ArchiveLine(region: "13", name: "中央図書館"),
+    ArchiveLine(category: 1, name: "中央クリニック"), ArchiveLine(region: "14", name: "センター"),
+    ArchiveLine(region: "14100", name: "市ヶ谷会館"),
+  ]
+  let (search, store, generation, root) = try await index(lines)
+  defer { try? FileManager.default.removeItem(at: root) }
+  func found(_ query: String) async throws -> [[String]] {
+    var result: [[String]] = []
+    for group in try search.search(SearchInput.words(query)) {
+      result.append(
+        try await store.contacts(generation: generation, ids: group.map(\.id)).map(\.name))
+    }
+    return result
+  }
+  #expect(try await found("市川 図書館") == [["市川市中央図書館"]])
+  #expect(try await found("千代田\u{3000}\u{3000}中央") == [["中央クリニック"], ["市川市中央図書館"]])
+  #expect(try await found("東京 図書館") == [["中央図書館", "市川市中央図書館"]])
+  #expect(try await found("病院 中央") == [["中央クリニック"]])
+  #expect(try await found("県14") == [["センター", "市ヶ谷会館"]])
+  #expect(try await found("せんた-") == [["センター"]])
+  #expect(try await found("市ケ谷") == [["市ヶ谷会館"]])
+  #expect(try await found("千代田 県14").isEmpty)
+}
+
+@Test func localSearchFindsEitherFormOfAKanjiVariantFromTheOther() async throws {
+  let lines = [
+    ArchiveLine(name: "山崎図書館"), ArchiveLine(name: "\u{FA11}山会館"),
+    ArchiveLine(category: 1, name: "高田医院"), ArchiveLine(category: 1, name: "髙田クリニック"),
+  ]
+  let (search, store, generation, root) = try await index(lines)
+  defer { try? FileManager.default.removeItem(at: root) }
+  func names(_ query: String) async throws -> Set<String> {
+    var result: Set<String> = []
+    for group in try search.search(SearchInput.words(query)) {
+      for contact in try await store.contacts(generation: generation, ids: group.map(\.id)) {
+        result.insert(contact.name)
+      }
+    }
+    return result
+  }
+  #expect(try await names("山\u{FA11}") == ["山崎図書館"])
+  #expect(try await names("\u{FA11}山") == ["\u{FA11}山会館"])
+  #expect(try await names("崎") == ["山崎図書館", "\u{FA11}山会館"])
+  #expect(try await names("髙田") == ["高田医院", "髙田クリニック"])
+  #expect(try await names("高田") == ["高田医院", "髙田クリニック"])
 }
 
 @Test func phoneMatchesGroupEveryRecordForTheNumber() async throws {

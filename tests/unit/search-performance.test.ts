@@ -28,7 +28,7 @@ describe("search work", () => {
     expect(searchWork(index, ["図書館", "", "0774981200"])).toEqual({
       queries: 3,
       rowsScanned: { count: 3, p50: 4, p95: 4, max: 4, total: 8 },
-      rowsMatched: { count: 3, p50: 2, p95: 4, max: 4, total: 6 },
+      rowsMatched: { count: 3, p50: 4, p95: 4, max: 4, total: 8 },
     });
   });
 
