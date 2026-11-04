@@ -1,136 +1,65 @@
 //! The machine lease for iOS commands that use the simulator, Xcode, or the fixture port on this Mac.
 //!
-//! The lease is the directory that agents on this Mac create with `mkdir`, with the holder's process ID inside.
+//! The lease is a `flock` on a fixed file, the same lock that `lockf -k` takes, so the kernel releases it when its holder exits and no file is ever deleted.
 
 use anyhow::{Context, Result, bail};
 use std::{
-    fs, io,
-    path::{Path, PathBuf},
+    fs::{File, TryLockError},
+    path::Path,
     thread,
     time::{Duration, Instant},
 };
 
-pub const MACHINE_LEASE: &str = "/tmp/public-phonebook-ios-gate.lock";
-const HOLDER_FILE: &str = "pid";
+pub const MACHINE_LEASE: &str = "/tmp/public-phonebook-ios-gate.flock";
 const POLL: Duration = Duration::from_secs(30);
 const SECONDS_PER_MINUTE: u64 = 60;
 const LONGEST_WAIT: Duration = Duration::from_secs(90 * SECONDS_PER_MINUTE);
 
-/// Holds the machine lease until it drops.
+/// Holds the machine lease until it drops, when closing the file releases the lock.
 pub struct MachineLease {
-    directory: PathBuf,
-}
-
-fn alive(pid: u32) -> bool {
-    let Ok(pid) = libc::pid_t::try_from(pid) else {
-        return false;
-    };
-    // SAFETY: signal 0 only checks whether the process exists and may receive signals.
-    if unsafe { libc::kill(pid, 0) } == 0 {
-        return true;
-    }
-    io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
-}
-
-fn holder(directory: &Path) -> Option<u32> {
-    fs::read_to_string(directory.join(HOLDER_FILE))
-        .ok()
-        .and_then(|text| text.trim().parse().ok())
+    _file: File,
 }
 
 impl MachineLease {
-    /// Waits up to 90 minutes for the lease, polling every 30 seconds, and takes over a lease whose holder no longer runs.
+    /// Waits up to 90 minutes for the lease, polling every 30 seconds.
     pub fn acquire() -> Result<Self> {
-        Self::acquire_at(Path::new(MACHINE_LEASE), POLL, LONGEST_WAIT, alive)
+        Self::acquire_at(Path::new(MACHINE_LEASE), POLL, LONGEST_WAIT)
     }
 
-    fn acquire_at(
-        directory: &Path,
-        poll: Duration,
-        longest: Duration,
-        is_alive: impl Fn(u32) -> bool,
-    ) -> Result<Self> {
+    fn acquire_at(path: &Path, poll: Duration, longest: Duration) -> Result<Self> {
+        let file = File::options()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(path)
+            .with_context(|| format!("Open {}", path.display()))?;
         let started = Instant::now();
-        let mut announced = None;
+        let mut announced = false;
         loop {
-            match fs::create_dir(directory) {
-                Ok(()) => {
-                    if let Err(error) = fs::write(
-                        directory.join(HOLDER_FILE),
-                        format!("{}\n", std::process::id()),
-                    ) {
-                        if let Err(cleanup) = fs::remove_dir_all(directory) {
-                            eprintln!(
-                                "iOS check: {} could not be removed: {cleanup}",
-                                directory.display()
-                            );
-                        }
-                        return Err(error).with_context(|| {
-                            format!("Record this process in {}", directory.display())
-                        });
-                    }
-                    return Ok(Self {
-                        directory: directory.to_owned(),
-                    });
-                }
-                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
-                Err(error) => {
-                    return Err(error).with_context(|| format!("Create {}", directory.display()));
-                }
-            }
-            let current = holder(directory);
-            if let Some(pid) = current
-                && !is_alive(pid)
-            {
-                println!(
-                    "iOS check: removing {} left by process {pid}, which no longer runs",
-                    directory.display()
-                );
-                match fs::remove_dir_all(directory) {
-                    Ok(()) => continue,
-                    Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
-                    Err(error) => {
-                        return Err(error)
-                            .with_context(|| format!("Remove {}", directory.display()));
-                    }
+            match file.try_lock() {
+                Ok(()) => return Ok(Self { _file: file }),
+                Err(TryLockError::WouldBlock) => {}
+                Err(TryLockError::Error(error)) => {
+                    return Err(error).with_context(|| format!("Lock {}", path.display()));
                 }
             }
             let waited = started.elapsed();
             if waited >= longest {
                 bail!(
-                    "Inconclusive: {} stayed held by process {} for {} s",
-                    directory.display(),
-                    current.map_or_else(|| "unknown".to_owned(), |pid| pid.to_string()),
+                    "Inconclusive: another iOS command held {} for {} s",
+                    path.display(),
                     waited.as_secs()
                 );
             }
-            if announced != Some(current) {
+            if !announced {
                 println!(
-                    "iOS check: waiting for {}, held by process {}",
-                    directory.display(),
-                    current.map_or_else(|| "unknown".to_owned(), |pid| pid.to_string())
+                    "iOS check: waiting for {}, which another iOS command holds",
+                    path.display()
                 );
-                announced = Some(current);
+                announced = true;
             }
             thread::sleep(poll.min(longest.saturating_sub(waited)));
-        }
-    }
-}
-
-impl Drop for MachineLease {
-    fn drop(&mut self) {
-        if holder(&self.directory) != Some(std::process::id()) {
-            eprintln!(
-                "iOS check: {} no longer names this process, so it stays",
-                self.directory.display()
-            );
-            return;
-        }
-        if let Err(error) = fs::remove_dir_all(&self.directory) {
-            eprintln!(
-                "iOS check: {} could not be removed; the next run removes it once this process exits: {error}",
-                self.directory.display()
-            );
         }
     }
 }
@@ -138,71 +67,73 @@ impl Drop for MachineLease {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::Command;
 
     const SHORT: Duration = Duration::from_millis(10);
     const LONG: Duration = Duration::from_secs(5);
-    const ABSENT_PROCESS: u32 = 999_999;
+    /// `lockf` exits with `EX_TEMPFAIL` when its wait runs out.
+    const LOCKF_TIMED_OUT: i32 = 75;
 
-    fn lease_path() -> Result<(tempfile::TempDir, PathBuf)> {
+    fn lease_path() -> Result<(tempfile::TempDir, std::path::PathBuf)> {
         let parent = tempfile::tempdir()?;
-        let path = parent.path().join("gate.lock");
+        let path = parent.path().join("gate.flock");
         Ok((parent, path))
     }
 
     #[test]
-    fn a_free_lease_records_this_process_and_drops_cleanly() -> Result<()> {
+    fn a_free_lease_is_taken_and_released_without_deleting_its_file() -> Result<()> {
         let (_parent, path) = lease_path()?;
-        let lease = MachineLease::acquire_at(&path, SHORT, LONG, |_| true)?;
-        assert_eq!(holder(&path), Some(std::process::id()));
+        let lease = MachineLease::acquire_at(&path, SHORT, LONG)?;
         drop(lease);
-        assert!(!path.exists());
+        assert!(path.exists());
+        let _again = MachineLease::acquire_at(&path, SHORT, SHORT)?;
         Ok(())
     }
 
     #[test]
-    fn a_lease_of_a_process_that_no_longer_runs_is_taken_over() -> Result<()> {
+    fn a_holder_is_waited_for_until_it_releases_the_lease() -> Result<()> {
         let (_parent, path) = lease_path()?;
-        fs::create_dir(&path)?;
-        fs::write(path.join(HOLDER_FILE), format!("{ABSENT_PROCESS}\n"))?;
-        let _lease = MachineLease::acquire_at(&path, SHORT, LONG, |pid| pid != ABSENT_PROCESS)?;
-        assert_eq!(holder(&path), Some(std::process::id()));
-        Ok(())
-    }
-
-    #[test]
-    fn a_live_holder_is_waited_for_until_it_releases_the_lease() -> Result<()> {
-        let (_parent, path) = lease_path()?;
-        fs::create_dir(&path)?;
-        fs::write(path.join(HOLDER_FILE), format!("{ABSENT_PROCESS}\n"))?;
-        let released = path.clone();
+        let holder = MachineLease::acquire_at(&path, SHORT, LONG)?;
         let releaser = thread::spawn(move || {
             thread::sleep(SHORT * 5);
-            fs::remove_dir_all(released)
+            drop(holder);
         });
-        let _lease = MachineLease::acquire_at(&path, SHORT, LONG, |_| true)?;
+        let _lease = MachineLease::acquire_at(&path, SHORT, LONG)?;
         releaser
             .join()
-            .map_err(|_| anyhow::anyhow!("releaser panicked"))??;
-        assert_eq!(holder(&path), Some(std::process::id()));
+            .map_err(|_| anyhow::anyhow!("releaser panicked"))?;
         Ok(())
     }
 
     #[test]
-    fn a_wait_that_runs_out_is_inconclusive_and_leaves_the_holder_alone() -> Result<()> {
+    fn a_wait_that_runs_out_is_inconclusive() -> Result<()> {
         let (_parent, path) = lease_path()?;
-        fs::create_dir(&path)?;
-        fs::write(path.join(HOLDER_FILE), format!("{ABSENT_PROCESS}\n"))?;
-        let error = MachineLease::acquire_at(&path, SHORT, SHORT * 3, |_| true)
+        let _holder = MachineLease::acquire_at(&path, SHORT, LONG)?;
+        let error = MachineLease::acquire_at(&path, SHORT, SHORT * 3)
             .err()
             .context("The held lease was acquired")?;
         assert!(error.to_string().starts_with("Inconclusive:"));
-        assert_eq!(holder(&path), Some(ABSENT_PROCESS));
         Ok(())
     }
 
+    #[cfg(target_os = "macos")]
     #[test]
-    fn this_process_is_alive_and_an_absent_one_is_not() {
-        assert!(alive(std::process::id()));
-        assert!(!alive(ABSENT_PROCESS));
+    fn the_lease_and_lockf_exclude_each_other() -> Result<()> {
+        let (_parent, path) = lease_path()?;
+        let lease = MachineLease::acquire_at(&path, SHORT, LONG)?;
+        let blocked = Command::new("lockf")
+            .args(["-k", "-t", "0"])
+            .arg(&path)
+            .arg("true")
+            .status()?;
+        assert_eq!(blocked.code(), Some(LOCKF_TIMED_OUT));
+        drop(lease);
+        let free = Command::new("lockf")
+            .args(["-k", "-t", "0"])
+            .arg(&path)
+            .arg("true")
+            .status()?;
+        assert!(free.success());
+        Ok(())
     }
 }
