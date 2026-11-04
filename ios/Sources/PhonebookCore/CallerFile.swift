@@ -54,6 +54,8 @@ public enum CallerFile {
       guard !buffer.isEmpty else { return }
       try handle.write(contentsOf: buffer)
       buffer.removeAll(keepingCapacity: true)
+      // Records left behind would be written again at every later flush, so a debug build stops at once.
+      assert(buffer.isEmpty, "A flush leaves no records in the buffer")
     }
   }
 
@@ -219,12 +221,14 @@ public enum CallerFile {
       UUID.init(uuidString:))
   }
 
+  /// A UInt64 has at most ten 7-bit groups, so the loop ends after ten bytes whatever its exit test says.
   static func appendVarint(_ value: UInt64, to bytes: inout [UInt8]) {
     var value = value
-    repeat {
+    for _ in 0..<10 {
       let low = UInt8(value & 0x7F)
       value >>= 7
       bytes.append(value == 0 ? low : low | 0x80)
-    } while value != 0
+      if value == 0 { return }
+    }
   }
 }
