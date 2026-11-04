@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import check from "../../playwright.check.config.ts";
 import gate from "../../playwright.config.ts";
 import { checkFixtureContacts } from "../../tools/check-fixture.ts";
 
@@ -13,6 +14,15 @@ const fixtureIdentities = checkFixtureContacts().flatMap(({ id }) => [
 function namedFixtureIdentities(text: string): readonly string[] {
   return fixtureIdentities.filter((identity) => text.includes(identity));
 }
+
+describe("each browser suite", () => {
+  it("starts its own server instead of testing one that already holds its port", () => {
+    for (const config of [gate, check])
+      expect(
+        [config.webServer].flat().map((server) => server?.reuseExistingServer),
+      ).toEqual([false]);
+  });
+});
 
 // The release gate runs the whole browser suite on national data, which holds none of the check fixture's contacts.
 describe("the national browser suite", () => {
