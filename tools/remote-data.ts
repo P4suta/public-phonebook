@@ -14,15 +14,27 @@ import {
   isConflict,
   type RemoteEnvironment,
   readObject,
+  SequenceSchema,
   sha256Hex,
+  writeOnce,
 } from "./control-store.ts";
+import { publicationBinding } from "./release-lifecycle.ts";
 import {
+  encodeRecord,
+  loadRelease,
   RemoteEnvironmentSchema,
   type RunProvenance,
+  RunProvenanceSchema,
   runProvenance,
   storeVerificationDataset,
 } from "./release-store.ts";
-import { checkImportIdentity, seedDatabase } from "./seed-database.ts";
+import {
+  checkImportIdentity,
+  RemoteCountsSchema,
+  type SeedResult,
+  seedDatabase,
+  type VerificationFacts,
+} from "./seed-database.ts";
 import { fileDigest } from "./snapshot.ts";
 
 const prepareArgumentCount = 2;
@@ -230,6 +242,116 @@ export async function writeArchives(
   return written;
 }
 
+const databaseEvidenceFormat = 1;
+export const DatabaseEvidenceSchema = v.strictObject({
+  formatVersion: v.literal(databaseEvidenceFormat),
+  environment: RemoteEnvironmentSchema,
+  databaseSha256: DigestSchema,
+  database: v.pipe(v.string(), v.uuid()),
+  verification: v.variant("source", [
+    v.strictObject({
+      source: v.literal("verification"),
+      counts: RemoteCountsSchema,
+    }),
+    v.strictObject({
+      source: v.literal("publication"),
+      sequence: SequenceSchema,
+      releaseId: v.pipe(v.string(), v.uuid()),
+    }),
+  ]),
+  provenance: RunProvenanceSchema,
+});
+export type DatabaseEvidence = v.InferOutput<typeof DatabaseEvidenceSchema>;
+
+export async function readDatabaseEvidence(
+  store: ControlStore,
+  environment: RemoteEnvironment,
+  databaseSha256: string,
+  databaseId: string,
+): Promise<DatabaseEvidence | null> {
+  const object = await readObject(
+    store,
+    controlKeys.databaseEvidence(databaseSha256, databaseId),
+  );
+  if (!object) return null;
+  const evidence = v.parse(
+    DatabaseEvidenceSchema,
+    JSON.parse(new TextDecoder().decode(object.body)),
+  );
+  if (evidence.environment !== environment)
+    throw new Error("The database evidence belongs to another environment");
+  return evidence;
+}
+
+export interface DatabaseFacts {
+  readonly verification: VerificationFacts;
+  readonly journalSequence: number;
+  readonly verifiedRelease: string | null;
+}
+
+/** Reads the journal's bindings and the stored evidence before the preparation reads the database itself. */
+export async function databaseFacts(
+  store: ControlStore,
+  environment: RemoteEnvironment,
+  databaseSha256: string,
+  databaseId: string,
+): Promise<DatabaseFacts> {
+  const head = await loadRelease(store, environment);
+  if (!head)
+    throw new Error(
+      "Preparation requires the publication journal, which names the databases that Worker versions bind",
+    );
+  const binding = publicationBinding(head.journal, databaseSha256, databaseId);
+  return {
+    verification: {
+      resource: databaseId,
+      evidence: await readDatabaseEvidence(
+        store,
+        environment,
+        databaseSha256,
+        databaseId,
+      ),
+      bound: binding.bound,
+      publicationVerified: binding.verifiedRelease !== null,
+    },
+    journalSequence: head.record.sequence,
+    verifiedRelease: binding.verifiedRelease,
+  };
+}
+
+/** Records a full verification, or the publication whose staging required one, once for the database's digest and resource. */
+export async function recordDatabaseVerification(
+  store: ControlStore,
+  environment: RemoteEnvironment,
+  databaseSha256: string,
+  facts: DatabaseFacts,
+  seeded: SeedResult,
+  provenance: RunProvenance,
+): Promise<DatabaseEvidence | null> {
+  if (seeded.verification === "accept-evidence") return null;
+  const evidence = v.parse(DatabaseEvidenceSchema, {
+    formatVersion: databaseEvidenceFormat,
+    environment,
+    databaseSha256,
+    database: facts.verification.resource,
+    verification:
+      seeded.verification === "verify"
+        ? { source: "verification", counts: seeded.counts }
+        : {
+            source: "publication",
+            sequence: facts.journalSequence,
+            releaseId: facts.verifiedRelease,
+          },
+    provenance,
+  });
+  await writeOnce(
+    store,
+    controlKeys.databaseEvidence(evidence.databaseSha256, evidence.database),
+    encodeRecord(evidence),
+  );
+  return evidence;
+}
+
 async function prepareBucket(
   environment: RemoteEnvironment,
   provenance: RunProvenance,
@@ -315,9 +437,17 @@ async function prepare(
           "disabled",
         ]),
       );
+    const control = controlStoreFromEnvironment();
+    const facts = await databaseFacts(
+      control,
+      environment,
+      manifest.databaseSha256,
+      database.uuid,
+    );
     const sql = remoteSql(
       database.uuid,
       join(directory, `${environment}-request.json`),
+      { retryOverloadedReads: !facts.verification.bound },
     );
     await checkImportIdentity(sql, manifest.databaseSha256);
     await prepareBucket(environment, provenance);
@@ -330,10 +460,24 @@ async function prepare(
         JSON.stringify({ operation: "data.remote.archive", environment, key }),
       );
     lease.assertHeld();
-    await seedDatabase(sql, join(bundle, databaseFile), manifest);
+    const seeded = await seedDatabase(
+      sql,
+      join(bundle, databaseFile),
+      manifest,
+      facts.verification,
+    );
+    lease.assertHeld();
+    await recordDatabaseVerification(
+      control,
+      environment,
+      manifest.databaseSha256,
+      facts,
+      seeded,
+      provenance,
+    );
     await writeFile(
       join(directory, `${environment}.json`),
-      `${JSON.stringify({ environment, snapshot: manifest.snapshot, manifestSha256, databaseSha256: manifest.databaseSha256, database: database.uuid, databaseName, bucket: target.bucket, contacts: manifest.contacts, result: "verified" }, null, jsonIndentation)}\n`,
+      `${JSON.stringify({ environment, snapshot: manifest.snapshot, manifestSha256, databaseSha256: manifest.databaseSha256, database: database.uuid, databaseName, bucket: target.bucket, contacts: manifest.contacts, verification: seeded.verification, result: "verified" }, null, jsonIndentation)}\n`,
     );
   } finally {
     await lease.release();

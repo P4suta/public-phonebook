@@ -18,6 +18,7 @@
 - [Verify release candidates in place before approval](adr/verify-release-candidates-in-place-before-approval.md).
 - [Recover complete Worker and dataset publications](adr/recover-complete-worker-and-dataset-publications.md).
 - [Keep release records in a conditionally written control bucket](adr/keep-release-records-in-a-conditionally-written-control-bucket.md).
+- [Verify each D1 database once before a Worker binds it](adr/verify-each-database-once-before-a-worker-binds-it.md).
 - [Import the national dataset for iOS extensions](adr/import-the-national-dataset-for-ios-extensions.md).
 - [Search the saved directory on the device](adr/search-the-saved-directory-on-the-device.md).
 - [Publish a name-ordered search index for the website](adr/publish-a-name-ordered-search-index-for-the-website.md).

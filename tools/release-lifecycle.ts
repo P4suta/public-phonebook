@@ -68,6 +68,66 @@ const terminalPhases: ReadonlySet<ReleasePhase> = new Set([
   "withdrawn",
 ]);
 
+/** A candidate in these phases passed the staging preparation, which admits only a database that passed the full verification. */
+const preparedPhases: ReadonlySet<ReleasePhase> = new Set([
+  "staged",
+  "candidate-verified",
+  "activating",
+  "checking",
+  "recovering",
+  "verified",
+  "recovered",
+]);
+
+export interface PublicationBinding {
+  readonly bound: boolean;
+  readonly verifiedRelease: string | null;
+}
+
+/** Lists the targets whose Worker versions the deployment may hold in this phase, predecessor first. */
+function deployableTargets(
+  journal: ReleaseJournal,
+): readonly { readonly target: ReleaseTarget; readonly prepared: boolean }[] {
+  const previous = journal.previous
+    ? [{ target: journal.previous, prepared: true }]
+    : [];
+  if (journal.phase === "verified")
+    return [{ target: journal.candidate, prepared: true }];
+  if (journal.phase === "withdrawn" || journal.phase === "recovered")
+    return previous;
+  return [
+    ...previous,
+    { target: journal.candidate, prepared: preparedPhases.has(journal.phase) },
+  ];
+}
+
+/**
+ * Reports whether a deployable version of the journal may bind a database with this digest or ID, and names the release whose staging verified exactly this database.
+ * Only a target the release tools staged by digest counts, because the adopted baseline never passed this repository's import verification.
+ */
+export function publicationBinding(
+  journal: ReleaseJournal,
+  databaseSha256: string,
+  databaseId: string,
+): PublicationBinding {
+  const named = deployableTargets(journal).filter(
+    ({ target }) =>
+      target.databaseSha256 === databaseSha256 ||
+      target.databaseId === databaseId,
+  );
+  const verified = named.find(
+    ({ target, prepared }) =>
+      prepared &&
+      target.manifestBinding === "digest" &&
+      target.databaseSha256 === databaseSha256 &&
+      target.databaseId === databaseId,
+  );
+  return {
+    bound: named.length > 0,
+    verifiedRelease: verified?.target.releaseId ?? null,
+  };
+}
+
 export function beforeTraffic(phase: ReleasePhase): boolean {
   return preTrafficPhases.has(phase);
 }

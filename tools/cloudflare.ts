@@ -43,19 +43,21 @@ export function overloaded(error: unknown): boolean {
   return error instanceof Error && overloadedPattern.test(error.message);
 }
 
-export interface RemoteSqlDependencies {
+export interface RemoteSqlOptions {
   readonly run?: (args: readonly string[]) => Promise<unknown>;
   readonly pause?: (milliseconds: number) => Promise<void>;
+  /** Sending reads again adds load, so only a database that no Worker version binds takes it. */
+  readonly retryOverloadedReads?: boolean;
 }
 
 export function remoteSql(
   databaseId: string,
   requestFile: string,
-  dependencies: RemoteSqlDependencies = {},
+  options: RemoteSqlOptions = {},
 ): SqlPort {
-  const run = dependencies.run ?? cloudflare;
+  const run = options.run ?? cloudflare;
   const pause =
-    dependencies.pause ??
+    options.pause ??
     ((milliseconds: number): Promise<void> =>
       new Promise((resolve) => setTimeout(resolve, milliseconds)));
   return {
@@ -64,14 +66,15 @@ export function remoteSql(
     ): Promise<readonly Record<string, unknown>[]> {
       await writeFile(requestFile, JSON.stringify(statements));
       const args = ["d1", "query", databaseId, "--batch", `@${requestFile}`];
-      const retryable = readOnlyBatch(statements);
+      const retryable =
+        options.retryOverloadedReads === true && readOnlyBatch(statements);
       let raw: unknown;
       for (let attempt = 1; ; attempt += 1) {
         try {
           raw = await run(args);
           break;
         } catch (error) {
-          // Writes resume from the import checkpoint instead, so only reads repeat here.
+          // Writes resume from the import checkpoint instead, so only reads of an unbound database repeat here.
           if (!retryable || !overloaded(error) || attempt >= overloadAttempts)
             throw error;
           await pause(overloadPauseMs * attempt);

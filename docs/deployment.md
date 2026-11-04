@@ -196,7 +196,8 @@ Until then, a published release can still change, so the record depends on nobod
 There is no staging environment.
 A candidate is a new version of `dial-production` that waits at 0% beside the current version until the owner approves it.
 
-1. The data command prepares the candidate's D1 database and archive keys under their digests, which the current version never reads.
+1. The data command prepares the candidate's D1 database and archive keys under their digests.
+   A candidate of the served dataset shares the current version's database, which the command then reads only by primary key.
 2. `--stage` uploads the attested build with `cf workers versions create`, tagged with a new release ID, and deploys it at 0%.
 3. `--verify-candidate` runs the public checks on `www.dial.page` with `Cloudflare-Workers-Version-Overrides` aimed at the candidate.
 4. The release workflow waits for the owner's approval of the GitHub `production` environment.
@@ -285,7 +286,13 @@ An unowned database or a different publication is refused rather than overwritte
 A database identity includes the first 32 hexadecimal characters of its complete database SHA-256.
 The full digest remains the import identity, so a prefix collision cannot overwrite a different publication.
 Repeated preparation reuses the exact database artifact and preserves earlier database resources.
-The final checks compare counts, foreign keys, the complete catalog, and fixed payload samples with the validated source.
+Before it reads the database, the command reads the publication journal and the database's verification evidence from the control store, and it stops when the journal is missing.
+Only a database that no Worker version binds receives the full checks, which compare counts, foreign keys, the complete catalog, and fixed payload samples with the validated source.
+A passing full check writes evidence once under `evidence/databases/`.
+A later preparation accepts that evidence, or the journal's digest-bound publication of the same database, after it reads the import identity, the checkpoints, the catalog row, and the fixed samples by primary key.
+It refuses a bound database without either, evidence for another database, and an incomplete database that evidence or a binding names.
+Only an unbound database receives a read again after D1 reports an overload.
+The [database verification decision](adr/verify-each-database-once-before-a-worker-binds-it.md) explains the rule and why a publication counts as evidence.
 
 The publisher requires a clean committed checkout, a verified remote-data receipt, and admitted candidate evidence.
 Inputs identity lets a merge commit keep an already checked stage when the files that stage reads are unchanged.
@@ -314,7 +321,7 @@ Conditional writes keep one writer per object: a create sends `If-None-Match: *`
 | `journals/ENV/head.json` | Current publication journal | Conditional replacement |
 | `journals/ENV/history/SEQUENCE.json` | Every journal record | Append-only, bucket lock |
 | `leases/ENV.json` | Publication lease | Conditional replacement |
-| `evidence/` | Imported receipts and release evidence | Append-only, bucket lock |
+| `evidence/` | Imported receipts, release evidence, and database verification evidence | Append-only, bucket lock |
 
 Journal format 2 records the environment, sequence, phase, candidate, predecessor, and run provenance.
 The provenance names the Actions repository, workflow, run ID, attempt, commit, and actor, or `local` for owner recovery.

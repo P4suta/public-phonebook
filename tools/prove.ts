@@ -27,8 +27,8 @@ import { StepTimer } from "./step-timing.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 47;
-const declaredPostconditionCount = 85;
+const verifiedUnitCount = 48;
+const declaredPostconditionCount = 92;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -50,6 +50,7 @@ const expected = [
   "siteRequestAdmission",
   "fitsSitePage",
   "importDecision",
+  "databaseVerification",
   "promotionAdmission",
   "schoolEvidence",
   "singleCandidate",
@@ -600,6 +601,16 @@ async function proveCompletely(): Promise<void> {
         to: 'if (current !== "") return "start";',
       },
       {
+        name: "verification-binding",
+        from: '  if (!bound) return "verify";\n',
+        to: '  if (!bound || complete) return "verify";\n',
+      },
+      {
+        name: "verification-digest",
+        from: "evidencePresent &&\n    (evidenceDatabase !== database || evidenceResource !== resource)",
+        to: "evidencePresent &&\n    evidenceResource !== resource",
+      },
+      {
         name: "promotion-verified",
         from: '  if (!verified) return "unverified";\n',
         to: "",
@@ -886,7 +897,7 @@ async function proveCompletely(): Promise<void> {
       semantics:
         "Dafny integers over validated finite integer limits; JavaScript UTF-16 strings",
       negativeControl:
-        "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, an admitted cross-origin site request, a 31-row site page, conflicting import identities, promotion of an unverified, displaced, or different candidate, withdrawal of a foreign candidate, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a substring ranked at the second position, a reflexive result order, a loading index searched on the device, a 31-row continuation, an index admitted without its digest, an off-by-one row range, a snapshot-blind row locator, a delta budget of the whole archive, an off-by-one copy range, and a delta admitted without its digest rejected",
+        "limit 101, a municipality-blind catalog total, a cached failure status, a composition-blind search trigger, an incomplete telephone search, a one-interval pause, an admitted cross-origin site request, a 31-row site page, conflicting import identities, a full scan of a bound database, evidence accepted for another digest, promotion of an unverified, displaced, or different candidate, withdrawal of a foreign candidate, ambiguous school selection, missing row accounting, missing name evidence, changed snapshot admission, a substring ranked at the second position, a reflexive result order, a loading index searched on the device, a 31-row continuation, an index admitted without its digest, an off-by-one row range, a snapshot-blind row locator, a delta budget of the whole archive, an off-by-one copy range, and a delta admitted without its digest rejected",
       result: "verified",
     };
     await timer.time("receipt", async () => {

@@ -5,11 +5,14 @@ import {
   drillWithdrawal,
   PromotionRefused,
   promoteCandidate,
+  publicationBinding,
   type ReleaseJournal,
+  type ReleasePhase,
   type ReleasePorts,
   type ReleaseTarget,
   recoverPublication,
   recoverRelease,
+  releasePhases,
   stageCandidate,
   verifiedPredecessor,
   verifyStagedCandidate,
@@ -418,6 +421,105 @@ describe("interrupted publications", () => {
       expect(() => verifiedPredecessor({ ...journal, phase }), phase).toThrow(
         "requires recovery",
       );
+  });
+});
+
+describe("database bindings", () => {
+  const journal = (phase: ReleasePhase): ReleaseJournal => ({
+    candidate: { ...candidate, versionId: stagedVersion },
+    previous,
+    phase,
+  });
+  const candidateDeployable: Record<ReleasePhase, boolean> = {
+    preparing: true,
+    staged: true,
+    "candidate-verified": true,
+    withdrawing: true,
+    withdrawn: false,
+    activating: true,
+    checking: true,
+    recovering: true,
+    verified: true,
+    recovered: false,
+  };
+  const candidatePrepared: Record<ReleasePhase, boolean> = {
+    preparing: false,
+    staged: true,
+    "candidate-verified": true,
+    withdrawing: false,
+    withdrawn: false,
+    activating: true,
+    checking: true,
+    recovering: true,
+    verified: true,
+    recovered: true,
+  };
+
+  it("binds the predecessor's and candidate's databases in exactly the phases a deployment may hold their versions", () => {
+    for (const phase of releasePhases) {
+      const predecessorBound = phase !== "verified";
+      expect(
+        publicationBinding(journal(phase), "database-a", "database-id-a"),
+        phase,
+      ).toEqual({
+        bound: predecessorBound,
+        verifiedRelease: predecessorBound ? "prior" : null,
+      });
+      const candidateBound = candidateDeployable[phase];
+      expect(
+        publicationBinding(journal(phase), "database-b", "database-id-b"),
+        phase,
+      ).toEqual({
+        bound: candidateBound,
+        verifiedRelease:
+          candidateBound && candidatePrepared[phase] ? "candidate" : null,
+      });
+      expect(
+        publicationBinding(journal(phase), "database-c", "database-id-c"),
+        phase,
+      ).toEqual({ bound: false, verifiedRelease: null });
+    }
+  });
+
+  it("names the predecessor when both versions bind the same database", () => {
+    const reused: ReleaseJournal = {
+      candidate: {
+        ...candidate,
+        versionId: stagedVersion,
+        databaseSha256: previous.databaseSha256,
+        databaseId: previous.databaseId,
+      },
+      previous,
+      phase: "candidate-verified",
+    };
+    expect(publicationBinding(reused, "database-a", "database-id-a")).toEqual({
+      bound: true,
+      verifiedRelease: "prior",
+    });
+  });
+
+  it("binds a half-matching or adopted database without naming a verified release", () => {
+    for (const [digest, id] of [
+      ["database-a", "database-id-other"],
+      ["database-other", "database-id-a"],
+    ] as const)
+      expect(
+        publicationBinding(journal("candidate-verified"), digest, id),
+        `${digest} ${id}`,
+      ).toEqual({ bound: true, verifiedRelease: null });
+    const adopted: ReleaseJournal = {
+      ...journal("staged"),
+      previous: {
+        ...previous,
+        sourceTree: null,
+        artifactSha256: null,
+        manifestBinding: "snapshot",
+      },
+    };
+    expect(publicationBinding(adopted, "database-a", "database-id-a")).toEqual({
+      bound: true,
+      verifiedRelease: null,
+    });
   });
 });
 

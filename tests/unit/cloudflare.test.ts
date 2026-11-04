@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   overloadAttempts,
   overloaded,
+  type RemoteSqlOptions,
   readOnlyBatch,
   remoteSql,
 } from "../../tools/cloudflare.ts";
@@ -57,6 +58,11 @@ function scripted(outcomes: readonly unknown[]): {
   };
 }
 
+/** Options for a database that no Worker version binds, the only kind that may receive a read again. */
+function unbound(script: ReturnType<typeof scripted>): RemoteSqlOptions {
+  return { run: script.run, pause: script.pause, retryOverloadedReads: true };
+}
+
 describe("D1 overload handling", () => {
   it("classifies read-only batches and the overloaded error", () => {
     expect(readOnlyBatch(reads)).toBe(true);
@@ -78,15 +84,29 @@ describe("D1 overload handling", () => {
 
   it("sends a read-only batch again after each overload, with growing pauses", async () => {
     const script = scripted([overload, overload, answer]);
-    const sql = remoteSql("db", join(root, "request.json"), script);
+    const sql = remoteSql("db", join(root, "request.json"), unbound(script));
     expect(await sql.execute(reads)).toEqual([{ contacts: 1 }]);
     expect(script.calls()).toBe(3);
     expect(script.pauses).toEqual([15_000, 30_000]);
   });
 
+  it("fails a read-only batch on the first overload unless the database is unbound", async () => {
+    for (const options of [{}, { retryOverloadedReads: false }]) {
+      const script = scripted([overload, answer]);
+      const sql = remoteSql("db", join(root, "request.json"), {
+        ...options,
+        run: script.run,
+        pause: script.pause,
+      });
+      await expect(sql.execute(reads)).rejects.toBe(overload);
+      expect(script.calls()).toBe(1);
+      expect(script.pauses).toEqual([]);
+    }
+  });
+
   it("fails a write batch on the first overload", async () => {
     const script = scripted([overload, answer]);
-    const sql = remoteSql("db", join(root, "request.json"), script);
+    const sql = remoteSql("db", join(root, "request.json"), unbound(script));
     await expect(sql.execute(writes)).rejects.toBe(overload);
     expect(script.calls()).toBe(1);
     expect(script.pauses).toEqual([]);
@@ -97,7 +117,7 @@ describe("D1 overload handling", () => {
       "Cloudflare d1 query db failed: D1_ERROR: no such table",
     );
     const script = scripted([other, answer]);
-    const sql = remoteSql("db", join(root, "request.json"), script);
+    const sql = remoteSql("db", join(root, "request.json"), unbound(script));
     await expect(sql.execute(reads)).rejects.toBe(other);
     expect(script.calls()).toBe(1);
   });
@@ -106,7 +126,7 @@ describe("D1 overload handling", () => {
     const script = scripted(
       Array.from({ length: overloadAttempts + 1 }, () => overload),
     );
-    const sql = remoteSql("db", join(root, "request.json"), script);
+    const sql = remoteSql("db", join(root, "request.json"), unbound(script));
     await expect(sql.execute(reads)).rejects.toBe(overload);
     expect(script.calls()).toBe(overloadAttempts);
     expect(script.pauses).toEqual([15_000, 30_000, 45_000]);
