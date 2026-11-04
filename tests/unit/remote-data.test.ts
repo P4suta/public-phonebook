@@ -3,15 +3,22 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { databaseVerification } from "../../src/core/publication-policy.ts";
 import {
+  type ControlStore,
   controlKeys,
   fileControlStore,
   r2ControlStore,
 } from "../../tools/control-store.ts";
+import type { ReleaseJournal } from "../../tools/release-lifecycle.ts";
+import { encodeRecord, saveRelease } from "../../tools/release-store.ts";
 import {
+  databaseFacts,
   fetchDataset,
   mayCreateBucket,
   parseRemoteDataArguments,
+  readDatabaseEvidence,
+  recordDatabaseVerification,
   storeDataset,
   writeArchives,
 } from "../../tools/remote-data.ts";
@@ -200,5 +207,199 @@ describe("dataset archive writer", () => {
     expect(() =>
       r2ControlStore({ ...options, bucket: "dial-development-datasets" }),
     ).toThrow("unlisted bucket");
+  });
+});
+
+describe("database verification evidence", () => {
+  const servedId = "22222222-2222-4222-8222-222222222222";
+  const freshId = "33333333-3333-4333-8333-333333333333";
+  const served = "2".repeat(64);
+  const fresh = "6".repeat(64);
+  const releaseId = "11111111-1111-4111-8111-111111111111";
+  const published: ReleaseJournal = {
+    phase: "verified",
+    previous: null,
+    candidate: {
+      releaseId,
+      versionId: releaseId,
+      databaseId: servedId,
+      sourceTree: "1".repeat(40),
+      snapshot: "1".repeat(64),
+      databaseSha256: served,
+      manifestSha256: "3".repeat(64),
+      artifactSha256: "4".repeat(64),
+      manifestBinding: "digest",
+    },
+  };
+  const counts = {
+    contacts: 4,
+    relations: 4,
+    phones: 4,
+    sources: 1,
+    indexed: 4,
+    categories: 2,
+    prefectures: 3,
+  };
+  const local = { kind: "local" } as const;
+  const lockedStore = (): ControlStore =>
+    fileControlStore(join(root, "control"), { lockedPrefixes: ["evidence/"] });
+
+  it("refuses to decide without the publication journal", async () => {
+    await expect(
+      databaseFacts(lockedStore(), "production", served, servedId),
+    ).rejects.toThrow("publication journal");
+  });
+
+  it("reads the journal's binding and the evidence of exactly this digest and resource", async () => {
+    const store = lockedStore();
+    await saveRelease(store, "production", published, local, null);
+    expect(await databaseFacts(store, "production", served, servedId)).toEqual({
+      verification: {
+        resource: servedId,
+        evidence: null,
+        bound: true,
+        publicationVerified: true,
+      },
+      journalSequence: 1,
+      verifiedRelease: releaseId,
+    });
+    expect(await databaseFacts(store, "production", fresh, freshId)).toEqual({
+      verification: {
+        resource: freshId,
+        evidence: null,
+        bound: false,
+        publicationVerified: false,
+      },
+      journalSequence: 1,
+      verifiedRelease: null,
+    });
+  });
+
+  it("records a full verification and a verified publication once each, and nothing for accepted evidence", async () => {
+    const store = lockedStore();
+    await saveRelease(store, "production", published, local, null);
+    const freshFacts = await databaseFacts(store, "production", fresh, freshId);
+    const verified = await recordDatabaseVerification(
+      store,
+      "production",
+      fresh,
+      freshFacts,
+      { verification: "verify", counts },
+      local,
+    );
+    expect(verified?.verification).toEqual({ source: "verification", counts });
+    expect(
+      (await databaseFacts(store, "production", fresh, freshId)).verification
+        .evidence,
+    ).toEqual(verified);
+    expect(
+      await recordDatabaseVerification(
+        store,
+        "production",
+        fresh,
+        freshFacts,
+        { verification: "verify", counts },
+        local,
+      ),
+    ).toEqual(verified);
+    await expect(
+      recordDatabaseVerification(
+        store,
+        "production",
+        fresh,
+        freshFacts,
+        { verification: "verify", counts: { ...counts, contacts: 5 } },
+        local,
+      ),
+    ).rejects.toThrow("different bytes");
+
+    const servedFacts = await databaseFacts(
+      store,
+      "production",
+      served,
+      servedId,
+    );
+    expect(
+      (
+        await recordDatabaseVerification(
+          store,
+          "production",
+          served,
+          servedFacts,
+          { verification: "accept-publication" },
+          local,
+        )
+      )?.verification,
+    ).toEqual({ source: "publication", sequence: 1, releaseId });
+    const accepted = await databaseFacts(store, "production", served, servedId);
+    expect(accepted.verification.evidence?.databaseSha256).toBe(served);
+    expect(
+      await recordDatabaseVerification(
+        store,
+        "production",
+        served,
+        accepted,
+        { verification: "accept-evidence" },
+        local,
+      ),
+    ).toBeNull();
+  });
+
+  it("passes on evidence whose body names another database so that the decision refuses it", async () => {
+    const store = lockedStore();
+    await saveRelease(store, "production", published, local, null);
+    const foreign = {
+      formatVersion: 1,
+      environment: "production",
+      databaseSha256: fresh,
+      database: servedId,
+      verification: { source: "verification", counts },
+      provenance: local,
+    };
+    await store.write(
+      controlKeys.databaseEvidence(served, servedId),
+      encodeRecord(foreign),
+      { kind: "create" },
+    );
+    const facts = await databaseFacts(store, "production", served, servedId);
+    expect(
+      databaseVerification(
+        facts.verification.evidence !== null,
+        facts.verification.evidence?.databaseSha256 ?? "",
+        served,
+        facts.verification.evidence?.database ?? "",
+        servedId,
+        true,
+        facts.verification.bound,
+        facts.verification.publicationVerified,
+      ),
+    ).toBe("foreign-evidence");
+  });
+
+  it("refuses stored evidence that is malformed or belongs to another environment", async () => {
+    const store = lockedStore();
+    await store.write(
+      controlKeys.databaseEvidence(served, servedId),
+      new TextEncoder().encode('{"formatVersion":1}'),
+      { kind: "create" },
+    );
+    await expect(
+      readDatabaseEvidence(store, "production", served, servedId),
+    ).rejects.toThrow();
+    await store.write(
+      controlKeys.databaseEvidence(fresh, freshId),
+      encodeRecord({
+        formatVersion: 1,
+        environment: "development",
+        databaseSha256: fresh,
+        database: freshId,
+        verification: { source: "verification", counts },
+        provenance: local,
+      }),
+      { kind: "create" },
+    );
+    await expect(
+      readDatabaseEvidence(store, "production", fresh, freshId),
+    ).rejects.toThrow();
   });
 });

@@ -110,7 +110,7 @@ const UI_TESTS: [&str; 17] = [
     "testLandscapeLargeTextSettings",
     "testAboutStaysInTheAppAndLicenseIsReadable",
 ];
-const REQUIRED_TESTS: [&str; 56] = [
+const REQUIRED_TESTS: [&str; 59] = [
     "currentProviderArchiveImportsTheNationalDirectory",
     "providerArchiveSavesTheExpectedGenerationContent",
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
@@ -167,6 +167,9 @@ const REQUIRED_TESTS: [&str; 56] = [
     "aSharedNumberTakesTheExtraLabelOnce",
     "theExtraEntryJoinsBeforeAfterOrWithoutTheNationalNumbers",
     "callerEntriesAcceptSearchSpellingsAndRefuseOthers",
+    "everyBackgroundTimeTransitionEndsTheTaskOnce",
+    "expiryCancelsATransferAndReleasesItsLock",
+    "expiryCancelsAnImportAndReleasesTheDatabase",
 ];
 const SCOPE: [&str; 19] = [
     "ios",

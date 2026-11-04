@@ -9,6 +9,8 @@ date: 2026-11-02
 Proposed.
 It supersedes [authenticate the entire staging origin](authenticate-the-entire-staging-origin.md) and [bind production promotion to checked staging source and data](source-tree-bound-staging-promotion.md).
 It amends [recover complete Worker and dataset publications](recover-complete-worker-and-dataset-publications.md).
+[Verify each D1 database once before a Worker binds it](verify-each-database-once-before-a-worker-binds-it.md) amends this record.
+A candidate of a dataset that production already serves shares the current version's database, and preparation reads that database only by primary key.
 
 ## Context
 

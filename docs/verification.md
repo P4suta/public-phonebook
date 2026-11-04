@@ -178,6 +178,8 @@ Separate negative controls accept limit 101, ignore a municipality when choosing
 Each must fail verification.
 Search-trigger controls ignore composition, search an incomplete telephone number, and pause after one keystroke interval, and each must fail verification too.
 A conflicting import identity also has a source-mutating negative control that must fail verification.
+The database verification decision scans a database in full only when it has no evidence and no Worker version binds it.
+Its controls let a bound database reach the full verification and accept evidence for another digest.
 Publication controls also promote an unverified candidate, ignore a changed current version, ignore a different candidate version, and withdraw a foreign candidate.
 Further controls drop recovery ownership, pending-resource protection, coverage retention, lease expiry, and the evidence signer.
 The production coverage decision admits only validated integer counts within ten million records, keeping its arithmetic within exact JavaScript integer representation.
@@ -396,6 +398,8 @@ CSV fixtures independently parse serializer output and cover embedded commas, qu
 A fixed-seed property requires that guard to match the serializer's own formula escaping for generated text.
 The verbatim telephone cell admits only validated E.164 numbers, and the writer refuses a contact whose number would bypass that schema.
 Publication fixtures use native D1 batches to lose a response after commit, resume from its checkpoint, preserve every bound value, and roll back both records and checkpoints after an invalid batch.
+A seeding fixture over local SQLite records each statement that preparation sends.
+It sees the counts and the foreign key check once for a fresh unbound database, and never for accepted evidence, an accepted publication, or a refusal.
 The same proven one-through-one-hundred bound guards SQL parameter counts.
 Remote SQL execution, provider transactions, archive storage, and HTTPS delivery remain external semantic boundaries.
 Their checked alternatives are native transaction controls, source-bound import receipts, remote reconciliation, and the public browser and complete-download gate.
