@@ -4,7 +4,6 @@ use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
-    os::unix::process::CommandExt,
     path::{Path, PathBuf},
     process::Command,
     sync::{
@@ -15,15 +14,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-/// The largest file of an unmutated package build, the SDK stat cache, measured on 2026-11-04.
-const LARGEST_BUILD_FILE_BYTES: u64 = 15_332_512;
-/// Every file of a mutation run, including compiler outputs and the tool's sandbox, stays under this cap.
-const FILE_LIMIT_BYTES: u64 = 256 * 1024 * 1024;
 /// A profile's temporary directory holds at most this much at once; one unmutated package build takes 118 MiB.
 const SCRATCH_BUDGET_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 /// How often the gate samples the size of a profile's temporary directory.
 const SCRATCH_SAMPLE_INTERVAL: Duration = Duration::from_millis(500);
-/// What macOS reports for a write past the file size cap once the process ignores SIGXFSZ.
+/// What macOS reports for a write past a test process's file size cap, which `testDirectory` sets and turns from a signal into an error.
+/// A cap on the tool's whole process tree stops its sandbox build even at 4 GiB, so the core tests carry it.
 const FILE_LIMIT_ERROR: &str = "File too large";
 
 const VERSION: &str = "1.6.4";
@@ -105,26 +101,6 @@ struct Counts {
     inconclusive: Vec<String>,
     /// Mutants whose tests stopped at the file size cap, which proves nothing about the mutant.
     resource_stopped: Vec<String>,
-}
-
-/// Caps every file that the command and its children write, and makes a write past the cap fail with an error instead of a signal.
-/// A signal would look like any crash in the tool's report, while the error text names the cap in the mutant's log.
-fn limit_file_size(command: &mut Command, bytes: u64) -> &mut Command {
-    // SAFETY: the closure runs in the forked child before exec and calls only setrlimit and signal, which are async-signal-safe.
-    unsafe {
-        command.pre_exec(move || {
-            let limit = libc::rlimit {
-                rlim_cur: bytes,
-                rlim_max: bytes,
-            };
-            if libc::setrlimit(libc::RLIMIT_FSIZE, &raw const limit) != 0
-                || libc::signal(libc::SIGXFSZ, libc::SIG_IGN) == libc::SIG_ERR
-            {
-                return Err(std::io::Error::last_os_error());
-            }
-            Ok(())
-        })
-    }
 }
 
 /// The bytes of every regular file under `path`, skipping entries that vanish while the build churns.
@@ -508,29 +484,26 @@ pub fn run(root: &Path) -> Result<()> {
         let run = logged(
             root,
             &format!("mutation-{name}"),
-            limit_file_size(
-                Command::new("swift-mutation-testing")
-                    .current_dir(root.join("ios"))
-                    .env("TMPDIR", scratch.path())
-                    .args(["run", ".", "--plan"])
-                    .arg(&plan_path)
-                    .args(["--concurrency", "1", "--timeout"])
-                    .arg(guard.to_string())
-                    .args([
-                        "--build-timeout",
-                        "120",
-                        "--no-cache",
-                        "--min-score",
-                        "100",
-                        "--max-integrity-warnings",
-                        "0",
-                        "--output",
-                    ])
-                    .arg(&report_path)
-                    .arg("--keep-logs")
-                    .arg(&logs),
-                FILE_LIMIT_BYTES,
-            ),
+            Command::new("swift-mutation-testing")
+                .current_dir(root.join("ios"))
+                .env("TMPDIR", scratch.path())
+                .args(["run", ".", "--plan"])
+                .arg(&plan_path)
+                .args(["--concurrency", "1", "--timeout"])
+                .arg(guard.to_string())
+                .args([
+                    "--build-timeout",
+                    "120",
+                    "--no-cache",
+                    "--min-score",
+                    "100",
+                    "--max-integrity-warnings",
+                    "0",
+                    "--output",
+                ])
+                .arg(&report_path)
+                .arg("--keep-logs")
+                .arg(&logs),
         );
         done.store(true, Ordering::Relaxed);
         let peak = sampler
@@ -551,7 +524,7 @@ pub fn run(root: &Path) -> Result<()> {
             &logs,
             &EQUIVALENTS,
         )?;
-        profiles.push(json!({"scope":source,"target":target,"plan":plan_path,"report":report_path,"plan_sha256":hash,"baseline_seconds":measured.as_secs_f64(),"hang_guard_seconds":guard,"killed":counts.killed,"crashed":counts.crashed,"compiler_rejected_declaration_renames":counts.compiler_rejected,"equivalent":counts.equivalent,"survived":0,"uncovered":0,"inconclusive_timeouts":counts.inconclusive,"resource_stopped":counts.resource_stopped,"file_limit_bytes":FILE_LIMIT_BYTES,"largest_unmutated_build_file_bytes":LARGEST_BUILD_FILE_BYTES,"scratch_budget_bytes":SCRATCH_BUDGET_BYTES,"scratch_peak_bytes":peak}));
+        profiles.push(json!({"scope":source,"target":target,"plan":plan_path,"report":report_path,"plan_sha256":hash,"baseline_seconds":measured.as_secs_f64(),"hang_guard_seconds":guard,"killed":counts.killed,"crashed":counts.crashed,"compiler_rejected_declaration_renames":counts.compiler_rejected,"equivalent":counts.equivalent,"survived":0,"uncovered":0,"inconclusive_timeouts":counts.inconclusive,"resource_stopped":counts.resource_stopped,"test_file_limit":"the core tests cap their own process at 256 MiB, far over the 15.3 MB largest file of an unmutated build","scratch_budget_bytes":SCRATCH_BUDGET_BYTES,"scratch_peak_bytes":peak}));
         inconclusive.extend(counts.inconclusive);
         inconclusive.extend(counts.resource_stopped);
     }
@@ -786,29 +759,6 @@ mod tests {
             invalid["files"]["/Sources/Example.swift"]["mutants"][0][field] = value;
             assert!(results(root.path(), &plan, &invalid, "hash", root.path(), &[]).is_err());
         }
-        Ok(())
-    }
-
-    #[test]
-    fn the_file_size_cap_turns_a_runaway_write_into_an_error() -> Result<()> {
-        let directory = tempfile::tempdir()?;
-        let file = directory.path().join("runaway");
-        let cap = 1024 * 1024;
-        // BSD and GNU dd both read a block size written in plain bytes.
-        let output = limit_file_size(
-            Command::new("dd")
-                .arg("if=/dev/zero")
-                .arg(format!("of={}", file.display()))
-                .arg(format!("bs={cap}"))
-                .arg("count=64"),
-            cap,
-        )
-        .output()?;
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(!output.status.success(), "{stderr}");
-        assert!(output.status.code().is_some(), "dd ended by a signal");
-        assert!(stderr.contains(FILE_LIMIT_ERROR), "{stderr}");
-        assert!(fs::metadata(&file)?.len() <= cap);
         Ok(())
     }
 

@@ -22,6 +22,21 @@ private func varint(_ value: UInt64) -> [UInt8] {
   return bytes
 }
 
+/// A sparse write just past the cap shows the limit without writing 256 MiB.
+@Test func aWritePastTheTestFileLimitFailsInsteadOfGrowing() throws {
+  let url = temporaryFile()
+  #expect(FileManager.default.createFile(atPath: url.path, contents: nil))
+  let handle = try FileHandle(forWritingTo: url)
+  defer {
+    try? handle.close()
+    try? FileManager.default.removeItem(at: url)
+  }
+  try handle.seek(toOffset: testFileLimit - 1)
+  let error = #expect(throws: (any Error).self) { try handle.write(contentsOf: Data([0, 0])) }
+  #expect(error.map { "\($0)".contains("File too large") } == true)
+  #expect(try UInt64(size(url)) <= testFileLimit)
+}
+
 @Test func varintsHaveTheirExactBytes() {
   #expect(varint(0) == [0])
   #expect(varint(1) == [1])
