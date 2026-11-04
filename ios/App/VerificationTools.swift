@@ -197,7 +197,7 @@
         Text("前にたしかめた日時：\(lastCheck)")
         Text("次にたしかめる日時：\(nextDue)")
         Text("待っている受け取り：\(waiting)")
-        Text("問題：\(integration.problem ?? integration.stopped ?? "なし")")
+        Text("問題：\(integration.lastFailure ?? integration.stopped ?? "なし")")
           .fixedSize(horizontal: false, vertical: true)
           .accessibilityIdentifier("verification-problem")
         Button {

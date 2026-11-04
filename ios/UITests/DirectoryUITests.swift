@@ -570,6 +570,7 @@ final class DirectoryUITests: XCTestCase {
     capture(app, name: "largest-text-caller")
   }
 
+  /// A failed automatic update shows nothing, keeps the saved data's date, and leaves search working.
   func testFailedAutomaticUpdateKeepsTheSavedDirectory() throws {
     let app = prepared()
     let date = dataDate(in: app)
@@ -577,14 +578,22 @@ final class DirectoryUITests: XCTestCase {
     try proxy().failNext(.listing, with: .incomplete)
     app.launchEnvironment["PHONEBOOK_REFRESH_DUE"] = "1"
     app.launch()
+    // The QA screen alone names the internal reason, which shows that the failed check has ended.
+    openVerification(in: app)
+    let reason = app.staticTexts["verification-problem"]
+    XCTAssertTrue(reason.waitForExistence(timeout: 5))
+    waitUntil(
+      "the failed check ends", reason.exists && reason.label != "問題：なし", timeout: 45,
+      observed: { reason.exists ? "It shows “\(reason.label)”." : "It doesn't exist." })
+    goBack(app)
     openSettings(in: app)
-    let problem = app.staticTexts["sync-error"]
-    XCTAssertTrue(problem.waitForExistence(timeout: 30))
-    XCTAssertTrue(problem.label.contains("前のデータのまま使えます"))
+    XCTAssertFalse(app.staticTexts["sync-error"].exists)
     capture(app, name: "directory-update-failure")
     goBack(app)
     XCTAssertEqual(dataDate(in: app), date)
+    XCTAssertFalse(app.staticTexts["newer-app"].exists)
     goBack(app)
+    XCTAssertFalse(app.staticTexts["sync-error"].exists)
     search("試験", in: app)
     waitForGroup("dental", "1件", in: app)
   }

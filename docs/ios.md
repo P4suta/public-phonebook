@@ -69,7 +69,7 @@ That run leaves the daily check due, so the next launch or return to the foregro
 A relaunch after the start button continues the first run without another press.
 The app adds nothing to the Contacts app, and deleting the app removes everything it saved.
 The app reads `/api/datasets` and picks the one file whose `format` is `public-phonebook-directory/1`, and it skips entries in other formats unread.
-When the listing has no file in that format, the app asks the reader to update it.
+When the listing has no file in that format, a first run asks the reader to update the app, and after the first run About and the search start screen say so in one passive line.
 It downloads that `directory.tsv.br` and accepts it only when its length, the SHA-256 digest of the whole file, and its snapshot header match the listing.
 The received bytes stay in the store's `transfers` directory after a failure or suspension, and the next attempt asks for the rest with a Range request.
 A 206 reply must start at the kept length and end at the listed length, a 200 reply starts the file again, and a 416 reply discards the kept bytes.
@@ -95,7 +95,7 @@ A listing of another snapshot starts its delta or the complete archive at once o
 On mobile data, a personal hotspot, or Low Data Mode, that automatic transfer waits, whatever its size, and the next report of an inexpensive path from `NWPathMonitor` starts it.
 The transfer reuses the checked listing's body, so it reads the listing no second time, and its requests also refuse those paths through `allowsExpensiveNetworkAccess` and `allowsConstrainedNetworkAccess`.
 A transfer that the person starts, such as the first download or the QA screen's, may use any path.
-A failed check keeps the saved data and says so in Settings without speaking.
+A failed automatic check or transfer shows nothing, keeps the saved data, and tries again at the next daily check, and only the QA screen names its reason.
 The record of the last answered read, its ETag, the listing body, and a waiting transfer stays in the app's defaults, so a background task in a new process continues it.
 A background app refresh task makes the same check and shares the 24-hour limit, and it leaves a transfer waiting for the background processing task.
 The background processing task performs a waiting transfer and its import, and without one its earliest date falls a month after the saved snapshot's `generatedAt`.

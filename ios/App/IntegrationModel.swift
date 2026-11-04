@@ -122,6 +122,11 @@ final class IntegrationModel {
   private(set) var preparing = false
   /// The first run saved the bundled data alone, so the ready step names that data's date.
   private(set) var bundledOnly = false
+  /// The service publishes data that this app can't read, which About and the search start screen say in one passive line.
+  private(set) var needsNewerApp = false
+  /// The internal reason of the last failure that the app recovers by itself, which only the QA screen shows.
+  private(set) var lastFailure: String?
+  /// Something that the person tapped didn't work.
   var problem: String?
   private(set) var busy = false
   private var refreshing = false
@@ -218,9 +223,10 @@ final class IntegrationModel {
     refreshing = true
     defer { refreshing = false }
     if !busy {
+      // Unreadable saved data starts the first run again, which shows its own progress and needs no notice.
       do { manifest = try await store.manifest() } catch {
         manifest = nil
-        problem = "アプリのデータを読めなかったので、もう一度受け取ります。"
+        lastFailure = String(describing: error)
       }
     }
     if let manifest, !busy {
@@ -373,12 +379,14 @@ final class IntegrationModel {
         }
         busy = false
         failures = 0
-        if outcome.reply == .failed { problem = Self.message(.updateKeepsData, delay: 0) }
+        // A failed check stays silent, because the saved data stays in use until the next daily check.
+        if outcome.reply == .failed { lastFailure = "the daily check failed" }
         guard let result = outcome.manifest else {
           if let manifest { try? BackgroundRefresh.schedule(manifest: manifest) }
           return
         }
         manifest = result
+        needsNewerApp = false
         complete = true
         await notifyExtensions(result)
         try? BackgroundRefresh.schedule(manifest: result)
@@ -445,12 +453,14 @@ final class IntegrationModel {
     }
     failures += 1
     let delay = DownloadSchedule.retryDelay(afterFailures: failures)
-    let message = Self.message(FailureNotice.decide(error, saved: manifest != nil), delay: delay)
+    let notice = FailureNotice.decide(error, saved: manifest != nil)
+    lastFailure = String(describing: error)
     guard manifest == nil else {
-      // An automatic update keeps the saved data and says so in Settings without speaking.
-      problem = message
+      // An automatic update keeps the saved data and tries again at the next daily check, so it speaks only when the person can act.
+      if notice == .appTooOld { needsNewerApp = true }
       return
     }
+    let message = Self.message(notice, delay: delay)
     stopFirstDownload()
     stopped = message
     AccessibilityAnnouncement.post("データの受け取りが止まりました。\(message)")
@@ -458,17 +468,19 @@ final class IntegrationModel {
   }
 
   /// The words of each notice, which name the one step that the person can take.
+  /// A first run never decides `silent`, so its words stay empty.
   static func message(_ notice: FailureNotice, delay: Int) -> String {
     switch notice {
     case .firstRunRetries:
       "データを受け取れませんでした。\(duration(delay))後に、自動でもう一度受け取ります。"
-    case .updateKeepsData: "データを新しくできませんでした。前のデータのまま使えます。"
     case .appTooOld: "このアプリでは新しいデータを読めません。App Storeでアプリを新しくしてください。"
-    case .appTooOldKeepingData:
-      "このアプリでは新しいデータを読めません。App Storeでアプリを新しくしてください。前のデータのまま使えます。"
     case .reopen: "データを受け取れませんでした。アプリを開き直してください。"
+    case .silent: ""
     }
   }
+
+  /// The passive line for an app that can't read the published data.
+  static let newerAppLine = "新しいデータを使うには、App Storeでアプリを新しくしてください。"
 
   private func scheduleRetry(after seconds: Int) {
     retry = Task { [weak self] in

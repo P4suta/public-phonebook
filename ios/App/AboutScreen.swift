@@ -28,6 +28,9 @@ struct AboutScreen: View {
           Text("データの日付：\(manifest.dataDate.formatted(date: .long, time: .omitted))")
             .accessibilityIdentifier("data-date")
         }
+        if integration.needsNewerApp {
+          Text(IntegrationModel.newerAppLine).accessibilityIdentifier("newer-app")
+        }
         NavigationLink {
           SourcesScreen(categories: model.categories)
         } label: {

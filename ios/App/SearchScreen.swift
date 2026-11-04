@@ -92,6 +92,10 @@ struct SearchScreen: View {
           )
           .padding(.top, 16)
         }
+        if integration.needsNewerApp {
+          Text(IntegrationModel.newerAppLine).padding(.top, 16)
+            .accessibilityIdentifier("newer-app")
+        }
         if !model.ready, integration.manifest == nil, let stopped = integration.stopped {
           VStack(alignment: .leading, spacing: 8) {
             Text("データの受け取りが止まりました").font(.headline)

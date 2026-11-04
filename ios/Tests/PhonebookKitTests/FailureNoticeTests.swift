@@ -37,19 +37,20 @@ private let causes: [(error: any Error, step: Step)] = {
   return all
 }()
 
-/// The one step that a notice leaves to the person.
+/// What the failure asks of the person during a first run, when no data is saved yet.
 private enum Step: Equatable {
   case wait, updateApp, reopen
 }
 
+/// A first run names the step, and an automatic update speaks only when the person can update the app.
 @Test func everyFailureLeavesOneStepWithOrWithoutSavedData() {
   for (error, step) in causes {
     for saved in [false, true] {
       let expected: FailureNotice =
         switch step {
-        case .wait: saved ? .updateKeepsData : .firstRunRetries
-        case .updateApp: saved ? .appTooOldKeepingData : .appTooOld
-        case .reopen: .reopen
+        case .wait: saved ? .silent : .firstRunRetries
+        case .updateApp: .appTooOld
+        case .reopen: saved ? .silent : .reopen
         }
       #expect(FailureNotice.decide(error, saved: saved) == expected, "\(error), saved: \(saved)")
     }
