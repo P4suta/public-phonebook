@@ -24,7 +24,7 @@ struct AboutScreen: View {
         Text("全国の施設が公開した電話番号のデータを、アプリの中に受け取って使います。")
         Text("新しいデータは、月に1回くらい自動で受け取ります。")
         if let manifest = integration.manifest {
-          Text("データの日付：\(manifest.updatedAt.formatted(date: .long, time: .omitted))")
+          Text("データの日付：\(manifest.dataDate.formatted(date: .long, time: .omitted))")
             .accessibilityIdentifier("data-date")
         }
         NavigationLink {
@@ -68,7 +68,7 @@ struct AboutScreen: View {
         .font(.footnote)
       }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
     }
-    .background(.white)
+    .background(.surface)
     .navigationTitle("Public Phonebookについて").navigationBarTitleDisplayMode(.inline)
     .accessibilityIdentifier("about-content")
   }
@@ -94,11 +94,11 @@ private struct SourcesScreen: View {
           }
           .padding(.vertical, 12)
           .accessibilityElement(children: .combine)
-          Rectangle().fill(.black).frame(height: 1)
+          Rectangle().fill(.ink).frame(height: 1)
         }
       }.padding(20)
     }
-    .background(.white)
+    .background(.surface)
     .navigationTitle("データの出典").navigationBarTitleDisplayMode(.inline)
   }
 }
@@ -116,7 +116,7 @@ struct LicenseScreen: View {
       Text(notices).font(.callout).textSelection(.enabled)
         .frame(maxWidth: .infinity, alignment: .leading).padding(16)
     }
-    .foregroundStyle(.black).background(.white)
+    .foregroundStyle(.ink).background(.surface)
     .navigationTitle("ライセンス").navigationBarTitleDisplayMode(.inline)
     .accessibilityIdentifier("license-content")
   }

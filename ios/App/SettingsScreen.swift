@@ -29,15 +29,15 @@ struct SettingsScreen: View {
     }
     .padding(.vertical, 1)
     .accessibilityIdentifier("integration-content")
-    .background(.white)
+    .background(.surface)
     .safeAreaInset(edge: .top, spacing: 0) {
       if let problem = model.problem {
         VStack(spacing: 0) {
           Text(problem).font(.callout).fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading).padding(16)
             .accessibilityIdentifier("sync-error")
-          Rectangle().fill(.black).frame(height: 1)
-        }.foregroundStyle(.black).background(.white)
+          Rectangle().fill(.ink).frame(height: 1)
+        }.foregroundStyle(.ink).background(.surface)
       }
     }
     .navigationTitle("設定").navigationBarTitleDisplayMode(.inline)

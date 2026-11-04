@@ -114,8 +114,14 @@ final class IntegrationModel {
   private(set) var stopped: String?
   /// The path is expensive or constrained, such as mobile data or Low Data Mode.
   private(set) var costlyNetwork = false
-  /// The archive's listed length, or nil before the listing answers.
-  private(set) var downloadBytes: Int?
+  /// Whether the app carries a readable bundled archive, or nil before the app opens it.
+  private(set) var bundleState: BundleState?
+  /// The first run's plan from the listing, or nil before the listing answers.
+  private(set) var plan: FirstRunPlan?
+  /// The first download has nothing to receive, so its display reads as preparing with the receive step done.
+  private(set) var preparing = false
+  /// The first run saved the bundled data alone, so the ready step names that data's date.
+  private(set) var bundledOnly = false
   var problem: String?
   private(set) var busy = false
   private var refreshing = false
@@ -127,6 +133,7 @@ final class IntegrationModel {
     stage: SyncProgress.transfer, done: 0, total: 0, rows: 0, fraction: 0)
   @ObservationIgnored private var started = ContinuousClock.now
   @ObservationIgnored private var complete = false
+  @ObservationIgnored private var bundleOpening: Task<BundledDataset?, Never>?
   @ObservationIgnored private let monitor = NWPathMonitor()
   #if DEBUG
     /// Lets a UI scenario make the saved data due once without waiting a month.
@@ -180,8 +187,10 @@ final class IntegrationModel {
   var receiving: Bool { wait.map { !$0.finished } ?? false }
   /// The saved data is ready and the first download has nothing more to show.
   var ready: Bool { manifest != nil && !receiving }
-  var megabytes: Int {
-    DownloadSchedule.megabytes(downloadBytes ?? DownloadSchedule.knownArchiveBytes)
+  /// The notice over the start button, which follows an unreachable listing until the listing answers.
+  var notice: WelcomeNotice? {
+    guard let bundleState else { return nil }
+    return (plan ?? FirstRunPlan.decide(bundle: bundleState, listing: .unreachable)).notice
   }
 
   private var requested: Bool {
@@ -222,7 +231,7 @@ final class IntegrationModel {
     guard !busy else { return }
     guard let manifest else {
       // Returning to the app retries a stopped first download now.
-      if requested { update(.first) } else { await readDownloadSize() }
+      if requested { update(.first) } else { await readPlan() }
       return
     }
     try? BackgroundRefresh.schedule(manifest: manifest)
@@ -233,9 +242,49 @@ final class IntegrationModel {
     update(.check)
   }
 
-  private func readDownloadSize() async {
-    guard downloadBytes == nil else { return }
-    downloadBytes = try? await api.datasets().archive.bytes
+  private func readPlan() async {
+    guard plan == nil else { return }
+    let bundle = await openBundle()
+    plan = try? await sync.planFirstRun(bundle: bundle)
+  }
+
+  /// Opens the bundled archive once, and returns nil when the app carries none or it fails its checks.
+  private func openBundle() async -> BundledDataset? {
+    let opening =
+      bundleOpening
+      ?? Task {
+        guard let pair = Self.bundledPair() else { return nil }
+        return try? await BundledDataset.open(archive: pair.archive, entry: pair.entry)
+      }
+    bundleOpening = opening
+    let bundle = await opening.value
+    bundleState = bundle == nil ? .missing : .readable
+    return bundle
+  }
+
+  /// Staging found a row that fails its checks, so the session continues as if the app carried no archive.
+  private func dropBundle() {
+    bundleOpening = Task { nil }
+    bundleState = .missing
+    plan = nil
+  }
+
+  /// The archive and entry that the build copied into the app.
+  /// Debug builds take another pair from the launch environment, so a UI scenario can name the fixture's pair or missing files.
+  private static func bundledPair() -> (archive: URL, entry: URL)? {
+    #if DEBUG
+      let environment = ProcessInfo.processInfo.environment
+      if let archive = environment["PHONEBOOK_BUNDLED_ARCHIVE"],
+        let entry = environment["PHONEBOOK_BUNDLED_ENTRY"]
+      {
+        return (URL(fileURLWithPath: archive), URL(fileURLWithPath: entry))
+      }
+    #endif
+    guard let resources = Bundle.main.resourceURL else { return nil }
+    return (
+      resources.appendingPathComponent("directory.tsv.br"),
+      resources.appendingPathComponent("directory.json")
+    )
   }
 
   private func consumeForcedDue() -> Bool {
@@ -275,8 +324,8 @@ final class IntegrationModel {
         stage: SyncProgress.transfer, done: 0, total: 0, rows: 0, fraction: fraction)
       started = ContinuousClock.now
       complete = false
+      bundledOnly = false
       wait = WaitDisplay()
-      AccessibilityAnnouncement.post("アプリで使うデータを受け取っています。")
       ticker?.cancel()
       ticker = Task { [weak self] in
         while let self, self.step() {
@@ -287,6 +336,13 @@ final class IntegrationModel {
     let path = updatePath
     operation = Task { [weak self, sync, automatic] in
       guard let self else { return }
+      let bundle = first ? await openBundle() : nil
+      if first {
+        let state: BundleState = bundle == nil ? .missing : .readable
+        preparing =
+          (plan ?? FirstRunPlan.decide(bundle: state, listing: .unreachable)).transfer == .none
+        AccessibilityAnnouncement.post(FirstDownloadProgress.heading(preparing: preparing) + "。")
+      }
       do {
         // iOS terminates an app that it suspends while the transfer or the import holds its locks.
         let outcome = try await BackgroundTimeRunner.run(
@@ -297,9 +353,13 @@ final class IntegrationModel {
           }
           switch run {
           case .first:
-            let saved = try await sync.synchronize(paths: .every, progress: progress)
-            await automatic.recordPerson(transfer: nil, path: path)
-            return UpdateOutcome(read: false, start: nil, manifest: saved)
+            let result = try await sync.firstRun(bundle: bundle, progress: progress)
+            // A run that saved the bundled data alone leaves the daily check due, so the next one catches up.
+            if result.outcome == .listed {
+              await automatic.recordPerson(transfer: nil, path: path)
+            }
+            await MainActor.run { self?.bundledOnly = result.outcome == .bundled }
+            return UpdateOutcome(read: false, start: nil, manifest: result.manifest)
           case .check: return try await automatic.check(path: path, progress: progress)
           case .path(let reported):
             return try await automatic.pathChanged(reported, progress: progress)
@@ -331,6 +391,8 @@ final class IntegrationModel {
 
   private func receive(_ report: SyncProgress, first: Bool) {
     guard first else { return }
+    // Only a transfer reports its own stage, so the run receives data after all.
+    if report.stage == SyncProgress.transfer { preparing = false }
     fraction = max(fraction, report.fraction)
     // Each report arrives on its own task, so a late transfer report never moves the display back a stage.
     if report.stage >= latest.stage { latest = report }
@@ -373,6 +435,11 @@ final class IntegrationModel {
 
   private func fail(_ error: any Error, first: Bool) {
     if !first && Self.deferred(error) { return }
+    if first, error is BundleMismatch {
+      dropBundle()
+      update(.first)
+      return
+    }
     failures += 1
     let delay = DownloadSchedule.retryDelay(afterFailures: failures)
     let reason: String?

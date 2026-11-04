@@ -122,16 +122,16 @@
             .accessibilityIdentifier("verification-clear")
           }
           .padding(.vertical, 24)
-          Rectangle().fill(.black).frame(height: 1)
+          Rectangle().fill(.ink).frame(height: 1)
           AutomaticUpdateStatus(integration: integration).padding(.vertical, 24)
-          Rectangle().fill(.black).frame(height: 1)
+          Rectangle().fill(.ink).frame(height: 1)
           Text("この画面は、QA用のビルドで使います。").font(.footnote).padding(.vertical, 24)
         }
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
       }
       .scrollDismissesKeyboard(.interactively)
-      .background(.white)
+      .background(.surface)
       .accessibilityIdentifier("verification-tools")
       .navigationTitle("QA用の確認")
       .navigationBarTitleDisplayMode(.inline)
@@ -154,7 +154,7 @@
           .textInputAutocapitalization(.never)
           .padding(.horizontal, 14)
           .frame(minHeight: 44)
-          .overlay { Rectangle().strokeBorder(.black, lineWidth: 1) }
+          .overlay { Rectangle().strokeBorder(.ink, lineWidth: 1) }
           .accessibilityLabel(label)
           .accessibilityIdentifier(identifier)
       }
@@ -227,7 +227,7 @@
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("QA用 1件")
         .accessibilityAddTraits(.isHeader)
-        Rectangle().fill(.black).frame(height: 2)
+        Rectangle().fill(.ink).frame(height: 2)
         VStack(alignment: .leading, spacing: 10) {
           Text(entry.label).font(.title3.bold()).multilineTextAlignment(.leading)
             .accessibilityAddTraits(.isHeader)
@@ -236,7 +236,7 @@
         .padding(.vertical, 16)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("verification-result")
-        Rectangle().fill(.black).frame(height: 1)
+        Rectangle().fill(.ink).frame(height: 1)
       }
     }
   }

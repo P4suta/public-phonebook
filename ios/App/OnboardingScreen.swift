@@ -17,14 +17,16 @@ struct OnboardingScreen: View {
       ScrollView {
         VStack(alignment: .leading, spacing: 20) {
           if step != .welcome {
-            Text("\(step.rawValue) / 2").font(.subheadline)
-              .accessibilityLabel("2つのうち\(step.rawValue)つめ")
+            Text("\(step.rawValue) / 2").font(.subheadline).fixedSize(
+              horizontal: false, vertical: true
+            )
+            .accessibilityLabel("2つのうち\(step.rawValue)つめ")
           }
           content
         }
         .padding(20).frame(maxWidth: .infinity, alignment: .leading)
       }
-      .background(.white)
+      .background(.surface)
       .safeAreaInset(edge: .bottom, spacing: 0) { footer }
       .toolbar {
         if step != .welcome {
@@ -39,9 +41,9 @@ struct OnboardingScreen: View {
         }
       }
       .navigationBarTitleDisplayMode(.inline)
-      .toolbarBackground(.white, for: .navigationBar)
+      .toolbarBackground(.surface, for: .navigationBar)
     }
-    .tint(.black)
+    .tint(.ink)
   }
 
   @ViewBuilder private var content: some View {
@@ -68,15 +70,22 @@ struct OnboardingScreen: View {
       if integration.ready {
         heading("準備ができました")
         Text("施設の名前か電話番号を入れると、さがせます。")
+        if integration.bundledOnly, let manifest = integration.manifest {
+          Text("アプリに入っている、\(manifest.dataDate.formatted(date: .long, time: .omitted))のデータを使います。")
+            .accessibilityIdentifier("bundled-date")
+          Text("通信できるようになると、新しいデータを自動で受け取ります。")
+        }
         Text("電話の相手が分かるようにする設定は、あとから「設定」で変えられます。")
       } else if let stopped = integration.stopped {
         heading("データの受け取りが止まりました")
         Text(stopped).fixedSize(horizontal: false, vertical: true)
           .accessibilityIdentifier("sync-error")
       } else {
-        heading(FirstDownloadProgress.heading)
+        heading(FirstDownloadProgress.heading(preparing: integration.preparing))
         if let wait = integration.wait {
-          FirstDownloadProgress(wait: wait, fraction: integration.fraction, showsHeading: false)
+          FirstDownloadProgress(
+            wait: wait, fraction: integration.fraction, preparing: integration.preparing,
+            showsHeading: false)
         }
       }
     }
@@ -90,7 +99,9 @@ struct OnboardingScreen: View {
     VStack(alignment: .leading, spacing: 12) {
       switch step {
       case .welcome:
-        DataSizeNotice(megabytes: integration.megabytes, prominent: integration.costlyPath)
+        if let notice = integration.notice {
+          DataSizeNotice(notice: notice, costlyPath: integration.costlyPath)
+        }
         Button {
           integration.startFirstDownload()
           move(to: .caller)
@@ -122,8 +133,8 @@ struct OnboardingScreen: View {
       }
     }
     .padding(20)
-    .background(.white)
-    .overlay(alignment: .top) { Rectangle().fill(.black).frame(height: 1) }
+    .background(.surface)
+    .overlay(alignment: .top) { Rectangle().fill(.ink).frame(height: 1) }
   }
 
   private func heading(_ text: String) -> some View {

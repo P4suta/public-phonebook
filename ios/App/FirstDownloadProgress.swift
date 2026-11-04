@@ -5,10 +5,14 @@ import SwiftUI
 struct FirstDownloadProgress: View {
   let wait: WaitDisplay
   let fraction: Double
+  /// Nothing needs receiving, so the heading says preparing and the receive step shows as done.
+  let preparing: Bool
   /// The search start screen shows the heading, and the ready step's large title carries the same words.
   let showsHeading: Bool
 
-  static let heading = "アプリで使うデータを受け取っています"
+  static func heading(preparing: Bool) -> String {
+    preparing ? "アプリで使うデータを準備しています" : "アプリで使うデータを受け取っています"
+  }
   static let steps = ["データを受け取る", "さがせるように整える", "電話の相手が分かるようにする"]
 
   /// What the line under the current step says, one entry per line.
@@ -23,14 +27,17 @@ struct FirstDownloadProgress: View {
   }
 
   private var percent: Int { Int((min(max(fraction, 0), 1) * 100).rounded(.down)) }
-  private var current: Int { min(max(wait.shown, 0), Self.steps.count - 1) }
+  private var current: Int {
+    min(max(wait.shown, preparing ? 1 : 0), Self.steps.count - 1)
+  }
 
   var body: some View {
     let lines = Self.timeLines(wait)
+    let heading = Self.heading(preparing: preparing)
     VStack(alignment: .leading, spacing: 20) {
       VStack(alignment: .leading, spacing: 12) {
         if showsHeading {
-          Text(Self.heading).font(.headline).fixedSize(horizontal: false, vertical: true)
+          Text(heading).font(.headline).fixedSize(horizontal: false, vertical: true)
         }
         ProgressTrack(fraction: fraction)
       }
@@ -45,7 +52,7 @@ struct FirstDownloadProgress: View {
       Text("次からは、すぐに使えます。").font(.callout).fixedSize(horizontal: false, vertical: true)
     }
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel(Self.heading)
+    .accessibilityLabel(heading)
     .accessibilityValue(
       (["\(percent)パーセント", Self.steps[current]] + lines).joined(separator: "、")
     )
@@ -53,20 +60,20 @@ struct FirstDownloadProgress: View {
   }
 }
 
-/// One continuous bar: a black fill inside a white track with a black outline.
+/// One continuous bar: an ink fill inside a surface track with an ink outline.
 private struct ProgressTrack: View {
   let fraction: Double
 
   var body: some View {
     GeometryReader { geometry in
       ZStack(alignment: .leading) {
-        Rectangle().fill(.black)
+        Rectangle().fill(.ink)
           .frame(width: max(0, geometry.size.width * min(max(fraction, 0), 1)))
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-      .background(.white)
+      .background(.surface)
       .clipShape(RoundedRectangle(cornerRadius: 3))
-      .overlay { RoundedRectangle(cornerRadius: 3).strokeBorder(.black, lineWidth: 1) }
+      .overlay { RoundedRectangle(cornerRadius: 3).strokeBorder(.ink, lineWidth: 1) }
     }
     .frame(height: 6)
   }
@@ -78,10 +85,11 @@ private struct DownloadStep: View {
   let label: String
   let status: Status
   let timeLines: [String]
+  @ScaledMetric private var iconSize: CGFloat = 22
 
   var body: some View {
     HStack(alignment: .top, spacing: 8) {
-      icon.frame(width: 22, height: 22)
+      icon.frame(width: iconSize, height: iconSize)
       VStack(alignment: .leading, spacing: 2) {
         Text(label).font(status == .current ? .body.weight(.semibold) : .body)
           .fixedSize(horizontal: false, vertical: true)
@@ -102,17 +110,28 @@ private struct DownloadStep: View {
   }
 }
 
-/// The download size over the start button, bold with the info icon on an expensive or constrained path.
+/// The notice over the start button.
+/// A transfer's size turns bold with the info icon on an expensive or constrained path, and data in the app needs no network.
 struct DataSizeNotice: View {
-  let megabytes: Int
-  let prominent: Bool
+  let notice: WelcomeNotice
+  let costlyPath: Bool
+
+  private var prominent: Bool {
+    if case .size = notice { costlyPath } else { false }
+  }
 
   var body: some View {
     HStack(alignment: .top, spacing: 8) {
       if prominent { DesignIcon(name: "info") }
       VStack(alignment: .leading, spacing: 0) {
-        Text("受け取るデータは約\(megabytes)MBです。")
-        Text("Wi-Fiなどの速い回線につなぐと、早く終わります。")
+        switch notice {
+        case .noTransfer:
+          Text("データはアプリに入っています。")
+          Text("通信せずに準備できます。")
+        case .size(let bytes):
+          Text("受け取るデータは約\(DownloadSchedule.megabytes(bytes))MBです。")
+          Text("Wi-Fiなどの速い回線につなぐと、早く終わります。")
+        }
       }
       .font(prominent ? .body.weight(.semibold) : .body)
       .fixedSize(horizontal: false, vertical: true)

@@ -160,6 +160,13 @@ private struct RefusingNotifier: ExtensionNotifier {
     RefreshPolicy.nextDate(generatedAt: "yesterday", savedAt: saved, lastAttempt: nil) == fallback)
 }
 
+@Test func theDataDateIsTheSnapshotsGeneratedDate() throws {
+  let saved = try #require(ISO8601DateFormatter().date(from: "2026-11-04T00:00:00Z"))
+  let generated = try #require(ISO8601DateFormatter().date(from: "2026-10-29T00:00:00Z"))
+  #expect(RefreshPolicy.dataDate(generatedAt: "2026-10-29T00:00:00Z", savedAt: saved) == generated)
+  #expect(RefreshPolicy.dataDate(generatedAt: "yesterday", savedAt: saved) == saved)
+}
+
 @Test(.timeLimit(.minutes(1)))
 func automaticRefreshMatchesIndependentGregorianMonthEndsAcrossFourCenturies() throws {
   func days(_ year: Int, _ month: Int) -> Int {

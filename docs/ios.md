@@ -23,7 +23,11 @@ Override PHONEBOOK_API_ORIGIN only for an explicitly selected test build.
 The generator inspects all six actual Xcode configurations and rejects missing or incorrect environment fields.
 
 The app's property list declares a [launch screen](https://developer.apple.com/documentation/xcode/specifying-your-apps-launch-screen) with the `LaunchBackground` color from `ios/Config/Launch.xcassets`.
-That color matches the first screen's white background, as the [launching guidelines](https://developer.apple.com/design/human-interface-guidelines/launching) ask, and the launch screen shows no text or logo.
+That color matches the first screen's surface, white in the light appearance and black in the dark one, as the [launching guidelines](https://developer.apple.com/design/human-interface-guidelines/launching) ask, and the launch screen shows no text or logo.
+The app follows the system appearance, as the [Dark Mode guidelines](https://developer.apple.com/design/human-interface-guidelines/dark-mode) ask, by swapping the black and white of [the visual rules](design.md#visual-rules).
+Icons scale with the text size through `@ScaledMetric` from their sizes at the default text size, and controls keep their 44-point targets.
+Every alert titles its cancel button `キャンセル`, as the [Alerts guidelines](https://developer.apple.com/design/human-interface-guidelines/alerts) ask.
+The app ships without a String Catalog, because it supports Japanese alone and SwiftUI already treats each literal text as a localization key.
 XcodeGen writes `ios/Config/App-Info.plist` from `ios/project.yml`, and Release and VerificationRelease take that list.
 The generator writes `ios/Config/App-Info-LocalNetworking.plist` from it with `NSAllowsLocalNetworking` added, and the generator rejects any other difference.
 Debug, DevRelease, VerificationDebug, and ProductionDebug take that second list, because they reach the loopback fixture for development, the UI scenarios, and the store screenshots.
@@ -52,11 +56,17 @@ The fast gate refuses a national declaration whose dataset `sources/shipped-snap
 The fixture never ships, so the list never names it.
 
 The app keeps the whole national directory on the device.
-The first launch opens a setup flow that starts the download when the reader presses the start button, explains caller identification, and then waits for the data.
-Over that button, a notice names the listed size rounded up to whole megabytes and suggests a fast connection.
-Without the listing, the notice names the 14 MB of the archive on 2026-11-04.
-The notice turns bold with the info icon on an expensive or constrained path, which `NWPathMonitor` reports.
-A relaunch after the start button continues the download without another press.
+The first launch opens a setup flow that starts the first run when the reader presses the start button, explains caller identification, and then waits for the data.
+Over that button, a notice follows the first run's plan.
+A delta or the complete archive names its listed size and suggests a fast connection.
+A size under 1 MB keeps one decimal rounded up to 0.1 MB, and a larger size rounds up to whole megabytes.
+A current bundle or an unreachable listing says that the data is in the app and that the setup needs no network.
+Until the listing answers, the notice follows an unreachable listing, so an app without a readable bundle names the 14 MB of the archive on 2026-11-04.
+A size turns bold with the info icon on an expensive or constrained path, which `NWPathMonitor` reports.
+When nothing needs receiving, the heading says that the app prepares its data, and the receive step shows as done.
+A first run that saved the bundled data alone adds that data's date and says that new data arrives automatically once the app can connect.
+That run leaves the daily check due, so the next launch or return to the foreground checks the listing.
+A relaunch after the start button continues the first run without another press.
 The app adds nothing to the Contacts app, and deleting the app removes everything it saved.
 The app reads `/api/datasets` and picks the one file whose `format` is `public-phonebook-directory/1`, and it skips entries in other formats unread.
 When the listing has no file in that format, the app asks the reader to update it.
@@ -120,7 +130,9 @@ A `DeltaBase` over that file serves the copied rows, and the delta header's deco
 The engine rebuilds the listed archive, stages it with the plain reader, and activates one generation.
 With nothing to receive, it stages the bundled archive directly.
 With a readable bundle, a failed listing, transfer, rebuild, or check stages the bundled archive alone, and the result reports that fallback.
-Bundled rows that fail during staging count as an unreadable bundle.
+Bundled rows that fail during staging count as an unreadable bundle, so the app drops the bundle for the session and downloads the complete archive.
+The app opens `directory.tsv.br` and `directory.json` from its resources.
+Debug builds read `PHONEBOOK_BUNDLED_ARCHIVE` and `PHONEBOOK_BUNDLED_ENTRY` at launch in place of that pair, so a UI scenario can name the fixture's pair or missing files, and other builds ignore them.
 The decoded base and the rebuilt archive leave with the run after success, failure, or cancellation.
 A cut transfer keeps its received bytes in the store's `transfers` directory, as every download does.
 Progress reports keep the three stages, so `WaitDisplay` and its proof stay unchanged.

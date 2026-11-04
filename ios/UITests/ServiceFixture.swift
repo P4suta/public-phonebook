@@ -48,12 +48,24 @@ final class ServiceFixture: Sendable {
     let value = Mutex(State())
   }
 
-  /// The provider fixture on the port that the iOS gate passed to the test runner, or on the development port.
-  private static let upstream: String = {
-    let port =
-      ProcessInfo.processInfo.environment["PHONEBOOK_FIXTURE_PORT"].flatMap { UInt16($0) } ?? 3_100
-    return "http://127.0.0.1:\(port)"
-  }()
+  /// The provider fixture's revisions, each served on its own port.
+  enum Revision: Sendable {
+    /// The revision that the bundled fixture archive holds.
+    case baseline
+    /// The next revision, which lists a delta from the baseline.
+    case updated
+
+    /// The provider fixture on the port that the iOS gate passed to the test runner, or on a development port.
+    var upstream: String {
+      let (variable, development): (String, UInt16) =
+        switch self {
+        case .baseline: ("PHONEBOOK_FIXTURE_PORT", 3_100)
+        case .updated: ("PHONEBOOK_FIXTURE_UPDATED_PORT", 3_101)
+        }
+      let port = ProcessInfo.processInfo.environment[variable].flatMap { UInt16($0) } ?? development
+      return "http://127.0.0.1:\(port)"
+    }
+  }
 
   private let listener: NWListener
   private let state = Storage()
@@ -61,7 +73,8 @@ final class ServiceFixture: Sendable {
   private let started = ContinuousClock.now
   let origin: String
 
-  init() async throws {
+  init(revision: Revision = .baseline) async throws {
+    let upstream = revision.upstream
     let parameters = NWParameters.tcp
     parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
     let listener = try NWListener(using: parameters)
@@ -76,7 +89,9 @@ final class ServiceFixture: Sendable {
     listener.newConnectionHandler = { connection in
       state.value.withLock { $0.connections.append(connection) }
       connection.start(queue: .global())
-      Self.receive(connection, prefix: Data(), state: state, session: session, started: started)
+      Self.receive(
+        connection, prefix: Data(), state: state, session: session, started: started,
+        upstream: upstream)
     }
     let ready = Mutex<CheckedContinuation<Void, any Error>?>(nil)
     try await withCheckedThrowingContinuation { continuation in
@@ -97,6 +112,16 @@ final class ServiceFixture: Sendable {
     }
     guard let port = listener.port else { throw URLError(.cannotConnectToHost) }
     origin = "http://127.0.0.1:\(port.rawValue)"
+  }
+
+  /// Stops listening and closes every connection, so the app's requests meet a refused connection.
+  func stop() {
+    listener.cancel()
+    let connections = state.value.withLock { value in
+      value.closed = true
+      return value.connections
+    }
+    for connection in connections { connection.cancel() }
   }
 
   func failNext(_ route: Route, with fault: Fault = .unavailable) {
@@ -155,7 +180,7 @@ final class ServiceFixture: Sendable {
 
   private static func receive(
     _ connection: NWConnection, prefix: Data, state: Storage, session: URLSession,
-    started: ContinuousClock.Instant
+    started: ContinuousClock.Instant, upstream: String
   ) {
     connection.receive(minimumIncompleteLength: 1, maximumLength: 16_384 - prefix.count) {
       bytes, _, finished, error in
@@ -165,14 +190,16 @@ final class ServiceFixture: Sendable {
           connection.cancel()
           return
         }
-        receive(connection, prefix: data, state: state, session: session, started: started)
+        receive(
+          connection, prefix: data, state: state, session: session, started: started,
+          upstream: upstream)
         return
       }
       let request = String(decoding: data, as: UTF8.self)
       guard let line = request.components(separatedBy: "\r\n").first else { return }
       let parts = line.split(separator: " ")
       guard parts.count == 3, parts[0] == "GET", parts[1].hasPrefix("/api"),
-        let url = URL(string: Self.upstream + parts[1])
+        let url = URL(string: upstream + parts[1])
       else {
         connection.cancel()
         return

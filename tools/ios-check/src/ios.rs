@@ -15,6 +15,7 @@ use std::{
 mod app_info;
 mod build_number;
 mod bundled;
+mod colors;
 mod distribution;
 mod failure;
 mod lease;
@@ -97,7 +98,7 @@ const SANITIZED_CONTRACTS: [&str; 4] = [
     "cancellationBeforeAndDuringRealRequestsAlwaysCompletes",
     "firstRunAppliesTheListedDeltaToTheBundleOnce",
 ];
-const UI_TESTS: [&str; 17] = [
+const UI_TESTS: [&str; 23] = [
     "testOnboardingSavesTheDirectoryBeforeSearch",
     "testSearchGroupsResultsAndShowsMore",
     "testTelephoneSearchFindsEveryRecordForTheNumber",
@@ -115,8 +116,16 @@ const UI_TESTS: [&str; 17] = [
     "testFailedAutomaticUpdateKeepsTheSavedDirectory",
     "testLandscapeLargeTextSettings",
     "testAboutStaysInTheAppAndLicenseIsReadable",
+    "testDeltaNoticeReceivesOnlyTheDeltaFromTheBundle",
+    "testNoTransferNoticePreparesTheBundledData",
+    "testFirstRunWithTheServiceStoppedUsesTheBundledData",
+    "testDarkAppearanceSwapsBlackAndWhite",
+    "testLargestTextScalesIconsBesideTheirLabels",
+    "testSearchFieldShowsOneClearControl",
 ];
-const REQUIRED_TESTS: [&str; 82] = [
+/// The UI scenarios that run with the simulator in the dark appearance.
+const DARK_UI_TESTS: [&str; 1] = ["testDarkAppearanceSwapsBlackAndWhite"];
+const REQUIRED_TESTS: [&str; 83] = [
     "currentProviderArchiveImportsTheNationalDirectory",
     "providerArchiveSavesTheExpectedGenerationContent",
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
@@ -187,6 +196,7 @@ const REQUIRED_TESTS: [&str; 82] = [
     "providerArchiveOpensAndPassesTheBuildAdmission",
     "everyDifferingEntryFieldIsNamed",
     "firstRunPlanFollowsTheRecordForEveryPair",
+    "downloadSizesUnderOneMegabyteRoundUpToATenth",
     "providerDeltaRebuildsTheUpdatedArchiveFromTheBundle",
     "firstRunAppliesTheListedDeltaToTheBundleOnce",
     "failedFirstRunsSaveTheBundledSnapshot",
@@ -473,7 +483,34 @@ fn build_number(run_number: u32, run_attempt: u32, output: Option<&Path>) -> Res
 
 /// The variable that carries the fixture's port to `tools/native-fixture.ts` and, with xcodebuild's runner prefix, to the UI tests.
 const FIXTURE_PORT_VARIABLE: &str = "PHONEBOOK_FIXTURE_PORT";
+/// The variable that carries the next revision's port to the UI tests.
+const UPDATED_FIXTURE_PORT_VARIABLE: &str = "PHONEBOOK_FIXTURE_UPDATED_PORT";
+/// The variable that selects the revision that `tools/native-fixture.ts` serves.
+const FIXTURE_REVISION_VARIABLE: &str = "PHONEBOOK_FIXTURE_REVISION";
 const TEST_RUNNER_PREFIX: &str = "TEST_RUNNER_";
+
+/// The fixture's revisions: the bundled baseline, and the next one with a delta from it.
+#[derive(Clone, Copy)]
+enum Revision {
+    Baseline,
+    Updated,
+}
+
+impl Revision {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Baseline => "baseline",
+            Self::Updated => "updated",
+        }
+    }
+
+    fn log(self) -> &'static str {
+        match self {
+            Self::Baseline => "target/ios/fixture-server.log",
+            Self::Updated => "target/ios/fixture-server-updated.log",
+        }
+    }
+}
 
 struct Fixture {
     child: Child,
@@ -482,17 +519,18 @@ struct Fixture {
 
 impl Fixture {
     /// Starts the fixture on a loopback port that the kernel reports free, so another process on the development port can't stop the gate.
-    fn start(root: &Path) -> Result<Self> {
+    fn start(root: &Path, revision: Revision) -> Result<Self> {
         let listener = TcpListener::bind((LOOPBACK_HOST, 0))
             .context("The iOS fixture found no free loopback port")?;
         let port = listener.local_addr()?.port();
         drop(listener);
         let address = (LOOPBACK_HOST, port);
-        let file = fs::File::create(root.join("target/ios/fixture-server.log"))?;
+        let file = fs::File::create(root.join(revision.log()))?;
         let child = Command::new("node")
             .current_dir(root)
             .args(["tools/native-fixture.ts", "--serve"])
             .env(FIXTURE_PORT_VARIABLE, port.to_string())
+            .env(FIXTURE_REVISION_VARIABLE, revision.name())
             .stdout(Stdio::from(file.try_clone()?))
             .stderr(Stdio::from(file))
             .spawn()?;
@@ -906,6 +944,16 @@ fn require_ui_inventory(inventory: &Value) -> Result<()> {
     Ok(())
 }
 
+/// Sets the simulator's system appearance, which `XCUIDevice` didn't change on the pinned simulator.
+fn appearance(root: &Path, identifier: &str, case: &str, style: &str) -> Result<()> {
+    logged(
+        root,
+        &format!("{case}-appearance-{style}"),
+        Command::new("xcrun").args(["simctl", "ui", identifier, "appearance", style]),
+    )?;
+    Ok(())
+}
+
 fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
     ensure!(
         selected
@@ -927,17 +975,29 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
         fs::remove_dir_all(&evidence)?;
     }
     let sources = source_hashes(root)?;
-    let fixture = if live {
-        None
+    let fixtures = if live {
+        Vec::new()
     } else {
-        Some(Fixture::start(root)?)
+        vec![
+            (
+                FIXTURE_PORT_VARIABLE,
+                Fixture::start(root, Revision::Baseline)?,
+            ),
+            (
+                UPDATED_FIXTURE_PORT_VARIABLE,
+                Fixture::start(root, Revision::Updated)?,
+            ),
+        ]
     };
-    let runner_port = fixture.as_ref().map(|fixture| {
-        (
-            format!("{TEST_RUNNER_PREFIX}{FIXTURE_PORT_VARIABLE}"),
-            fixture.port.to_string(),
-        )
-    });
+    let runner_ports = fixtures
+        .iter()
+        .map(|(variable, fixture)| {
+            (
+                format!("{TEST_RUNNER_PREFIX}{variable}"),
+                fixture.port.to_string(),
+            )
+        })
+        .collect::<Vec<_>>();
     let simulator = device(root)?;
     let identifier = simulator.id().to_owned();
     let directory = tempfile::Builder::new()
@@ -1024,8 +1084,10 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
             let started = SystemTime::now();
             previous = started;
             let mut scenario = ui_command(root, &identifier);
-            if let Some((variable, port)) = &runner_port {
-                scenario.env(variable, port);
+            scenario.envs(runner_ports.iter().map(|(variable, port)| (variable, port)));
+            let dark = DARK_UI_TESTS.contains(&name);
+            if dark {
+                appearance(root, &identifier, &case, "dark")?;
             }
             let execution = logged(
                 root,
@@ -1038,6 +1100,9 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
                     ))
                     .arg("test-without-building"),
             );
+            if dark {
+                appearance(root, &identifier, &case, "light")?;
+            }
             let read_result = |kind| -> Result<Value> {
                 let output = logged(
                     root,
@@ -1238,6 +1303,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
             let sources = source_hashes(root)?;
             log_privacy::check(root)?;
             required_reasons::check(root)?;
+            colors::check(root)?;
             logged(
                 root,
                 "swiftlint",
@@ -1734,6 +1800,11 @@ mod tests {
             let _next = GateLease::acquire(&path)?;
         }
         Ok(())
+    }
+
+    #[test]
+    fn every_dark_appearance_case_is_a_declared_ui_case() {
+        assert!(DARK_UI_TESTS.iter().all(|name| UI_TESTS.contains(name)));
     }
 
     #[test]

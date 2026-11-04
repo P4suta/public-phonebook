@@ -22,8 +22,7 @@ struct PhonebookApp: App {
     WindowGroup {
       if let directory, let integration {
         RootView(directory: directory, integration: integration)
-          .preferredColorScheme(.light)
-          .tint(.black)
+          .tint(.ink)
       } else {
         Text(startupError ?? "アプリを開けませんでした。")
           .padding()

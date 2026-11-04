@@ -1,6 +1,7 @@
 import PhonebookCore
 import PhonebookKit
 import SwiftUI
+import UIKit
 
 struct SearchScreen: View {
   @Bindable var model: DirectoryModel
@@ -22,10 +23,11 @@ struct SearchScreen: View {
           .accessibilityValue(model.results?.input ?? "")
       }
       .scrollDismissesKeyboard(.interactively)
-      .background(.white)
+      .background(SingleClearControl())
+      .background(.surface)
       .navigationTitle(AppIdentity.displayName)
       .navigationBarTitleDisplayMode(.inline)
-      .toolbarBackground(.white, for: .navigationBar)
+      .toolbarBackground(.surface, for: .navigationBar)
       .searchable(
         text: $model.query, placement: .navigationBarDrawer(displayMode: .always),
         prompt: "施設の名前や電話番号"
@@ -54,7 +56,7 @@ struct SearchScreen: View {
       }
       .navigationDestination(for: Contact.self) { ContactScreen(contact: $0) }
     }
-    .tint(.black)
+    .tint(.ink)
   }
 
   /// What the total announcement depends on, so each keystroke restarts its wait.
@@ -84,8 +86,11 @@ struct SearchScreen: View {
         Text("施設の名前か、電話番号を入れてください。")
         // Only a first download shows here, because automatic updates stay silent.
         if integration.receiving, let wait = integration.wait {
-          FirstDownloadProgress(wait: wait, fraction: integration.fraction, showsHeading: true)
-            .padding(.top, 16)
+          FirstDownloadProgress(
+            wait: wait, fraction: integration.fraction, preparing: integration.preparing,
+            showsHeading: true
+          )
+          .padding(.top, 16)
         }
         if !model.ready, integration.manifest == nil, let stopped = integration.stopped {
           VStack(alignment: .leading, spacing: 8) {
@@ -100,7 +105,7 @@ struct SearchScreen: View {
       .accessibilityElement(children: .contain)
       .accessibilityIdentifier("search-hint")
       if integration.callerStatus.promptsForSettings {
-        Rectangle().fill(.black).frame(height: 1).padding(.top, 24)
+        Rectangle().fill(.ink).frame(height: 1).padding(.top, 24)
         VStack(alignment: .leading, spacing: 12) {
           Text("病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前を出せます。")
           Text("iPhoneの設定で、\(AppIdentity.displayName)を許可してください。")
@@ -156,14 +161,14 @@ struct SearchScreen: View {
     .accessibilityLabel("\(group.label) \(group.total)件")
     .accessibilityAddTraits(.isHeader)
     .accessibilityIdentifier("group-\(group.key)")
-    Rectangle().fill(.black).frame(height: 2)
+    Rectangle().fill(.ink).frame(height: 2)
     let visible = model.visible(group)
     ForEach(visible) { contact in
       ContactCard(contact: contact) { path.append(contact) }
         .onAppear {
           if contact.id == visible.last?.id, model.expanded(group) { model.more(group) }
         }
-      Rectangle().fill(.black).frame(height: 1)
+      Rectangle().fill(.ink).frame(height: 1)
     }
     if model.expandable(group), !model.expanded(group) {
       Button {
@@ -203,5 +208,49 @@ private struct ContactCard: View {
   /// Names what the details add to the card in plain words: the address, or more about the facility when it has none.
   private var detailLabel: String {
     contact.address.isEmpty ? "くわしい情報を見る" : "住所などを見る"
+  }
+}
+
+/// Removes the clear button inside the field that `.searchable` draws, so the system's close control beside the field is the one control that clears it.
+/// SwiftUI has no setting for that button, and `clearButtonMode` isn't an appearance selector, so this view sets it on the field in its window.
+private struct SingleClearControl: UIViewRepresentable {
+  func makeUIView(context: Context) -> Finder { Finder() }
+  func updateUIView(_ view: Finder, context: Context) { view.hideClearButtons() }
+
+  final class Finder: UIView {
+    override init(frame: CGRect) {
+      super.init(frame: frame)
+      isUserInteractionEnabled = false
+      isAccessibilityElement = false
+      // The field may appear after this view joins the window, and it shows the button only while editing.
+      NotificationCenter.default.addObserver(
+        self, selector: #selector(beganEditing(_:)),
+        name: UITextField.textDidBeginEditingNotification, object: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
+
+    override func didMoveToWindow() {
+      super.didMoveToWindow()
+      hideClearButtons()
+    }
+
+    @objc private func beganEditing(_ notification: Notification) {
+      guard let field = notification.object as? UISearchTextField, field.window === window else {
+        return
+      }
+      field.clearButtonMode = .never
+    }
+
+    func hideClearButtons() {
+      guard let window else { return }
+      for field in Self.searchFields(in: window) { field.clearButtonMode = .never }
+    }
+
+    private static func searchFields(in view: UIView) -> [UISearchTextField] {
+      if let field = view as? UISearchTextField { return [field] }
+      return view.subviews.flatMap { searchFields(in: $0) }
+    }
   }
 }
