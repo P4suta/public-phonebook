@@ -262,7 +262,7 @@ A job in the `candidate`, `release-candidate`, `observe`, or `production` enviro
 A `production` job must follow another job, so the owner approves only after the candidate check.
 Jobs in `release-candidate` and `production` must share the non-cancelling `publication-production` concurrency group.
 A Doppler step must keep its secrets out of the job environment and fetch `ci_` plus its own environment's name.
-Only a step that continues on error may request another environment's config, which is how a refusal control works.
+Only a step that continues on error may request another environment's config.
 The unit tests keep a violating fixture for each rule.
 
 `tools/workflow-schedule.ts` models how GitHub schedules jobs: `needs`, job conditions, the status functions, the implicit `success()`, and skips that propagate through ancestors.
@@ -276,12 +276,14 @@ A condition outside the supported grammar fails the policy, so a new construct n
 
 `pipeline-controls.yml` fails unless each refusal happens for its expected reason.
 - The fake-provider tests refuse an unverified, displaced, removed, or different candidate, a second lease holder, and evidence from another tree, manifest, or signer.
-- The observe identity requests the `ci_production` config, and the next step requires that request to fail.
+- The observe identity exchanges its GitHub token with Doppler and requests the `ci_production` config, and the step requires a 403 answer that carries a Doppler error message.
+  A failed exchange, a network failure, another status, or an answer without that message fails the control, and a successful read fails it without printing the secrets.
 - The read-only token tries to deploy a version that doesn't exist, and the step requires an authorization refusal rather than a missing-version error.
 - The withdrawal drill stages an attested build at 0%, runs the real candidate checks, injects a probe failure, and requires the withdrawal to leave production unchanged.
 
 The drill and the two token controls need the owner's Cloudflare tokens and Doppler configs, so they haven't run yet.
 The authorization refusal's exact message is an assumption about the Cloudflare API, and the first run confirms it.
+Doppler documents no status for a config outside an identity's access, so the 403 that the foreign-secret control requires is also an assumption that the first run confirms.
 
 ## Release record
 
