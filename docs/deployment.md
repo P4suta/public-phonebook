@@ -247,10 +247,18 @@ The [in-place verification decision](adr/verify-release-candidates-in-place-befo
 Every publication names its dataset by the SHA-256 of its ready manifest.
 
 ```sh
-mise x -- just release DATASET
+mise x -- just release DATASET [BUNDLE]
 ```
 
-The release command dispatches `release.yml` on `main` with the dataset input, finds the dispatched run, and watches it.
+The release command first runs a local preflight.
+It fetches `origin/main` and refuses unless the checkout is clean and its commit equals `origin/main`.
+It refuses unless the bundle, by default `.local/datasets/DATASET`, has a ready manifest with the dataset's digest.
+It then looks for a local passing receipt for each of the eight candidate stages, keyed by the digest of the files the stage reads and the dataset.
+It seeds the local state and builds when parity or e2e lacks a receipt, and it runs every stage without a receipt through `tools/test.ts`.
+`releasePreflight` in `src/core/publication-policy.ts` makes the dispatch decision, and `just prove` checks its contract.
+The preflight can't cover the checks that run on Cloudflare after the 0% deployment, or behavior that differs on the hosted runners, such as a server that sends them other bytes.
+
+After the preflight passes, the release command dispatches `release.yml` on `main` with the dataset input, finds the dispatched run, and watches it.
 It never publishes from the local machine and never adopts or bootstraps an environment on its own.
 Production publishes only from that workflow, with candidate evidence for the files each stage reads and the manifest.
 The publisher refuses a local `--stage`, `--verify-candidate`, `--promote`, `--drill`, or `--adopt`.

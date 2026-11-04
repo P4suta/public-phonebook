@@ -231,3 +231,33 @@ export function evidenceAdmission(
   if (!passed) return "failed-stage";
   return "admit";
 }
+
+export type ReleasePreflight =
+  | "dirty-tree"
+  | "not-release-head"
+  | "different-dataset"
+  | "run-stages"
+  | "dispatch";
+
+/** Dispatches a release only from a clean checkout of the release branch head, for the bundle's own dataset, once no candidate stage lacks a local pass. */
+export function releasePreflight(
+  clean: boolean,
+  head: string,
+  releaseHead: string,
+  bundleManifest: string,
+  dataset: string,
+  missingStages: number,
+): ReleasePreflight {
+  //@ verify
+  //@ requires missingStages >= 0
+  //@ ensures (\result === "dirty-tree") === !clean
+  //@ ensures (\result === "not-release-head") === (clean && head !== releaseHead)
+  //@ ensures (\result === "different-dataset") === (clean && head === releaseHead && bundleManifest !== dataset)
+  //@ ensures (\result === "run-stages") === (clean && head === releaseHead && bundleManifest === dataset && missingStages > 0)
+  //@ ensures (\result === "dispatch") === (clean && head === releaseHead && bundleManifest === dataset && missingStages === 0)
+  if (!clean) return "dirty-tree";
+  if (head !== releaseHead) return "not-release-head";
+  if (bundleManifest !== dataset) return "different-dataset";
+  if (missingStages > 0) return "run-stages";
+  return "dispatch";
+}
