@@ -197,6 +197,7 @@ Set `PHONEBOOK_FIXTURE_CONTACTS` and `PHONEBOOK_FIXTURE_CATALOG` to a production
 Run `mise x -- just ios-unit-test` for all compiled Swift package tests, strict lints, and coverage.
 Run `mise x -- just ios-check` for those checks, unsigned simulator and device builds, and the complete isolated simulator UI inventory.
 Run `mise x -- just ios-prove`, `mise x -- just ios-sanitize`, and `mise x -- just ios-mutate` for the heavier assurance checks.
+Run `mise x -- just ios-device-record` with one iPhone connected to measure the first run and walk the manual checks, as [device verification](ios-device-verification.md#measured-first-run) describes.
 `just ios-prove` compiles the eight Lean modules and two generated trace modules, and replays two generated roots, `PublicationModels` and `OmegaModels`, with `leanchecker --fresh`.
 `--fresh` replays every constant of a root's import closure, and the roots import each module exactly once, so they replay every constant that one run per module would.
 `PublicationModel` and `WaitDisplay` both declare `Phonebook.step`, so one root can't import every module.

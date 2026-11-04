@@ -104,6 +104,10 @@ ios-mutate:
 ios-ui-test *args:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- ui-test "$@"
 
+[positional-arguments]
+ios-device-record *args:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- device-record "$@"
+
 data-remote environment bundle:
     doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --only-secrets R2_ACCESS_KEY_ID --only-secrets R2_SECRET_ACCESS_KEY --no-fallback -- npm run data:remote -- {{ quote(environment) }} {{ quote(bundle) }}
 

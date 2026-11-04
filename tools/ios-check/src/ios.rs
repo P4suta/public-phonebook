@@ -15,6 +15,7 @@ use std::{
 mod app_info;
 mod build_number;
 mod bundled;
+mod device;
 mod distribution;
 mod failure;
 mod lease;
@@ -348,6 +349,12 @@ pub enum Action {
         base: String,
         #[arg(long)]
         output: Option<PathBuf>,
+    },
+    /// Measures the first run on one connected iPhone in retired instructions, and walks the on-device checks.
+    DeviceRecord {
+        /// The UDID or CoreDevice identifier, needed only when several iPhones are connected.
+        #[arg(long)]
+        device: Option<String>,
     },
 }
 
@@ -1178,6 +1185,11 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
             build_number.map(BuildNumber::new).transpose()?,
         )?;
     }
+    // A device record refuses before it waits for the lease or builds anything.
+    let prepared = match &action {
+        Action::DeviceRecord { device } => Some(device::prepare(root, device.as_deref())?),
+        _ => None,
+    };
     let _machine_lease = (!matches!(action, Action::Prove | Action::UnitTest))
         .then(lease::MachineLease::acquire)
         .transpose()?;
@@ -1229,6 +1241,10 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         ),
         Action::Screenshots { origin } => screenshots::capture(root, &origin),
         Action::Generate => Ok(()),
+        Action::DeviceRecord { .. } => {
+            let (device, delta) = prepared.context("The device record was not prepared")?;
+            device::run(root, &device, &delta)
+        }
         Action::StoreBuildControl => store_build::control(root),
         Action::UiTest { tests, live } => {
             ui_test(root, &tests, live)?;
@@ -1262,6 +1278,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "ios/App",
                     "ios/Native",
                     "ios/CallDirectory",
+                    "ios/DeviceMeasurements",
                     "ios/Sources",
                     "ios/Tests",
                     "ios/UITests",
