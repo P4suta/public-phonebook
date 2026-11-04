@@ -188,7 +188,7 @@ Its controls locate the row equal to the contact count and skip the snapshot che
 The directory delta decisions bound each copy inside the base, publish a delta only at half the complete archive or less, and admit a rebuilt archive only when every check holds.
 Their controls admit a delta as large as the archive, a copy one row past the base, and a result without a digest match.
 Each must fail with an unproved contract rather than a tool error.
-A tool error, timeout, missing condition, or empty inventory cannot count as that rejection.
+A tool error, timeout, exhausted resource limit, missing condition, or empty inventory cannot count as that rejection.
 
 The verifier uses a pinned base-image digest and a checked upstream archive digest.
 Each run copies its bound source, configuration, and lockfiles into a read-only input snapshot under `proof/input` before generating any models.
@@ -213,8 +213,8 @@ Its work counters list model generations, image builds, container starts, Dafny 
 A complete run starts one Docker container with no network, a read-only project mount, a 2 GiB memory limit, no swap allowance, two CPUs, 256 processes, and a 900-second safety stop.
 It runs the positive proof, then each negative control as its own Dafny process, two at a time to match its CPUs.
 Each control keeps its own exit status, output, and expected failure check, and a failure names the control.
-Each condition also has a fixed solver resource limit.
-A safety stop is inconclusive.
+Each condition has a fixed solver resource limit and no time limit, so a slow or emulated host reaches the same verdict.
+A Dafny run that the safety stop ends prints no summary, and the gate reports it as inconclusive.
 
 Boolean decisions use their complete finite domain.
 String proofs use JavaScript UTF-16 semantics.
