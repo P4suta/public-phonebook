@@ -5,9 +5,6 @@ import Testing
 
 @testable import PhonebookKit
 
-/// A cut reply stays open this long before the close, so the client delivers the bytes it received before it fails.
-private let cutLinger = Duration.milliseconds(300)
-
 /// A body long enough to arrive in more than one piece, with bytes that differ by position.
 private let body = Data((0..<200_000).map { UInt8(truncatingIfNeeded: $0 &* 31 &+ $0 >> 9) })
 
@@ -30,8 +27,9 @@ private func head(_ status: String, length: Int, extra: String = "") throws -> D
 }
 
 /// Answers a Range request with 206 from the requested byte, and a plain request with 200 that stops after `cut` bytes.
+/// Every connection stays open until the test calls `close()`.
 private func resumingServer(cut: Int, ranges: RequestLog) async throws -> HTTPTestServer {
-  try await HTTPTestServer(linger: cutLinger) { request in
+  try await HTTPTestServer(finish: false) { request in
     if let first = requestedRange(request) {
       ranges.record("\(first)")
       return
@@ -49,28 +47,27 @@ private func resumingServer(cut: Int, ranges: RequestLog) async throws -> HTTPTe
   let partials = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: partials) }
   let ranges = RequestLog()
-  let server = try await resumingServer(cut: 80_000, ranges: ranges)
+  let cut = 80_000
+  let server = try await resumingServer(cut: cut, ranges: ranges)
   let api = try APIClient(origin: server.origin)
   await #expect(throws: (any Error).self) {
-    _ = try await api.download(archive(), partials: partials)
+    _ = try await api.download(archive(), partials: partials) { report in
+      if report.resumed + report.received >= cut { server.close() }
+    }
   }
   let partial = partials.appendingPathComponent(
     "\(try sampleSnapshot().rawValue)-\(sha256Hex(body)).partial")
   let kept = try Data(contentsOf: partial)
-  #expect(!kept.isEmpty && kept.count <= 80_000)
-  #expect(kept == body.prefix(kept.count))
+  #expect(kept == body.prefix(cut))
   let reports = Mutex<[TransferProgress]>([])
   let file = try await api.download(archive(), partials: partials) { report in
     reports.withLock { $0.append(report) }
   }
   #expect(file == partial)
   #expect(try Data(contentsOf: file) == body)
-  #expect(ranges.ordered == ["whole", "\(kept.count)"])
+  #expect(ranges.ordered == ["whole", "\(cut)"])
   let last = try #require(reports.withLock { $0.last })
-  #expect(
-    last
-      == TransferProgress(resumed: kept.count, received: body.count - kept.count, total: body.count)
-  )
+  #expect(last == TransferProgress(resumed: cut, received: body.count - cut, total: body.count))
 }
 
 @Test(.timeLimit(.minutes(1))) func aServerThatIgnoresTheRangeRestartsTheFile() async throws {
@@ -174,7 +171,8 @@ private func resumingServer(cut: Int, ranges: RequestLog) async throws -> HTTPTe
   let listing = datasetsFixture(
     snapshot: snapshot, contacts: rows, sha256: digest, bytes: archive.count, url: file)
   let ranges = RequestLog()
-  let server = try await HTTPTestServer(linger: cutLinger) { request in
+  let cut = archive.count / 2
+  let server = try await HTTPTestServer(finish: false) { request in
     let target = request.split(separator: " ").dropFirst().first.map(String.init) ?? "/"
     if target == "/api/datasets" {
       return httpResponse(
@@ -191,14 +189,15 @@ private func resumingServer(cut: Int, ranges: RequestLog) async throws -> HTTPTe
         .map { $0 + archive[first...] } ?? Data()
     }
     ranges.record("whole")
-    return (try? head("200 OK", length: archive.count)).map {
-      $0 + archive.prefix(archive.count / 2)
-    }
-      ?? Data()
+    return (try? head("200 OK", length: archive.count)).map { $0 + archive.prefix(cut) } ?? Data()
   }
   let store = try SnapshotStore(root: root)
   let engine = SyncEngine(api: try APIClient(origin: server.origin), store: store)
-  await #expect(throws: (any Error).self) { _ = try await engine.synchronize { _ in } }
+  await #expect(throws: (any Error).self) {
+    _ = try await engine.synchronize { report in
+      if report.stage == SyncProgress.transfer, report.done >= cut { server.close() }
+    }
+  }
   #expect(try await store.manifest() == nil)
   let kept = try FileManager.default.contentsOfDirectory(atPath: store.transfers.path)
     .filter { $0.hasSuffix(".partial") }
@@ -206,12 +205,11 @@ private func resumingServer(cut: Int, ranges: RequestLog) async throws -> HTTPTe
   let keptBytes = try kept.first.map {
     try Data(contentsOf: store.transfers.appendingPathComponent($0)).count
   }
-  #expect(keptBytes.map { $0 > 0 && $0 <= archive.count / 2 } == true)
+  #expect(keptBytes == cut)
   let reported = Mutex<[SyncProgress]>([])
   let manifest = try await engine.synchronize { report in reported.withLock { $0.append(report) } }
   #expect(manifest.records == rows)
-  #expect(ranges.ordered.count == 2 && ranges.ordered.first == "whole")
-  #expect(ranges.ordered.last != "whole")
+  #expect(ranges.ordered == ["whole", "\(cut)"])
   #expect(
     try FileManager.default.contentsOfDirectory(atPath: store.transfers.path)
       .filter { $0.hasSuffix(".partial") }.isEmpty)
