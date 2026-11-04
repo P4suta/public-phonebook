@@ -1,3 +1,6 @@
+[workspace]
+members = ["step-meter"]
+
 [package]
 name = "ios-check"
 version = "0.1.0"

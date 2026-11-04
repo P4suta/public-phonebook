@@ -8,10 +8,15 @@ The previous Rust checks describe the previous implementation and do not verify 
 Run `mise x -- just check`.
 It runs strict TypeScript checking, Biome, type-aware Oxlint, and deterministic unit and property tests.
 It also runs npm dependency auditing, a publishable-file secret scan, and workflow checks.
-It needs no build, Rust toolchain, browser, container, or macOS host.
+Its verdict needs no build, Rust toolchain, browser, container, or macOS host.
 It requires no owner-specific service, credentials, or national archive.
-Its final JSON line lists the milliseconds of every step, and a table on standard error repeats them.
-The durations only report where the time goes, and no verdict reads them.
+Its final JSON line lists every step's milliseconds, retired instructions, coverage, and work counters, and a table on standard error repeats the time and instructions.
+On macOS the gate builds `step-meter` from the `tools/ios-check` workspace and runs each command as the meter's direct child.
+The kernel's count for a process covers the programs it execs, but not the processes it forks.
+A step is `complete` only when no measured process reaped a descendant or handed its work to a container.
+Otherwise the step is `partial`, and its `gaps` name the left-out work, such as `npm: forked processes`.
+Without the meter, as on Linux, every step is `unmeasured`.
+These numbers only report where the work goes, and no verdict reads them.
 
 Before every push, run `mise x -- just check-linux` as well.
 It's the local equivalent of the Verify job, as the [Linux gate](#linux-equivalent-of-verify) section describes.
@@ -203,7 +208,8 @@ Any difference, a missing receipt, or a receipt from an unfinished run starts th
 A reused result starts no verifier container and runs no negative control, because no proof runs.
 A failed run removes the receipt, and deleting `.local/proof-receipt.json` forces a complete run.
 Each workflow job starts from a fresh checkout without receipts, so its proof always runs in full.
-The final JSON line reports `verified` with the reason and the negative-control count for a complete run, or `reused`, and the milliseconds of every step.
+The final JSON line reports `verified` with the reason and the negative-control count for a complete run, or `reused`, and the step record that the fast gate describes.
+Its work counters list model generations, image builds, container starts, Dafny processes, and the solver resource units from the CSV log that each Dafny run writes to standard output.
 A complete run starts one Docker container with no network, a read-only project mount, a 2 GiB memory limit, no swap allowance, two CPUs, 256 processes, and a 900-second safety stop.
 It runs the positive proof, then each negative control as its own Dafny process, two at a time to match its CPUs.
 Each control keeps its own exit status, output, and expected failure check, and a failure names the control.
