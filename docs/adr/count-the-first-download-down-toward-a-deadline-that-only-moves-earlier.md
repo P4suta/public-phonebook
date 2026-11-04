@@ -8,6 +8,7 @@ date: 2026-11-04
 
 Accepted.
 The iPhone app shows its first download through this policy since #188.
+[Start from a bundled directory archive and catch up through deltas](start-from-a-bundled-directory-archive-and-catch-up-through-deltas.md) amends this record, because the run often transfers a delta or nothing.
 
 ## Context
 

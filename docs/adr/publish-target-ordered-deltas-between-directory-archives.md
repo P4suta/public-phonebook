@@ -9,6 +9,7 @@ date: 2026-11-02
 Accepted.
 The server publishes, lists, and checks deltas.
 The iPhone app applies them since #95, and downloads the complete archive after any delta failure.
+[Start from a bundled directory archive and catch up through deltas](start-from-a-bundled-directory-archive-and-catch-up-through-deltas.md) partly supersedes the retention rule with deltas from every shipped snapshot.
 
 ## Context
 
