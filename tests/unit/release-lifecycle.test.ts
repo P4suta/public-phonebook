@@ -498,15 +498,14 @@ describe("database bindings", () => {
     });
   });
 
-  it("binds a half-matching or adopted database without naming a verified release", () => {
-    for (const [digest, id] of [
-      ["database-a", "database-id-other"],
-      ["database-other", "database-id-a"],
-    ] as const)
-      expect(
-        publicationBinding(journal("candidate-verified"), digest, id),
-        `${digest} ${id}`,
-      ).toEqual({ bound: true, verifiedRelease: null });
+  it("binds a database of another dataset or an adopted one by its ID without naming a verified release", () => {
+    expect(
+      publicationBinding(
+        journal("candidate-verified"),
+        "database-other",
+        "database-id-a",
+      ),
+    ).toEqual({ bound: true, verifiedRelease: null });
     const adopted: ReleaseJournal = {
       ...journal("staged"),
       previous: {
@@ -520,6 +519,15 @@ describe("database bindings", () => {
       bound: true,
       verifiedRelease: null,
     });
+  });
+
+  it("leaves a fresh database of a dataset that a deployable target serves unbound, because the target holds another D1 ID", () => {
+    for (const phase of releasePhases)
+      for (const digest of ["database-a", "database-b"])
+        expect(
+          publicationBinding(journal(phase), digest, "database-id-fresh"),
+          `${phase} ${digest}`,
+        ).toEqual({ bound: false, verifiedRelease: null });
   });
 });
 

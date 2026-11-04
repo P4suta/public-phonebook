@@ -38,8 +38,8 @@ import { countWork, StepTimer } from "./step-timing.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 53;
-const declaredPostconditionCount = 104;
+const verifiedUnitCount = 54;
+const declaredPostconditionCount = 106;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -65,6 +65,7 @@ const expected = [
   "fitsSitePage",
   "importDecision",
   "databaseVerification",
+  "targetBinding",
   "promotionAdmission",
   "schoolEvidence",
   "singleCandidate",
@@ -182,6 +183,8 @@ const boundFiles = [
   "tools/remote-statements.ts",
   "tools/seed-database.ts",
   "tools/remote-data.ts",
+  "tools/import-identity.ts",
+  "tests/unit/import-identity.test.ts",
   "tools/publish.ts",
   "tests/public/playwright.config.ts",
   "tests/public/site.spec.ts",
@@ -353,10 +356,16 @@ const negativeControls: readonly NegativeControl[] = [
     to: '  if (!bound || complete) return "verify";\n',
   },
   {
-    name: "verification-digest",
+    name: "verification-identity",
     source: publicationPolicy,
-    from: "evidencePresent &&\n    (evidenceDatabase !== database || evidenceResource !== resource)",
+    from: "evidencePresent &&\n    (evidenceIdentity !== identity || evidenceResource !== resource)",
     to: "evidencePresent &&\n    evidenceResource !== resource",
+  },
+  {
+    name: "binding-dataset",
+    source: publicationPolicy,
+    from: 'if (!sameDatabase) return "unrelated";',
+    to: 'if (!sameDatabase && !sameDataset) return "unrelated";',
   },
   {
     name: "promotion-verified",

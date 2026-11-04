@@ -18,6 +18,7 @@ import {
   sha256Hex,
   writeOnce,
 } from "./control-store.ts";
+import { type ImportIdentity, importIdentity } from "./import-identity.ts";
 import { publicationBinding } from "./release-lifecycle.ts";
 import {
   encodeRecord,
@@ -242,11 +243,13 @@ export async function writeArchives(
   return written;
 }
 
-const databaseEvidenceFormat = 1;
+const databaseEvidenceFormat = 2;
 export const DatabaseEvidenceSchema = v.strictObject({
   formatVersion: v.literal(databaseEvidenceFormat),
   environment: RemoteEnvironmentSchema,
   databaseSha256: DigestSchema,
+  transformationSha256: DigestSchema,
+  importSha256: DigestSchema,
   database: v.pipe(v.string(), v.uuid()),
   verification: v.variant("source", [
     v.strictObject({
@@ -266,12 +269,12 @@ export type DatabaseEvidence = v.InferOutput<typeof DatabaseEvidenceSchema>;
 export async function readDatabaseEvidence(
   store: ControlStore,
   environment: RemoteEnvironment,
-  databaseSha256: string,
+  importSha256: string,
   databaseId: string,
 ): Promise<DatabaseEvidence | null> {
   const object = await readObject(
     store,
-    controlKeys.databaseEvidence(databaseSha256, databaseId),
+    controlKeys.databaseEvidence(importSha256, databaseId),
   );
   if (!object) return null;
   const evidence = v.parse(
@@ -293,7 +296,7 @@ export interface DatabaseFacts {
 export async function databaseFacts(
   store: ControlStore,
   environment: RemoteEnvironment,
-  databaseSha256: string,
+  identity: ImportIdentity,
   databaseId: string,
 ): Promise<DatabaseFacts> {
   const head = await loadRelease(store, environment);
@@ -301,14 +304,19 @@ export async function databaseFacts(
     throw new Error(
       "Preparation requires the publication journal, which names the databases that Worker versions bind",
     );
-  const binding = publicationBinding(head.journal, databaseSha256, databaseId);
+  const binding = publicationBinding(
+    head.journal,
+    identity.databaseSha256,
+    databaseId,
+  );
   return {
     verification: {
+      importSha256: identity.importSha256,
       resource: databaseId,
       evidence: await readDatabaseEvidence(
         store,
         environment,
-        databaseSha256,
+        identity.importSha256,
         databaseId,
       ),
       bound: binding.bound,
@@ -319,20 +327,22 @@ export async function databaseFacts(
   };
 }
 
-/** Records a full verification, or the publication whose staging required one, once for the database's digest and resource. */
+/** Records a full verification, or the publication whose staging required one, once for the database's import identity and resource. */
 export async function recordDatabaseVerification(
   store: ControlStore,
   environment: RemoteEnvironment,
-  databaseSha256: string,
+  identity: ImportIdentity,
   facts: DatabaseFacts,
   seeded: SeedResult,
   provenance: RunProvenance,
 ): Promise<DatabaseEvidence | null> {
   if (seeded.verification === "accept-evidence") return null;
+  if (identity.importSha256 !== facts.verification.importSha256)
+    throw new Error("The database facts belong to another import identity");
   const evidence = v.parse(DatabaseEvidenceSchema, {
     formatVersion: databaseEvidenceFormat,
     environment,
-    databaseSha256,
+    ...identity,
     database: facts.verification.resource,
     verification:
       seeded.verification === "verify"
@@ -346,7 +356,7 @@ export async function recordDatabaseVerification(
   });
   await writeOnce(
     store,
-    controlKeys.databaseEvidence(evidence.databaseSha256, evidence.database),
+    controlKeys.databaseEvidence(evidence.importSha256, evidence.database),
     encodeRecord(evidence),
   );
   return evidence;
@@ -404,9 +414,10 @@ async function prepare(
       join(bundle, "manifest.ready.json"),
     );
     const target = environments[environment];
+    const identity = importIdentity(manifest.databaseSha256);
     const databaseName = databaseResourceName(
       environment,
-      manifest.databaseSha256,
+      identity.importSha256,
     );
     const list = v.parse(
       v.array(v.object({ name: v.string(), uuid: v.string() })),
@@ -441,7 +452,7 @@ async function prepare(
     const facts = await databaseFacts(
       control,
       environment,
-      manifest.databaseSha256,
+      identity,
       database.uuid,
     );
     const sql = remoteSql(
@@ -449,7 +460,7 @@ async function prepare(
       join(directory, `${environment}-request.json`),
       { retryOverloadedReads: !facts.verification.bound },
     );
-    await checkImportIdentity(sql, manifest.databaseSha256);
+    await checkImportIdentity(sql, identity.importSha256);
     await prepareBucket(environment, provenance);
     for (const key of await writeArchives(
       controlStoreFromEnvironment(target.bucket),
@@ -470,14 +481,14 @@ async function prepare(
     await recordDatabaseVerification(
       control,
       environment,
-      manifest.databaseSha256,
+      identity,
       facts,
       seeded,
       provenance,
     );
     await writeFile(
       join(directory, `${environment}.json`),
-      `${JSON.stringify({ environment, snapshot: manifest.snapshot, manifestSha256, databaseSha256: manifest.databaseSha256, database: database.uuid, databaseName, bucket: target.bucket, contacts: manifest.contacts, verification: seeded.verification, result: "verified" }, null, jsonIndentation)}\n`,
+      `${JSON.stringify({ environment, snapshot: manifest.snapshot, manifestSha256, ...identity, database: database.uuid, databaseName, bucket: target.bucket, contacts: manifest.contacts, verification: seeded.verification, result: "verified" }, null, jsonIndentation)}\n`,
     );
   } finally {
     await lease.release();

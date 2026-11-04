@@ -7,6 +7,7 @@ date: 2026-10-30
 ## Status
 
 Proposed.
+[Identify each D1 database by its dataset and import transformation](identify-each-d1-database-by-its-dataset-and-import-transformation.md) partly supersedes its rule for remote database names.
 
 ## Context
 

@@ -9,6 +9,8 @@ date: 2026-11-04
 Proposed.
 It amends [verify release candidates in place before approval](verify-release-candidates-in-place-before-approval.md), whose candidates no longer always get a new D1 database.
 It amends [keep release records in a conditionally written control bucket](keep-release-records-in-a-conditionally-written-control-bucket.md) with database evidence under `evidence/`.
+[Identify each D1 database by its dataset and import transformation](identify-each-d1-database-by-its-dataset-and-import-transformation.md) amends this record.
+Evidence now keys on the import identity, and a target binds a database only through its D1 ID.
 
 ## Context
 

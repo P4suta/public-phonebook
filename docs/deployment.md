@@ -76,9 +76,9 @@ The `Release` workflow publishes a stored dataset as it is, so a delta exists on
 | Environment | Worker | Database | Bucket | Site |
 | --- | --- | --- | --- | --- |
 | development | dial-development | dial-development-directory | dial-development-datasets | 127.0.0.1:8787 |
-| production | dial-production | dial-production-directory-DIGEST | dial-production-datasets | www.dial.page |
+| production | dial-production | dial-production-directory-IMPORT | dial-production-datasets | www.dial.page |
 
-`src/core/environment.ts` is the source of these identities.
+`src/core/environment.ts` is the source of these identities, and `tools/import-identity.ts` derives the production database's import identity.
 The apex has no application domain assignment.
 `cloudflare.config.ts` derives typed bindings through the pinned cf configuration API.
 The project uses cf rather than Wrangler for Cloudflare project operations.
@@ -200,8 +200,8 @@ Until then, a published release can still change, so the record depends on nobod
 There is no staging environment.
 A candidate is a new version of `dial-production` that waits at 0% beside the current version until the owner approves it.
 
-1. The data command prepares the candidate's D1 database and archive keys under their digests.
-   A candidate of the served dataset shares the current version's database, which the command then reads only by primary key.
+1. The data command prepares the candidate's D1 database under its import identity and the archive keys under their digests.
+   A candidate of the served dataset and import transformation shares the current version's database, which the command then reads only by primary key.
 2. `--stage` uploads the attested build with `cf workers versions create`, tagged with a new release ID, and deploys it at 0%.
 3. `--verify-candidate` runs the public checks on `www.dial.page` with `Cloudflare-Workers-Version-Overrides` aimed at the candidate.
 4. The release workflow waits for the owner's approval of the GitHub `production` environment.
@@ -287,16 +287,21 @@ It imports bound SQL batches through the pinned cf CLI, within D1's parameter an
 An import identity and checkpoint commit in the same native D1 transaction as each batch.
 A lost acknowledgement can resume from the stored checkpoint without duplicate inserts.
 An unowned database or a different publication is refused rather than overwritten.
-A database identity includes the first 32 hexadecimal characters of its complete database SHA-256.
-The full digest remains the import identity, so a prefix collision cannot overwrite a different publication.
-Repeated preparation reuses the exact database artifact and preserves earlier database resources.
+The import identity is the SHA-256 of the database SHA-256 and the digest of the import transformation.
+The transformation digest covers the D1 schema, the seeded columns, the fold table of the comparison form, and a declared derivation revision.
+A database name includes the first 32 hexadecimal characters of the import identity.
+The full import identity fills `__dial_import`, so a prefix collision can't overwrite a different publication.
+Repeated preparation of the same dataset on the same transformation reuses the exact database and preserves earlier database resources.
+A changed dataset, schema, column list, fold table, or derivation revision gets a new database, a full import, and a full verification.
 Before it reads the database, the command reads the publication journal and the database's verification evidence from the control store, and it stops when the journal is missing.
+A journal target binds a database only through the D1 ID that its Worker version holds.
 Only a database that no Worker version binds receives the full checks, which compare counts, foreign keys, the complete catalog, and fixed payload samples with the validated source.
-A passing full check writes evidence once under `evidence/databases/`.
+A passing full check writes evidence once under `evidence/databases/IMPORT/ID.json`.
 A later preparation accepts that evidence, or the journal's digest-bound publication of the same database, after it reads the import identity, the checkpoints, the catalog row, and the fixed samples by primary key.
 It refuses a bound database without either, evidence for another database, and an incomplete database that evidence or a binding names.
 Only an unbound database receives a read again after D1 reports an overload.
 The [database verification decision](adr/verify-each-database-once-before-a-worker-binds-it.md) explains the rule and why a publication counts as evidence.
+The [import identity decision](adr/identify-each-d1-database-by-its-dataset-and-import-transformation.md) explains what a database name covers.
 
 The publisher requires a clean committed checkout, a verified remote-data receipt, and admitted candidate evidence.
 Inputs identity lets a merge commit keep an already checked stage when the files that stage reads are unchanged.

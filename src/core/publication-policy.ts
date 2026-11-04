@@ -24,11 +24,11 @@ export type DatabaseVerification =
   | "incomplete-database"
   | "unverified-binding";
 
-/** Scans a remote database in full only while no Worker version binds it, and otherwise requires evidence of an earlier full verification of this exact database and resource. */
+/** Scans a remote database in full only while no Worker version binds it, and otherwise requires evidence of an earlier full verification of this exact import identity and resource. */
 export function databaseVerification(
   evidencePresent: boolean,
-  evidenceDatabase: string,
-  database: string,
+  evidenceIdentity: string,
+  identity: string,
   evidenceResource: string,
   resource: string,
   complete: boolean,
@@ -37,15 +37,15 @@ export function databaseVerification(
 ): DatabaseVerification {
   //@ verify
   //@ ensures \result === "verify" ==> !bound
-  //@ ensures (\result === "foreign-evidence") === (evidencePresent && (evidenceDatabase !== database || evidenceResource !== resource))
-  //@ ensures (\result === "accept-evidence") === (evidencePresent && evidenceDatabase === database && evidenceResource === resource && complete)
-  //@ ensures (\result === "incomplete-database") === (!complete && ((evidencePresent && evidenceDatabase === database && evidenceResource === resource) || (!evidencePresent && bound)))
+  //@ ensures (\result === "foreign-evidence") === (evidencePresent && (evidenceIdentity !== identity || evidenceResource !== resource))
+  //@ ensures (\result === "accept-evidence") === (evidencePresent && evidenceIdentity === identity && evidenceResource === resource && complete)
+  //@ ensures (\result === "incomplete-database") === (!complete && ((evidencePresent && evidenceIdentity === identity && evidenceResource === resource) || (!evidencePresent && bound)))
   //@ ensures (\result === "verify") === (!evidencePresent && !bound)
   //@ ensures (\result === "unverified-binding") === (!evidencePresent && bound && complete && !publicationVerified)
   //@ ensures (\result === "accept-publication") === (!evidencePresent && bound && complete && publicationVerified)
   if (
     evidencePresent &&
-    (evidenceDatabase !== database || evidenceResource !== resource)
+    (evidenceIdentity !== identity || evidenceResource !== resource)
   )
     return "foreign-evidence";
   if (evidencePresent)
@@ -53,6 +53,22 @@ export function databaseVerification(
   if (!bound) return "verify";
   if (!complete) return "incomplete-database";
   return publicationVerified ? "accept-publication" : "unverified-binding";
+}
+
+export type TargetBinding = "unrelated" | "binds" | "vouches";
+
+/** A deployable release target binds exactly the D1 database its Worker version holds by ID, whatever its dataset, and vouches for that database only after the release tools prepared and staged it for the same dataset. */
+export function targetBinding(
+  sameDatabase: boolean,
+  sameDataset: boolean,
+  prepared: boolean,
+  digestBound: boolean,
+): TargetBinding {
+  //@ verify
+  //@ ensures (\result === "unrelated") === !sameDatabase
+  //@ ensures (\result === "vouches") === (sameDatabase && sameDataset && prepared && digestBound)
+  if (!sameDatabase) return "unrelated";
+  return sameDataset && prepared && digestBound ? "vouches" : "binds";
 }
 
 export type PromotionAdmission =

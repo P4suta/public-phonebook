@@ -10,6 +10,10 @@ import {
   fileControlStore,
   r2ControlStore,
 } from "../../tools/control-store.ts";
+import {
+  importIdentity,
+  importTransformation,
+} from "../../tools/import-identity.ts";
 import type { ReleaseJournal } from "../../tools/release-lifecycle.ts";
 import { encodeRecord, saveRelease } from "../../tools/release-store.ts";
 import {
@@ -213,8 +217,9 @@ describe("dataset archive writer", () => {
 describe("database verification evidence", () => {
   const servedId = "22222222-2222-4222-8222-222222222222";
   const freshId = "33333333-3333-4333-8333-333333333333";
-  const served = "2".repeat(64);
-  const fresh = "6".repeat(64);
+  const servedDigest = "2".repeat(64);
+  const served = importIdentity(servedDigest);
+  const fresh = importIdentity("6".repeat(64));
   const releaseId = "11111111-1111-4111-8111-111111111111";
   const published: ReleaseJournal = {
     phase: "verified",
@@ -225,7 +230,7 @@ describe("database verification evidence", () => {
       databaseId: servedId,
       sourceTree: "1".repeat(40),
       snapshot: "1".repeat(64),
-      databaseSha256: served,
+      databaseSha256: servedDigest,
       manifestSha256: "3".repeat(64),
       artifactSha256: "4".repeat(64),
       manifestBinding: "digest",
@@ -250,11 +255,12 @@ describe("database verification evidence", () => {
     ).rejects.toThrow("publication journal");
   });
 
-  it("reads the journal's binding and the evidence of exactly this digest and resource", async () => {
+  it("reads the journal's binding and the evidence of exactly this import identity and resource", async () => {
     const store = lockedStore();
     await saveRelease(store, "production", published, local, null);
     expect(await databaseFacts(store, "production", served, servedId)).toEqual({
       verification: {
+        importSha256: served.importSha256,
         resource: servedId,
         evidence: null,
         bound: true,
@@ -265,6 +271,7 @@ describe("database verification evidence", () => {
     });
     expect(await databaseFacts(store, "production", fresh, freshId)).toEqual({
       verification: {
+        importSha256: fresh.importSha256,
         resource: freshId,
         evidence: null,
         bound: false,
@@ -273,6 +280,63 @@ describe("database verification evidence", () => {
       journalSequence: 1,
       verifiedRelease: null,
     });
+  });
+
+  it("leaves a fresh database of the served dataset unbound and without the served database's evidence", async () => {
+    const store = lockedStore();
+    await saveRelease(store, "production", published, local, null);
+    await store.write(
+      controlKeys.databaseEvidence(servedDigest, servedId),
+      encodeRecord({
+        formatVersion: 1,
+        environment: "production",
+        databaseSha256: servedDigest,
+        database: servedId,
+        verification: { source: "verification", counts },
+        provenance: local,
+      }),
+      { kind: "create" },
+    );
+    const earlier = importIdentity(servedDigest, {
+      ...importTransformation,
+      derivationRevision: importTransformation.derivationRevision - 1,
+    });
+    await recordDatabaseVerification(
+      store,
+      "production",
+      earlier,
+      await databaseFacts(store, "production", earlier, servedId),
+      { verification: "accept-publication" },
+      local,
+    );
+    const facts = await databaseFacts(store, "production", served, freshId);
+    expect(facts).toEqual({
+      verification: {
+        importSha256: served.importSha256,
+        resource: freshId,
+        evidence: null,
+        bound: false,
+        publicationVerified: false,
+      },
+      journalSequence: 1,
+      verifiedRelease: null,
+    });
+    expect(
+      (await databaseFacts(store, "production", served, servedId)).verification
+        .evidence,
+    ).toBeNull();
+    expect(
+      databaseVerification(
+        false,
+        "",
+        served.importSha256,
+        "",
+        freshId,
+        false,
+        facts.verification.bound,
+        facts.verification.publicationVerified,
+      ),
+    ).toBe("verify");
   });
 
   it("records a full verification and a verified publication once each, and nothing for accepted evidence", async () => {
@@ -332,7 +396,10 @@ describe("database verification evidence", () => {
       )?.verification,
     ).toEqual({ source: "publication", sequence: 1, releaseId });
     const accepted = await databaseFacts(store, "production", served, servedId);
-    expect(accepted.verification.evidence?.databaseSha256).toBe(served);
+    expect(accepted.verification.evidence).toMatchObject({
+      ...served,
+      database: servedId,
+    });
     expect(
       await recordDatabaseVerification(
         store,
@@ -343,21 +410,31 @@ describe("database verification evidence", () => {
         local,
       ),
     ).toBeNull();
+    await expect(
+      recordDatabaseVerification(
+        store,
+        "production",
+        fresh,
+        servedFacts,
+        { verification: "accept-publication" },
+        local,
+      ),
+    ).rejects.toThrow("another import identity");
   });
 
   it("passes on evidence whose body names another database so that the decision refuses it", async () => {
     const store = lockedStore();
     await saveRelease(store, "production", published, local, null);
     const foreign = {
-      formatVersion: 1,
+      formatVersion: 2,
       environment: "production",
-      databaseSha256: fresh,
+      ...fresh,
       database: servedId,
       verification: { source: "verification", counts },
       provenance: local,
     };
     await store.write(
-      controlKeys.databaseEvidence(served, servedId),
+      controlKeys.databaseEvidence(served.importSha256, servedId),
       encodeRecord(foreign),
       { kind: "create" },
     );
@@ -365,8 +442,8 @@ describe("database verification evidence", () => {
     expect(
       databaseVerification(
         facts.verification.evidence !== null,
-        facts.verification.evidence?.databaseSha256 ?? "",
-        served,
+        facts.verification.evidence?.importSha256 ?? "",
+        served.importSha256,
         facts.verification.evidence?.database ?? "",
         servedId,
         true,
@@ -376,22 +453,22 @@ describe("database verification evidence", () => {
     ).toBe("foreign-evidence");
   });
 
-  it("refuses stored evidence that is malformed or belongs to another environment", async () => {
+  it("refuses stored evidence that is malformed, of the earlier format, or of another environment", async () => {
     const store = lockedStore();
     await store.write(
-      controlKeys.databaseEvidence(served, servedId),
-      new TextEncoder().encode('{"formatVersion":1}'),
+      controlKeys.databaseEvidence(served.importSha256, servedId),
+      new TextEncoder().encode('{"formatVersion":2}'),
       { kind: "create" },
     );
     await expect(
-      readDatabaseEvidence(store, "production", served, servedId),
+      readDatabaseEvidence(store, "production", served.importSha256, servedId),
     ).rejects.toThrow();
     await store.write(
-      controlKeys.databaseEvidence(fresh, freshId),
+      controlKeys.databaseEvidence(served.importSha256, freshId),
       encodeRecord({
         formatVersion: 1,
-        environment: "development",
-        databaseSha256: fresh,
+        environment: "production",
+        databaseSha256: served.importSha256,
         database: freshId,
         verification: { source: "verification", counts },
         provenance: local,
@@ -399,7 +476,22 @@ describe("database verification evidence", () => {
       { kind: "create" },
     );
     await expect(
-      readDatabaseEvidence(store, "production", fresh, freshId),
+      readDatabaseEvidence(store, "production", served.importSha256, freshId),
+    ).rejects.toThrow();
+    await store.write(
+      controlKeys.databaseEvidence(fresh.importSha256, freshId),
+      encodeRecord({
+        formatVersion: 2,
+        environment: "development",
+        ...fresh,
+        database: freshId,
+        verification: { source: "verification", counts },
+        provenance: local,
+      }),
+      { kind: "create" },
+    );
+    await expect(
+      readDatabaseEvidence(store, "production", fresh.importSha256, freshId),
     ).rejects.toThrow();
   });
 });

@@ -46,12 +46,13 @@ export function deploymentEnvironment(mode: string | undefined): Environment {
   return v.parse(EnvironmentSchema, mode ?? "development");
 }
 
+/** Names an environment's D1 database, which in production carries a prefix of the database's import identity. */
 export function databaseResourceName(
   environment: Environment,
-  databaseSha256?: string,
+  importSha256?: string,
 ): string {
   const target = environments[environment];
   if (environment === "development") return target.database;
-  const digest = v.parse(DigestSchema, databaseSha256);
+  const digest = v.parse(DigestSchema, importSha256);
   return `${target.database}-${digest.slice(0, databaseDigestWidth)}`;
 }

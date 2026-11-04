@@ -2,6 +2,7 @@ import {
   type PromotionAdmission,
   promotionAdmission,
   recoveryDecision,
+  targetBinding,
   withdrawalDecision,
 } from "../src/core/publication-policy.ts";
 
@@ -102,7 +103,8 @@ function deployableTargets(
 }
 
 /**
- * Reports whether a deployable version of the journal may bind a database with this digest or ID, and names the release whose staging verified exactly this database.
+ * Reports whether a deployable version of the journal binds the D1 database with this ID, and names the release whose staging verified exactly this database for this dataset.
+ * A target of the same dataset that names another D1 database doesn't bind this one, because a database's name also covers its import transformation.
  * Only a target the release tools staged by digest counts, because the adopted baseline never passed this repository's import verification.
  */
 export function publicationBinding(
@@ -110,21 +112,19 @@ export function publicationBinding(
   databaseSha256: string,
   databaseId: string,
 ): PublicationBinding {
-  const named = deployableTargets(journal).filter(
-    ({ target }) =>
-      target.databaseSha256 === databaseSha256 ||
+  const bindings = deployableTargets(journal).map(({ target, prepared }) => ({
+    releaseId: target.releaseId,
+    binding: targetBinding(
       target.databaseId === databaseId,
-  );
-  const verified = named.find(
-    ({ target, prepared }) =>
-      prepared &&
-      target.manifestBinding === "digest" &&
-      target.databaseSha256 === databaseSha256 &&
-      target.databaseId === databaseId,
-  );
+      target.databaseSha256 === databaseSha256,
+      prepared,
+      target.manifestBinding === "digest",
+    ),
+  }));
   return {
-    bound: named.length > 0,
-    verifiedRelease: verified?.target.releaseId ?? null,
+    bound: bindings.some(({ binding }) => binding !== "unrelated"),
+    verifiedRelease:
+      bindings.find(({ binding }) => binding === "vouches")?.releaseId ?? null,
   };
 }
 
