@@ -57,6 +57,8 @@ public struct ResultGroup: Identifiable, Sendable {
 
 public struct SearchResults: Sendable {
   public let query: String
+  /// The query text as typed, whose normalized form is `query`.
+  public let input: String
   public let groups: [ResultGroup]
   public var total: Int { groups.reduce(0) { $0 + $1.total } }
 }

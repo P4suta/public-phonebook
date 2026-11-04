@@ -70,3 +70,23 @@ private func index(_ lines: [ArchiveLine]) async throws -> (LocalSearch, Snapsho
   #expect(model.search() == nil)
   #expect(model.results == nil)
 }
+
+@MainActor @Test func searchResultsNameTheTypedQueryTheyAnswer() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let store = try SnapshotStore(root: root)
+  let active = try await publish([ArchiveLine(name: "図書館")], to: store)
+  let model = DirectoryModel(store: store)
+  await model.activate(active)
+  model.query = "ＴＯＳＨＯ"
+  await model.search()?.value
+  #expect(model.results?.query == "tosho")
+  #expect(model.results?.input == "ＴＯＳＨＯ")
+  model.query = "ＴＯＳＨＯ "
+  await model.search()?.value
+  #expect(model.results?.input == "ＴＯＳＨＯ ")
+  model.query = "図書館"
+  await model.search()?.value
+  #expect(model.results?.input == "図書館")
+  #expect(model.results?.total == 1)
+}

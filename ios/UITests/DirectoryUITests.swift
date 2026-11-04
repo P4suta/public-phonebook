@@ -521,7 +521,10 @@ final class DirectoryUITests: XCTestCase {
     try proxy().requests.filter { $0.hasPrefix("/api/datasets/") }.count
   }
 
-  private func search(_ text: String, in app: XCUIApplication) {
+  /// Types the query and waits until the shown results answer it, so results of an earlier query never stand in.
+  private func search(
+    _ text: String, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line
+  ) {
     let field = app.searchFields.firstMatch
     XCTAssertTrue(field.waitForExistence(timeout: 15))
     field.tap()
@@ -531,6 +534,10 @@ final class DirectoryUITests: XCTestCase {
       field.buttons.firstMatch.tap()
     }
     field.typeText(text + "\n")
+    waitForValue(
+      of: app.descendants(matching: .any)["search-results"], "the results answer “\(text)”",
+      timeout: 15, file: file, line: line
+    ) { $0 == text }
   }
 
   private func openSettings(in app: XCUIApplication) {
