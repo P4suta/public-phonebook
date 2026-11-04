@@ -48,8 +48,8 @@ public enum SearchInput {
       groups.removeFirst()
       groups[0] = "0" + groups[0]
     }
-    return groups.count > 1 && groups.joined() == domestic
-      ? groups.joined(separator: "-") : domestic
+    // One group equal to the domestic number joins to that number, so the hyphenated form needs no group count.
+    return groups.joined() == domestic ? groups.joined(separator: "-") : domestic
   }
 
   private static let telephoneScalars = Set(
