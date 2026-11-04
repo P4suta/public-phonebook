@@ -491,12 +491,11 @@ pub fn run(root: &Path) -> Result<()> {
                 .arg(&plan_path)
                 .args(["--concurrency", "1", "--timeout"])
                 .arg(guard.to_string())
+                // The gate, not the tool's score, decides survivors, because a listed equivalent counts against that score.
                 .args([
                     "--build-timeout",
                     "120",
                     "--no-cache",
-                    "--min-score",
-                    "100",
                     "--max-integrity-warnings",
                     "0",
                     "--output",
