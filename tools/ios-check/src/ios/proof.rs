@@ -1,4 +1,6 @@
-use super::{SHA256_HEX_LENGTH, logged, require_current_sources, source_hashes, source_records};
+use super::{
+    SHA256_HEX_LENGTH, logged_work, require_current_sources, source_hashes, source_records,
+};
 use crate::locations::{LEAN, LEAN_CHECKER};
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
@@ -103,6 +105,25 @@ const PROOF_MODULES: [&str; 5] = [
     "WaitDisplay",
     "CallerMerge",
 ];
+const PUBLICATION_MODEL: &str = "PublicationModel";
+/// `leanchecker --fresh` replays every constant of a module's import closure into an empty environment.
+/// Each root only imports proof modules, so replaying the roots replays every closure that per-module runs would, with Lean's own library once per root.
+/// `PublicationModel` and `WaitDisplay` both declare `Phonebook.step`, so the publication models need a root of their own.
+const REPLAY_ROOTS: [(&str, &[&str]); 2] = [
+    ("PublicationModels", &[PUBLICATION_MODEL, "Publication"]),
+    (
+        "OmegaModels",
+        &[
+            "ReceiveBudget",
+            "DeltaAdmission",
+            "WaitDisplay",
+            "CallerMerge",
+            WAIT_TRACES,
+        ],
+    ),
+];
+const COMPILE_WORK: [(&str, u64); 2] = [("lean compiles", 1), ("container runs", 1)];
+const REPLAY_WORK: [(&str, u64); 2] = [("kernel replays", 1), ("container runs", 1)];
 /// Each false claim must fail at its proof on line 2, which shows that the kernel checks that model.
 const FALSE_CLAIMS: [(&str, &str, &str); 3] = [
     (
@@ -341,6 +362,37 @@ fn axioms_checked(log: &str) -> bool {
     })
 }
 
+/// The modules that the gate compiles, in dependency order.
+fn compiled_modules() -> Vec<&'static str> {
+    std::iter::once(PUBLICATION_MODEL)
+        .chain(PROOF_MODULES)
+        .chain(std::iter::once(WAIT_TRACES))
+        .collect()
+}
+
+/// Requires the replay roots to import each compiled module exactly once.
+fn require_replay_partition(roots: &[(&str, &[&str])], modules: &[&str]) -> Result<()> {
+    let mut imported = roots
+        .iter()
+        .flat_map(|(_, members)| members.iter().copied())
+        .collect::<Vec<_>>();
+    imported.sort_unstable();
+    let mut expected = modules.to_vec();
+    expected.sort_unstable();
+    ensure!(
+        imported == expected,
+        "The kernel replay roots must import each proof module exactly once"
+    );
+    Ok(())
+}
+
+fn replay_root(members: &[&str]) -> String {
+    members
+        .iter()
+        .map(|module| format!("import {module}\n"))
+        .collect()
+}
+
 fn lean(root: &Path, image: &str, directory: &Path, module: &str) -> Command {
     let mut command = super::super::bounded_command(root, image);
     command
@@ -400,6 +452,7 @@ pub fn run(root: &Path) -> Result<()> {
             && crate::sha256_hex(normalize(&wait)) == WAIT_REFINEMENT_SHA256,
         "The wait display proof covers a different implementation; recheck verification/ios/WaitDisplay.lean"
     );
+    require_replay_partition(&REPLAY_ROOTS, &compiled_modules())?;
     let wait_contract: Value = serde_json::from_slice(&fs::read(root.join(WAIT_CONTRACT))?)?;
     let contract: Value = serde_json::from_slice(&fs::read(
         root.join("ios/Tests/PhonebookCoreTests/PublicationContract.json"),
@@ -427,7 +480,7 @@ pub fn run(root: &Path) -> Result<()> {
         directory.join(format!("{WAIT_TRACES}.lean")),
         wait_traces(&wait_contract)?,
     )?;
-    logged(
+    logged_work(
         root,
         "lean-image",
         Command::new("docker")
@@ -443,6 +496,7 @@ pub fn run(root: &Path) -> Result<()> {
             ])
             .arg(directory.join("image.id"))
             .arg("verification/ios"),
+        &[("image builds", 1)],
     )?;
     let image = fs::read_to_string(directory.join("image.id"))?
         .trim()
@@ -455,42 +509,58 @@ pub fn run(root: &Path) -> Result<()> {
                 .all(|byte| byte.is_ascii_hexdigit()),
         "Invalid proof image identity"
     );
-    let version = logged(
+    let version = logged_work(
         root,
         "lean-version",
         super::super::bounded_command(root, &image).args([LEAN, "--version"]),
+        &[("container runs", 1)],
     )?;
     ensure!(
         String::from_utf8_lossy(&version.stdout).contains("version 4.34.1,"),
         "Unexpected Lean version"
     );
     let mut proofs = String::new();
-    for module in std::iter::once("PublicationModel")
-        .chain(PROOF_MODULES)
-        .chain(std::iter::once(WAIT_TRACES))
-    {
-        let result = logged(
+    for module in compiled_modules() {
+        let result = logged_work(
             root,
             &format!("lean-{module}"),
             &mut lean(root, &image, relative, module),
+            &COMPILE_WORK,
         )?;
         proofs.push_str(&String::from_utf8_lossy(&result.stdout));
-        logged(
-            root,
-            &format!("lean-replay-{module}"),
-            super::super::bounded_command(root, &image)
-                .arg("env")
-                .arg(format!("LEAN_PATH={}", relative.display()))
-                .args([LEAN_CHECKER, "--fresh", module]),
-        )?;
     }
     ensure!(
         axioms_checked(&proofs),
         "The expected theorem inventory or axiom review is incomplete"
     );
+    for (replay, members) in REPLAY_ROOTS {
+        fs::write(
+            directory.join(format!("{replay}.lean")),
+            replay_root(members),
+        )?;
+        logged_work(
+            root,
+            &format!("lean-{replay}"),
+            &mut lean(root, &image, relative, replay),
+            &COMPILE_WORK,
+        )?;
+        logged_work(
+            root,
+            &format!("lean-replay-{replay}"),
+            super::super::bounded_command(root, &image)
+                .arg("env")
+                .arg(format!("LEAN_PATH={}", relative.display()))
+                .args([LEAN_CHECKER, "--fresh", replay]),
+            &REPLAY_WORK,
+        )?;
+    }
     for (module, source, claim) in FALSE_CLAIMS {
         fs::write(directory.join(format!("{module}.lean")), source)?;
-        let negative = lean(root, &image, relative, module).output()?;
+        let negative = crate::steps::measured_output(
+            &format!("lean-negative-{module}"),
+            &mut lean(root, &image, relative, module),
+            &COMPILE_WORK,
+        )?;
         let negative_log = format!(
             "{}{}",
             String::from_utf8_lossy(&negative.stdout),
@@ -512,7 +582,11 @@ pub fn run(root: &Path) -> Result<()> {
         let mutated = planted(&wait_model, original, defect)?;
         let span = theorem_span(&mutated, theorem)?;
         fs::write(directory.join(format!("{module}.lean")), mutated)?;
-        let negative = lean(root, &image, relative, module).output()?;
+        let negative = crate::steps::measured_output(
+            &format!("lean-negative-{module}"),
+            &mut lean(root, &image, relative, module),
+            &COMPILE_WORK,
+        )?;
         let negative_log = format!(
             "{}{}",
             String::from_utf8_lossy(&negative.stdout),
@@ -540,7 +614,7 @@ pub fn run(root: &Path) -> Result<()> {
     fs::write(
         receipt,
         serde_json::to_vec_pretty(
-            &json!({"result":"passed", "lean":"4.34.1", "image":image, "theorems":THEOREMS.as_slice(), "proof_bundle":relative, "kernel_replay":"fresh for all seven modules", "negative_controls":controls, "refinement":"native exhaustive 25-transition check required by ios-check; exact guarded Int64 arithmetic expression; exact delta admission and copy guard source; wait policy source digest and ten Swift traces replayed by the Lean model; exact caller merge decision source, with the streamed merge checked by seeded Swift tests against a transcription of the Lean merge", "source_sha256":source_records(&sources)}),
+            &json!({"result":"passed", "lean":"4.34.1", "image":image, "theorems":THEOREMS.as_slice(), "proof_bundle":relative, "kernel_replay":REPLAY_ROOTS.iter().map(|(replay, members)| json!({"root":replay, "imports":members, "replay":"fresh"})).collect::<Vec<_>>(), "negative_controls":controls, "refinement":"native exhaustive 25-transition check required by ios-check; exact guarded Int64 arithmetic expression; exact delta admission and copy guard source; wait policy source digest and ten Swift traces replayed by the Lean model; exact caller merge decision source, with the streamed merge checked by seeded Swift tests against a transcription of the Lean merge", "source_sha256":source_records(&sources)}),
         )?,
     )?;
     println!(
@@ -671,6 +745,23 @@ mod tests {
             whitespace_free(&CALLER_MERGE_SOURCE.replace("extra == national", "extra <= national")),
             CALLER_MERGE_REFINEMENT
         );
+    }
+
+    #[test]
+    fn the_replay_roots_import_each_compiled_module_exactly_once() -> Result<()> {
+        require_replay_partition(&REPLAY_ROOTS, &compiled_modules())?;
+        assert_eq!(
+            replay_root(&[PUBLICATION_MODEL, "Publication"]),
+            "import PublicationModel\nimport Publication\n"
+        );
+        let missing: [(&str, &[&str]); 1] = [("PublicationModels", &[PUBLICATION_MODEL])];
+        assert!(require_replay_partition(&missing, &compiled_modules()).is_err());
+        let twice: [(&str, &[&str]); 2] = [
+            ("PublicationModels", &[PUBLICATION_MODEL, "Publication"]),
+            ("OmegaModels", &["Publication"]),
+        ];
+        assert!(require_replay_partition(&twice, &[PUBLICATION_MODEL, "Publication"]).is_err());
+        Ok(())
     }
 
     #[test]
