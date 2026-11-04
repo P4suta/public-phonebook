@@ -1,7 +1,19 @@
 /**
  * A plain restatement of the search rule that the tests compare every path with.
  * It spells out the Unicode White_Space list and the folded characters instead of reusing the production tables.
+ * Only the kanji variants come from the generated table, which its own regeneration check verifies.
  */
+import { kanjiVariantPairs } from "../../src/core/kanji-variants.ts";
+
+const kanji = new Map<number, string>(
+  kanjiVariantPairs.split(" ").map((pair) => {
+    const [from = "0", to = "0"] = pair.split(":");
+    return [
+      Number.parseInt(from, 16),
+      String.fromCodePoint(Number.parseInt(to, 16)),
+    ];
+  }),
+);
 
 const whiteSpace = new Set([
   0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x20, 0x85, 0xa0, 0x1680, 0x2000, 0x2001,
@@ -24,13 +36,29 @@ function referenceCharacter(point: number): string {
   if (folded === 0x3095) return "か";
   if (folded === 0x3096) return "け";
   if (dashes.has(folded)) return "-";
-  return String.fromCodePoint(folded);
+  return kanji.get(folded) ?? String.fromCodePoint(folded);
 }
 
-export function referenceWords(text: string): string[] {
+function variationSelector(point: number): boolean {
+  return (
+    (point >= 0xfe00 && point <= 0xfe0f) ||
+    (point >= 0xe0100 && point <= 0xe01ef)
+  );
+}
+
+export function referenceWords(text: string, variants = true): string[] {
+  const selected = Array.from(text)
+    .filter((character) => !variationSelector(character.codePointAt(0) ?? 0))
+    .join("");
   let folded = "";
-  for (const character of text.normalize("NFKC").toLowerCase())
-    folded += referenceCharacter(character.codePointAt(0) ?? 0);
+  for (const character of selected.normalize("NFKC").toLowerCase()) {
+    const point = character.codePointAt(0) ?? 0;
+    folded += variants
+      ? referenceCharacter(point)
+      : kanji.has(point)
+        ? character
+        : referenceCharacter(point);
+  }
   const words: string[] = [];
   let current = "";
   for (const character of folded.normalize("NFC")) {
@@ -43,8 +71,9 @@ export function referenceWords(text: string): string[] {
   return words;
 }
 
-export function referenceForm(text: string): string {
-  return referenceWords(text).join(" ");
+/** The reference comparison form, or with `variants` false the same form without the kanji table, as a negative control. */
+export function referenceForm(text: string, variants = true): string {
+  return referenceWords(text, variants).join(" ");
 }
 
 /**
@@ -58,7 +87,7 @@ export function referenceRank(
 ): number {
   if (words.length === 0) return -1;
   const form = referenceForm(name);
-  const placeForms = places.map(referenceForm);
+  const placeForms = places.map((place) => referenceForm(place));
   const named = words.filter((word) => form.includes(word));
   const matched = words.every(
     (word) =>

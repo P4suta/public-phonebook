@@ -63,6 +63,29 @@ private func index(_ lines: [ArchiveLine]) async throws -> (LocalSearch, Snapsho
   #expect(try await found("千代田 県14").isEmpty)
 }
 
+@Test func localSearchFindsEitherFormOfAKanjiVariantFromTheOther() async throws {
+  let lines = [
+    ArchiveLine(name: "山崎図書館"), ArchiveLine(name: "\u{FA11}山会館"),
+    ArchiveLine(category: 1, name: "高田医院"), ArchiveLine(category: 1, name: "髙田クリニック"),
+  ]
+  let (search, store, generation, root) = try await index(lines)
+  defer { try? FileManager.default.removeItem(at: root) }
+  func names(_ query: String) async throws -> Set<String> {
+    var result: Set<String> = []
+    for group in try search.search(SearchInput.words(query)) {
+      for contact in try await store.contacts(generation: generation, ids: group.map(\.id)) {
+        result.insert(contact.name)
+      }
+    }
+    return result
+  }
+  #expect(try await names("山\u{FA11}") == ["山崎図書館"])
+  #expect(try await names("\u{FA11}山") == ["\u{FA11}山会館"])
+  #expect(try await names("崎") == ["山崎図書館", "\u{FA11}山会館"])
+  #expect(try await names("髙田") == ["高田医院", "髙田クリニック"])
+  #expect(try await names("高田") == ["高田医院", "髙田クリニック"])
+}
+
 @Test func phoneMatchesGroupEveryRecordForTheNumber() async throws {
   let lines = [
     ArchiveLine(name: "B", phones: "03-0000-0001"), ArchiveLine(name: "A", phones: "03-0000-0001"),

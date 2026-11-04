@@ -19,15 +19,23 @@ public enum SearchInput {
   }
 
   /// Folds the input variants that search ignores, the same way as the website's `foldSearchCharacters`.
-  /// Compatibility composition and lowercase come first.
-  /// Katakana then become hiragana, small ヵ and ヶ become か and け, and every long-vowel and dash mark becomes a hyphen-minus.
+  /// Variation selectors go first, so that composition can't stop at one, and compatibility composition and lowercase follow.
+  /// Katakana then become hiragana, small ヵ and ヶ become か and け, every long-vowel and dash mark becomes a hyphen-minus, and each kanji variant becomes its representative from `KanjiVariants`.
   /// Canonical composition last joins a folded small kana with a following voiced mark, so folding twice changes nothing.
   public static func foldedCharacters(_ text: String) -> String {
+    var selected = String.UnicodeScalarView()
+    selected.append(contentsOf: text.unicodeScalars.filter { !isVariationSelector($0) })
     var scalars = String.UnicodeScalarView()
-    for scalar in text.precomposedStringWithCompatibilityMapping.lowercased().unicodeScalars {
+    for scalar
+      in String(selected).precomposedStringWithCompatibilityMapping.lowercased().unicodeScalars
+    {
       scalars.append(foldedScalars[scalar] ?? scalar)
     }
     return String(scalars).precomposedStringWithCanonicalMapping
+  }
+
+  private static func isVariationSelector(_ scalar: Unicode.Scalar) -> Bool {
+    (0xFE00...0xFE0F).contains(scalar.value) || (0xE0100...0xE01EF).contains(scalar.value)
   }
 
   /// Splits text into the folded words that search compares, at runs of any Unicode whitespace.
@@ -79,8 +87,20 @@ public enum SearchInput {
     for small in ["ゕ", "ヵ"] as [Unicode.Scalar] { folds[small] = "か" }
     for small in ["ゖ", "ヶ"] as [Unicode.Scalar] { folds[small] = "け" }
     for dash in "ーｰ‐‑‒–—―−﹣－".unicodeScalars { folds[dash] = "-" }
+    for (variant, representative) in kanjiVariants { folds[variant] = representative }
     return folds
   }()
+
+  /// The generated variant table, whose pairs are a variant's and its representative's hexadecimal code points.
+  static let kanjiVariants: [(Unicode.Scalar, Unicode.Scalar)] = KanjiVariants.pairs.split(
+    separator: " "
+  ).compactMap { pair in
+    let points = pair.split(separator: ":").compactMap { UInt32($0, radix: 16) }
+    guard points.count == 2, let variant = Unicode.Scalar(points[0]),
+      let representative = Unicode.Scalar(points[1])
+    else { return nil }
+    return (variant, representative)
+  }
 
   public static func normalizedPhone(_ input: String) -> String? {
     let text = input.trimmingCharacters(in: .whitespacesAndNewlines)

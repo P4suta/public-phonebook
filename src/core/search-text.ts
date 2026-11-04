@@ -1,7 +1,10 @@
+import { kanjiVariantPairs } from "./kanji-variants.ts";
+
 /** The most words that one name query may hold, which bounds the bound parameters of a D1 search. */
 export const maximumQueryWords = 8;
 
 const whitespaceRun = /\p{White_Space}+/u;
+const variationSelector = /[\u{fe00}-\u{fe0f}\u{e0100}-\u{e01ef}]/gu;
 const hexadecimalRadix = 16;
 const katakanaToHiragana = 0x60;
 const firstKatakana = 0x30a1;
@@ -49,7 +52,20 @@ export const foldedCharacters: ReadonlyMap<string, string> = new Map([
   ]),
   ...smallKana,
   ...dashVariants.map((variant): [string, string] => [variant, dash]),
+  ...kanjiVariants(),
 ]);
+
+/** Reads the generated variant table, whose pairs are a variant's and its representative's hexadecimal code points. */
+export function kanjiVariants(): [string, string][] {
+  return kanjiVariantPairs.split(" ").map((pair) => {
+    const [from = "", to = ""] = pair
+      .split(":")
+      .map((point) =>
+        String.fromCodePoint(Number.parseInt(point, hexadecimalRadix)),
+      );
+    return [from, to];
+  });
+}
 
 const foldedCharacter = new RegExp(
   `[${Array.from(
@@ -62,12 +78,13 @@ const foldedCharacter = new RegExp(
 
 /**
  * Folds the input variants that search ignores, character by character, without splitting words.
- * Compatibility composition and lowercase come first.
- * Katakana then become hiragana, small ヵ and ヶ become か and け, and every long-vowel and dash mark becomes a hyphen-minus.
+ * Variation selectors go first, so that composition can't stop at one, and compatibility composition and lowercase follow.
+ * Katakana then become hiragana, small ヵ and ヶ become か and け, every long-vowel and dash mark becomes a hyphen-minus, and each kanji variant becomes its representative.
  * Canonical composition last joins a folded small kana with a following voiced mark, as the first composition would have, so folding twice changes nothing.
  */
 export function foldSearchCharacters(text: string): string {
   return text
+    .replace(variationSelector, "")
     .normalize("NFKC")
     .toLowerCase()
     .replace(

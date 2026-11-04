@@ -37,12 +37,25 @@ private enum Reference {
     if folded == 0x3095 { return "か" }
     if folded == 0x3096 { return "け" }
     if dashes.contains(folded) { return "-" }
-    return Unicode.Scalar(folded) ?? "\u{FFFD}"
+    let scalar = Unicode.Scalar(folded) ?? "\u{FFFD}"
+    return kanji[scalar] ?? scalar
   }
 
+  /// The kanji variants come from the generated table, which the website's regeneration check verifies.
+  static let kanji: [Unicode.Scalar: Unicode.Scalar] = {
+    Dictionary(uniqueKeysWithValues: SearchInput.kanjiVariants)
+  }()
+
   static func words(_ text: String) -> [String] {
+    var selected = String.UnicodeScalarView()
+    for scalar in text.unicodeScalars
+    where !(0xFE00...0xFE0F).contains(scalar.value) && !(0xE0100...0xE01EF).contains(scalar.value) {
+      selected.append(scalar)
+    }
     var folded = String.UnicodeScalarView()
-    for scalar in text.precomposedStringWithCompatibilityMapping.lowercased().unicodeScalars {
+    for scalar in String(selected).precomposedStringWithCompatibilityMapping.lowercased()
+      .unicodeScalars
+    {
       folded.append(character(scalar.value))
     }
     var words: [String] = []
@@ -152,6 +165,24 @@ private func rank(name: String, places: [String], query: String) -> NameRank? {
   #expect(SearchInput.searchForm("市ヶ谷") == SearchInput.searchForm("市ケ谷"))
   #expect(SearchInput.searchForm("ｾﾝﾀｰ") == SearchInput.searchForm("せんた—"))
   #expect(SearchInput.normalizedPhone("03 3581 2331") == "+81335812331")
+}
+
+@Test func findsEitherFormOfAKanjiVariantFromTheOther() {
+  let tokyo = ["東京都", "千代田区", "図書館"]
+  #expect(rank(name: "山崎図書館", places: tokyo, query: "山\u{FA11}") == .prefix)
+  #expect(rank(name: "山\u{FA11}図書館", places: tokyo, query: "山崎") == .prefix)
+  #expect(rank(name: "高田医院", places: tokyo, query: "髙田") == .prefix)
+  #expect(rank(name: "髙田医院", places: tokyo, query: "高田") == .prefix)
+  #expect(SearchInput.searchForm("葛\u{E0100}") == SearchInput.searchForm("葛"))
+  #expect(SearchInput.searchForm("崎") != SearchInput.searchForm("埼"))
+  let pairs = SearchInput.kanjiVariants
+  #expect(pairs.count > 1000)
+  #expect(pairs.count == KanjiVariants.pairs.split(separator: " ").count)
+  for (variant, target) in pairs {
+    let representative = String(target)
+    #expect(SearchInput.searchForm(String(variant)) == representative)
+    #expect(SearchInput.searchForm(representative) == representative)
+  }
 }
 
 /// A small seeded generator, so a run repeats exactly.

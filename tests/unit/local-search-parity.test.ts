@@ -61,6 +61,9 @@ const names = [
   "abc分室",
   "国立国会図書館",
   "国立国会図書館 分室",
+  "山崎図書館",
+  "髙田医院",
+  "高田医院",
 ] as const;
 const categories = ["library", "library", "medical", "museum"] as const;
 const phones = [
@@ -291,6 +294,11 @@ const queries = [
   "\t図書館\t",
   "図\t書",
   "存在しない名前",
+  "山\u{fa11}",
+  "山崎",
+  "髙田",
+  "高田",
+  "崎",
   "千代田 図書館",
   "東京　分室",
   "横浜  国立",
@@ -401,6 +409,34 @@ describe("local search parity with the server", () => {
       "くわしい情報を見る",
       "住所などを見る",
     ]);
+  });
+
+  it("finds either form of a kanji variant from the other on the server and in the browser", async () => {
+    for (const [query, name] of [
+      ["山\u{fa11}", "山崎図書館"],
+      ["崎", "\u{fa11}山図書館"],
+      ["髙田", "高田医院"],
+      ["高田", "髙田医院"],
+    ] as const) {
+      const grouped = v.parse(
+        GroupedSearchResponseSchema,
+        await json(`/api/contact-groups?q=${encodeURIComponent(query)}`),
+      );
+      expect(
+        grouped.groups.flatMap((group) =>
+          group.results.data.map((item) => item.name),
+        ),
+        query,
+      ).toContain(name);
+      const parsed = localQuery(query);
+      if (!parsed.ok) throw new Error(`The query must be valid: ${query}`);
+      expect(
+        previewGroups(matchIndex(index, parsed.value)).groups.flatMap((group) =>
+          group.rows.map((row) => index.rows[row]?.name),
+        ),
+        query,
+      ).toContain(name);
+    }
   });
 
   it("rejects the queries the server rejects", async () => {

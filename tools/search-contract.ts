@@ -34,8 +34,8 @@ const hexadecimalRadix = 16;
 const escapeWidth = 4;
 const ideographicSpace = String.fromCodePoint(0x3000);
 const voicedMark = String.fromCodePoint(0x3099);
-/** Whitespace, invisible marks, and combining marks, which the JSON spells as escapes so that no reader mistakes them. */
-const unseen = /[^\P{Z} ]|[^\P{C}\n]|\p{M}/gu;
+/** Every character outside printable ASCII, which the JSON spells as an escape so that no invisible or confusable glyph reaches the file. */
+const unseen = /[^\n\x20-\x7e]/gu;
 /** The hexadecimal code points of voiced marks, whitespace, and invisible characters at the edges of the White_Space set. */
 const unseenAlphabet =
   "3099 309b 9 a 85 a0 1680 2000 2028 202f 205f 3000 200b feff";

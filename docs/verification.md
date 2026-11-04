@@ -180,6 +180,7 @@ Search-trigger controls ignore composition, search an incomplete telephone numbe
 The word rank decision proves that a row matches exactly when every word occurs in its name or its region or category, and that region and category matches rank after every name match.
 Its control ranks a region or category match with the name matches and must fail verification.
 Fixed-seed property tests compare the word splitting, the folding, and the match-and-rank decision with a plain reference on both platforms.
+`mise x -- just check` regenerates the kanji variant tables from the pinned Unihan archive and requires the committed bytes, and both platforms' tests fold every table entry to a representative that folding keeps.
 A conflicting import identity also has a source-mutating negative control that must fail verification.
 The database verification decision scans a database in full only when it has no evidence and no Worker version binds it.
 Its controls let a bound database reach the full verification and accept evidence for another digest.

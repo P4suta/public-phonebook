@@ -1,6 +1,7 @@
 import { copyFile, mkdir, readFile, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import * as v from "valibot";
+import { checkKanjiVariants } from "./kanji-variants.ts";
 import {
   command,
   ownInstructions,
@@ -93,6 +94,7 @@ try {
     ]),
   );
   await timer.time("workflow policy", () => requireWorkflowPolicy("."));
+  await timer.time("kanji variants", checkKanjiVariants);
   console.info(
     JSON.stringify({
       operation: "check",
