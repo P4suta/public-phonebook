@@ -9,7 +9,6 @@ const requiredArguments = 1;
 const runSearchLimit = 20;
 const runSearchAttempts = 12;
 const runSearchIntervalMs = 5000;
-const clockSkewMs = 60000;
 const watchIntervalSeconds = 30;
 const commandNameParts = 2;
 
@@ -46,7 +45,7 @@ export function runListArguments(actor: string): readonly string[] {
     "--limit",
     String(runSearchLimit),
     "--json",
-    "databaseId,createdAt,url",
+    "databaseId,url",
   ];
 }
 
@@ -66,24 +65,28 @@ export function watchArguments(runId: number): readonly string[] {
 const RunListSchema = v.array(
   v.object({
     databaseId: v.pipe(v.number(), v.integer(), v.minValue(1)),
-    createdAt: v.pipe(v.string(), v.isoTimestamp()),
     url: v.pipe(v.string(), v.url()),
   }),
 );
 export type DispatchedRun = v.InferOutput<typeof RunListSchema>[number];
 
+export function runIds(runs: unknown): ReadonlySet<number> {
+  return new Set(v.parse(RunListSchema, runs).map((run) => run.databaseId));
+}
+
+/** Returns the one listed run that `before` lacks, null while none has appeared, and refuses to choose among several. */
 export function dispatchedRun(
+  before: ReadonlySet<number>,
   runs: unknown,
-  dispatchedAtMs: number,
 ): DispatchedRun | null {
-  const candidates = v
+  const appeared = v
     .parse(RunListSchema, runs)
-    .filter((run) => Date.parse(run.createdAt) >= dispatchedAtMs - clockSkewMs)
-    .sort(
-      (first, second) =>
-        Date.parse(first.createdAt) - Date.parse(second.createdAt),
+    .filter((run) => !before.has(run.databaseId));
+  if (appeared.length > 1)
+    throw new Error(
+      `Several release runs appeared after the dispatch: ${appeared.map((run) => run.url).join(", ")}`,
     );
-  return candidates[0] ?? null;
+  return appeared[0] ?? null;
 }
 
 async function gh(args: readonly string[]): Promise<string> {
@@ -100,15 +103,12 @@ async function main(args: readonly string[]): Promise<void> {
     throw new Error("Usage: release DATASET_MANIFEST_SHA256");
   const dataset = v.parse(DigestSchema, args[0]);
   const actor = (await gh(["api", "user", "--jq", ".login"])).trim();
-  const dispatchedAtMs = Date.now();
+  const before = runIds(JSON.parse(await gh(runListArguments(actor))));
   await gh(dispatchArguments(dataset));
   let run: DispatchedRun | null = null;
   for (let attempt = 0; attempt < runSearchAttempts && !run; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, runSearchIntervalMs));
-    run = dispatchedRun(
-      JSON.parse(await gh(runListArguments(actor))),
-      dispatchedAtMs,
-    );
+    run = dispatchedRun(before, JSON.parse(await gh(runListArguments(actor))));
   }
   if (!run)
     throw new Error(

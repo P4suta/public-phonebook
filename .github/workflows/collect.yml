@@ -92,8 +92,14 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
         run: node tools/collection-store.ts base target/collection/base
-      - name: Prepare the publication from the base and the collection
-        run: just data-prepare target/collection/base/directory.sqlite target/collection/dataset .local/collection/current
+      - name: Fetch the delta bases of shipped and recently published datasets
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
+        run: node tools/collection-store.ts delta-bases target/collection/delta-bases
+      - name: Prepare the publication from the base, the collection, and the delta bases
+        run: just data-prepare target/collection/base/directory.sqlite target/collection/dataset .local/collection/current target/collection/delta-bases
       - name: Check every record, archive, and index
         run: just data-check target/collection/dataset
       - name: Check every telephone identity

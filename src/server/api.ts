@@ -34,7 +34,7 @@ import {
 import { parseSearch } from "../core/search.ts";
 import { storesSearch } from "../core/search-policy.ts";
 import { siteRequestAdmission } from "../core/site-request-policy.ts";
-import { snapshotAdmission } from "../core/snapshot-policy.ts";
+import { listingReply, snapshotAdmission } from "../core/snapshot-policy.ts";
 import { contactVCard } from "../core/vcard.ts";
 import type { DirectoryBindings } from "./bindings.ts";
 import {
@@ -277,49 +277,57 @@ function directoryRouter(family: RouteFamily): Hono<ApiEnvironment> {
   return router;
 }
 
+/**
+ * Answers a pinned listing: the pin check runs first, then the body's strong ETag decides between 304 and the body.
+ * Hono answers `HEAD` from this `GET` route without the body.
+ */
+async function listingResponse(
+  c: ApiContext,
+  render: (prepared: PreparedDatasetManifest) => unknown,
+): Promise<Response> {
+  const identities = new URL(c.req.url).searchParams.getAll("snapshot");
+  const catalog = await readCatalog(directoryDatabase(c.env.DB));
+  c.header("X-Dataset-Snapshot", catalog.snapshot);
+  const admission = snapshotAdmission(
+    identities.length > 0,
+    identities.length <= 1,
+    identities.every((value) => v.safeParse(DigestSchema, value).success),
+    identities[0] === catalog.snapshot,
+  );
+  const prepared =
+    admission === "accepted" ? await readPreparedManifest(c, catalog) : null;
+  const body = prepared ? JSON.stringify(render(prepared)) : "";
+  const etag = prepared ? `"${await sha256(body)}"` : "";
+  const reply = listingReply(
+    admission,
+    prepared !== null,
+    prepared !== null && matchesEntityTag(c.req.header("If-None-Match"), etag),
+  );
+  switch (reply) {
+    case "invalid_query":
+      return problem(c, reply, httpStatus.badRequest);
+    case "snapshot_changed":
+      return problem(c, reply, httpStatus.conflict);
+    case "unavailable":
+      return problem(c, reply, httpStatus.unavailable);
+    case "not_modified":
+    case "listing":
+      c.header("ETag", etag);
+      c.header("Cache-Control", mutableCache);
+      return reply === "not_modified"
+        ? c.body(null, httpStatus.notModified)
+        : c.body(body, httpStatus.ok, { "Content-Type": "application/json" });
+  }
+}
+
 function openDataApi(): Hono<ApiEnvironment> {
   const router = directoryRouter("open-data");
-  router.use("*", async (c, next) => {
-    const url = new URL(c.req.url);
-    if (pinnedPaths.has(url.pathname)) {
-      const identities = url.searchParams.getAll("snapshot");
-      const catalog = await readCatalog(directoryDatabase(c.env.DB));
-      c.header("X-Dataset-Snapshot", catalog.snapshot);
-      const decision = snapshotAdmission(
-        identities.length > 0,
-        identities.length <= 1,
-        identities.every((value) => v.safeParse(DigestSchema, value).success),
-        identities[0] === catalog.snapshot,
-      );
-      if (decision !== "accepted")
-        return problem(
-          c,
-          decision,
-          decision === "snapshot_changed"
-            ? httpStatus.conflict
-            : httpStatus.badRequest,
-        );
-    }
-    await next();
-  });
 
-  router.get(datasetListingPath, async (c) => {
-    const catalog = await readCatalog(directoryDatabase(c.env.DB));
-    const prepared = await readPreparedManifest(c, catalog);
-    if (!prepared) return problem(c, "unavailable", httpStatus.unavailable);
-    c.header("X-Dataset-Snapshot", catalog.snapshot);
-    c.header("Cache-Control", mutableCache);
-    return c.json(datasetFileListing(prepared));
-  });
+  router.get(datasetListingPath, (c) => listingResponse(c, datasetFileListing));
 
-  router.get(deltaListingPath, async (c) => {
-    const catalog = await readCatalog(directoryDatabase(c.env.DB));
-    const prepared = await readPreparedManifest(c, catalog);
-    if (!prepared) return problem(c, "unavailable", httpStatus.unavailable);
-    c.header("X-Dataset-Snapshot", catalog.snapshot);
-    c.header("Cache-Control", mutableCache);
-    return c.json(directoryDeltaListing(prepared));
-  });
+  router.get(deltaListingPath, (c) =>
+    listingResponse(c, directoryDeltaListing),
+  );
 
   router.get(`${datasetListingPath}/:snapshot/:digest/:file`, async (c) => {
     const snapshot = c.req.param("snapshot");

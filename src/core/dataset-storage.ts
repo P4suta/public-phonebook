@@ -18,7 +18,11 @@ import {
 import { searchIndexFile, searchIndexLimits } from "./search-index.ts";
 
 // A year of monthly snapshots; a client further behind downloads the complete archive.
-export const maximumDirectoryDeltas = 12;
+export const maximumPublishedDeltaBases = 12;
+// The snapshots that supported app versions bundle, which `sources/shipped-snapshots.json` declares.
+export const maximumShippedDeltaBases = 12;
+export const maximumDirectoryDeltas =
+  maximumPublishedDeltaBases + maximumShippedDeltaBases;
 
 export const SearchIndexArtifactSchema = v.strictObject({
   file: v.literal(searchIndexFile),

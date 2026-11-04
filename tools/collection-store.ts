@@ -1,6 +1,11 @@
-import { mkdir, readFile, rm } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import * as v from "valibot";
+import {
+  maximumPublishedDeltaBases,
+  maximumShippedDeltaBases,
+} from "../src/core/dataset-storage.ts";
+import { directoryArchiveFile } from "../src/core/directory-archive.ts";
 import { DigestSchema } from "../src/core/models.ts";
 import {
   ArtifactSchema,
@@ -24,7 +29,14 @@ import {
   sha256Hex,
   writeOnce,
 } from "./control-store.ts";
-import { encodeRecord } from "./release-store.ts";
+import {
+  BaseManifestSchema,
+  type DeltaBaseCandidate,
+  deltaBasePlan,
+  type PlannedDeltaBase,
+} from "./directory-delta.ts";
+import type { ReleaseJournal } from "./release-lifecycle.ts";
+import { encodeRecord, releaseHistory } from "./release-store.ts";
 import { storeDataset } from "./remote-data.ts";
 import { fileDigest } from "./snapshot.ts";
 
@@ -64,9 +76,14 @@ const PreparedManifestSchema = v.object({
   sourceDatabaseSha256: DigestSchema,
   contacts: CountSchema,
 });
+const DeltaReportManifestSchema = v.object({
+  snapshot: DigestSchema,
+  deltas: v.optional(v.array(v.object({ base: DigestSchema })), []),
+});
 
 export type CollectionStoreCommand =
   | { readonly kind: "base"; readonly directory: string }
+  | { readonly kind: "delta-bases"; readonly directory: string }
   | {
       readonly kind: "compare";
       readonly collection: string;
@@ -80,7 +97,7 @@ export type CollectionStoreCommand =
     };
 
 const usage =
-  "Usage: collection-store base DIRECTORY | collection-store compare COLLECTION REPLAY | collection-store store COLLECTION CACHE DATASET";
+  "Usage: collection-store base DIRECTORY | collection-store delta-bases DIRECTORY | collection-store compare COLLECTION REPLAY | collection-store store COLLECTION CACHE DATASET";
 
 export function parseCollectionStoreArguments(
   args: readonly string[],
@@ -88,6 +105,8 @@ export function parseCollectionStoreArguments(
   const [command, first, second, third] = args;
   if (command === "base" && first && args.length === baseArgumentCount)
     return { kind: "base", directory: resolve(first) };
+  if (command === "delta-bases" && first && args.length === baseArgumentCount)
+    return { kind: "delta-bases", directory: resolve(first) };
   if (
     command === "compare" &&
     first &&
@@ -120,6 +139,193 @@ export async function readBasePin(
 ): Promise<BaseDatasetPin> {
   const decoded: unknown = JSON.parse(await readFile(path, "utf8"));
   return v.parse(BaseDatasetPinSchema, decoded);
+}
+
+export const shippedSnapshotsFile = "sources/shipped-snapshots.json";
+
+const AppVersionSchema = v.pipe(
+  v.string(),
+  v.regex(/^(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){1,2}$/u),
+);
+export const ShippedSnapshotsSchema = v.pipe(
+  v.strictObject({
+    datasets: v.pipe(
+      v.array(
+        v.strictObject({
+          manifestSha256: DigestSchema,
+          snapshot: DigestSchema,
+          firstAppVersion: AppVersionSchema,
+        }),
+      ),
+      v.maxLength(maximumShippedDeltaBases),
+    ),
+  }),
+  v.check(
+    (list) =>
+      new Set(list.datasets.map((dataset) => dataset.manifestSha256)).size ===
+      list.datasets.length,
+    "A shipped dataset must appear once",
+  ),
+  v.check(
+    (list) =>
+      new Set(list.datasets.map((dataset) => dataset.snapshot)).size ===
+      list.datasets.length,
+    "A shipped snapshot must appear once",
+  ),
+);
+export type ShippedSnapshots = v.InferOutput<typeof ShippedSnapshotsSchema>;
+
+export async function readShippedSnapshots(
+  path: string = shippedSnapshotsFile,
+): Promise<ShippedSnapshots> {
+  const decoded: unknown = JSON.parse(await readFile(path, "utf8"));
+  return v.parse(ShippedSnapshotsSchema, decoded);
+}
+
+/** Lists the datasets of every verified production release, oldest first. */
+export function publishedDatasets(
+  journals: readonly ReleaseJournal[],
+): readonly DeltaBaseCandidate[] {
+  return journals
+    .filter((journal) => journal.phase === "verified")
+    .map(({ candidate }) => ({
+      manifestSha256: candidate.manifestSha256,
+      snapshot: candidate.snapshot,
+    }));
+}
+
+interface ListedBase {
+  readonly manifest: Uint8Array;
+  readonly archive: { readonly sha256: string; readonly bytes: number } | null;
+}
+
+async function listedBase(
+  store: ControlStore,
+  base: DeltaBaseCandidate,
+): Promise<ListedBase> {
+  const object = await readObject(
+    store,
+    controlKeys.dataset(base.manifestSha256, manifestFile),
+  );
+  if (!object)
+    throw new Error(
+      `The control store has no manifest for delta base ${base.manifestSha256}`,
+    );
+  if (sha256Hex(object.body) !== base.manifestSha256)
+    throw new Error(
+      `A delta base manifest differs from its digest: ${base.manifestSha256}`,
+    );
+  const decoded: unknown = JSON.parse(new TextDecoder().decode(object.body));
+  const manifest = v.parse(BaseManifestSchema, decoded);
+  if (manifest.snapshot !== base.snapshot)
+    throw new Error(
+      `A delta base manifest names another snapshot: ${base.manifestSha256}`,
+    );
+  const archive = manifest.files.find(
+    (file) => file.file === directoryArchiveFile,
+  );
+  return {
+    manifest: object.body,
+    archive: archive ? { sha256: archive.sha256, bytes: archive.bytes } : null,
+  };
+}
+
+/**
+ * Fetches the ready manifest and `directory.tsv.br` of every planned delta base into its own directory under `directory`, and no database.
+ * Every shipped base must list an archive, while a published dataset without one can't be a base and is skipped.
+ * It writes nothing to the control store, so any base that it can't fetch or verify stops the job before the store step writes.
+ */
+export async function fetchDeltaBases(
+  store: ControlStore,
+  shipped: ShippedSnapshots,
+  published: readonly DeltaBaseCandidate[],
+  directory: string,
+): Promise<readonly PlannedDeltaBase[]> {
+  const listed = new Map<string, ListedBase>();
+  for (const base of shipped.datasets) {
+    const entry = await listedBase(store, base);
+    if (!entry.archive)
+      throw new Error(
+        `A shipped dataset lists no ${directoryArchiveFile}: ${base.manifestSha256}`,
+      );
+    listed.set(base.manifestSha256, entry);
+  }
+  const archived: DeltaBaseCandidate[] = [];
+  const ranked = new Set<string>();
+  for (const base of published.toReversed()) {
+    if (ranked.size >= maximumPublishedDeltaBases) break;
+    if (ranked.has(base.snapshot)) continue;
+    const entry =
+      listed.get(base.manifestSha256) ?? (await listedBase(store, base));
+    if (!entry.archive) {
+      console.info(
+        JSON.stringify({
+          operation: "collection.delta-base",
+          manifestSha256: base.manifestSha256,
+          snapshot: base.snapshot,
+          result: "skipped",
+          reason: "no-archive",
+        }),
+      );
+      continue;
+    }
+    listed.set(base.manifestSha256, entry);
+    archived.push(base);
+    ranked.add(base.snapshot);
+  }
+  const plan = deltaBasePlan(shipped.datasets, archived.toReversed());
+  await mkdir(directory, { recursive: true });
+  for (const base of plan) {
+    const entry = listed.get(base.manifestSha256);
+    if (!entry?.archive)
+      throw new Error(`A planned delta base wasn't listed: ${base.snapshot}`);
+    const bundle = join(directory, base.manifestSha256);
+    await mkdir(bundle);
+    await writeFile(join(bundle, manifestFile), entry.manifest, {
+      flag: "wx",
+    });
+    const path = join(bundle, directoryArchiveFile);
+    const fetched = await store.download(
+      controlKeys.blob(entry.archive.sha256),
+      path,
+    );
+    if (
+      !fetched ||
+      fetched.bytes !== entry.archive.bytes ||
+      (await fileDigest(path)) !== entry.archive.sha256
+    ) {
+      await rm(path, { force: true });
+      throw new Error(
+        `A delta base archive differs from its manifest: ${base.manifestSha256}`,
+      );
+    }
+    console.info(
+      JSON.stringify({
+        operation: "collection.delta-base",
+        origin: base.origin,
+        manifestSha256: base.manifestSha256,
+        snapshot: base.snapshot,
+        archiveBytes: entry.archive.bytes,
+        result: "fetched",
+      }),
+    );
+  }
+  return plan;
+}
+
+/** Lists each shipped dataset that the prepared manifest serves no delta from, apart from one already at the target snapshot. */
+export function unservedShippedBases(
+  shipped: ShippedSnapshots,
+  prepared: {
+    readonly snapshot: string;
+    readonly deltas: readonly { readonly base: string }[];
+  },
+): ShippedSnapshots["datasets"] {
+  const served = new Set(prepared.deltas.map((delta) => delta.base));
+  return shipped.datasets.filter(
+    (dataset) =>
+      dataset.snapshot !== prepared.snapshot && !served.has(dataset.snapshot),
+  );
 }
 
 async function baseManifest(
@@ -323,8 +529,45 @@ async function main(args: readonly string[]): Promise<void> {
     );
     return;
   }
+  if (command.kind === "delta-bases") {
+    const store = controlStoreFromEnvironment();
+    const plan = await fetchDeltaBases(
+      store,
+      await readShippedSnapshots(),
+      publishedDatasets(await releaseHistory(store, "production")),
+      command.directory,
+    );
+    console.info(
+      JSON.stringify({
+        operation: "collection.delta-bases",
+        shipped: plan.filter((base) => base.origin === "shipped").length,
+        published: plan.filter((base) => base.origin === "published").length,
+        result: "fetched",
+      }),
+    );
+    return;
+  }
   const pin = await readBasePin();
   const store = controlStoreFromEnvironment();
+  if (command.kind === "store") {
+    const decoded: unknown = JSON.parse(
+      await readFile(join(command.dataset, manifestFile), "utf8"),
+    );
+    const unserved = unservedShippedBases(
+      await readShippedSnapshots(),
+      v.parse(DeltaReportManifestSchema, decoded),
+    );
+    for (const dataset of unserved)
+      console.info(
+        `::warning title=Shipped dataset without a delta::${dataset.manifestSha256} (snapshot ${dataset.snapshot}, first shipped in ${dataset.firstAppVersion}) gets no delta, so the next app release should bundle a newer dataset`,
+      );
+    console.info(
+      JSON.stringify({
+        operation: "collection.shipped-deltas",
+        unserved: unserved.map((dataset) => dataset.manifestSha256),
+      }),
+    );
+  }
   if (command.kind === "base") {
     await fetchBaseDatabase(store, pin, command.directory);
     console.info(

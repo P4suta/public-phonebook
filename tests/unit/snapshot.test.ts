@@ -31,12 +31,21 @@ import {
   searchIndexLimits,
 } from "../../src/core/search-index.ts";
 import { checkDataBundle } from "../../tools/check-data.ts";
-import { parsePrepareArguments } from "../../tools/data.ts";
+import {
+  fetchDeltaBases,
+  unservedShippedBases,
+} from "../../tools/collection-store.ts";
+import { fileControlStore } from "../../tools/control-store.ts";
+import {
+  deltaBaseDirectories,
+  parsePrepareArguments,
+} from "../../tools/data.ts";
 import { databaseSchema } from "../../tools/database-schema.ts";
 import {
   deltaSource as bundleDeltaSource,
   sha256Digest,
 } from "../../tools/directory-delta.ts";
+import { storeDataset } from "../../tools/remote-data.ts";
 import { compressSearchIndex } from "../../tools/search-index.ts";
 import {
   compressDirectoryArchive,
@@ -735,6 +744,81 @@ it("publishes a verified delta from an earlier prepared bundle", async () => {
   }
 });
 
+it("writes a delta from every shipped and recently published base and reports an oversize shipped one", async () => {
+  const root = await mkdtemp(join(tmpdir(), "phonebook-delta-retention-"));
+  try {
+    const store = fileControlStore(join(root, "store"));
+    const earlier = deltaContacts("2026-10-30T00:00:00Z", "図書館");
+    const stored = async (
+      name: string,
+      contacts: readonly Contact[],
+    ): Promise<{
+      readonly manifestSha256: string;
+      readonly snapshot: string;
+    }> => {
+      const manifest = await prepareContacts(root, name, contacts);
+      return {
+        manifestSha256: await storeDataset(store, join(root, name)),
+        snapshot: manifest.snapshot,
+      };
+    };
+    const firstShipped = await stored("shipped-1", earlier.slice(1));
+    const secondShipped = await stored("shipped-2", earlier.slice(2));
+    const oversizeShipped = await stored(
+      "shipped-3",
+      deltaContacts("2026-10-30T00:00:00Z", "病院"),
+    );
+    const firstPublished = await stored("published-1", earlier.slice(3));
+    const secondPublished = await stored("published-2", earlier.slice(4));
+    const shipped = {
+      datasets: [firstShipped, secondShipped, oversizeShipped].map(
+        (dataset, index) => ({ ...dataset, firstAppVersion: `1.${index}` }),
+      ),
+    };
+    const bases = join(root, "bases");
+    const plan = await fetchDeltaBases(
+      store,
+      shipped,
+      [firstPublished, secondPublished],
+      bases,
+    );
+    expect(plan).toHaveLength(5);
+
+    const targetContacts = deltaContacts("2026-11-30T00:00:00Z", "図書館").map(
+      (contact, index) =>
+        index === 5 ? { ...contact, name: `${contact.name}分室` } : contact,
+    );
+    const target = await prepareContacts(
+      root,
+      "target",
+      targetContacts,
+      await deltaBaseDirectories(bases),
+    );
+    expect(target.deltas.map((delta) => delta.base)).toEqual(
+      [firstShipped, secondShipped, firstPublished, secondPublished]
+        .map((dataset) => dataset.snapshot)
+        .toSorted(),
+    );
+    await checkDataBundle(join(root, "target"));
+    expect(unservedShippedBases(shipped, target)).toEqual([
+      shipped.datasets[2],
+    ]);
+
+    const repeated = await prepareContacts(root, "repeated", targetContacts, [
+      join(root, "target"),
+    ]);
+    expect(repeated.snapshot).toBe(target.snapshot);
+    expect(repeated.deltas).toEqual([]);
+
+    await writeFile(join(bases, "stray.txt"), "");
+    await expect(deltaBaseDirectories(bases)).rejects.toThrow(
+      "aren't bundles: stray.txt",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 it("parses delta bases after the positional preparation arguments", () => {
   expect(
     parsePrepareArguments([
@@ -752,16 +836,44 @@ it("parses delta bases after the positional preparation arguments", () => {
     output: "out",
     collection: "collection",
     deltaBases: ["first", "second"],
+    deltaBaseRoot: undefined,
   });
   expect(parsePrepareArguments(["prepare", "source", "out", ""])).toEqual({
     source: "source",
     output: "out",
     collection: undefined,
     deltaBases: [],
+    deltaBaseRoot: undefined,
+  });
+  expect(
+    parsePrepareArguments([
+      "prepare",
+      "source",
+      "out",
+      "",
+      "--delta-base-root",
+      "bases",
+    ]),
+  ).toEqual({
+    source: "source",
+    output: "out",
+    collection: undefined,
+    deltaBases: [],
+    deltaBaseRoot: "bases",
   });
   for (const args of [
     ["prepare", "source"],
     ["prepare", "source", "out", "--delta-base"],
+    ["prepare", "source", "out", "--delta-base-root"],
+    [
+      "prepare",
+      "source",
+      "out",
+      "--delta-base-root",
+      "a",
+      "--delta-base-root",
+      "b",
+    ],
     ["prepare", "source", "out", "collection", "extra"],
     ["publish", "source", "out"],
   ])

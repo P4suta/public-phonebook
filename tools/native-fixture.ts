@@ -26,6 +26,24 @@ const httpServerError = 500;
 const commandArgumentOffset = 2;
 const corpusDestination = "ios/Tests/PhonebookKitTests/DirectoryContract.json";
 const forwardedHeaders = ["range", "if-range", "if-none-match"] as const;
+const highestPort = 65_535;
+
+/** The port to serve on: `PHONEBOOK_FIXTURE_PORT` when the iOS gate picked one, or the development port. */
+export function servePort(environment: NodeJS.ProcessEnv): number {
+  const chosen = environment.PHONEBOOK_FIXTURE_PORT;
+  if (chosen === undefined) return fixturePort;
+  return v.parse(
+    v.pipe(
+      v.string(),
+      v.regex(/^[0-9]+$/u),
+      v.transform(Number),
+      v.integer(),
+      v.minValue(1),
+      v.maxValue(highestPort),
+    ),
+    chosen,
+  );
+}
 
 interface ContractResponse {
   readonly revision: FixtureRevision;
@@ -192,7 +210,7 @@ async function serve(): Promise<void> {
   const server = createServer((incoming, outgoing) => {
     void respond(incoming, outgoing);
   });
-  server.listen(fixturePort, listenHostname);
+  server.listen(servePort(process.env), listenHostname);
   for (const signal of ["SIGTERM", "SIGINT"] as const)
     process.once(signal, () => {
       server.closeAllConnections();
