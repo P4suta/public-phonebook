@@ -118,7 +118,7 @@ private func keptServer() async throws -> HTTPTestServer {
     #expect(try await api.get("/api/datasets").data == json)
     let file = try await api.download(archive())
     try FileManager.default.removeItem(at: file)
-    #expect(jsonSession != nil && transferSession != nil)
+    withExtendedLifetime(api) { #expect(jsonSession != nil && transferSession != nil) }
   }
   // No task delegate holds an owner, so the last copy of the client invalidates both sessions.
   #expect(jsonSession == nil && transferSession == nil)
