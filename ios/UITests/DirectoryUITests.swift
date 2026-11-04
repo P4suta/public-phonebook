@@ -388,7 +388,7 @@ final class DirectoryUITests: XCTestCase {
     let app = prepared()
     let date = dataDate(in: app)
     app.terminate()
-    try proxy().failNext(.dataset, with: .incomplete)
+    try proxy().failNext(.listing, with: .incomplete)
     app.launchEnvironment["PHONEBOOK_REFRESH_DUE"] = "1"
     app.launch()
     openSettings(in: app)

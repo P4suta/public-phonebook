@@ -116,7 +116,7 @@ const UI_TESTS: [&str; 17] = [
     "testLandscapeLargeTextSettings",
     "testAboutStaysInTheAppAndLicenseIsReadable",
 ];
-const REQUIRED_TESTS: [&str; 74] = [
+const REQUIRED_TESTS: [&str; 81] = [
     "currentProviderArchiveImportsTheNationalDirectory",
     "providerArchiveSavesTheExpectedGenerationContent",
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
@@ -191,6 +191,13 @@ const REQUIRED_TESTS: [&str; 74] = [
     "firstRunAppliesTheListedDeltaToTheBundleOnce",
     "failedFirstRunsSaveTheBundledSnapshot",
     "cancelledFirstRunLeavesNoTemporaryFileAndNoSnapshot",
+    "updateStepFollowsTheRecordOnEveryBoundaryInput",
+    "updatePropertiesHoldOnSeededTraces",
+    "everyUpdateTraceRefinesTheProofContract",
+    "aNotModifiedListingStartsNoTransfer",
+    "automaticTransfersWaitForAnInexpensivePath",
+    "aTransferThePersonStartsUsesAnExpensivePath",
+    "refreshCountsTheMonthFromTheSnapshotsGeneratedDate",
 ];
 const SCOPE: [&str; 19] = [
     "ios",

@@ -127,9 +127,10 @@ targets:
         PhonebookCallDirectory: $(PHONEBOOK_CALL_DIRECTORY)
         PhonebookAPIOrigin: $(PHONEBOOK_API_ORIGIN)
         PhonebookBackgroundRefresh: $(PHONEBOOK_BUNDLE_ID).refresh
+        PhonebookBackgroundCheck: $(PHONEBOOK_BUNDLE_ID).check
         ITSAppUsesNonExemptEncryption: false
-        UIBackgroundModes: [processing]
-        BGTaskSchedulerPermittedIdentifiers: [$(PHONEBOOK_BUNDLE_ID).refresh]
+        UIBackgroundModes: [fetch, processing]
+        BGTaskSchedulerPermittedIdentifiers: [$(PHONEBOOK_BUNDLE_ID).refresh, $(PHONEBOOK_BUNDLE_ID).check]
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]

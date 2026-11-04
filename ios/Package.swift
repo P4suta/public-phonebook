@@ -16,7 +16,10 @@ let package = Package(
     .executableTarget(name: "BundledAdmission", dependencies: ["PhonebookKit"], path: "Admission"),
     .testTarget(
       name: "PhonebookCoreTests", dependencies: ["PhonebookCore"],
-      resources: [.copy("PublicationContract.json"), .copy("WaitContract.json")]),
+      resources: [
+        .copy("PublicationContract.json"), .copy("WaitContract.json"),
+        .copy("UpdateContract.json"),
+      ]),
     .testTarget(
       name: "PhonebookKitTests", dependencies: ["PhonebookKit"],
       resources: [.copy("DirectoryContract.json")]),

@@ -6,7 +6,7 @@ use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fmt::Write as _, fs, path::Path, process::Command};
 
-const THEOREMS: [&str; 54] = [
+const THEOREMS: [&str; 59] = [
     "activeAbsorbsEveryEvent",
     "activeSurvivesEveryFiniteTrace",
     "uncertainAbortRetainsData",
@@ -61,7 +61,23 @@ const THEOREMS: [&str; 54] = [
     "everyAddedNumberIsFreeOrRemoved",
     "changesSitWhereTheListsDiffer",
     "equalListsNeedNoChange",
+    "answeredReadsStayADayApart",
+    "noAutomaticTransferOnACostlyPath",
+    "automaticTransferStartsOnAnInexpensivePath",
+    "personTransfersUseEveryPath",
+    "unchangedListingsStartNothing",
 ];
+const UPDATE_SOURCE: &str = include_str!("../../../../ios/Sources/PhonebookCore/UpdateCheck.swift");
+/// The SHA-256 of the whitespace-free Swift decision that `verification/ios/UpdateCheck.lean` models function for function.
+/// Recheck the Lean model against the Swift file before changing this digest.
+const UPDATE_REFINEMENT_SHA256: &str =
+    "a0458362c81f812504a67c25c7ce237396afd66abd1240f4b840f722388f2f35";
+const UPDATE_CONTRACT: &str = "ios/Tests/PhonebookCoreTests/UpdateContract.json";
+const UPDATE_TRACES: &str = "UpdateTraces";
+const UPDATE_TRACE_COUNT: usize = 10;
+const UPDATE_TRACE_STEPS: usize = 12;
+const LISTING_REPLIES: [&str; 5] = ["failed", "notModified", "saved", "delta", "archive"];
+const UPDATE_TRANSFERS: [&str; 2] = ["delta", "archive"];
 const WAIT_SOURCE: &str = include_str!("../../../../ios/Sources/PhonebookCore/WaitDisplay.swift");
 /// The SHA-256 of the whitespace-free Swift policy that `verification/ios/WaitDisplay.lean` models function for function.
 /// Recheck the Lean model against the Swift file before changing this digest.
@@ -116,20 +132,59 @@ const CALLER_DELTA_SOURCE: &str =
 /// The Swift change decision that `verification/ios/CallerDelta.lean` models, without whitespace.
 /// Swift compares the labels' UTF-8 bytes, which Lean's string equality matches because UTF-8 encodes each string one way.
 const CALLER_DELTA_REFINEMENT: &str = "publicenumCallerChange:String,CaseIterable,Sendable{caseremove,add,keep,replacepublicstaticfuncdecide(held:Int64,heldLabel:String,wanted:Int64,wantedLabel:String)->Self{ifheld<wanted{return.remove}ifwanted<held{return.add}ifheldLabel.utf8.elementsEqual(wantedLabel.utf8){return.keep}return.replace}}";
-/// Each planted defect changes one line of the caller delta model and must fail inside every theorem it names and nowhere else.
-const DELTA_DEFECTS: [(&str, &str, &str, &[&str]); 1] = [(
-    "CallerDeltaKeepsAChangedLabel",
-    "  else .replace",
-    "  else .keep",
-    &["keepExactlyTheSameEntry", "replaceExactlyAnotherLabel"],
-)];
-const PROOF_MODULES: [&str; 6] = [
+/// Each planted defect changes one place in its model and must fail inside every theorem it names and nowhere else.
+const DELTA_DEFECTS: [(&str, &str, &str, &str, &[&str]); 6] = [
+    (
+        "CallerDeltaKeepsAChangedLabel",
+        "CallerDelta",
+        "  else .replace",
+        "  else .keep",
+        &["keepExactlyTheSameEntry", "replaceExactlyAnotherLabel"],
+    ),
+    (
+        "UpdateHurriedCheck",
+        "UpdateCheck",
+        "def updateIntervalSeconds : Int := 86400",
+        "def updateIntervalSeconds : Int := 86399",
+        &["answeredReadsStayADayApart"],
+    ),
+    (
+        "UpdateConstrainedTransfer",
+        "UpdateCheck",
+        "def UpdatePath.inexpensive (p : UpdatePath) : Bool := !p.expensive && !p.constrained",
+        "def UpdatePath.inexpensive (p : UpdatePath) : Bool := !p.expensive",
+        &["noAutomaticTransferOnACostlyPath"],
+    ),
+    (
+        "UpdateWaitingForever",
+        "UpdateCheck",
+        "then ⟨⟨s.answeredAt, none⟩, false, some ⟨waiting, true, path⟩⟩",
+        "then ⟨⟨s.answeredAt, some waiting⟩, false, none⟩",
+        &["automaticTransferStartsOnAnInexpensivePath"],
+    ),
+    (
+        "UpdatePersonWaits",
+        "UpdateCheck",
+        "false, transfer.map fun t => ⟨t, false, path⟩⟩",
+        "false, if path.inexpensive then transfer.map fun t => ⟨t, false, path⟩ else none⟩",
+        &["personTransfersUseEveryPath"],
+    ),
+    (
+        "UpdateNotModifiedStarts",
+        "UpdateCheck",
+        "if reply != .notModified && path.inexpensive then",
+        "if path.inexpensive then",
+        &["unchangedListingsStartNothing"],
+    ),
+];
+const PROOF_MODULES: [&str; 7] = [
     "Publication",
     "ReceiveBudget",
     "DeltaAdmission",
     "WaitDisplay",
     "CallerMerge",
     "CallerDelta",
+    "UpdateCheck",
 ];
 const PUBLICATION_MODEL: &str = "PublicationModel";
 /// `leanchecker --fresh` replays every constant of a module's import closure into an empty environment.
@@ -146,13 +201,20 @@ const REPLAY_ROOTS: [(&str, &[&str]); 2] = [
             "CallerMerge",
             "CallerDelta",
             WAIT_TRACES,
+            "UpdateCheck",
+            UPDATE_TRACES,
         ],
     ),
 ];
 const COMPILE_WORK: [(&str, u64); 2] = [("lean compiles", 1), ("container runs", 1)];
 const REPLAY_WORK: [(&str, u64); 2] = [("kernel replays", 1), ("container runs", 1)];
 /// Each false claim must fail at its proof on line 2, which shows that the kernel checks that model.
-const FALSE_CLAIMS: [(&str, &str, &str); 4] = [
+const FALSE_CLAIMS: [(&str, &str, &str); 5] = [
+    (
+        "FalseUpdateClaim",
+        "import UpdateCheck\nexample : (Phonebook.updateStep ⟨none, none⟩ (.check 0 .archive ⟨true, false⟩)).start = some ⟨.archive, true, ⟨true, false⟩⟩ := by rfl\n",
+        "false automatic transfer on an expensive path",
+    ),
     (
         "FalseClaim",
         "import PublicationModel\nexample : Phonebook.step .active .abort = .discarded := by rfl\n",
@@ -321,6 +383,105 @@ fn wait_traces(contract: &Value) -> Result<String> {
     Ok(output)
 }
 
+fn update_path(value: &Value) -> Result<String> {
+    Ok(format!(
+        "⟨{}, {}⟩",
+        boolean(&value["expensive"])?,
+        boolean(&value["constrained"])?
+    ))
+}
+
+fn update_name(value: &Value, names: &[&str]) -> Result<String> {
+    let name = value.as_str().context("An update trace name is not text")?;
+    ensure!(names.contains(&name), "Unknown update trace name {name}");
+    Ok(format!(".{name}"))
+}
+
+/// An optional field that Swift's encoder omits when it holds nil.
+fn update_option(
+    value: Option<&Value>,
+    render: impl Fn(&Value) -> Result<String>,
+) -> Result<String> {
+    match value {
+        None | Some(Value::Null) => Ok("none".to_owned()),
+        Some(value) => Ok(format!("(some {})", render(value)?)),
+    }
+}
+
+/// Writes one kernel-checked theorem per Swift trace, so the Lean model must take the steps that the Swift decision took.
+fn update_traces(contract: &Value) -> Result<String> {
+    let traces = contract["traces"]
+        .as_array()
+        .context("Missing update traces")?;
+    ensure!(
+        traces.len() == UPDATE_TRACE_COUNT,
+        "Unexpected update trace inventory"
+    );
+    let mut output = String::from("import UpdateCheck\n\nnamespace Phonebook\n\n");
+    for (index, trace) in traces.iter().enumerate() {
+        let events = trace["events"].as_array().context("Missing trace events")?;
+        let steps = trace["steps"].as_array().context("Missing trace steps")?;
+        ensure!(
+            !events.is_empty() && events.len() <= UPDATE_TRACE_STEPS && events.len() == steps.len(),
+            "An update trace has the wrong number of steps"
+        );
+        let events = events
+            .iter()
+            .map(|event| {
+                let path = update_path(event)?;
+                Ok(match event["kind"].as_str() {
+                    Some("check") => format!(
+                        ".check ({}) {} {path}",
+                        integer(&event["now"])?,
+                        update_name(&event["reply"], &LISTING_REPLIES)?
+                    ),
+                    Some("path") => format!(".path {path}"),
+                    Some("person") => format!(
+                        ".person ({}) {} {path}",
+                        integer(&event["now"])?,
+                        update_option(event.get("transfer"), |value| update_name(
+                            value,
+                            &UPDATE_TRANSFERS
+                        ))?
+                    ),
+                    _ => anyhow::bail!("Unknown update event"),
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let steps = steps
+            .iter()
+            .map(|step| {
+                Ok(format!(
+                    "⟨⟨{}, {}⟩, {}, {}⟩",
+                    update_option(step.get("answeredAt"), |value| Ok(format!(
+                        "({})",
+                        integer(value)?
+                    )))?,
+                    update_option(step.get("waiting"), |value| update_name(
+                        value,
+                        &UPDATE_TRANSFERS
+                    ))?,
+                    boolean(&step["read"])?,
+                    update_option(step.get("start"), |start| Ok(format!(
+                        "⟨{}, {}, {}⟩",
+                        update_name(&start["transfer"], &UPDATE_TRANSFERS)?,
+                        boolean(&start["automatic"])?,
+                        update_path(start)?
+                    )))?
+                ))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        writeln!(
+            output,
+            "theorem updateTrace{index} : updateSteps UpdateState.initial\n    [{}] =\n    [{}] := by decide\n\n#print axioms updateTrace{index}\n",
+            events.join(",\n     "),
+            steps.join(",\n     ")
+        )?;
+    }
+    output.push_str("end Phonebook\n");
+    Ok(output)
+}
+
 /// The 1-based lines of a top-level theorem, from its name to the line before the next top-level text.
 fn theorem_span(source: &str, name: &str) -> Result<(usize, usize)> {
     let lines = source.lines().collect::<Vec<_>>();
@@ -422,7 +583,7 @@ fn axioms_checked(log: &str) -> bool {
 fn compiled_modules() -> Vec<&'static str> {
     std::iter::once(PUBLICATION_MODEL)
         .chain(PROOF_MODULES)
-        .chain(std::iter::once(WAIT_TRACES))
+        .chain([WAIT_TRACES, UPDATE_TRACES])
         .collect()
 }
 
@@ -542,6 +703,17 @@ pub fn run(root: &Path) -> Result<()> {
     fs::write(
         directory.join(format!("{WAIT_TRACES}.lean")),
         wait_traces(&wait_contract)?,
+    )?;
+    let update = fs::read_to_string(root.join("ios/Sources/PhonebookCore/UpdateCheck.swift"))?;
+    ensure!(
+        normalize(&update) == normalize(UPDATE_SOURCE)
+            && crate::sha256_hex(normalize(&update)) == UPDATE_REFINEMENT_SHA256,
+        "The update proof covers a different implementation; recheck verification/ios/UpdateCheck.lean"
+    );
+    let update_contract: Value = serde_json::from_slice(&fs::read(root.join(UPDATE_CONTRACT))?)?;
+    fs::write(
+        directory.join(format!("{UPDATE_TRACES}.lean")),
+        update_traces(&update_contract)?,
     )?;
     logged_work(
         root,
@@ -664,13 +836,13 @@ pub fn run(root: &Path) -> Result<()> {
             "The planted defect {module} did not fail inside {theorem}"
         );
     }
-    let delta_model = fs::read_to_string(root.join("verification/ios/CallerDelta.lean"))?;
-    for (module, original, defect, theorems) in DELTA_DEFECTS {
+    for (module, model, original, defect, theorems) in DELTA_DEFECTS {
+        let source = fs::read_to_string(root.join(format!("verification/ios/{model}.lean")))?;
         ensure!(
-            delta_model.matches(original).count() == 1,
-            "A planted defect must change exactly one place in the caller delta model"
+            source.matches(original).count() == 1,
+            "A planted defect must change exactly one place in the {model} model"
         );
-        let mutated = delta_model.replacen(original, defect, 1);
+        let mutated = source.replacen(original, defect, 1);
         let spans = theorems
             .iter()
             .map(|theorem| theorem_span(&mutated, theorem))
@@ -704,7 +876,7 @@ pub fn run(root: &Path) -> Result<()> {
             PLANTED_DEFECTS
                 .iter()
                 .map(|(module, _, _, theorem)| format!("{module} rejected by {theorem}"))
-                .chain(DELTA_DEFECTS.iter().map(|(module, _, _, theorems)| {
+                .chain(DELTA_DEFECTS.iter().map(|(module, _, _, _, theorems)| {
                     format!("{module} rejected by {}", theorems.join(" and "))
                 })),
         )
@@ -712,12 +884,13 @@ pub fn run(root: &Path) -> Result<()> {
     fs::write(
         receipt,
         serde_json::to_vec_pretty(
-            &json!({"result":"passed", "lean":"4.34.1", "image":image, "theorems":THEOREMS.as_slice(), "proof_bundle":relative, "kernel_replay":REPLAY_ROOTS.iter().map(|(replay, members)| json!({"root":replay, "imports":members, "replay":"fresh"})).collect::<Vec<_>>(), "negative_controls":controls, "refinement":"native exhaustive 25-transition check required by ios-check; exact guarded Int64 arithmetic expression; exact delta admission and copy guard source; wait policy source digest and ten Swift traces replayed by the Lean model; exact caller merge decision source, with the streamed merge checked by seeded Swift tests against a transcription of the Lean merge; exact caller change decision source, with the streamed changes checked by seeded Swift tests against a transcription of the Lean difference", "source_sha256":source_records(&sources)}),
+            &json!({"result":"passed", "lean":"4.34.1", "image":image, "theorems":THEOREMS.as_slice(), "proof_bundle":relative, "kernel_replay":REPLAY_ROOTS.iter().map(|(replay, members)| json!({"root":replay, "imports":members, "replay":"fresh"})).collect::<Vec<_>>(), "negative_controls":controls, "refinement":"native exhaustive 25-transition check required by ios-check; exact guarded Int64 arithmetic expression; exact delta admission and copy guard source; wait policy source digest and ten Swift traces replayed by the Lean model; update decision source digest and ten Swift traces replayed by the Lean model; exact caller merge decision source, with the streamed merge checked by seeded Swift tests against a transcription of the Lean merge; exact caller change decision source, with the streamed changes checked by seeded Swift tests against a transcription of the Lean difference", "source_sha256":source_records(&sources)}),
         )?,
     )?;
     println!(
-        "PASS: {} Lean theorems, {WAIT_TRACE_COUNT} replayed Swift traces, fresh kernel replay, {} false-claim and {} planted-defect rejections, source-bound receipt",
+        "PASS: {} Lean theorems, {} replayed Swift traces, fresh kernel replay, {} false-claim and {} planted-defect rejections, source-bound receipt",
         THEOREMS.len(),
+        WAIT_TRACE_COUNT + UPDATE_TRACE_COUNT,
         FALSE_CLAIMS.len(),
         PLANTED_DEFECTS.len() + DELTA_DEFECTS.len()
     );
@@ -742,6 +915,58 @@ mod tests {
             ))),
             WAIT_REFINEMENT_SHA256
         );
+    }
+
+    #[test]
+    fn the_update_proof_names_the_compiled_swift_decision() {
+        assert_eq!(
+            crate::sha256_hex(whitespace_free(UPDATE_SOURCE)),
+            UPDATE_REFINEMENT_SHA256
+        );
+        assert_ne!(
+            crate::sha256_hex(whitespace_free(&UPDATE_SOURCE.replacen(
+                "intervalSeconds = 86_400",
+                "intervalSeconds = 86_399",
+                1
+            ))),
+            UPDATE_REFINEMENT_SHA256
+        );
+    }
+
+    #[test]
+    fn update_traces_replay_only_wellformed_contracts() -> Result<()> {
+        let valid: Value = serde_json::from_str(include_str!(
+            "../../../../ios/Tests/PhonebookCoreTests/UpdateContract.json"
+        ))?;
+        let generated = update_traces(&valid)?;
+        assert_eq!(
+            generated.matches(":= by decide").count(),
+            UPDATE_TRACE_COUNT
+        );
+        assert!(generated.contains("theorem updateTrace0 : updateSteps UpdateState.initial"));
+        for (list, key, value) in [
+            ("events", "kind", json!("sleep")),
+            ("events", "expensive", json!(1)),
+            ("steps", "read", json!("true")),
+            ("steps", "waiting", json!("delta⟩] := by sorry\n")),
+        ] {
+            let mut invalid = valid.clone();
+            invalid["traces"][0][list][0][key] = value;
+            assert!(
+                update_traces(&invalid).is_err(),
+                "{list} {key} was accepted"
+            );
+        }
+        let mut short = valid.clone();
+        short["traces"].as_array_mut().context("Test traces")?.pop();
+        assert!(update_traces(&short).is_err());
+        let mut uneven = valid;
+        uneven["traces"][0]["steps"]
+            .as_array_mut()
+            .context("Test steps")?
+            .pop();
+        assert!(update_traces(&uneven).is_err());
+        Ok(())
     }
 
     #[test]
@@ -859,8 +1084,12 @@ mod tests {
 
     #[test]
     fn delta_defects_change_one_place_and_fail_only_inside_their_theorems() -> Result<()> {
-        let model = include_str!("../../../../verification/ios/CallerDelta.lean");
-        for (_, original, defect, theorems) in DELTA_DEFECTS {
+        for (_, name, original, defect, theorems) in DELTA_DEFECTS {
+            let model = match name {
+                "CallerDelta" => include_str!("../../../../verification/ios/CallerDelta.lean"),
+                "UpdateCheck" => include_str!("../../../../verification/ios/UpdateCheck.lean"),
+                _ => anyhow::bail!("Unknown defect model {name}"),
+            };
             assert_eq!(model.matches(original).count(), 1);
             let mutated = model.replacen(original, defect, 1);
             let spans = theorems
@@ -872,11 +1101,10 @@ mod tests {
                 .map(|(start, _)| format!("M.lean:{}:4: error: unsolved goals\n", start + 1))
                 .collect::<String>();
             assert!(defect_inside(&inside, "M", &spans));
-            assert!(!defect_inside(
-                &inside[..inside.find('\n').unwrap_or(0) + 1],
-                "M",
-                &spans
-            ));
+            assert!(
+                spans.len() == 1
+                    || !defect_inside(&inside[..inside.find('\n').unwrap_or(0) + 1], "M", &spans)
+            );
             let outside = format!("{inside}M.lean:1:0: error: unknown\n");
             assert!(!defect_inside(&outside, "M", &spans));
             assert!(!defect_inside("", "M", &spans));

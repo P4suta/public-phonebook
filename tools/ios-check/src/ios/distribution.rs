@@ -416,8 +416,10 @@ fn verify_bundle(root: &Path, app: &Path, team: &str, build: BuildNumber) -> Res
             );
             ensure!(
                 info["PhonebookBackgroundRefresh"] == format!("{bundle}.refresh")
+                    && info["PhonebookBackgroundCheck"] == format!("{bundle}.check")
+                    && info["UIBackgroundModes"] == json!(["fetch", "processing"])
                     && info["BGTaskSchedulerPermittedIdentifiers"]
-                        == json!([format!("{bundle}.refresh")]),
+                        == json!([format!("{bundle}.refresh"), format!("{bundle}.check")]),
                 "Incorrect background task registration"
             );
             ensure!(

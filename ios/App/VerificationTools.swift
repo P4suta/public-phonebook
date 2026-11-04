@@ -169,15 +169,25 @@
       integration.manifest?.updatedAt.formatted(date: .long, time: .omitted) ?? "受け取る前です"
     }
 
+    private var answeredAt: Date? {
+      integration.updateRecord.state.answeredAt.map {
+        Date(timeIntervalSince1970: TimeInterval($0))
+      }
+    }
+
     private var lastCheck: String {
-      BackgroundRefresh.lastAttempt?.formatted(date: .long, time: .shortened) ?? "なし"
+      answeredAt?.formatted(date: .long, time: .shortened) ?? "なし"
     }
 
     private var nextDue: String {
-      guard let manifest = integration.manifest else { return "データを受け取ったあとに決まります" }
-      let next = RefreshPolicy.nextDate(
-        updatedAt: manifest.updatedAt, lastAttempt: BackgroundRefresh.lastAttempt)
-      return next.formatted(date: .long, time: .shortened) + "から"
+      guard integration.manifest != nil else { return "データを受け取ったあとに決まります" }
+      guard let answeredAt else { return "次にアプリを開いたとき" }
+      return answeredAt.addingTimeInterval(TimeInterval(UpdateCheck.intervalSeconds))
+        .formatted(date: .long, time: .shortened) + "から"
+    }
+
+    private var waiting: String {
+      integration.updateRecord.state.waiting == nil ? "なし" : "Wi-Fiなどにつながると受け取ります"
     }
 
     var body: some View {
@@ -185,14 +195,11 @@
         Text("データの自動の受け取り").font(.headline).accessibilityAddTraits(.isHeader)
         Text("データの日付：\(dataDate)")
         Text("前に確かめた日時：\(lastCheck)")
-        Text("次に受け取る日時：\(nextDue)")
+        Text("次に確かめる日時：\(nextDue)")
+        Text("待っている受け取り：\(waiting)")
         Text("問題：\(integration.problem ?? integration.stopped ?? "なし")")
           .fixedSize(horizontal: false, vertical: true)
           .accessibilityIdentifier("verification-problem")
-        if integration.costlyPath {
-          Text("モバイルデータ通信や省データモードのときは、Wi-Fiにつないでから押してください。")
-            .font(.callout).fixedSize(horizontal: false, vertical: true)
-        }
         Button {
           integration.updateNow()
         } label: {

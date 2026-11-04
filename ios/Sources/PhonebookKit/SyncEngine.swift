@@ -272,11 +272,31 @@ public actor SyncEngine {
     }
   }
 
+  /// Synchronizes from a listing that an answered check already read, so the transfer reads the listing no second time.
+  public func synchronize(
+    listing: DatasetListing, paths: NetworkPaths,
+    progress: @escaping @Sendable (SyncProgress) async -> Void
+  ) async throws -> SnapshotManifest {
+    guard !updating else { throw ImportError.alreadyUpdating }
+    updating = true
+    defer { updating = false }
+    return try await TraceContext.$operation.withValue(UUID()) {
+      try await perform(listing: listing, paths: paths, progress: progress)
+    }
+  }
+
   private func perform(
     paths: NetworkPaths, progress: @escaping @Sendable (SyncProgress) async -> Void
   ) async throws -> SnapshotManifest {
     trace.record(TraceEvent(phase: .discovery, outcome: .started))
-    let listing = try await api.datasets(paths: paths)
+    return try await perform(
+      listing: api.datasets(paths: paths), paths: paths, progress: progress)
+  }
+
+  private func perform(
+    listing: DatasetListing, paths: NetworkPaths,
+    progress: @escaping @Sendable (SyncProgress) async -> Void
+  ) async throws -> SnapshotManifest {
     let archive = listing.archive
     let snapshot = archive.snapshot
     let rows = archive.contacts

@@ -75,6 +75,14 @@ public struct DatasetListing: Sendable {
   public let deltas: String?
 }
 
+/// What a conditional read of the dataset listing answered.
+public enum ListingAnswer: Sendable {
+  /// The listing still has the saved ETag.
+  case notModified
+  /// The listing, its ETag, and its body, which a later transfer reuses without a second read.
+  case listed(DatasetListing, etag: String?, body: Data)
+}
+
 public protocol HTTPTransport: Sendable {
   func send(_ request: URLRequest) async throws -> HTTPResult
 }
@@ -200,6 +208,57 @@ public struct APIClient: Sendable {
     let response = try await get("/api/datasets", paths: paths)
     let listing = try JSONDecoder().decode(DirectoryDatasets.self, from: response.data)
     try validateIdentity(listing.snapshot, response: response.response)
+    return try parse(listing)
+  }
+
+  /// Reads the dataset listing with `If-None-Match`, and returns its body and ETag so a later transfer needs no second read.
+  public func datasets(paths: NetworkPaths = .every, etag: String?) async throws -> ListingAnswer {
+    let operation = TraceContext.operation ?? UUID()
+    trace.record(TraceEvent(operation: operation, phase: .request, outcome: .started))
+    do {
+      try Task.checkCancellation()
+      try await retryWindow.check(at: now())
+      var request = URLRequest(url: try resolve("/api/datasets"))
+      request.timeoutInterval = 30
+      request.setValue("application/json", forHTTPHeaderField: "Accept")
+      if let etag { request.setValue(etag, forHTTPHeaderField: "If-None-Match") }
+      paths.apply(to: &request)
+      let result = try await transport.send(request)
+      try Task.checkCancellation()
+      if etag != nil, result.response.statusCode == Self.notModified,
+        let url = result.response.url, try resolve(url.absoluteString) == url
+      {
+        trace.record(TraceEvent(operation: operation, phase: .request, outcome: .completed))
+        return .notModified
+      }
+      try await checkResponse(result.response)
+      guard result.data.count <= 8_388_608, result.response.mimeType == "application/json" else {
+        throw ServiceError.invalidResponse
+      }
+      let listing = try JSONDecoder().decode(DirectoryDatasets.self, from: result.data)
+      try validateIdentity(listing.snapshot, response: result.response)
+      let answer = ListingAnswer.listed(
+        try parse(listing), etag: result.response.value(forHTTPHeaderField: "ETag"),
+        body: result.data)
+      trace.record(TraceEvent(operation: operation, phase: .request, outcome: .completed))
+      return answer
+    } catch {
+      trace.record(
+        TraceEvent(
+          operation: operation, phase: .request,
+          outcome: error is CancellationError ? .cancelled : .rejected))
+      throw error
+    }
+  }
+
+  /// Decodes a listing body that an earlier answered read returned and checked.
+  public func listing(from body: Data) throws -> DatasetListing {
+    try parse(JSONDecoder().decode(DirectoryDatasets.self, from: body))
+  }
+
+  private static let notModified = 304
+
+  private func parse(_ listing: DirectoryDatasets) throws -> DatasetListing {
     if let deltas = listing.datasetDeltas {
       try validateLink(deltas, snapshot: listing.snapshot)
     }

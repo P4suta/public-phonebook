@@ -71,7 +71,19 @@ The store saves one batch of 1,000 rows while the reader parses the next batch, 
 A failed or cancelled import keeps the existing generation, and the current and previous generations remain readable.
 An import that ends with the app process leaves the active generation in place, and the next save removes the unfinished files.
 The first download uses any network path.
-Monthly updates stay silent and use only paths that are neither expensive nor constrained, through `allowsExpensiveNetworkAccess` and `allowsConstrainedNetworkAccess`.
+After the first run, a launch or a return to the foreground makes the daily check that `PhonebookCore.UpdateCheck` decides.
+The check reads `/api/datasets` with `If-None-Match` once 24 hours have passed since the last answered read, and a first run whose listing answered counts as that read.
+A 304 reply or a listing of the saved snapshot starts no transfer.
+A listing of another snapshot starts its delta or the complete archive at once on a path that is neither expensive nor constrained.
+On mobile data, a personal hotspot, or Low Data Mode, that automatic transfer waits, whatever its size, and the next report of an inexpensive path from `NWPathMonitor` starts it.
+The transfer reuses the checked listing's body, so it reads the listing no second time, and its requests also refuse those paths through `allowsExpensiveNetworkAccess` and `allowsConstrainedNetworkAccess`.
+A transfer that the person starts, such as the first download or the QA screen's, may use any path.
+A failed check keeps the saved data and says so in Settings without speaking.
+The record of the last answered read, its ETag, the listing body, and a waiting transfer stays in the app's defaults, so a background task in a new process continues it.
+A background app refresh task makes the same check and shares the 24-hour limit, and it leaves a transfer waiting for the background processing task.
+The background processing task performs a waiting transfer and its import, and without one its earliest date falls a month after the saved snapshot's `generatedAt`.
+Updates stay silent.
+A clock set back delays the next check until it passes the last answered read by 24 hours.
 While the first download runs, the ready step and the search start screen show one heading, one bar, and three steps.
 The steps are receiving the data, preparing the search, and preparing caller names.
 The bar follows the transfer up to 40 percent and then the saved share of the archive's rows up to 95 percent.
@@ -156,8 +168,8 @@ When the national data lists the same number, the test label replaces the nation
 Saving or clearing the entry reloads the extension, and the screen reports the state that iOS gave with the Call Directory code of a refusal.
 A reload that meets `currentlyLoading` waits 3 seconds and asks again, up to four requests, because the running load may hold the earlier entry.
 The screen never asks the owner to press the button again.
-The screen also shows the saved data date, the last automatic check, the next due time from `RefreshPolicy`, and any problem.
-Its `いま受け取る` button runs the monthly update path once, or the first download before any data exists.
+The screen also shows the saved data date, the last answered check, the next check time, a waiting transfer, and any problem.
+Its `いま受け取る` button starts a transfer as the person, which may use any path, or the first download before any data exists.
 The gate in `ios-check` scans every file of the unsigned Release app and extension for six markers of the QA code and fails on any of them.
 The markers are the screen's type name, the file name, an accessibility identifier, and three phrases of its copy.
 The gate also requires all six markers in the VerificationDebug build, so the scan demonstrably sees them.
@@ -176,7 +188,7 @@ Set `PHONEBOOK_FIXTURE_CONTACTS` and `PHONEBOOK_FIXTURE_CATALOG` to a production
 Run `mise x -- just ios-unit-test` for all compiled Swift package tests, strict lints, and coverage.
 Run `mise x -- just ios-check` for those checks, unsigned simulator and device builds, and the complete isolated simulator UI inventory.
 Run `mise x -- just ios-prove`, `mise x -- just ios-sanitize`, and `mise x -- just ios-mutate` for the heavier assurance checks.
-`just ios-prove` compiles the seven Lean modules and replays two generated roots, `PublicationModels` and `OmegaModels`, with `leanchecker --fresh`.
+`just ios-prove` compiles the eight Lean modules and two generated trace modules, and replays two generated roots, `PublicationModels` and `OmegaModels`, with `leanchecker --fresh`.
 `--fresh` replays every constant of a root's import closure, and the roots import each module exactly once, so they replay every constant that one run per module would.
 `PublicationModel` and `WaitDisplay` both declare `Phonebook.step`, so one root can't import every module.
 Each iOS command prints a final JSON line with the step record that [verification](verification.md#required-fast-gate) describes, and `ownInstructions` for the checker's own work.

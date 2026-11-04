@@ -143,6 +143,23 @@ private struct RefusingNotifier: ExtensionNotifier {
       == attempt.addingTimeInterval(86_400))
 }
 
+@Test func refreshCountsTheMonthFromTheSnapshotsGeneratedDate() throws {
+  let saved = try #require(ISO8601DateFormatter().date(from: "2026-11-04T00:00:00Z"))
+  let production = try #require(ISO8601DateFormatter().date(from: "2026-11-30T12:23:23Z"))
+  #expect(
+    abs(
+      RefreshPolicy.nextDate(
+        generatedAt: "2026-10-30T12:23:23.338Z", savedAt: saved, lastAttempt: nil
+      ).timeIntervalSince(production) - 0.338) < 0.001)
+  let fixture = try #require(ISO8601DateFormatter().date(from: "2026-11-29T00:00:00Z"))
+  #expect(
+    RefreshPolicy.nextDate(generatedAt: "2026-10-29T00:00:00Z", savedAt: saved, lastAttempt: nil)
+      == fixture)
+  let fallback = try #require(ISO8601DateFormatter().date(from: "2026-12-04T00:00:00Z"))
+  #expect(
+    RefreshPolicy.nextDate(generatedAt: "yesterday", savedAt: saved, lastAttempt: nil) == fallback)
+}
+
 @Test(.timeLimit(.minutes(1)))
 func automaticRefreshMatchesIndependentGregorianMonthEndsAcrossFourCenturies() throws {
   func days(_ year: Int, _ month: Int) -> Int {

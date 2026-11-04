@@ -1,0 +1,1512 @@
+{
+  "traces" : [
+    {
+      "events" : [
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 119500,
+          "reply" : "failed"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 337570,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "person",
+          "now" : 467786,
+          "transfer" : "archive"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 607444,
+          "reply" : "delta"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 729803,
+          "transfer" : "delta"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 858050,
+          "transfer" : "archive"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 862903,
+          "reply" : "archive"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "person",
+          "now" : 890685,
+          "transfer" : "archive"
+        }
+      ],
+      "seed" : 1,
+      "steps" : [
+        {
+          "read" : false
+        },
+        {
+          "read" : false
+        },
+        {
+          "read" : false
+        },
+        {
+          "answeredAt" : 337570,
+          "read" : true
+        },
+        {
+          "answeredAt" : 467786,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : true,
+            "expensive" : true,
+            "transfer" : "archive"
+          }
+        },
+        {
+          "answeredAt" : 467786,
+          "read" : false
+        },
+        {
+          "answeredAt" : 607444,
+          "read" : true,
+          "waiting" : "delta"
+        },
+        {
+          "answeredAt" : 729803,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : true,
+            "expensive" : false,
+            "transfer" : "delta"
+          }
+        },
+        {
+          "answeredAt" : 729803,
+          "read" : false
+        },
+        {
+          "answeredAt" : 858050,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "archive"
+          }
+        },
+        {
+          "answeredAt" : 858050,
+          "read" : false
+        },
+        {
+          "answeredAt" : 890685,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : true,
+            "expensive" : true,
+            "transfer" : "archive"
+          }
+        }
+      ]
+    },
+    {
+      "events" : [
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "person",
+          "now" : 34510
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 161914,
+          "reply" : "archive"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 439224,
+          "reply" : "archive"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 743442
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 777403,
+          "reply" : "notModified"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "path"
+        }
+      ],
+      "seed" : 2,
+      "steps" : [
+        {
+          "answeredAt" : 34510,
+          "read" : false
+        },
+        {
+          "answeredAt" : 34510,
+          "read" : false
+        },
+        {
+          "answeredAt" : 161914,
+          "read" : true,
+          "waiting" : "archive"
+        },
+        {
+          "answeredAt" : 161914,
+          "read" : false,
+          "waiting" : "archive"
+        },
+        {
+          "answeredAt" : 161914,
+          "read" : false,
+          "waiting" : "archive"
+        },
+        {
+          "answeredAt" : 439224,
+          "read" : true,
+          "waiting" : "archive"
+        },
+        {
+          "answeredAt" : 439224,
+          "read" : false,
+          "waiting" : "archive"
+        },
+        {
+          "answeredAt" : 439224,
+          "read" : false,
+          "waiting" : "archive"
+        },
+        {
+          "answeredAt" : 439224,
+          "read" : false,
+          "waiting" : "archive"
+        },
+        {
+          "answeredAt" : 743442,
+          "read" : false
+        },
+        {
+          "answeredAt" : 743442,
+          "read" : false
+        },
+        {
+          "answeredAt" : 743442,
+          "read" : false
+        }
+      ]
+    },
+    {
+      "events" : [
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 105453,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 191619,
+          "reply" : "failed"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 260861,
+          "reply" : "notModified"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 265713,
+          "reply" : "delta"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 428503,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "person",
+          "now" : 544521,
+          "transfer" : "delta"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 604829,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 680052,
+          "reply" : "archive"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 723609,
+          "transfer" : "archive"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 833732,
+          "reply" : "archive"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 997799,
+          "transfer" : "archive"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "person",
+          "now" : 1054647,
+          "transfer" : "delta"
+        }
+      ],
+      "seed" : 3,
+      "steps" : [
+        {
+          "answeredAt" : 105453,
+          "read" : true
+        },
+        {
+          "answeredAt" : 105453,
+          "read" : false
+        },
+        {
+          "answeredAt" : 260861,
+          "read" : true
+        },
+        {
+          "answeredAt" : 260861,
+          "read" : false
+        },
+        {
+          "answeredAt" : 428503,
+          "read" : true
+        },
+        {
+          "answeredAt" : 544521,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : false,
+            "expensive" : true,
+            "transfer" : "delta"
+          }
+        },
+        {
+          "answeredAt" : 544521,
+          "read" : false
+        },
+        {
+          "answeredAt" : 680052,
+          "read" : true,
+          "start" : {
+            "automatic" : true,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "archive"
+          }
+        },
+        {
+          "answeredAt" : 723609,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "archive"
+          }
+        },
+        {
+          "answeredAt" : 833732,
+          "read" : true,
+          "start" : {
+            "automatic" : true,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "archive"
+          }
+        },
+        {
+          "answeredAt" : 997799,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "archive"
+          }
+        },
+        {
+          "answeredAt" : 1054647,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : true,
+            "expensive" : true,
+            "transfer" : "delta"
+          }
+        }
+      ]
+    },
+    {
+      "events" : [
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 159178
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 278485,
+          "reply" : "archive"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 437710,
+          "reply" : "archive"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 554015,
+          "reply" : "delta"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 685977,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 773540,
+          "reply" : "delta"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 790931,
+          "reply" : "failed"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 920115,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 1046086,
+          "transfer" : "delta"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 1272607,
+          "reply" : "failed"
+        }
+      ],
+      "seed" : 4,
+      "steps" : [
+        {
+          "answeredAt" : 159178,
+          "read" : false
+        },
+        {
+          "answeredAt" : 159178,
+          "read" : false
+        },
+        {
+          "answeredAt" : 278485,
+          "read" : true,
+          "waiting" : "archive"
+        },
+        {
+          "answeredAt" : 437710,
+          "read" : true,
+          "start" : {
+            "automatic" : true,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "archive"
+          }
+        },
+        {
+          "answeredAt" : 554015,
+          "read" : true,
+          "waiting" : "delta"
+        },
+        {
+          "answeredAt" : 685977,
+          "read" : true
+        },
+        {
+          "answeredAt" : 773540,
+          "read" : true,
+          "start" : {
+            "automatic" : true,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "delta"
+          }
+        },
+        {
+          "answeredAt" : 773540,
+          "read" : false
+        },
+        {
+          "answeredAt" : 920115,
+          "read" : true
+        },
+        {
+          "answeredAt" : 1046086,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "delta"
+          }
+        },
+        {
+          "answeredAt" : 1046086,
+          "read" : false
+        },
+        {
+          "answeredAt" : 1046086,
+          "read" : false
+        }
+      ]
+    },
+    {
+      "events" : [
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 9818,
+          "transfer" : "archive"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 136479,
+          "reply" : "failed"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "person",
+          "now" : 241159,
+          "transfer" : "delta"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 289282,
+          "transfer" : "delta"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "person",
+          "now" : 294765,
+          "transfer" : "delta"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 296774,
+          "reply" : "notModified"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 597985,
+          "transfer" : "delta"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 705887,
+          "transfer" : "archive"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 821857,
+          "reply" : "notModified"
+        }
+      ],
+      "seed" : 5,
+      "steps" : [
+        {
+          "answeredAt" : 9818,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "archive"
+          }
+        },
+        {
+          "answeredAt" : 9818,
+          "read" : false
+        },
+        {
+          "answeredAt" : 241159,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : true,
+            "expensive" : true,
+            "transfer" : "delta"
+          }
+        },
+        {
+          "answeredAt" : 289282,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : true,
+            "expensive" : false,
+            "transfer" : "delta"
+          }
+        },
+        {
+          "answeredAt" : 294765,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : true,
+            "expensive" : true,
+            "transfer" : "delta"
+          }
+        },
+        {
+          "answeredAt" : 294765,
+          "read" : false
+        },
+        {
+          "answeredAt" : 294765,
+          "read" : false
+        },
+        {
+          "answeredAt" : 294765,
+          "read" : false
+        },
+        {
+          "answeredAt" : 597985,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : true,
+            "expensive" : false,
+            "transfer" : "delta"
+          }
+        },
+        {
+          "answeredAt" : 597985,
+          "read" : false
+        },
+        {
+          "answeredAt" : 705887,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "archive"
+          }
+        },
+        {
+          "answeredAt" : 821857,
+          "read" : true
+        }
+      ]
+    },
+    {
+      "events" : [
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 102800,
+          "reply" : "failed"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 222529,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "person",
+          "now" : 244472,
+          "transfer" : "archive"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 247110,
+          "reply" : "notModified"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 319823,
+          "reply" : "notModified"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 466899,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 548731,
+          "reply" : "failed"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 706778,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 947796,
+          "reply" : "notModified"
+        }
+      ],
+      "seed" : 6,
+      "steps" : [
+        {
+          "read" : false
+        },
+        {
+          "read" : false
+        },
+        {
+          "read" : false
+        },
+        {
+          "answeredAt" : 222529,
+          "read" : true
+        },
+        {
+          "answeredAt" : 244472,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : false,
+            "expensive" : true,
+            "transfer" : "archive"
+          }
+        },
+        {
+          "answeredAt" : 244472,
+          "read" : false
+        },
+        {
+          "answeredAt" : 244472,
+          "read" : false
+        },
+        {
+          "answeredAt" : 466899,
+          "read" : true
+        },
+        {
+          "answeredAt" : 466899,
+          "read" : false
+        },
+        {
+          "answeredAt" : 706778,
+          "read" : true
+        },
+        {
+          "answeredAt" : 706778,
+          "read" : false
+        },
+        {
+          "answeredAt" : 947796,
+          "read" : true
+        }
+      ]
+    },
+    {
+      "events" : [
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 73890,
+          "reply" : "delta"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 211872,
+          "reply" : "delta"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 304588,
+          "reply" : "failed"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "person",
+          "now" : 310468,
+          "transfer" : "archive"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 468668,
+          "reply" : "delta"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 605883,
+          "reply" : "notModified"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 637722,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 761543,
+          "reply" : "archive"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 876750,
+          "reply" : "failed"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "path"
+        }
+      ],
+      "seed" : 7,
+      "steps" : [
+        {
+          "read" : false
+        },
+        {
+          "answeredAt" : 73890,
+          "read" : true,
+          "waiting" : "delta"
+        },
+        {
+          "answeredAt" : 211872,
+          "read" : true,
+          "waiting" : "delta"
+        },
+        {
+          "answeredAt" : 211872,
+          "read" : false,
+          "waiting" : "delta"
+        },
+        {
+          "answeredAt" : 310468,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : true,
+            "expensive" : true,
+            "transfer" : "archive"
+          }
+        },
+        {
+          "answeredAt" : 468668,
+          "read" : true,
+          "waiting" : "delta"
+        },
+        {
+          "answeredAt" : 605883,
+          "read" : true,
+          "waiting" : "delta"
+        },
+        {
+          "answeredAt" : 605883,
+          "read" : false,
+          "waiting" : "delta"
+        },
+        {
+          "answeredAt" : 605883,
+          "read" : false,
+          "start" : {
+            "automatic" : true,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "delta"
+          }
+        },
+        {
+          "answeredAt" : 761543,
+          "read" : true,
+          "waiting" : "archive"
+        },
+        {
+          "answeredAt" : 761543,
+          "read" : false,
+          "waiting" : "archive"
+        },
+        {
+          "answeredAt" : 761543,
+          "read" : false,
+          "start" : {
+            "automatic" : true,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "archive"
+          }
+        }
+      ]
+    },
+    {
+      "events" : [
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 7222,
+          "reply" : "archive"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 103424
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 205059,
+          "transfer" : "delta"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 407364,
+          "reply" : "failed"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 417863
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 508739,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 544930,
+          "transfer" : "delta"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 596977,
+          "reply" : "delta"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 632120,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "path"
+        }
+      ],
+      "seed" : 8,
+      "steps" : [
+        {
+          "answeredAt" : 7222,
+          "read" : true,
+          "waiting" : "archive"
+        },
+        {
+          "answeredAt" : 103424,
+          "read" : false
+        },
+        {
+          "answeredAt" : 205059,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "delta"
+          }
+        },
+        {
+          "answeredAt" : 205059,
+          "read" : false
+        },
+        {
+          "answeredAt" : 205059,
+          "read" : false
+        },
+        {
+          "answeredAt" : 417863,
+          "read" : false
+        },
+        {
+          "answeredAt" : 417863,
+          "read" : false
+        },
+        {
+          "answeredAt" : 508739,
+          "read" : true
+        },
+        {
+          "answeredAt" : 544930,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : true,
+            "expensive" : false,
+            "transfer" : "delta"
+          }
+        },
+        {
+          "answeredAt" : 544930,
+          "read" : false
+        },
+        {
+          "answeredAt" : 632120,
+          "read" : true
+        },
+        {
+          "answeredAt" : 632120,
+          "read" : false
+        }
+      ]
+    },
+    {
+      "events" : [
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 303760,
+          "reply" : "delta"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 468272,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 604609,
+          "reply" : "delta"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 724328,
+          "reply" : "failed"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 751429,
+          "reply" : "notModified"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 902522,
+          "reply" : "notModified"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 1050145,
+          "reply" : "archive"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 1172807,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "path"
+        }
+      ],
+      "seed" : 9,
+      "steps" : [
+        {
+          "read" : false
+        },
+        {
+          "read" : false
+        },
+        {
+          "answeredAt" : 303760,
+          "read" : true,
+          "waiting" : "delta"
+        },
+        {
+          "answeredAt" : 468272,
+          "read" : true
+        },
+        {
+          "answeredAt" : 604609,
+          "read" : true,
+          "waiting" : "delta"
+        },
+        {
+          "answeredAt" : 604609,
+          "read" : false,
+          "waiting" : "delta"
+        },
+        {
+          "answeredAt" : 751429,
+          "read" : true,
+          "waiting" : "delta"
+        },
+        {
+          "answeredAt" : 902522,
+          "read" : true,
+          "waiting" : "delta"
+        },
+        {
+          "answeredAt" : 902522,
+          "read" : false,
+          "start" : {
+            "automatic" : true,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "delta"
+          }
+        },
+        {
+          "answeredAt" : 1050145,
+          "read" : true,
+          "waiting" : "archive"
+        },
+        {
+          "answeredAt" : 1172807,
+          "read" : true
+        },
+        {
+          "answeredAt" : 1172807,
+          "read" : false
+        }
+      ]
+    },
+    {
+      "events" : [
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 17866,
+          "reply" : "notModified"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 66962,
+          "reply" : "failed"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 82362,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "check",
+          "now" : 232806,
+          "reply" : "saved"
+        },
+        {
+          "constrained" : true,
+          "expensive" : true,
+          "kind" : "person",
+          "now" : 264402
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 399344,
+          "reply" : "delta"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "path"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "path"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "path"
+        },
+        {
+          "constrained" : false,
+          "expensive" : false,
+          "kind" : "check",
+          "now" : 697776,
+          "reply" : "delta"
+        },
+        {
+          "constrained" : true,
+          "expensive" : false,
+          "kind" : "person",
+          "now" : 706677,
+          "transfer" : "archive"
+        },
+        {
+          "constrained" : false,
+          "expensive" : true,
+          "kind" : "path"
+        }
+      ],
+      "seed" : 10,
+      "steps" : [
+        {
+          "answeredAt" : 17866,
+          "read" : true
+        },
+        {
+          "answeredAt" : 17866,
+          "read" : false
+        },
+        {
+          "answeredAt" : 17866,
+          "read" : false
+        },
+        {
+          "answeredAt" : 232806,
+          "read" : true
+        },
+        {
+          "answeredAt" : 264402,
+          "read" : false
+        },
+        {
+          "answeredAt" : 399344,
+          "read" : true,
+          "start" : {
+            "automatic" : true,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "delta"
+          }
+        },
+        {
+          "answeredAt" : 399344,
+          "read" : false
+        },
+        {
+          "answeredAt" : 399344,
+          "read" : false
+        },
+        {
+          "answeredAt" : 399344,
+          "read" : false
+        },
+        {
+          "answeredAt" : 697776,
+          "read" : true,
+          "start" : {
+            "automatic" : true,
+            "constrained" : false,
+            "expensive" : false,
+            "transfer" : "delta"
+          }
+        },
+        {
+          "answeredAt" : 706677,
+          "read" : false,
+          "start" : {
+            "automatic" : false,
+            "constrained" : true,
+            "expensive" : false,
+            "transfer" : "archive"
+          }
+        },
+        {
+          "answeredAt" : 706677,
+          "read" : false
+        }
+      ]
+    }
+  ]
+}

@@ -7,6 +7,7 @@ date: 2026-11-04
 ## Status
 
 Proposed in #224.
+Issue #228 amends its update check, so automatic transfers wait for an inexpensive path whatever their size.
 It amends [Count the first download down toward a deadline that only moves earlier](count-the-first-download-down-toward-a-deadline-that-only-moves-earlier.md), whose policy now measures a shorter run.
 It partly supersedes the first-run download and the monthly cadence of [Import the national dataset for iOS extensions](import-the-national-dataset-for-ios-extensions.md).
 It partly supersedes the retention rule of [Publish target-ordered deltas between directory archives](publish-target-ordered-deltas-between-directory-archives.md).
@@ -92,15 +93,18 @@ The caller step stays optional, as the first item of App Review Guideline 5.1.2 
 
 ### Update check
 
-After the first run, a launch or a return to the foreground reads the dataset listing when 24 hours have passed since the last read.
+After the first run, a launch or a return to the foreground reads the dataset listing when 24 hours have passed since the last answered read.
 It sends `If-None-Match` with the saved ETag, and the listing gains a strong ETag of its body and answers 304 on a match.
 Only an answered read starts the 24 hours, so a first run that finished offline checks again at the next launch.
-Automatic transfers, which follow the daily check or the background task, never use a constrained path such as Low Data Mode.
-On an expensive path, such as cellular, they transfer only a delta from the saved snapshot of at most 2,000,000 bytes.
-A larger delta or the complete archive waits for a path that's neither expensive nor constrained.
-The background processing task takes the same decision and shares the 24-hour limit.
+A first run whose listing answered starts the 24 hours as well.
+Automatic transfers, which follow the daily check or a background task, wait for a path that's neither expensive nor constrained, whatever the size of the delta.
+They never use mobile data, a personal hotspot, or Low Data Mode.
+[`allowsExpensiveNetworkAccess`](https://developer.apple.com/documentation/foundation/urlrequest/allowsexpensivenetworkaccess) asks apps to limit expensive network access to user-initiated tasks.
+A transfer that the person starts, such as the first-run transfer after `はじめる`, may use any path.
+A background app refresh task makes the same check when iOS runs it, and it shares the 24-hour limit.
+The background processing task performs a waiting transfer and its import.
 Its earliest date counts a month from the saved snapshot's `generatedAt` instead of the time of saving, so a bundled snapshot older than a month is due at once.
-A Lean model bound to the digest of the Swift decision proves the limit, the threshold, and the path rule over every finite input.
+A Lean model bound to the digest of the Swift decision proves the limit and the path rule over every finite trace.
 
 ### Delta retention
 
@@ -164,7 +168,7 @@ Such a run searches older data until the update check succeeds, and the ready st
 The app grows by about the archive's 13.4 MB, and Brotli bytes gain little from the App Store's own compression.
 A delta on the first run needs temporary space for the decoded base and the rebuilt archive, about 80 MB each, beyond the new generation.
 If the device measurement finds that too heavy, the app imports the bundle and then applies the delta from the saved store, which imports twice.
-An automatic update may use mobile data without asking for a delta of up to 2,000,000 bytes per published snapshot, and it never uses Low Data Mode.
+An automatic update never uses mobile data, a personal hotspot, or Low Data Mode, so a person away from Wi-Fi keeps the saved data until such a path appears.
 The daily check costs one conditional request, and a 304 reply carries no body.
 A new starting snapshot needs an app release, and data freshness doesn't.
 Each shipped dataset adds one base archive to fetch and decode during preparation.

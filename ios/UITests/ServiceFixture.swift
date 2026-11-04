@@ -5,11 +5,14 @@ import Synchronization
 final class ServiceFixture: Sendable {
   enum Route: Sendable {
     case dataset
+    /// The dataset listing, which the daily check reads.
+    case listing
 
     func matches(_ target: String) -> Bool {
       guard let url = URLComponents(string: target) else { return false }
       switch self {
       case .dataset: return url.path.hasPrefix("/api/datasets/")
+      case .listing: return url.path == "/api/datasets"
       }
     }
   }

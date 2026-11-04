@@ -82,7 +82,7 @@ struct SearchScreen: View {
     if model.results == nil, !model.searching, !model.failed {
       VStack(alignment: .leading, spacing: 8) {
         Text("施設の名前か、電話番号を入れてください。")
-        // Only a first download shows here, because monthly updates stay silent.
+        // Only a first download shows here, because automatic updates stay silent.
         if integration.receiving, let wait = integration.wait {
           FirstDownloadProgress(wait: wait, fraction: integration.fraction, showsHeading: true)
             .padding(.top, 16)

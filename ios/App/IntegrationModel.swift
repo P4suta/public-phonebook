@@ -141,20 +141,39 @@ final class IntegrationModel {
       ProcessInfo.processInfo.environment["PHONEBOOK_NETWORK_COST"] == "costly"
   #endif
   @ObservationIgnored private let sync: SyncEngine
+  @ObservationIgnored private let automatic: AutomaticUpdate
   @ObservationIgnored private let api: APIClient
   @ObservationIgnored private let store: SnapshotStore
   @ObservationIgnored private let origin: String
+  /// The path that iOS reported last, which the update decision reads.
+  @ObservationIgnored private var path = UpdatePath(expensive: false, constrained: false)
 
   init(api: APIClient, store: SnapshotStore) {
     origin = api.origin.absoluteString
     self.api = api
     self.store = store
     sync = SyncEngine(api: api, store: store, trace: SystemTraceSink())
+    automatic = BackgroundRefresh.automatic(api: api, store: store)
     monitor.pathUpdateHandler = { [weak self] path in
-      let costly = path.isExpensive || path.isConstrained
-      Task { @MainActor [weak self] in self?.costlyNetwork = costly }
+      let reported = UpdatePath(expensive: path.isExpensive, constrained: path.isConstrained)
+      Task { @MainActor [weak self] in self?.report(reported) }
     }
     monitor.start(queue: DispatchQueue(label: "network-path", qos: .utility))
+  }
+
+  /// Records the path, and lets a waiting automatic transfer start on a path that is neither expensive nor constrained.
+  private func report(_ reported: UpdatePath) {
+    path = reported
+    costlyNetwork = !reported.inexpensive
+    // Only a waiting transfer needs the report, so other reports leave the app free for the next check.
+    if manifest != nil, !busy, DefaultsUpdateRecords().load().state.waiting != nil {
+      update(.path(updatePath))
+    }
+  }
+
+  /// The path that the decision reads, which a debug UI scenario can force to be costly.
+  private var updatePath: UpdatePath {
+    costlyPath ? UpdatePath(expensive: true, constrained: path.constrained) : path
   }
 
   /// The first download runs or still shows its last step.
@@ -181,10 +200,10 @@ final class IntegrationModel {
   /// Starts the first download when the person presses the start button, and remembers that they did.
   func startFirstDownload() {
     UserDefaults.standard.set(true, forKey: Self.requestedKey)
-    if manifest == nil { update(first: true) }
+    if manifest == nil { update(.first) }
   }
 
-  /// Reads the saved data, continues a first download that the person started, and runs a due monthly update.
+  /// Reads the saved data, continues a first download that the person started, and runs a due daily check.
   func refresh() async {
     guard !refreshing else { return }
     refreshing = true
@@ -203,15 +222,15 @@ final class IntegrationModel {
     guard !busy else { return }
     guard let manifest else {
       // Returning to the app retries a stopped first download now.
-      if requested { update(first: true) } else { await readDownloadSize() }
+      if requested { update(.first) } else { await readDownloadSize() }
       return
     }
     try? BackgroundRefresh.schedule(manifest: manifest)
-    // Monthly updates wait for a path that is neither expensive nor constrained.
-    if !costlyPath, manifest.origin != origin || due(manifest) {
-      BackgroundRefresh.lastAttempt = Date()
-      update(first: false)
+    // Data saved from another origin, or a debug UI scenario, makes the check due now.
+    if manifest.origin != origin || consumeForcedDue() {
+      DefaultsUpdateRecords().save(UpdateRecord())
     }
+    update(.check)
   }
 
   private func readDownloadSize() async {
@@ -219,24 +238,37 @@ final class IntegrationModel {
     downloadBytes = try? await api.datasets().archive.bytes
   }
 
-  private func due(_ manifest: SnapshotManifest) -> Bool {
+  private func consumeForcedDue() -> Bool {
     #if DEBUG
       if forcedDue {
         forcedDue = false
         return true
       }
     #endif
-    return RefreshPolicy.nextDate(
-      updatedAt: manifest.updatedAt, lastAttempt: BackgroundRefresh.lastAttempt) <= Date()
+    return false
   }
 
-  /// Runs the first download with its display and announcements, or a silent monthly update.
-  private func update(first: Bool) {
+  /// What a run of the update path does.
+  enum Run: Equatable {
+    /// The first download, which the person started with the start button.
+    case first
+    /// The daily check at a launch or a return to the foreground.
+    case check
+    /// A path report, which starts a waiting automatic transfer.
+    case path(UpdatePath)
+    /// A transfer that the person started from the QA screen.
+    case person
+  }
+
+  /// Runs the first download with its display and announcements, or a silent update.
+  private func update(_ run: Run) {
+    let first = run == .first
     guard !busy else { return }
     retry?.cancel()
     retry = nil
     stopped = nil
-    problem = nil
+    // A path report reads nothing, so it keeps the problem that the last check found.
+    if case .path = run {} else { problem = nil }
     busy = true
     if first {
       latest = SyncProgress(
@@ -252,20 +284,38 @@ final class IntegrationModel {
         }
       }
     }
-    operation = Task { [weak self, sync] in
+    let path = updatePath
+    operation = Task { [weak self, sync, automatic] in
       guard let self else { return }
       do {
         // iOS terminates an app that it suspends while the transfer or the import holds its locks.
-        let result = try await BackgroundTimeRunner.run(
+        let outcome = try await BackgroundTimeRunner.run(
           ApplicationBackgroundTime(), name: "synchronize"
-        ) { [weak self] in
-          try await sync.synchronize(paths: first ? .every : .inexpensive) { [weak self] report in
+        ) { [weak self] () async throws -> UpdateOutcome in
+          let progress: @Sendable (SyncProgress) async -> Void = { [weak self] report in
             await MainActor.run { self?.receive(report, first: first) }
           }
+          switch run {
+          case .first:
+            let saved = try await sync.synchronize(paths: .every, progress: progress)
+            await automatic.recordPerson(transfer: nil, path: path)
+            return UpdateOutcome(read: false, start: nil, manifest: saved)
+          case .check: return try await automatic.check(path: path, progress: progress)
+          case .path(let reported):
+            return try await automatic.pathChanged(reported, progress: progress)
+          case .person:
+            let saved = try await automatic.runPerson(path: path, progress: progress)
+            return UpdateOutcome(read: false, start: nil, manifest: saved)
+          }
         }
-        manifest = result
         busy = false
         failures = 0
+        if outcome.reply == .failed { problem = "データを新しくできませんでした。前のデータのまま使えます。" }
+        guard let result = outcome.manifest else {
+          if let manifest { try? BackgroundRefresh.schedule(manifest: manifest) }
+          return
+        }
+        manifest = result
         complete = true
         await notifyExtensions(result)
         try? BackgroundRefresh.schedule(manifest: result)
@@ -314,7 +364,7 @@ final class IntegrationModel {
     if manifest == nil { wait = nil }
   }
 
-  /// A transfer that a monthly update kept off an expensive or constrained path waits for the next update.
+  /// A transfer that an automatic update kept off an expensive or constrained path waits again, and the path rule starts it later.
   private static func deferred(_ error: any Error) -> Bool {
     guard let error = error as? URLError else { return false }
     return error.networkUnavailableReason == .expensive
@@ -339,7 +389,7 @@ final class IntegrationModel {
     default: reason = nil
     }
     guard manifest == nil else {
-      // A monthly update keeps the saved data and says so in Settings without speaking.
+      // An automatic update keeps the saved data and says so in Settings without speaking.
       problem = reason ?? "データを新しくできませんでした。前のデータのまま使えます。"
       return
     }
@@ -354,7 +404,7 @@ final class IntegrationModel {
       try? await Task.sleep(for: .seconds(seconds))
       guard !Task.isCancelled, let self else { return }
       self.retry = nil
-      self.update(first: true)
+      self.update(.first)
     }
   }
 
@@ -402,12 +452,14 @@ final class IntegrationModel {
   }
 
   #if PHONEBOOK_VERIFICATION_TOOLS
-    /// Runs the update path once now, the monthly update when data is saved and the first download otherwise.
+    /// Runs a transfer that the person starts, on any path, or the first download before any data exists.
     func updateNow() {
       guard !busy else { return }
-      if manifest != nil { BackgroundRefresh.lastAttempt = Date() }
-      update(first: manifest == nil)
+      update(manifest == nil ? .first : .person)
     }
+
+    /// The update record, which the QA screen shows as check times.
+    var updateRecord: UpdateRecord { DefaultsUpdateRecords().load() }
 
     /// Asks iOS to load the caller names again after the test number changes, and reports the state and the code that iOS gave.
     /// A load that is already running may hold the earlier test number, so the request waits for it and asks again a few times.

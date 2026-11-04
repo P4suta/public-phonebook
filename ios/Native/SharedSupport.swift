@@ -32,6 +32,11 @@ enum AppIdentity {
       ?? "page.dial.publicphonebook.refresh"
   }
 
+  static var backgroundCheck: String {
+    Bundle.main.object(forInfoDictionaryKey: "PhonebookBackgroundCheck") as? String
+      ?? "page.dial.publicphonebook.check"
+  }
+
   static func store() throws -> SnapshotStore {
     guard
       let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)
