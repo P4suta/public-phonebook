@@ -8,7 +8,7 @@ const commandArgumentOffset = 2;
 
 /**
  * Writes each display name of a directory archive beside the website's comparison form, one tab-separated pair per line.
- * The iPhone app's `everyNationalNameFoldsLikeTheWebsite` test reads the file through `PHONEBOOK_SEARCH_FORMS` and requires its own form for every name.
+ * `BundledAdmission --search-forms` reads the file and requires the app's own form for every name, and `just ios-check` runs both for each bundled archive.
  */
 export function searchFormLines(archive: Uint8Array): string {
   const lines = new TextDecoder("utf-8", { fatal: true })

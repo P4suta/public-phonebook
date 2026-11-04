@@ -507,7 +507,53 @@ pub(super) fn prepare(root: &Path) -> Result<()> {
         };
         require_controls(dataset, &source)?;
         install(root, dataset, &source.entry, &source.archive)?;
+        compare_search_forms(root, dataset)?;
     }
+    Ok(())
+}
+
+/// Requires the app's comparison form of every bundled name to equal the website's, on every run, because either folding can change while the archive stays.
+fn compare_search_forms(root: &Path, dataset: Dataset) -> Result<()> {
+    let archive = root.join(OUTPUT).join(dataset.name()).join(ARCHIVE_FILE);
+    let scratch = root.join(ADMISSION_SCRATCH);
+    fs::create_dir_all(&scratch)?;
+    let forms = scratch.join(format!("search-forms-{}.tsv", dataset.name()));
+    logged(
+        root,
+        &format!("search-forms-{}", dataset.name()),
+        Command::new("node")
+            .current_dir(root)
+            .arg("tools/search-form-parity.ts")
+            .arg(&archive)
+            .arg(&forms),
+    )?;
+    let compared = logged(
+        root,
+        &format!("search-form-parity-{}", dataset.name()),
+        Command::new("xcrun")
+            .current_dir(root)
+            .args([
+                "swift",
+                "run",
+                "--package-path",
+                "ios",
+                "--configuration",
+                "release",
+                "--jobs",
+                "2",
+                "BundledAdmission",
+                "--search-forms",
+            ])
+            .arg(&forms),
+    )
+    .with_context(|| {
+        format!(
+            "{}: the app folds a name differently from the website",
+            dataset.declaration()
+        )
+    })?;
+    fs::remove_file(&forms)?;
+    print!("{}", String::from_utf8_lossy(&compared.stdout));
     Ok(())
 }
 
