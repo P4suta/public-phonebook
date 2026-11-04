@@ -14,6 +14,7 @@ use std::{
 };
 mod app_info;
 mod build_number;
+mod bundled;
 mod distribution;
 mod failure;
 mod lease;
@@ -391,6 +392,7 @@ fn generate(root: &Path) -> Result<()> {
     )?;
     app_info::derive(root)?;
     distribution::configurations(root)?;
+    bundled::prepare(root)?;
     println!("PASS: Xcode project generated from the shared Figma icon inventory");
     Ok(())
 }
@@ -1235,6 +1237,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "lint",
                     "--strict",
                     "--recursive",
+                    "ios/Admission",
                     "ios/App",
                     "ios/Native",
                     "ios/CallDirectory",
@@ -1407,6 +1410,18 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                 "VerificationDebug",
             )?;
             app_info::check_built(
+                root,
+                &root.join("ios/DerivedData/Build/Products/Release-iphoneos/PublicPhonebook.app"),
+                "Release",
+            )?;
+            bundled::check_built(
+                root,
+                &root.join(
+                    "ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app",
+                ),
+                "VerificationDebug",
+            )?;
+            bundled::check_built(
                 root,
                 &root.join("ios/DerivedData/Build/Products/Release-iphoneos/PublicPhonebook.app"),
                 "Release",

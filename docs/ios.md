@@ -31,6 +31,26 @@ On the iOS 27 simulator, a VerificationDebug build without that key still reache
 The [`NSAllowsLocalNetworking`](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking) page recommends the key as a declaration of intent even where the system doesn't block local loads, so those four configurations keep it.
 The builds for TestFlight and the App Store carry no transport exception.
 
+Each app build carries one directory archive and a generated entry that describes it, as [the bundled-data decision](adr/start-from-a-bundled-directory-archive-and-catch-up-through-deltas.md) states.
+`ios/bundled-dataset.json` names the national dataset by the SHA-256 of its ready manifest.
+It repeats the release tag, the snapshot, the row count, the archive length, and the archive SHA-256 for review.
+`ios/bundled-fixture.json` names the baseline archive of the provider corpus with the same fields.
+`ios-check generate` reads the declared release's `manifest.ready.json`, requires its digest, and takes its `directory.tsv.br` entry.
+It never reads the current listing.
+It reads the manifest and the archive from `target/datasets/MANIFEST_SHA256/`, which `mise x -- just data-fetch MANIFEST_SHA256 DIRECTORY` can fill.
+A missing file comes from the release asset or the entry's immutable URL, so a hosted runner needs no credentials.
+The archive must have the declared length and SHA-256.
+The `BundledAdmission` tool then admits it with `BundledDataset.admit` from PhonebookKit.
+That function checks the format line, the header's snapshot, row count, and `generatedAt`, and every row.
+Any difference fails the generator and names the field, and the generator requires one changed archive byte and one changed row count to fail.
+The admitted pairs land in `target/ios/bundled-dataset/national` and `target/ios/bundled-dataset/fixture`.
+A build phase copies the pair that `PHONEBOOK_BUNDLED_DATASET` names into the app as `directory.tsv.br` and `directory.json`.
+Production and verification configurations bundle the national dataset, and Debug and DevRelease bundle the fixture.
+The Call Directory extension carries neither file.
+The gate compares the VerificationDebug and Release apps and the exported TestFlight app with their declaration, and a changed byte must fail that comparison.
+The fast gate refuses a national declaration whose dataset `sources/shipped-snapshots.json` lacks, because preparation writes deltas only from listed datasets.
+The fixture never ships, so the list never names it.
+
 The app keeps the whole national directory on the device.
 The first launch opens a setup flow that starts the download when the reader presses the start button, explains caller identification, and then waits for the data.
 Over that button, a notice names the listed size rounded up to whole megabytes and suggests a fast connection.

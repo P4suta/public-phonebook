@@ -4,7 +4,7 @@ import Testing
 
 @testable import PhonebookKit
 
-private struct CorpusEntry: Decodable {
+struct CorpusEntry: Decodable {
   let revision: String
   let path: String
   let status: Int
@@ -19,14 +19,14 @@ private struct CorpusEntry: Decodable {
   }
 }
 
-private func corpus(_ revision: String) throws -> [CorpusEntry] {
+func corpus(_ revision: String) throws -> [CorpusEntry] {
   let url = try #require(Bundle.module.url(forResource: "DirectoryContract", withExtension: "json"))
   return try JSONDecoder().decode([CorpusEntry].self, from: Data(contentsOf: url))
     .filter { $0.revision == revision }
 }
 
 /// Serves the responses that the merged producer wrote for one revision of the provider corpus.
-private func corpusServer(_ entries: [CorpusEntry], requests: RequestLog = RequestLog())
+func corpusServer(_ entries: [CorpusEntry], requests: RequestLog = RequestLog())
   async throws -> HTTPTestServer
 {
   let responses = try Dictionary(
@@ -202,7 +202,7 @@ private func callerEntries(_ url: URL) throws -> [IdentificationEntry] {
   return entries
 }
 
-private func decodedBrotli(_ data: Data, in root: URL) async throws -> Data {
+func decodedBrotli(_ data: Data, in root: URL) async throws -> Data {
   let url = root.appendingPathComponent(UUID().uuidString + ".br")
   try data.write(to: url)
   var text = Data()

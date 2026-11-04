@@ -279,7 +279,7 @@ public struct APIClient: Sendable {
       if !FileManager.default.fileExists(atPath: partial.path) {
         try Data().write(to: partial, options: .withoutOverwriting)
       }
-      var offset = try Self.size(of: partial)
+      var offset = try FileSize.bytes(of: partial)
       if offset >= archive.bytes {
         if offset == archive.bytes,
           try DatasetArchive.digest(of: partial) == archive.sha256.rawValue
@@ -304,7 +304,7 @@ public struct APIClient: Sendable {
         throw ServiceError.http(response.statusCode)
       }
       try Task.checkCancellation()
-      guard try Self.size(of: partial) == archive.bytes else { throw ServiceError.invalidResponse }
+      guard try FileSize.bytes(of: partial) == archive.bytes else { throw ServiceError.invalidResponse }
       guard try DatasetArchive.digest(of: partial) == archive.sha256.rawValue else {
         try Data().write(to: partial)
         throw ServiceError.invalidResponse
@@ -319,13 +319,6 @@ public struct APIClient: Sendable {
           outcome: failure is CancellationError ? .cancelled : .rejected))
       throw failure
     }
-  }
-
-  /// Reads the size from the open file each time, because a URL caches its resource values and file attributes need a declared reason.
-  private static func size(of url: URL) throws -> Int {
-    let handle = try FileHandle(forReadingFrom: url)
-    defer { try? handle.close() }
-    return Int(try handle.seekToEnd())
   }
 }
 

@@ -86,6 +86,20 @@ targets:
         product: PhonebookKit
       - target: CallDirectory
         embed: true
+    # `ios-check generate` admits each declared archive into target/ios/bundled-dataset, and each configuration copies its own pair.
+    postBuildScripts:
+      - name: Bundle the declared directory archive
+        basedOnDependencyAnalysis: true
+        inputFiles:
+          - $(SRCROOT)/../target/ios/bundled-dataset/$(PHONEBOOK_BUNDLED_DATASET)/directory.tsv.br
+          - $(SRCROOT)/../target/ios/bundled-dataset/$(PHONEBOOK_BUNDLED_DATASET)/directory.json
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/directory.tsv.br
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/directory.json
+        script: |
+          set -eu
+          cp "$SCRIPT_INPUT_FILE_0" "$SCRIPT_OUTPUT_FILE_0"
+          cp "$SCRIPT_INPUT_FILE_1" "$SCRIPT_OUTPUT_FILE_1"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_BUNDLE_ID)
