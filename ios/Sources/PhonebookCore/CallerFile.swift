@@ -287,9 +287,10 @@ public enum CallerFile {
 
     func peek() throws -> (Int64, String)? {
       if index == batch.count {
-        batch.removeAll(keepingCapacity: true)
+        var next: [(Int64, String)] = []
+        _ = try merged.read(upTo: size) { next.append(($0, $1)) }
+        batch = next
         index = 0
-        _ = try merged.read(upTo: size) { batch.append(($0, $1)) }
       }
       return index < batch.count ? batch[index] : nil
     }
