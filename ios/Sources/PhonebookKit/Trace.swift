@@ -44,6 +44,42 @@ public struct TraceEvent: Codable, Equatable, Sendable {
 
 public protocol TraceSink: Sendable { func record(_ event: TraceEvent) }
 
+/// Pairs trace events into the intervals that a signposter marks, and keeps the state of each open interval.
+/// A started event opens its phase's interval, the next outcome of that phase closes it, and a completed decode closes the staging that it ends.
+/// Every other event is a point, such as the duration of one import phase.
+public struct TraceIntervals<State> {
+  public struct Key: Hashable, Sendable {
+    public let operation: UUID
+    public let phase: TraceEvent.Phase
+  }
+
+  private var open: [Key: State] = [:]
+  public var openCount: Int { open.count }
+
+  public init() {}
+
+  public mutating func record(
+    _ event: TraceEvent, begin: (Key) -> State, end: (Key, State) -> Void,
+    mark: (TraceEvent) -> Void
+  ) {
+    let key = Key(operation: event.operation, phase: event.phase)
+    if event.outcome == .started {
+      if let earlier = open.removeValue(forKey: key) { end(key, earlier) }
+      open[key] = begin(key)
+      return
+    }
+    if let state = open.removeValue(forKey: key) {
+      end(key, state)
+    } else {
+      mark(event)
+    }
+    if event.phase == .decode, event.outcome == .completed {
+      let staging = Key(operation: event.operation, phase: .stage)
+      if let state = open.removeValue(forKey: staging) { end(staging, state) }
+    }
+  }
+}
+
 public struct DiscardingTraceSink: TraceSink {
   public init() {}
   public func record(_ event: TraceEvent) {}

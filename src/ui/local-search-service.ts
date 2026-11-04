@@ -105,7 +105,7 @@ function decode(bytes: Uint8Array): Result<SearchIndex, string> {
   }
 }
 
-function localRow(index: SearchIndex, position: number): LocalRow {
+export function localRow(index: SearchIndex, position: number): LocalRow {
   const row = index.rows[position];
   if (!row) throw new Error("A local search row is out of range");
   return {
@@ -114,6 +114,7 @@ function localRow(index: SearchIndex, position: number): LocalRow {
     category: row.category,
     region: row.region,
     phones: [...row.phones],
+    hasAddress: row.hasAddress,
   };
 }
 

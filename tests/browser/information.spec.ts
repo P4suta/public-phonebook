@@ -59,6 +59,21 @@ test("the initial screen labels the search without a hint and offers one project
   await expect(page.getByRole("searchbox")).toHaveValue("");
 });
 
+test("the about page describes search with the iPhone app's sentence at every width", async ({
+  page,
+}) => {
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/about");
+    await expect(
+      page.getByText("検索欄に施設の名前か、電話番号を入れます。", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(page.getByText(/候補が出ます|電話番号でも/u)).toHaveCount(0);
+  }
+});
+
 test("each page action leads with its own icon", async ({ page, request }) => {
   const contact = `/contacts/${encodeURIComponent((await knownContact(request)).id)}`;
   const actions = [

@@ -7,12 +7,16 @@ import PhonebookCore
 /// Streams the caller file into CallKit within the extension's 12 MB memory limit.
 ///
 /// The request runs synchronously with only Foundation, CallKit, and the caller file reader, so no database, actor, or task stays in memory.
-final class CallDirectoryHandler: CXCallDirectoryProvider {
+final class CallDirectoryHandler: CXCallDirectoryProvider, CXCallDirectoryExtensionContextDelegate {
   private let logger = Logger(subsystem: "page.dial.publicphonebook", category: "caller")
+  private let signposter = OSSignposter(subsystem: "page.dial.publicphonebook", category: "caller")
 
   override func beginRequest(with context: CXCallDirectoryExtensionContext) {
+    context.delegate = self
+    let signpost = signposter.makeSignpostID()
+    let interval = signposter.beginInterval("load", id: signpost)
+    defer { signposter.endInterval("load", interval) }
     do {
-      if context.isIncremental { context.removeAllIdentificationEntries() }
       let directory = try Self.directory()
       let active = try CallerFile.active(in: directory)
       #if PHONEBOOK_VERIFICATION_TOOLS
@@ -20,44 +24,96 @@ final class CallDirectoryHandler: CXCallDirectoryProvider {
       #else
         let extra: CallerEntry? = nil
       #endif
-      guard active != nil || extra != nil else {
-        // Turning the extension on before the first save succeeds with no entries.
-        logger.notice("caller.load entries=0 reason=unsaved")
-        context.completeRequest()
-        return
+      let target = CallerFile.Loaded(
+        generation: active?.generation,
+        extra: extra.map { CallerFile.Loaded.Extra(number: $0.phone.number, label: $0.label) })
+      let wanted = {
+        try CallerFile.Merged(
+          national: active.map { try CallerFile.Reader(url: $0.file) }, loaded: target.extra)
       }
-      let reader = try CallerFile.Merged(
-        national: active.map { try CallerFile.Reader(url: $0.file) }, extra: extra)
       var entries = 0
+      var removed = 0
       var peak = Self.footprint()
-      while true {
-        let read = try autoreleasepool {
-          try reader.read(upTo: 1000) { number, label in
-            context.addIdentificationEntry(withNextSequentialPhoneNumber: number, label: label)
+      if context.isIncremental, let held = Self.held(in: directory) {
+        // iOS holds what the record names, so the request sends the difference alone.
+        try CallerFile.changes(
+          held: held, wanted: wanted,
+          remove: { number in
+            context.removeIdentificationEntry(withPhoneNumber: number)
+            removed += 1
+          },
+          add: { number, label in
+            autoreleasepool {
+              context.addIdentificationEntry(withNextSequentialPhoneNumber: number, label: label)
+            }
+            entries += 1
+          })
+      } else {
+        if context.isIncremental { context.removeAllIdentificationEntries() }
+        let reader = try wanted()
+        while true {
+          let read = try autoreleasepool {
+            try reader.read(upTo: 1000) { number, label in
+              context.addIdentificationEntry(withNextSequentialPhoneNumber: number, label: label)
+            }
+          }
+          guard read > 0 else { break }
+          entries += read
+          if entries % 50_000 < read {
+            signposter.emitEvent("batch", id: signpost)
+            peak = max(peak, Self.footprint())
+            logger.debug(
+              "caller.load entries=\(entries, privacy: .public) footprintKB=\(peak / 1024, privacy: .public)"
+            )
           }
         }
-        guard read > 0 else { break }
-        entries += read
-        if entries % 50_000 < read {
-          peak = max(peak, Self.footprint())
-          logger.notice(
-            "caller.load entries=\(entries, privacy: .public) footprintKB=\(peak / 1024, privacy: .public)"
-          )
-        }
       }
-      logger.notice(
-        "caller.load entries=\(entries, privacy: .public) peakFootprintKB=\(max(peak, Self.footprint()) / 1024, privacy: .public) result=complete"
-      )
-      let generation = active?.generation
-      context.completeRequest { expired in
-        // The app reads this record and skips asking iOS to load the same generation again.
-        guard !expired, let generation else { return }
-        try? CallerFile.recordLoaded(generation, in: directory)
-      }
+      complete(
+        context, entries: entries, removed: removed, peak: max(peak, Self.footprint()),
+        loaded: target, in: directory)
     } catch {
-      logger.error("caller.load result=failed error=\(String(describing: error), privacy: .public)")
+      let failure = error as NSError
+      logger.error(
+        "caller.load result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public) description=\(failure.localizedDescription, privacy: .private)"
+      )
       context.cancelRequest(withError: error)
     }
+  }
+
+  /// Opens what iOS holds as the loaded record names it, or returns nil when the record or its caller file is gone.
+  private static func held(in directory: URL) -> (() throws -> CallerFile.Merged)? {
+    guard let loaded = CallerFile.loaded(in: directory) else { return nil }
+    switch CallerFile.held(loaded, in: directory) {
+    case .none: return { CallerFile.Merged(national: nil, loaded: loaded.extra) }
+    case .file(let file):
+      return { CallerFile.Merged(national: try CallerFile.Reader(url: file), loaded: loaded.extra) }
+    case .missing: return nil
+    }
+  }
+
+  /// Logs one summary when iOS has taken the entries, because an expired request adds none of them.
+  private func complete(
+    _ context: CXCallDirectoryExtensionContext, entries: Int, removed: Int, peak: UInt64,
+    loaded: CallerFile.Loaded, in directory: URL
+  ) {
+    let logger = logger
+    context.completeRequest { expired in
+      logger.notice(
+        "caller.load entries=\(entries, privacy: .public) removed=\(removed, privacy: .public) peakFootprintKB=\(peak / 1024, privacy: .public) expired=\(expired, privacy: .public)"
+      )
+      // The app reads this record and skips asking iOS to load the same generation again, and the next load sends the difference from it.
+      guard !expired else { return }
+      try? CallerFile.recordLoaded(loaded, in: directory)
+    }
+  }
+
+  func requestFailed(
+    for extensionContext: CXCallDirectoryExtensionContext, withError error: any Error
+  ) {
+    let failure = error as NSError
+    logger.error(
+      "caller.request result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public) description=\(failure.localizedDescription, privacy: .private)"
+    )
   }
 
   private static func directory() throws -> URL {

@@ -3,11 +3,17 @@ import XCTest
 @MainActor
 final class DirectoryUITests: XCTestCase {
   private var service: ServiceFixture?
+  /// A proxy to the fixture's next revision, which lists a delta from the bundled baseline.
+  private var updated: ServiceFixture?
 
   override func setUp() async throws {
     try await super.setUp()
     let fixture = try await ServiceFixture()
-    await MainActor.run { service = fixture }
+    let next = try await ServiceFixture(revision: .updated)
+    await MainActor.run {
+      service = fixture
+      updated = next
+    }
   }
 
   override func tearDown() async throws {
@@ -15,6 +21,7 @@ final class DirectoryUITests: XCTestCase {
       let app = XCUIApplication()
       if let run = testRun, run.totalFailureCount > 0 {
         attach(service?.log ?? "The fixture wasn't running.", name: "fixture-requests")
+        attach(updated?.log ?? "The fixture wasn't running.", name: "updated-fixture-requests")
         if app.state == .runningForeground {
           capture(app, name: "failure")
           attach(app.debugDescription, name: "failure-accessibility-tree")
@@ -23,21 +30,23 @@ final class DirectoryUITests: XCTestCase {
       XCUIDevice.shared.orientation = .portrait
       app.terminate()
       service = nil
+      updated = nil
     }
     try await super.tearDown()
   }
 
+  /// A first run without a bundle downloads the complete archive before search.
   func testOnboardingSavesTheDirectoryBeforeSearch() throws {
-    let app = application()
+    let app = application(bundled: .missing)
     app.launch()
     let start = app.buttons["onboarding-start"]
     XCTAssertTrue(start.waitForExistence(timeout: 15))
     let notice = app.descendants(matching: .any)["data-size-notice"]
     XCTAssertTrue(notice.waitForExistence(timeout: 5))
-    // The notice shows the national archive's known size until the listing answers with the fixture's size.
+    // The notice shows the national archive's known size until the listing answers with the fixture's 2,303 bytes.
     waitUntil(
       "the notice shows the listed size",
-      notice.exists && notice.label.contains("受け取るデータは約1MBです。"), timeout: 15,
+      notice.exists && notice.label.contains("受け取るデータは約0.1MBです。"), timeout: 15,
       observed: { notice.exists ? "It shows “\(notice.label)”." : "It doesn't exist." })
     XCTAssertTrue(notice.label.contains("Wi-Fiなどの速い回線につなぐと、早く終わります。"))
     capture(app, name: "onboarding-welcome")
@@ -76,6 +85,20 @@ final class DirectoryUITests: XCTestCase {
     waitUntil("the more button disappears", !more.exists, timeout: 10)
     reveal(hidden, in: app)
     XCTAssertEqual(try proxy().requests.count, requests)
+  }
+
+  /// The search field offers no clear button of its own, so the system's close control beside it is the one clear control.
+  func testSearchFieldShowsOneClearControl() throws {
+    let app = prepared()
+    let field = app.searchFields.firstMatch
+    XCTAssertTrue(field.waitForExistence(timeout: 15))
+    field.tap()
+    field.typeText("試験")
+    waitUntil(
+      "the field holds the typed text", (field.value as? String) == "試験",
+      observed: { "It holds “\(field.value as? String ?? "nothing")”." })
+    XCTAssertEqual(field.buttons.count, 0, field.debugDescription)
+    capture(app, name: "search-one-clear-control")
   }
 
   func testTelephoneSearchFindsEveryRecordForTheNumber() throws {
@@ -130,7 +153,7 @@ final class DirectoryUITests: XCTestCase {
       alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "名前と住所をAppleに送ります"))
         .firstMatch.exists)
     capture(app, name: "external-link-confirmation")
-    alert.buttons["やめる"].tap()
+    alert.buttons["キャンセル"].tap()
     XCTAssertTrue(alert.waitForNonExistence(timeout: 5))
     XCTAssertEqual(app.state, .runningForeground)
     let source = app.buttons["source-link"]
@@ -205,6 +228,21 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(app.descendants(matching: .any)["search-hint"].waitForExistence(timeout: 5))
     XCTAssertFalse(prompt.exists)
     capture(app, name: "search-caller-prompt-on")
+    // A running load and a refused reload keep the extension on and ask for no further press.
+    for (status, label) in [
+      ("loading", "許可しています・iPhoneが準備しています"),
+      ("onRetrying", "許可しています・次にアプリを開くと使えるようになります"),
+    ] {
+      app.terminate()
+      app.launchEnvironment["PHONEBOOK_CALLER_STATUS"] = status
+      app.launch()
+      XCTAssertTrue(app.descendants(matching: .any)["search-hint"].waitForExistence(timeout: 15))
+      XCTAssertFalse(prompt.exists)
+      openSettings(in: app)
+      waitForLabel(state, label)
+      capture(app, name: "settings-caller-\(status)")
+      goBack(app)
+    }
   }
 
   /// The harness runs the VerificationDebug build, which holds the QA verification screen.
@@ -224,6 +262,7 @@ final class DirectoryUITests: XCTestCase {
     waitUntil(
       "the save message appears", message.exists && message.label.hasPrefix("保存し"),
       observed: { message.exists ? "It shows “\(message.label)”." : "It doesn't exist." })
+    XCTAssertFalse(message.label.contains("もう一度"))
     capture(app, name: "verification-saved")
     goBack(app)
     search("確認用", in: app)
@@ -244,6 +283,7 @@ final class DirectoryUITests: XCTestCase {
     waitUntil(
       "the clear message appears", message.exists && message.label.hasPrefix("消し"),
       observed: { message.exists ? "It shows “\(message.label)”." : "It doesn't exist." })
+    XCTAssertFalse(message.label.contains("もう一度"))
     XCTAssertEqual(app.textFields["verification-label"].value as? String, "確認用の番号")
     goBack(app)
     search("確認用", in: app)
@@ -283,17 +323,22 @@ final class DirectoryUITests: XCTestCase {
     waitForGroup("dental", "1件", in: app)
   }
 
-  /// The download starts at the start button, not at launch, and the welcome names the size boldly on a costly path.
+  /// The download starts at the start button, not at launch, and the welcome names the complete archive's size boldly on a costly path.
   func testFirstDownloadWaitsForTheStartButton() throws {
-    let app = application()
+    let app = application(bundled: .missing)
     app.launchEnvironment["PHONEBOOK_NETWORK_COST"] = "costly"
     app.launch()
     let start = app.buttons["onboarding-start"]
     XCTAssertTrue(start.waitForExistence(timeout: 15))
-    XCTAssertTrue(app.descendants(matching: .any)["data-size-notice"].waitForExistence(timeout: 5))
+    let notice = app.descendants(matching: .any)["data-size-notice"]
+    XCTAssertTrue(notice.waitForExistence(timeout: 5))
     waitUntil(
       "the welcome reads the size from the listing",
       (try? self.proxy().requests.contains("/api/datasets")) == true, timeout: 10)
+    waitUntil(
+      "the notice names the complete archive's size",
+      notice.exists && notice.label.contains("受け取るデータは約0.1MBです。"), timeout: 10,
+      observed: { notice.exists ? "It shows “\(notice.label)”." : "It doesn't exist." })
     capture(app, name: "onboarding-welcome-costly")
     app.terminate()
     app.launch()
@@ -307,7 +352,7 @@ final class DirectoryUITests: XCTestCase {
 
   /// A slow transfer shows the three steps with a countdown under the current one, then the done state.
   func testFirstDownloadShowsItsStepsWhileReceiving() throws {
-    let app = application()
+    let app = application(bundled: .missing)
     try proxy().failNext(.dataset, with: .paced(bytes: 128, after: .seconds(1)))
     app.launch()
     let start = app.buttons["onboarding-start"]
@@ -335,7 +380,7 @@ final class DirectoryUITests: XCTestCase {
 
   /// A transfer that stops partway reports a weak signal, says when it retries, and resumes from the kept bytes.
   func testFirstDownloadResumesAfterAWeakSignalAndAStop() throws {
-    let app = application()
+    let app = application(bundled: .missing)
     try proxy().failNext(.dataset, with: .stall(bytes: 1_000))
     app.launch()
     let start = app.buttons["onboarding-start"]
@@ -348,7 +393,7 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(progress.waitForExistence(timeout: 10))
     // The line appears after 10 s without bytes and stays while the fixture holds the connection, up to the app's 30 s request timeout.
     waitForValue(of: progress, "the time line reports a weak signal", timeout: 20) {
-      $0.contains("電波が弱いようです、つながると、続きから受け取ります。")
+      $0.contains("通信がとぎれています、通信がもどると、自動で続きを受け取ります。")
     }
     capture(app, name: "onboarding-weak-signal")
     try proxy().release()
@@ -365,7 +410,7 @@ final class DirectoryUITests: XCTestCase {
   }
 
   func testDirectoryFailureRecoversWithoutATap() throws {
-    let app = application()
+    let app = application(bundled: .missing)
     try proxy().failNext(.dataset)
     app.launch()
     let start = app.buttons["onboarding-start"]
@@ -384,21 +429,171 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertEqual(try proxy().injected, 1)
   }
 
+  /// A listed delta from the bundled snapshot names its size boldly on a costly path, and the first run receives only the delta.
+  func testDeltaNoticeReceivesOnlyTheDeltaFromTheBundle() throws {
+    let updated = try XCTUnwrap(self.updated)
+    let app = application()
+    app.launchEnvironment["PHONEBOOK_API_ORIGIN"] = updated.origin
+    app.launchEnvironment["PHONEBOOK_NETWORK_COST"] = "costly"
+    app.launch()
+    let notice = app.descendants(matching: .any)["data-size-notice"]
+    XCTAssertTrue(notice.waitForExistence(timeout: 15))
+    waitUntil(
+      "the notice names the delta's size",
+      notice.exists && notice.label.contains("受け取るデータは約0.1MBです。"), timeout: 15,
+      observed: { notice.exists ? "It shows “\(notice.label)”." : "It doesn't exist." })
+    XCTAssertTrue(notice.label.contains("Wi-Fiなどの速い回線につなぐと、早く終わります。"))
+    capture(app, name: "onboarding-welcome-delta-costly")
+    XCTAssertTrue(updated.requests.allSatisfy { !$0.hasPrefix("/api/datasets/") }, updated.log)
+    app.buttons["onboarding-start"].tap()
+    let later = app.buttons["onboarding-later"]
+    XCTAssertTrue(later.waitForExistence(timeout: 10))
+    later.tap()
+    let finish = app.buttons["onboarding-finish"]
+    waitUntilSaved(finish, in: app, timeout: 60)
+    XCTAssertFalse(app.descendants(matching: .any)["bundled-date"].exists)
+    let files = updated.requests.filter { $0.hasPrefix("/api/datasets/") }
+    XCTAssertEqual(files.count, 1, updated.log)
+    XCTAssertTrue(files.first?.contains("/directory-delta-") == true, updated.log)
+    finish.tap()
+    search("Updated public directory record", in: app)
+    XCTAssertTrue(app.staticTexts["Updated public directory record"].waitForExistence(timeout: 10))
+  }
+
+  /// A bundle that the listing names shows the no-transfer notice, plain on a costly path, and prepares its data with the receive step done.
+  func testNoTransferNoticePreparesTheBundledData() throws {
+    let app = application()
+    app.launchEnvironment["PHONEBOOK_NETWORK_COST"] = "costly"
+    app.launch()
+    let notice = app.descendants(matching: .any)["data-size-notice"]
+    XCTAssertTrue(notice.waitForExistence(timeout: 15))
+    waitUntil(
+      "the plan reads the listing",
+      (try? self.proxy().requests.contains("/api/datasets")) == true, timeout: 10)
+    XCTAssertTrue(notice.label.contains("データはアプリに入っています。"), notice.label)
+    XCTAssertTrue(notice.label.contains("通信せずに準備できます。"), notice.label)
+    capture(app, name: "onboarding-welcome-no-transfer-costly")
+    // The first run reads the listing again, and the fixture holds that reply while the scenario reads the ready step.
+    try proxy().failNext(.listing, with: .paced(bytes: 0, after: .zero))
+    app.buttons["onboarding-start"].tap()
+    let later = app.buttons["onboarding-later"]
+    XCTAssertTrue(later.waitForExistence(timeout: 10))
+    later.tap()
+    let progress = app.descendants(matching: .any)["sync-progress"]
+    XCTAssertTrue(progress.waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["アプリで使うデータを準備しています"].exists)
+    XCTAssertFalse(app.staticTexts["アプリで使うデータを受け取っています"].exists)
+    XCTAssertEqual(progress.label, "アプリで使うデータを準備しています")
+    waitForValue(of: progress, "the preparing step is current", timeout: 10) {
+      $0.contains("パーセント、さがせるように準備する")
+    }
+    capture(app, name: "onboarding-preparing")
+    try proxy().release()
+    try proxy().release()
+    let finish = app.buttons["onboarding-finish"]
+    waitUntilSaved(finish, in: app, timeout: 60)
+    XCTAssertTrue(app.staticTexts["準備ができました"].waitForExistence(timeout: 5))
+    XCTAssertFalse(app.descendants(matching: .any)["bundled-date"].exists)
+    XCTAssertEqual(try datasetFiles(), 0)
+  }
+
+  /// A first run with the service stopped ends with the bundled data alone and names its date.
+  func testFirstRunWithTheServiceStoppedUsesTheBundledData() throws {
+    try proxy().stop()
+    let app = application()
+    app.launch()
+    let notice = app.descendants(matching: .any)["data-size-notice"]
+    XCTAssertTrue(notice.waitForExistence(timeout: 15))
+    XCTAssertTrue(notice.label.contains("データはアプリに入っています。"), notice.label)
+    app.buttons["onboarding-start"].tap()
+    let later = app.buttons["onboarding-later"]
+    XCTAssertTrue(later.waitForExistence(timeout: 10))
+    later.tap()
+    let finish = app.buttons["onboarding-finish"]
+    waitUntilSaved(finish, in: app, timeout: 60)
+    XCTAssertTrue(app.staticTexts["準備ができました"].waitForExistence(timeout: 5))
+    let date = app.staticTexts["bundled-date"]
+    XCTAssertTrue(date.waitForExistence(timeout: 5))
+    XCTAssertTrue(date.label.hasPrefix("アプリに入っている、"), date.label)
+    XCTAssertTrue(date.label.hasSuffix("のデータを使います。"), date.label)
+    XCTAssertTrue(app.staticTexts["通信できるようになると、新しいデータを自動で受け取ります。"].exists)
+    capture(app, name: "onboarding-ready-bundled")
+    finish.tap()
+    search("試験", in: app)
+    waitForGroup("dental", "1件", in: app)
+    XCTAssertEqual(try proxy().requests, [])
+  }
+
+  /// The dark appearance swaps black and white on the onboarding, search, contact, and settings screens.
+  /// The iOS gate turns the simulator's appearance dark for this scenario and light again after it.
+  func testDarkAppearanceSwapsBlackAndWhite() throws {
+    let app = application()
+    app.launch()
+    let start = app.buttons["onboarding-start"]
+    XCTAssertTrue(start.waitForExistence(timeout: 15))
+    expectSwapped(in: app, filled: start, screen: "onboarding")
+    capture(app, name: "dark-onboarding")
+    onboard(app)
+    expectSwapped(in: app, filled: nil, screen: "search")
+    capture(app, name: "dark-search")
+    // An active search field hides the menu, so Settings comes before the search.
+    openSettings(in: app)
+    expectSwapped(in: app, filled: nil, screen: "settings")
+    capture(app, name: "dark-settings")
+    goBack(app)
+    search("試験", in: app)
+    let call = app.buttons["03-0000-0000に電話をかける"].firstMatch
+    XCTAssertTrue(call.waitForExistence(timeout: 10))
+    expectSwapped(in: app, filled: call, screen: "results")
+    capture(app, name: "dark-results")
+    app.buttons["contact-detail"].firstMatch.tap()
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    expectSwapped(in: app, filled: call, screen: "contact")
+    capture(app, name: "dark-contact")
+  }
+
+  /// At the largest accessibility text size, an icon grows beside its label and nothing clips.
+  func testLargestTextScalesIconsBesideTheirLabels() throws {
+    let app = application(textSize: "UICTContentSizeCategoryAccessibilityXXXL")
+    app.launchEnvironment["PHONEBOOK_CALLER_STATUS"] = "off"
+    app.launch()
+    let start = app.buttons["onboarding-start"]
+    XCTAssertTrue(start.waitForExistence(timeout: 15))
+    start.tap()
+    let settings = app.buttons["onboarding-caller"]
+    XCTAssertTrue(settings.waitForExistence(timeout: 10))
+    // The icon draws in the label's color at the leading edge, and at the default size it is 22 points tall.
+    let height = try XCTUnwrap(iconHeight(in: settings, app: app))
+    XCTAssertGreaterThan(height, 33, "The icon beside the label is \(height) points tall.")
+    XCTAssertGreaterThanOrEqual(settings.frame.height, 44)
+    try app.performAccessibilityAudit()
+    capture(app, name: "largest-text-caller")
+  }
+
+  /// A failed automatic update shows nothing, keeps the saved data's date, and leaves search working.
   func testFailedAutomaticUpdateKeepsTheSavedDirectory() throws {
     let app = prepared()
     let date = dataDate(in: app)
     app.terminate()
-    try proxy().failNext(.dataset, with: .incomplete)
+    try proxy().failNext(.listing, with: .incomplete)
     app.launchEnvironment["PHONEBOOK_REFRESH_DUE"] = "1"
     app.launch()
+    // The QA screen alone names the internal reason, which shows that the failed check has ended.
+    openVerification(in: app)
+    let reason = app.staticTexts["verification-problem"]
+    XCTAssertTrue(reason.waitForExistence(timeout: 5))
+    waitUntil(
+      "the failed check ends", reason.exists && reason.label != "問題：なし", timeout: 45,
+      observed: { reason.exists ? "It shows “\(reason.label)”." : "It doesn't exist." })
+    goBack(app)
     openSettings(in: app)
-    let problem = app.staticTexts["sync-error"]
-    XCTAssertTrue(problem.waitForExistence(timeout: 30))
-    XCTAssertTrue(problem.label.contains("前のデータのまま使えます"))
+    XCTAssertFalse(app.staticTexts["sync-error"].exists)
     capture(app, name: "directory-update-failure")
     goBack(app)
     XCTAssertEqual(dataDate(in: app), date)
+    XCTAssertFalse(app.staticTexts["newer-app"].exists)
     goBack(app)
+    XCTAssertFalse(app.staticTexts["sync-error"].exists)
     search("試験", in: app)
     waitForGroup("dental", "1件", in: app)
   }
@@ -428,7 +623,7 @@ final class DirectoryUITests: XCTestCase {
     let sources = app.buttons["sources-link"]
     reveal(sources, in: app)
     sources.tap()
-    XCTAssertTrue(app.navigationBars["データの出典"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.navigationBars["データのもと"].waitForExistence(timeout: 5))
     goBack(app)
     let license = app.buttons["license-link"]
     reveal(license, in: app)
@@ -439,7 +634,7 @@ final class DirectoryUITests: XCTestCase {
   }
 
   func testLivePublicDirectorySearchAndSource() throws {
-    let app = application()
+    let app = application(bundled: .shipped)
     app.launchEnvironment.removeValue(forKey: "PHONEBOOK_API_ORIGIN")
     app.launch()
     onboard(app, timeout: 300)
@@ -455,11 +650,40 @@ final class DirectoryUITests: XCTestCase {
     capture(app, name: "live-public-directory-source")
   }
 
-  private func application(textSize: String = "UICTContentSizeCategoryL") -> XCUIApplication {
+  /// The archive that a scenario's app starts its first run from.
+  private enum Bundled {
+    /// The fixture's baseline archive, which the fixture's baseline listing names.
+    case fixture
+    /// Missing files, so the first run downloads the complete archive.
+    case missing
+    /// The archive that the build copied into the app.
+    case shipped
+  }
+
+  /// The fixture's admitted pair, which the simulator reads from the checkout that built the tests.
+  private static let fixtureBundle = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    .appendingPathComponent("target/ios/bundled-dataset/fixture")
+
+  private func application(
+    textSize: String = "UICTContentSizeCategoryL", bundled: Bundled = .fixture
+  ) -> XCUIApplication {
     continueAfterFailure = false
     XCUIDevice.shared.orientation = .portrait
     let app = XCUIApplication()
     app.launchEnvironment["PHONEBOOK_API_ORIGIN"] = service?.origin ?? "http://localhost:3100"
+    let directory: URL? =
+      switch bundled {
+      case .fixture: Self.fixtureBundle
+      case .missing: URL(fileURLWithPath: "/dev/null/missing")
+      case .shipped: nil
+      }
+    if let directory {
+      app.launchEnvironment["PHONEBOOK_BUNDLED_ARCHIVE"] =
+        directory.appendingPathComponent("directory.tsv.br").path
+      app.launchEnvironment["PHONEBOOK_BUNDLED_ENTRY"] =
+        directory.appendingPathComponent("directory.json").path
+    }
     app.launchArguments = [
       "-AppleLanguages", "(en)", "-AppleLocale", "en_US",
       "-UIPreferredContentSizeCategoryName", textSize,
@@ -490,6 +714,37 @@ final class DirectoryUITests: XCTestCase {
     waitUntilSaved(finish, in: app, timeout: timeout)
     finish.tap()
     XCTAssertTrue(field.waitForExistence(timeout: 10))
+  }
+
+  /// Requires a black surface beside the content and, inside a filled button, white ink.
+  private func expectSwapped(
+    in app: XCUIApplication, filled: XCUIElement?, screen: String,
+    file: StaticString = #filePath, line: UInt = #line
+  ) {
+    let window = app.windows.firstMatch
+    let pixels = Pixels(window.screenshot(), frame: window.frame)
+    let margin = CGPoint(x: window.frame.maxX - 6, y: window.frame.midY)
+    XCTAssertEqual(
+      pixels.tone(at: margin), .black, "The \(screen) surface isn't black.", file: file, line: line)
+    if let filled {
+      XCTAssertTrue(filled.exists, file: file, line: line)
+      let inside = CGPoint(x: filled.frame.minX + 6, y: filled.frame.midY)
+      XCTAssertEqual(
+        pixels.tone(at: inside), .white, "The \(screen) filled button isn't white.", file: file,
+        line: line)
+    }
+  }
+
+  /// The height in points of the white icon at the leading edge of a filled button's label.
+  private func iconHeight(in button: XCUIElement, app: XCUIApplication) -> CGFloat? {
+    let window = app.windows.firstMatch
+    let pixels = Pixels(window.screenshot(), frame: window.frame)
+    // The outline is 2 points wide, so the scan starts inside it.
+    let area = button.frame.insetBy(dx: 4, dy: 4)
+    guard let leading = pixels.firstColumn(in: area, where: { $0 == .white }) else { return nil }
+    // A band narrower than the icon's default width holds only the icon, at any text size.
+    let band = CGRect(x: leading, y: area.minY, width: 20, height: area.height)
+    return pixels.extent(in: band, where: { $0 == .white })
   }
 
   private func goBack(_ app: XCUIApplication) {
@@ -527,11 +782,12 @@ final class DirectoryUITests: XCTestCase {
   ) {
     let field = app.searchFields.firstMatch
     XCTAssertTrue(field.waitForExistence(timeout: 15))
-    field.tap()
+    // The field has no clear button, so the scenario puts the cursor at the end and deletes the earlier query.
+    field.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
     if let current = field.value as? String, !current.isEmpty,
       current != field.placeholderValue
     {
-      field.buttons.firstMatch.tap()
+      field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
     }
     field.typeText(text + "\n")
     waitForValue(
@@ -640,7 +896,7 @@ final class DirectoryUITests: XCTestCase {
     let retry = app.buttons["sync-retry"]
     waitUntil(
       "the stopped step says when it retries",
-      (try? problem.snapshot())?.label == "5秒後に、自動でもう一度受け取ります。" && heading.exists
+      (try? problem.snapshot())?.label == "データを受け取れませんでした。5秒後に、自動でもう一度受け取ります。" && heading.exists
         && !retry.exists,
       timeout: 20, observed: { self.saveState(app) }, file: file, line: line)
   }
@@ -719,5 +975,82 @@ final class DirectoryUITests: XCTestCase {
     guard let value, condition(value) else { return false }
     accepted = value
     return true
+  }
+}
+
+/// The pixels of one window screenshot, addressed by the window's points.
+@MainActor private struct Pixels {
+  enum Tone: Equatable { case black, white, other }
+
+  /// Channel bounds for black and white, which leave room for the screenshot's color conversion.
+  static let darkest: UInt8 = 24
+  static let lightest: UInt8 = 231
+  static let channels = 4
+
+  private let bytes: [UInt8]
+  private let width: Int
+  private let height: Int
+  private let scale: CGFloat
+  private let origin: CGPoint
+
+  init(_ screenshot: XCUIScreenshot, frame: CGRect) {
+    let image = screenshot.image.cgImage
+    let width = image?.width ?? 0
+    let height = image?.height ?? 0
+    var buffer = [UInt8](repeating: 0, count: width * height * Self.channels)
+    if let image {
+      buffer.withUnsafeMutableBytes { raw in
+        let context = CGContext(
+          data: raw.baseAddress, width: width, height: height, bitsPerComponent: 8,
+          bytesPerRow: width * Self.channels, space: CGColorSpaceCreateDeviceRGB(),
+          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        context?.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+      }
+    }
+    bytes = buffer
+    self.width = width
+    self.height = height
+    scale = frame.width > 0 ? CGFloat(width) / frame.width : 1
+    origin = frame.origin
+  }
+
+  private func tone(column: Int, row: Int) -> Tone {
+    guard (0..<width).contains(column), (0..<height).contains(row) else { return .other }
+    let start = (row * width + column) * Self.channels
+    let color = bytes[start..<start + 3]
+    if color.allSatisfy({ $0 <= Self.darkest }) { return .black }
+    if color.allSatisfy({ $0 >= Self.lightest }) { return .white }
+    return .other
+  }
+
+  private func pixels(_ rect: CGRect) -> (columns: Range<Int>, rows: Range<Int>) {
+    let left = max(0, Int(((rect.minX - origin.x) * scale).rounded(.up)))
+    let right = min(width, Int(((rect.maxX - origin.x) * scale).rounded(.down)))
+    let top = max(0, Int(((rect.minY - origin.y) * scale).rounded(.up)))
+    let bottom = min(height, Int(((rect.maxY - origin.y) * scale).rounded(.down)))
+    return (left..<max(left, right), top..<max(top, bottom))
+  }
+
+  func tone(at point: CGPoint) -> Tone {
+    tone(column: Int((point.x - origin.x) * scale), row: Int((point.y - origin.y) * scale))
+  }
+
+  /// The leftmost point column inside `rect` that holds a matching pixel.
+  func firstColumn(in rect: CGRect, where matches: (Tone) -> Bool) -> CGFloat? {
+    let area = pixels(rect)
+    let column = area.columns.first { column in
+      area.rows.contains { matches(tone(column: column, row: $0)) }
+    }
+    return column.map { CGFloat($0) / scale + origin.x }
+  }
+
+  /// The height in points from the first to the last row inside `rect` that holds a matching pixel.
+  func extent(in rect: CGRect, where matches: (Tone) -> Bool) -> CGFloat? {
+    let area = pixels(rect)
+    let rows = area.rows.filter { row in
+      area.columns.contains { matches(tone(column: $0, row: row)) }
+    }
+    guard let first = rows.first, let last = rows.last else { return nil }
+    return CGFloat(last - first + 1) / scale
   }
 }

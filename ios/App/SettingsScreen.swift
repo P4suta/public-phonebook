@@ -29,15 +29,15 @@ struct SettingsScreen: View {
     }
     .padding(.vertical, 1)
     .accessibilityIdentifier("integration-content")
-    .background(.white)
+    .background(.surface)
     .safeAreaInset(edge: .top, spacing: 0) {
       if let problem = model.problem {
         VStack(spacing: 0) {
           Text(problem).font(.callout).fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading).padding(16)
             .accessibilityIdentifier("sync-error")
-          Rectangle().fill(.black).frame(height: 1)
-        }.foregroundStyle(.black).background(.white)
+          Rectangle().fill(.ink).frame(height: 1)
+        }.foregroundStyle(.ink).background(.surface)
       }
     }
     .navigationTitle("設定").navigationBarTitleDisplayMode(.inline)
@@ -53,7 +53,8 @@ private struct CallerStatusLabel: View {
     switch status {
     case .checking: "確認しています"
     case .on: "許可しています"
-    case .onRetrying: "許可しています・反映できませんでした。次に開いたときにやり直します"
+    case .loading: "許可しています・iPhoneが準備しています"
+    case .onRetrying: "許可しています・次にアプリを開くと使えるようになります"
     case .off: "まだ許可していません"
     case .unknown: "確認できません"
     }

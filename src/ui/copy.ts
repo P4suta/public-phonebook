@@ -1,6 +1,6 @@
 type Instruction = `${string}ください${"" | "。"}`;
 type Action =
-  `${string}${"する" | "さがす" | "見る" | "開く" | "もどる" | "知る" | "かける" | "試す" | "読みこむ" | "やめる"}`;
+  `${string}${"する" | "さがす" | "見る" | "開く" | "もどる" | "知る" | "かける" | "試す" | "読みこむ"}`;
 type Statement = `${string}ます。`;
 
 export const uiCopy = {
@@ -44,7 +44,8 @@ export const uiCopy = {
   external: {
     heading: "ほかのサイトを開きます",
     destinations: {
-      address: "この住所を、Googleマップで表示します。" satisfies Statement,
+      address:
+        "この施設の場所を、Googleマップで表示します。場所をさがすために、施設の名前と住所をGoogleに送ります。" satisfies Statement,
       facility: "この施設のホームページを開きます。" satisfies Statement,
       publication:
         "このデータを公開しているページを開きます。" satisfies Statement,
@@ -58,7 +59,7 @@ export const uiCopy = {
     host: (host: string): `行き先：${string}` => `行き先：${host}`,
     newTab: "新しいタブで開きます。" satisfies Statement,
     open: "開く" satisfies Action,
-    cancel: "やめる" satisfies Action,
+    cancel: "キャンセル",
   },
 } as const;
 

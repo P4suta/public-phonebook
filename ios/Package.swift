@@ -12,9 +12,14 @@ let package = Package(
     .target(name: "PhonebookCore"),
     .systemLibrary(name: "CSQLite"),
     .target(name: "PhonebookKit", dependencies: ["PhonebookCore", "CSQLite"]),
+    // The build runs this tool to admit the bundled archive, and the app never links it.
+    .executableTarget(name: "BundledAdmission", dependencies: ["PhonebookKit"], path: "Admission"),
     .testTarget(
       name: "PhonebookCoreTests", dependencies: ["PhonebookCore"],
-      resources: [.copy("PublicationContract.json"), .copy("WaitContract.json")]),
+      resources: [
+        .copy("PublicationContract.json"), .copy("WaitContract.json"),
+        .copy("UpdateContract.json"),
+      ]),
     .testTarget(
       name: "PhonebookKitTests", dependencies: ["PhonebookKit"],
       resources: [.copy("DirectoryContract.json")]),

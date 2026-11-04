@@ -17,6 +17,7 @@ private struct WaitContract: Codable, Equatable {
     let total: Int
     let rows: Int
     let complete: Bool
+    let waiting: Bool
   }
   struct View: Codable, Equatable {
     let line: String
@@ -36,9 +37,11 @@ private struct WaitContract: Codable, Equatable {
 
 private func sample(
   _ now: Int, _ stage: Int, _ done: Int, _ total: Int, _ rows: Int = archiveRows,
-  complete: Bool = false
+  complete: Bool = false, waiting: Bool = false
 ) -> WaitInput {
-  WaitInput(now: now, stage: stage, done: done, total: total, rows: rows, complete: complete)
+  WaitInput(
+    now: now, stage: stage, done: done, total: total, rows: rows, complete: complete,
+    waiting: waiting)
 }
 
 private func lineName(_ line: WaitLine) -> String {
@@ -159,6 +162,18 @@ private let traces: [(String, [WaitInput])] = [
       sample(12_000, 1, 0, archiveRows),
     ]
   ),
+  (
+    "A transfer that waits for a connection reports a weak signal at once and measures again once data flows",
+    [
+      sample(0, 0, 0, 0), sample(300, 0, 0, archiveBytes, waiting: true),
+      sample(1_200, 0, 0, archiveBytes, waiting: true),
+      sample(2_400, 0, 0, archiveBytes, waiting: true), sample(3_000, 0, 500_000, archiveBytes),
+      sample(4_100, 0, 3_000_000, archiveBytes), sample(5_200, 0, 6_000_000, archiveBytes),
+      sample(6_300, 0, 6_000_000, archiveBytes, waiting: true),
+      sample(7_400, 0, 7_000_000, archiveBytes), sample(8_500, 0, 10_000_000, archiveBytes),
+      sample(9_000, 1, 0, archiveRows, waiting: true), sample(9_600, 1, 300_000, archiveRows),
+    ]
+  ),
 ]
 
 /// The Swift policy produces the recorded views, which the Lean model must reproduce in the proof gate.
@@ -170,7 +185,7 @@ private let traces: [(String, [WaitInput])] = [
         inputs: inputs.map {
           .init(
             now: $0.now, stage: $0.stage, done: $0.done, total: $0.total, rows: $0.rows,
-            complete: $0.complete)
+            complete: $0.complete, waiting: $0.waiting)
         },
         views: views(inputs))
     })
@@ -193,6 +208,12 @@ private let traces: [(String, [WaitInput])] = [
     }
   }
   #expect(returns)
+  let waited = computed.traces.contains { trace in
+    zip(trace.inputs, trace.views).contains {
+      $0.0.waiting && $0.0.now < WaitDisplay.stallMs && $0.1.line == "weakSignal"
+    }
+  }
+  #expect(waited)
   for trace in computed.traces { checkPromises(trace.inputs, trace.views, trace.name) }
 }
 
@@ -226,6 +247,11 @@ private func checkPromises(
       stepChange = latest
     }
     if view.finished { #expect(completed, "\(name): done before the work ended") }
+    if input.waiting && min(max(input.stage, 0), WaitDisplay.lastStage) == 0 {
+      #expect(
+        view.line == previous.line || view.line == "weakSignal",
+        "\(name): a waiting transfer showed a new estimate")
+    }
     previous = view
   }
 }
@@ -262,15 +288,16 @@ private struct SplitMix {
       if random.next(4) != 0 { done = min(total, done + random.next(max(total / 6, 1))) }
       let older = random.next(20) == 0 ? -random.next(2_000) : 0
       inputs.append(
-        sample(now + older, stage, done, total, rows, complete: index == 39 || random.next(60) == 0)
-      )
+        sample(
+          now + older, stage, done, total, rows, complete: index == 39 || random.next(60) == 0,
+          waiting: random.next(10) == 0))
     }
     let recorded = views(inputs)
     checkPromises(
       inputs.map {
         .init(
           now: $0.now, stage: $0.stage, done: $0.done, total: $0.total, rows: $0.rows,
-          complete: $0.complete)
+          complete: $0.complete, waiting: $0.waiting)
       }, recorded, "seeded trace \(checked)")
     checked += 1
   }

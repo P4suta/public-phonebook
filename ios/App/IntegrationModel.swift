@@ -2,19 +2,33 @@ import BackgroundTasks
 import CallKit
 import Foundation
 import Network
+import OSLog
 import Observation
 import PhonebookCore
 import PhonebookKit
 import SwiftUI
 
 enum ExtensionOperations {
+  private static let logger = Logger(subsystem: "page.dial.publicphonebook", category: "caller")
+
+  /// Reduces a Call Directory error to its code, which the reload decision reads without CallKit.
+  private static func classified(_ error: any Error) -> any Error {
+    let failure = error as NSError
+    return failure.domain == CXErrorDomainCallDirectoryManager
+      ? CallDirectoryFailure(code: failure.code) : error
+  }
+
   static func callerEnabled() async throws -> Bool {
     try await withCheckedThrowingContinuation { continuation in
       CXCallDirectoryManager.sharedInstance.getEnabledStatusForExtension(
         withIdentifier: AppIdentity.callDirectory
       ) { status, error in
         if let error {
-          continuation.resume(throwing: error)
+          let failure = error as NSError
+          logger.error(
+            "caller.status result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public)"
+          )
+          continuation.resume(throwing: classified(error))
         } else if status == .unknown {
           continuation.resume(throwing: ServiceError.invalidResponse)
         } else {
@@ -30,7 +44,12 @@ enum ExtensionOperations {
       CXCallDirectoryManager.sharedInstance.reloadExtension(
         withIdentifier: AppIdentity.callDirectory
       ) { error in
-        if let error { continuation.resume(throwing: error) } else { continuation.resume() }
+        guard let error else { return continuation.resume() }
+        let failure = error as NSError
+        logger.error(
+          "caller.reload result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public)"
+        )
+        continuation.resume(throwing: classified(error))
       }
     }
   }
@@ -68,6 +87,14 @@ struct SavedGenerationReceipts: GenerationReceipts {
   }
 }
 
+#if PHONEBOOK_VERIFICATION_TOOLS
+  /// The caller state after a reload, and the Call Directory code that iOS returned, which the QA screen shows.
+  struct CallerReload: Equatable {
+    let status: CallerStatus
+    let code: Int?
+  }
+#endif
+
 @Observable @MainActor
 final class IntegrationModel {
   /// The person pressed the start button once, so later launches and retries continue the first download.
@@ -87,8 +114,19 @@ final class IntegrationModel {
   private(set) var stopped: String?
   /// The path is expensive or constrained, such as mobile data or Low Data Mode.
   private(set) var costlyNetwork = false
-  /// The archive's listed length, or nil before the listing answers.
-  private(set) var downloadBytes: Int?
+  /// Whether the app carries a readable bundled archive, or nil before the app opens it.
+  private(set) var bundleState: BundleState?
+  /// The first run's plan from the listing, or nil before the listing answers.
+  private(set) var plan: FirstRunPlan?
+  /// The first download has nothing to receive, so its display reads as preparing with the receive step done.
+  private(set) var preparing = false
+  /// The first run saved the bundled data alone, so the ready step names that data's date.
+  private(set) var bundledOnly = false
+  /// The service publishes data that this app can't read, which About and the search start screen say in one passive line.
+  private(set) var needsNewerApp = false
+  /// The internal reason of the last failure that the app recovers by itself, which only the QA screen shows.
+  private(set) var lastFailure: String?
+  /// Something that the person tapped didn't work.
   var problem: String?
   private(set) var busy = false
   private var refreshing = false
@@ -100,6 +138,7 @@ final class IntegrationModel {
     stage: SyncProgress.transfer, done: 0, total: 0, rows: 0, fraction: 0)
   @ObservationIgnored private var started = ContinuousClock.now
   @ObservationIgnored private var complete = false
+  @ObservationIgnored private var bundleOpening: Task<BundledDataset?, Never>?
   @ObservationIgnored private let monitor = NWPathMonitor()
   #if DEBUG
     /// Lets a UI scenario make the saved data due once without waiting a month.
@@ -114,28 +153,49 @@ final class IntegrationModel {
       ProcessInfo.processInfo.environment["PHONEBOOK_NETWORK_COST"] == "costly"
   #endif
   @ObservationIgnored private let sync: SyncEngine
+  @ObservationIgnored private let automatic: AutomaticUpdate
   @ObservationIgnored private let api: APIClient
   @ObservationIgnored private let store: SnapshotStore
   @ObservationIgnored private let origin: String
+  /// The path that iOS reported last, which the update decision reads.
+  @ObservationIgnored private var path = UpdatePath(expensive: false, constrained: false)
 
   init(api: APIClient, store: SnapshotStore) {
     origin = api.origin.absoluteString
     self.api = api
     self.store = store
     sync = SyncEngine(api: api, store: store, trace: SystemTraceSink())
+    automatic = BackgroundRefresh.automatic(api: api, store: store)
     monitor.pathUpdateHandler = { [weak self] path in
-      let costly = path.isExpensive || path.isConstrained
-      Task { @MainActor [weak self] in self?.costlyNetwork = costly }
+      let reported = UpdatePath(expensive: path.isExpensive, constrained: path.isConstrained)
+      Task { @MainActor [weak self] in self?.report(reported) }
     }
     monitor.start(queue: DispatchQueue(label: "network-path", qos: .utility))
+  }
+
+  /// Records the path, and lets a waiting automatic transfer start on a path that is neither expensive nor constrained.
+  private func report(_ reported: UpdatePath) {
+    path = reported
+    costlyNetwork = !reported.inexpensive
+    // Only a waiting transfer needs the report, so other reports leave the app free for the next check.
+    if manifest != nil, !busy, DefaultsUpdateRecords().load().state.waiting != nil {
+      update(.path(updatePath))
+    }
+  }
+
+  /// The path that the decision reads, which a debug UI scenario can force to be costly.
+  private var updatePath: UpdatePath {
+    costlyPath ? UpdatePath(expensive: true, constrained: path.constrained) : path
   }
 
   /// The first download runs or still shows its last step.
   var receiving: Bool { wait.map { !$0.finished } ?? false }
   /// The saved data is ready and the first download has nothing more to show.
   var ready: Bool { manifest != nil && !receiving }
-  var megabytes: Int {
-    DownloadSchedule.megabytes(downloadBytes ?? DownloadSchedule.knownArchiveBytes)
+  /// The notice over the start button, which follows an unreachable listing until the listing answers.
+  var notice: WelcomeNotice? {
+    guard let bundleState else { return nil }
+    return (plan ?? FirstRunPlan.decide(bundle: bundleState, listing: .unreachable)).notice
   }
 
   private var requested: Bool {
@@ -154,18 +214,19 @@ final class IntegrationModel {
   /// Starts the first download when the person presses the start button, and remembers that they did.
   func startFirstDownload() {
     UserDefaults.standard.set(true, forKey: Self.requestedKey)
-    if manifest == nil { update(first: true) }
+    if manifest == nil { update(.first) }
   }
 
-  /// Reads the saved data, continues a first download that the person started, and runs a due monthly update.
+  /// Reads the saved data, continues a first download that the person started, and runs a due daily check.
   func refresh() async {
     guard !refreshing else { return }
     refreshing = true
     defer { refreshing = false }
     if !busy {
+      // Unreadable saved data starts the first run again, which shows its own progress and needs no notice.
       do { manifest = try await store.manifest() } catch {
         manifest = nil
-        problem = "アプリのデータを開けなかったので、受け取り直します。"
+        lastFailure = String(describing: error)
       }
     }
     if let manifest, !busy {
@@ -176,48 +237,104 @@ final class IntegrationModel {
     guard !busy else { return }
     guard let manifest else {
       // Returning to the app retries a stopped first download now.
-      if requested { update(first: true) } else { await readDownloadSize() }
+      if requested { update(.first) } else { await readPlan() }
       return
     }
     try? BackgroundRefresh.schedule(manifest: manifest)
-    // Monthly updates wait for a path that is neither expensive nor constrained.
-    if !costlyPath, manifest.origin != origin || due(manifest) {
-      BackgroundRefresh.lastAttempt = Date()
-      update(first: false)
+    // Data saved from another origin, or a debug UI scenario, makes the check due now.
+    if manifest.origin != origin || consumeForcedDue() {
+      DefaultsUpdateRecords().save(UpdateRecord())
     }
+    update(.check)
   }
 
-  private func readDownloadSize() async {
-    guard downloadBytes == nil else { return }
-    downloadBytes = try? await api.datasets().archive.bytes
+  /// Reads the listing once it answers, and again at each launch and return to the welcome while an app without a bundle lacks it.
+  /// With a bundle, an unreachable listing and a listing of the bundled snapshot plan the same run, so the first answer stays.
+  private func readPlan() async {
+    let unanswered = FirstRunPlan.decide(bundle: .missing, listing: .unreachable)
+    guard plan == nil || (bundleState == .missing && plan == unanswered) else { return }
+    let bundle = await openBundle()
+    plan = try? await sync.planFirstRun(bundle: bundle)
   }
 
-  private func due(_ manifest: SnapshotManifest) -> Bool {
+  /// Opens the bundled archive once, and returns nil when the app carries none or it fails its checks.
+  private func openBundle() async -> BundledDataset? {
+    let opening =
+      bundleOpening
+      ?? Task {
+        guard let pair = Self.bundledPair() else { return nil }
+        return try? await BundledDataset.open(archive: pair.archive, entry: pair.entry)
+      }
+    bundleOpening = opening
+    let bundle = await opening.value
+    bundleState = bundle == nil ? .missing : .readable
+    return bundle
+  }
+
+  /// Staging found a row that fails its checks, so the session continues as if the app carried no archive.
+  private func dropBundle() {
+    bundleOpening = Task { nil }
+    bundleState = .missing
+    plan = nil
+  }
+
+  /// The archive and entry that the build copied into the app.
+  /// Debug builds take another pair from the launch environment, so a UI scenario can name the fixture's pair or missing files.
+  private static func bundledPair() -> (archive: URL, entry: URL)? {
+    #if DEBUG
+      let environment = ProcessInfo.processInfo.environment
+      if let archive = environment["PHONEBOOK_BUNDLED_ARCHIVE"],
+        let entry = environment["PHONEBOOK_BUNDLED_ENTRY"]
+      {
+        return (URL(fileURLWithPath: archive), URL(fileURLWithPath: entry))
+      }
+    #endif
+    guard let resources = Bundle.main.resourceURL else { return nil }
+    return (
+      resources.appendingPathComponent("directory.tsv.br"),
+      resources.appendingPathComponent("directory.json")
+    )
+  }
+
+  private func consumeForcedDue() -> Bool {
     #if DEBUG
       if forcedDue {
         forcedDue = false
         return true
       }
     #endif
-    return RefreshPolicy.nextDate(
-      updatedAt: manifest.updatedAt, lastAttempt: BackgroundRefresh.lastAttempt) <= Date()
+    return false
   }
 
-  /// Runs the first download with its display and announcements, or a silent monthly update.
-  private func update(first: Bool) {
+  /// What a run of the update path does.
+  enum Run: Equatable {
+    /// The first download, which the person started with the start button.
+    case first
+    /// The daily check at a launch or a return to the foreground.
+    case check
+    /// A path report, which starts a waiting automatic transfer.
+    case path(UpdatePath)
+    /// A transfer that the person started from the QA screen.
+    case person
+  }
+
+  /// Runs the first download with its display and announcements, or a silent update.
+  private func update(_ run: Run) {
+    let first = run == .first
     guard !busy else { return }
     retry?.cancel()
     retry = nil
     stopped = nil
-    problem = nil
+    // A path report reads nothing, so it keeps the problem that the last check found.
+    if case .path = run {} else { problem = nil }
     busy = true
     if first {
       latest = SyncProgress(
         stage: SyncProgress.transfer, done: 0, total: 0, rows: 0, fraction: fraction)
       started = ContinuousClock.now
       complete = false
+      bundledOnly = false
       wait = WaitDisplay()
-      AccessibilityAnnouncement.post("アプリで使うデータを受け取っています。")
       ticker?.cancel()
       ticker = Task { [weak self] in
         while let self, self.step() {
@@ -225,20 +342,51 @@ final class IntegrationModel {
         }
       }
     }
-    operation = Task { [weak self, sync] in
+    let path = updatePath
+    operation = Task { [weak self, sync, automatic] in
       guard let self else { return }
+      let bundle = first ? await openBundle() : nil
+      if first {
+        let state: BundleState = bundle == nil ? .missing : .readable
+        preparing =
+          (plan ?? FirstRunPlan.decide(bundle: state, listing: .unreachable)).transfer == .none
+        AccessibilityAnnouncement.post(FirstDownloadProgress.heading(preparing: preparing) + "。")
+      }
       do {
         // iOS terminates an app that it suspends while the transfer or the import holds its locks.
-        let result = try await BackgroundTimeRunner.run(
+        let outcome = try await BackgroundTimeRunner.run(
           ApplicationBackgroundTime(), name: "synchronize"
-        ) { [weak self] in
-          try await sync.synchronize(paths: first ? .every : .inexpensive) { [weak self] report in
+        ) { [weak self] () async throws -> UpdateOutcome in
+          let progress: @Sendable (SyncProgress) async -> Void = { [weak self] report in
             await MainActor.run { self?.receive(report, first: first) }
           }
+          switch run {
+          case .first:
+            let result = try await sync.firstRun(bundle: bundle, progress: progress)
+            // A run that saved the bundled data alone leaves the daily check due, so the next one catches up.
+            if result.outcome == .listed {
+              await automatic.recordPerson(transfer: nil, path: path)
+            }
+            await MainActor.run { self?.bundledOnly = result.outcome == .bundled }
+            return UpdateOutcome(read: false, start: nil, manifest: result.manifest)
+          case .check: return try await automatic.check(path: path, progress: progress)
+          case .path(let reported):
+            return try await automatic.pathChanged(reported, progress: progress)
+          case .person:
+            let saved = try await automatic.runPerson(path: path, progress: progress)
+            return UpdateOutcome(read: false, start: nil, manifest: saved)
+          }
         }
-        manifest = result
         busy = false
         failures = 0
+        // A failed check stays silent, because the saved data stays in use until the next daily check.
+        if outcome.reply == .failed { lastFailure = "the daily check failed" }
+        guard let result = outcome.manifest else {
+          if let manifest { try? BackgroundRefresh.schedule(manifest: manifest) }
+          return
+        }
+        manifest = result
+        needsNewerApp = false
         complete = true
         await notifyExtensions(result)
         try? BackgroundRefresh.schedule(manifest: result)
@@ -254,6 +402,8 @@ final class IntegrationModel {
 
   private func receive(_ report: SyncProgress, first: Bool) {
     guard first else { return }
+    // Only a transfer reports its own stage, so the run receives data after all.
+    if report.stage == SyncProgress.transfer { preparing = false }
     fraction = max(fraction, report.fraction)
     // Each report arrives on its own task, so a late transfer report never moves the display back a stage.
     if report.stage >= latest.stage { latest = report }
@@ -268,10 +418,10 @@ final class IntegrationModel {
       current,
       WaitInput(
         now: now, stage: latest.stage, done: latest.done, total: latest.total, rows: latest.rows,
-        complete: complete))
+        complete: complete, waiting: latest.waiting))
     if next != current {
       if next.line == .weakSignal && current.line != .weakSignal {
-        AccessibilityAnnouncement.post("電波が弱いようです。つながると、続きから受け取ります。")
+        AccessibilityAnnouncement.post("通信がとぎれています。通信がもどると、自動で続きを受け取ります。")
       }
       if next.finished && !current.finished {
         AccessibilityAnnouncement.post("準備ができました。")
@@ -287,7 +437,7 @@ final class IntegrationModel {
     if manifest == nil { wait = nil }
   }
 
-  /// A transfer that a monthly update kept off an expensive or constrained path waits for the next update.
+  /// A transfer that an automatic update kept off an expensive or constrained path waits again, and the path rule starts it later.
   private static func deferred(_ error: any Error) -> Bool {
     guard let error = error as? URLError else { return false }
     return error.networkUnavailableReason == .expensive
@@ -296,38 +446,48 @@ final class IntegrationModel {
 
   private func fail(_ error: any Error, first: Bool) {
     if !first && Self.deferred(error) { return }
-    failures += 1
-    let delay = DownloadSchedule.retryDelay(afterFailures: failures)
-    let reason: String?
-    switch error {
-    case ImportError.activationUncertain:
-      reason = "データを受け取れたかを確かめられませんでした。アプリを開き直してください。"
-    case ImportError.projectionTooLarge:
-      reason = "一つの電話番号に集まる情報が多すぎるため、データを受け取れませんでした。"
-    case ServiceError.unsupportedFormat:
-      reason =
-        manifest == nil
-        ? "データの形式がこのアプリに合わないため、受け取れませんでした。アプリを新しくしてください。"
-        : "データの形式がこのアプリに合わないため、新しくできませんでした。前のデータのまま使えます。アプリを新しくしてください。"
-    default: reason = nil
-    }
-    guard manifest == nil else {
-      // A monthly update keeps the saved data and says so in Settings without speaking.
-      problem = reason ?? "データを新しくできませんでした。前のデータのまま使えます。"
+    if first, error is BundleMismatch {
+      dropBundle()
+      update(.first)
       return
     }
+    failures += 1
+    let delay = DownloadSchedule.retryDelay(afterFailures: failures)
+    let notice = FailureNotice.decide(error, saved: manifest != nil)
+    lastFailure = String(describing: error)
+    guard manifest == nil else {
+      // An automatic update keeps the saved data and tries again at the next daily check, so it speaks only when the person can act.
+      if notice == .appTooOld { needsNewerApp = true }
+      return
+    }
+    let message = Self.message(notice, delay: delay)
     stopFirstDownload()
-    stopped = reason ?? "\(Self.duration(delay))後に、自動でもう一度受け取ります。"
-    AccessibilityAnnouncement.post("データの受け取りが止まりました。\(stopped ?? "")")
+    stopped = message
+    AccessibilityAnnouncement.post("データの受け取りが止まりました。\(message)")
     scheduleRetry(after: delay)
   }
+
+  /// The words of each notice, which name the one step that the person can take.
+  /// A first run never decides `silent`, so its words stay empty.
+  static func message(_ notice: FailureNotice, delay: Int) -> String {
+    switch notice {
+    case .firstRunRetries:
+      "データを受け取れませんでした。\(duration(delay))後に、自動でもう一度受け取ります。"
+    case .appTooOld: "このアプリでは新しいデータを読めません。App Storeでアプリを新しくしてください。"
+    case .reopen: "データを受け取れませんでした。アプリを開き直してください。"
+    case .silent: ""
+    }
+  }
+
+  /// The passive line for an app that can't read the published data.
+  static let newerAppLine = "新しいデータを使うには、App Storeでアプリを新しくしてください。"
 
   private func scheduleRetry(after seconds: Int) {
     retry = Task { [weak self] in
       try? await Task.sleep(for: .seconds(seconds))
       guard !Task.isCancelled, let self else { return }
       self.retry = nil
-      self.update(first: true)
+      self.update(.first)
     }
   }
 
@@ -365,7 +525,7 @@ final class IntegrationModel {
       switch result.state {
       case .disabled: status = .off
       case .current, .notified: status = .on
-      case .failed: status = .onRetrying
+      case .failed(let reply): status = reply.status
       case .unavailable: status = .unknown
       }
       switch result.consumer {
@@ -375,33 +535,47 @@ final class IntegrationModel {
   }
 
   #if PHONEBOOK_VERIFICATION_TOOLS
-    /// Runs the update path once now, the monthly update when data is saved and the first download otherwise.
+    /// Runs a transfer that the person starts, on any path, or the first download before any data exists.
     func updateNow() {
       guard !busy else { return }
-      if manifest != nil { BackgroundRefresh.lastAttempt = Date() }
-      update(first: manifest == nil)
+      update(manifest == nil ? .first : .person)
     }
 
-    /// Asks iOS to load the caller names again after the test number changes, and reports the state that iOS gave.
-    func reloadCallerNames() async -> CallerStatus {
+    /// The update record, which the QA screen shows as check times.
+    var updateRecord: UpdateRecord { DefaultsUpdateRecords().load() }
+
+    /// Asks iOS to load the caller names again after the test number changes, and reports the state and the code that iOS gave.
+    /// A load that is already running may hold the earlier test number, so the request waits for it and asks again a few times.
+    func reloadCallerNames() async -> CallerReload {
       let enabled: Bool
       do { enabled = try await ExtensionOperations.callerEnabled() } catch {
         show(.unknown)
-        return .unknown
+        return CallerReload(status: .unknown, code: (error as? CallDirectoryFailure)?.code)
       }
       guard enabled else {
         show(.off)
-        return .off
+        return CallerReload(status: .off, code: nil)
       }
-      do {
-        try await ExtensionOperations.reloadCaller()
-        show(.on)
-        return .on
-      } catch {
-        // The next launch retries only a new generation, so Settings keeps its state and the QA screen asks for another save.
-        return .onRetrying
+      var reply = CallerReply.other
+      for attempt in 0..<Self.reloadAttempts {
+        if attempt > 0 { try? await Task.sleep(for: Self.reloadSpacing) }
+        do {
+          try await ExtensionOperations.reloadCaller()
+          reply = .loaded
+        } catch {
+          reply = (error as? CallDirectoryFailure).map { .callDirectory(code: $0.code) } ?? .other
+        }
+        guard reply.status == .loading else { break }
       }
+      show(reply.status)
+      if case .callDirectory(let code) = reply {
+        return CallerReload(status: reply.status, code: code)
+      }
+      return CallerReload(status: reply.status, code: nil)
     }
+
+    static let reloadAttempts = 4
+    static let reloadSpacing = Duration.seconds(3)
   #endif
 
   func openCallerSettings() {

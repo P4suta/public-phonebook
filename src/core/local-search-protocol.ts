@@ -36,6 +36,7 @@ export const LocalRowSchema = v.strictObject({
   category: TextSchema,
   region: v.string(),
   phones: v.array(v.string()),
+  hasAddress: v.boolean(),
 });
 export type LocalRow = v.InferOutput<typeof LocalRowSchema>;
 

@@ -33,10 +33,10 @@ function DataPage(): ReactElement {
       <div className={css.stack}>
         <BackButton href="/about">サイトの説明にもどる</BackButton>
         <h1 className={css.heading}>データについて</h1>
-        <p className={css.body}>施設や窓口が公開した電話番号をさがせます。</p>
+        <p className={css.body}>施設が公開した電話番号をさがせます。</p>
         <h2 className={css.subheading}>すべてのデータをダウンロードする</h2>
         <p className={css.body}>
-          すべての施設や窓口のデータを、だれでも登録せずにダウンロードできます。
+          すべての施設のデータを、だれでも登録せずにダウンロードできます。
           使うときの決まりは、施設ごとにファイルの中にあります。
         </p>
         <div>
@@ -58,10 +58,10 @@ function DataPage(): ReactElement {
             </section>
           ))}
         </div>
-        <h2 className={css.subheading}>さがせる施設や窓口</h2>
+        <h2 className={css.subheading}>さがせる施設</h2>
         <p className={css.body}>
           {catalog.prefectures.length}都道府県、
-          {catalog.contacts.toLocaleString("ja-JP")}件の施設や窓口があります。
+          {catalog.contacts.toLocaleString("ja-JP")}件の施設があります。
         </p>
         <div>
           {catalog.categories.map((category) => (

@@ -86,6 +86,20 @@ targets:
         product: PhonebookKit
       - target: CallDirectory
         embed: true
+    # `ios-check generate` admits each declared archive into target/ios/bundled-dataset, and each configuration copies its own pair.
+    postBuildScripts:
+      - name: Bundle the declared directory archive
+        basedOnDependencyAnalysis: true
+        inputFiles:
+          - $(SRCROOT)/../target/ios/bundled-dataset/$(PHONEBOOK_BUNDLED_DATASET)/directory.tsv.br
+          - $(SRCROOT)/../target/ios/bundled-dataset/$(PHONEBOOK_BUNDLED_DATASET)/directory.json
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/directory.tsv.br
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/directory.json
+        script: |
+          set -eu
+          cp "$SCRIPT_INPUT_FILE_0" "$SCRIPT_OUTPUT_FILE_0"
+          cp "$SCRIPT_INPUT_FILE_1" "$SCRIPT_OUTPUT_FILE_1"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_BUNDLE_ID)
@@ -113,9 +127,10 @@ targets:
         PhonebookCallDirectory: $(PHONEBOOK_CALL_DIRECTORY)
         PhonebookAPIOrigin: $(PHONEBOOK_API_ORIGIN)
         PhonebookBackgroundRefresh: $(PHONEBOOK_BUNDLE_ID).refresh
+        PhonebookBackgroundCheck: $(PHONEBOOK_BUNDLE_ID).check
         ITSAppUsesNonExemptEncryption: false
-        UIBackgroundModes: [processing]
-        BGTaskSchedulerPermittedIdentifiers: [$(PHONEBOOK_BUNDLE_ID).refresh]
+        UIBackgroundModes: [fetch, processing]
+        BGTaskSchedulerPermittedIdentifiers: [$(PHONEBOOK_BUNDLE_ID).refresh, $(PHONEBOOK_BUNDLE_ID).check]
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
@@ -148,6 +163,25 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_BUNDLE_ID).UITests
         GENERATE_INFOPLIST_FILE: YES
+  # `ios-check device-record` runs these tests on a physical iPhone, and no simulator gate builds them.
+  PhonebookDeviceMeasurements:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - DeviceMeasurements
+      # The service's listing, delta listing, and delta that `ios-check device-record` records.
+      - path: ../target/ios/device-measurement
+        type: folder
+        buildPhase: resources
+        optional: true
+    dependencies:
+      - target: PublicPhonebook
+      - package: Phonebook
+        product: PhonebookKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_BUNDLE_ID).DeviceMeasurements
+        GENERATE_INFOPLIST_FILE: YES
 schemes:
   PublicPhonebook:
     build:
@@ -179,3 +213,10 @@ schemes:
       targets: [PhonebookUITests]
     archive:
       config: VerificationRelease
+  PublicPhonebookDeviceMeasurements:
+    build:
+      targets:
+        PublicPhonebook: all
+    test:
+      config: VerificationRelease
+      targets: [PhonebookDeviceMeasurements]

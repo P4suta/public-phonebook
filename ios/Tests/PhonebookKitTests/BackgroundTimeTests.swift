@@ -89,6 +89,68 @@ private func transferLockIsFree(_ store: SnapshotStore) -> Bool {
   return true
 }
 
+/// Whether this process can take the exclusive transaction on `writer.sqlite` that an import holds.
+private func writerLeaseIsFree(_ root: URL) -> Bool {
+  guard let lease = try? WriterLease(url: root.appendingPathComponent("writer.sqlite")) else {
+    return false
+  }
+  lease.release()
+  return true
+}
+
+/// Holds the activation of a new generation until the test opens the gate, which happens after the commit.
+private struct HeldActivation: SnapshotFiles {
+  let reached: AsyncStream<Void>.Continuation
+  let gate: Gate
+  let files = LocalSnapshotFiles()
+
+  func readManifest(at url: URL) throws -> Data { try files.readManifest(at: url) }
+  func removeGeneration(at url: URL) throws { try files.removeGeneration(at: url) }
+  func activateManifest(_ data: Data, at url: URL) throws {
+    reached.yield()
+    let held = DispatchSemaphore(value: 0)
+    Task {
+      await gate.wait()
+      held.signal()
+    }
+    held.wait()
+    try files.activateManifest(data, at: url)
+  }
+}
+
+@Test(.timeLimit(.minutes(1))) @MainActor
+func expiryDuringTheActivationReleasesTheLeaseBeforeTheHandlerReturns() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let server = try await Directory().serve()
+  let gate = Gate()
+  let (received, reached) = AsyncStream.makeStream(of: Void.self)
+  let store = try SnapshotStore(root: root, files: HeldActivation(reached: reached, gate: gate))
+  let engine = SyncEngine(api: try APIClient(origin: server.origin), store: store)
+  let port = TestBackgroundTime()
+  let locks = HeldLocks()
+  let run = Task { @MainActor in
+    try await BackgroundTimeRunner.run(port, name: "synchronize", locks: locks) {
+      try await engine.synchronize { _ in }
+    }
+  }
+  for await _ in received { break }
+  #expect(!writerLeaseIsFree(root))
+  port.expire()
+  #expect(writerLeaseIsFree(root))
+  #expect(locks.released == 1)
+  await gate.release()
+  // The commit has no cancellation point, so the activation either completes or the cancellation discards it.
+  let result = await run.result
+  #expect(port.ended == [1])
+  let saved = try await store.manifest()
+  if case .success(let manifest) = result {
+    #expect(saved?.generation == manifest.generation)
+  } else {
+    #expect(saved == nil)
+  }
+}
+
 @Test(.timeLimit(.minutes(1))) @MainActor
 func expiryCancelsATransferAndReleasesItsLock() async throws {
   let root = try temporaryDirectory()
@@ -99,9 +161,10 @@ func expiryCancelsATransferAndReleasesItsLock() async throws {
   let store = try SnapshotStore(root: root)
   let engine = SyncEngine(api: try APIClient(origin: server.origin), store: store)
   let port = TestBackgroundTime()
+  let locks = HeldLocks()
   let (received, reached) = AsyncStream.makeStream(of: Void.self)
   let run = Task { @MainActor in
-    try await BackgroundTimeRunner.run(port, name: "synchronize") {
+    try await BackgroundTimeRunner.run(port, name: "synchronize", locks: locks) {
       try await engine.synchronize { report in
         if report.stage == SyncProgress.transfer, report.done >= cut { reached.yield() }
       }
@@ -112,6 +175,9 @@ func expiryCancelsATransferAndReleasesItsLock() async throws {
   #expect(port.ended.isEmpty)
   #expect(!transferLockIsFree(store))
   port.expire()
+  // The handler has returned, and the transfer lock is free before the cancelled transfer unwinds, after one release step.
+  #expect(transferLockIsFree(store))
+  #expect(locks.released == 1)
   // A runner that ignored the expiry would see the connection end instead of the cancellation.
   server.close()
   await #expect(throws: CancellationError.self) { try await run.value }
@@ -128,10 +194,11 @@ func expiryCancelsAnImportAndReleasesTheDatabase() async throws {
   let store = try SnapshotStore(root: root)
   let engine = SyncEngine(api: try APIClient(origin: server.origin), store: store)
   let port = TestBackgroundTime()
+  let locks = HeldLocks()
   let gate = Gate()
   let (received, reached) = AsyncStream.makeStream(of: Void.self)
   let run = Task { @MainActor in
-    try await BackgroundTimeRunner.run(port, name: "synchronize") {
+    try await BackgroundTimeRunner.run(port, name: "synchronize", locks: locks) {
       try await engine.synchronize { report in
         guard report.stage == SyncProgress.prepare, report.done > 0 else { return }
         reached.yield()
@@ -144,7 +211,11 @@ func expiryCancelsAnImportAndReleasesTheDatabase() async throws {
   // Another store on the same directory needs the exclusive transaction on writer.sqlite, which the import holds.
   let other = try SnapshotStore(root: root)
   await #expect(throws: (any Error).self) { try await other.begin(header: header) }
+  #expect(!writerLeaseIsFree(root))
   port.expire()
+  // The handler has returned while the import still waits at the gate, and the lease is free after one release step.
+  #expect(writerLeaseIsFree(root))
+  #expect(locks.released == 1)
   // A runner that ignored the expiry would let the opened gate finish the import.
   await gate.release()
   await #expect(throws: CancellationError.self) { try await run.value }

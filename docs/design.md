@@ -53,7 +53,7 @@ It measures an untruncated copy of each text node at its original width, then re
 It checks clipping, auto-layout sibling overlap, monochrome paints, opacity, effects, and text against the nearest opaque ancestor fill.
 Intentional vertical viewport overflow and absolute focus indicators are excluded from unintended clipping and sibling-overlap findings.
 Sibling-overlap findings also skip absolute overlays, such as the iPhone map confirmation alert.
-The retained capture contains 1,429 text measurements and 1,199 resolved instance references.
+The retained capture contains 1,568 text measurements and 1,234 resolved instance references.
 Unit checks independently recompute canvas overlap and section containment, validate text fit and contrasting colors, and enforce canonical web and iPhone viewport sizes and gutters.
 The same overlap check detects all ten overlapping pairs in the original desktop arrangement.
 These checks cover the retained capture and cannot detect later Figma edits until the audit is refreshed.
@@ -65,6 +65,8 @@ Layer occlusion and visual clarity still require direct visual review.
 ## Visual rules
 
 Use authored black and white only.
+The iPhone app follows the system appearance by swapping them: surfaces turn black, and text, rules, icons, and controls turn white.
+Its screens draw with two named colors, the surface and the ink, and the iOS gate refuses any other authored color in `ios/App`.
 Exclude gray steps, gradients, shadows, translucent styling, filters, blending, and slogans.
 Use size, weight, grouping, spacing, and solid borders to communicate structure.
 The initial heading is the service name.
@@ -161,7 +163,8 @@ Its accessible name starts with the facility name and keeps the visible label, s
 On wide screens, the detail link sits in the left column below the region.
 Result cards leave the address and its map action to the detail page.
 A result that the device found opens its details through its index row, and a changed snapshot reloads the index and searches again.
-The search index carries no addresses, so a result that the device found uses the address label.
+The search index header lists the rows whose details show no address, so a result that the device found takes the same label as the server's.
+An index without that list gives every device result the address label.
 Navigation links have a visible underline or outline, an icon, and a target of at least 44 pixels.
 This follows the distinction between [native links](https://www.w3.org/WAI/ARIA/apg/patterns/link/) and [action buttons](https://www.w3.org/WAI/ARIA/apg/patterns/button/).
 No page renders a copy control or copy feedback.

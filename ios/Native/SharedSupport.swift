@@ -2,6 +2,7 @@ import Foundation
 import OSLog
 import PhonebookCore
 import PhonebookKit
+import Synchronization
 
 enum AppIdentity {
   static var displayName: String {
@@ -31,6 +32,11 @@ enum AppIdentity {
       ?? "page.dial.publicphonebook.refresh"
   }
 
+  static var backgroundCheck: String {
+    Bundle.main.object(forInfoDictionaryKey: "PhonebookBackgroundCheck") as? String
+      ?? "page.dial.publicphonebook.check"
+  }
+
   static func store() throws -> SnapshotStore {
     guard
       let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)
@@ -44,10 +50,33 @@ enum AppIdentity {
 
 struct SystemTraceSink: TraceSink {
   private let logger = Logger(subsystem: "page.dial.publicphonebook", category: "directory")
+  /// Instruments shows these intervals and points in the `os_signpost` instrument, as Apple's guide to recording performance data describes.
+  private static let signposter = OSSignposter(
+    subsystem: "page.dial.publicphonebook", category: "directory")
+  private static let intervals = Mutex(TraceIntervals<OSSignpostIntervalState>())
+
   func record(_ event: TraceEvent) {
     logger.info(
       "operation=\(event.operation.uuidString, privacy: .public) phase=\(event.phase.rawValue, privacy: .public) outcome=\(event.outcome.rawValue, privacy: .public) snapshot=\(event.snapshot?.rawValue ?? "none", privacy: .public) records=\(event.records ?? 0, privacy: .public) milliseconds=\(event.milliseconds.map(String.init) ?? "none", privacy: .public)"
     )
+    let signposter = Self.signposter
+    Self.intervals.withLock {
+      $0.record(
+        event,
+        begin: { key in
+          signposter.beginInterval(
+            "phase", id: signposter.makeSignpostID(), "\(key.phase.rawValue, privacy: .public)")
+        },
+        end: { _, state in
+          signposter.endInterval("phase", state, "\(event.outcome.rawValue, privacy: .public)")
+        },
+        mark: { point in
+          signposter.emitEvent(
+            "point",
+            "\(point.phase.rawValue, privacy: .public) milliseconds=\(point.milliseconds.map(String.init) ?? "none", privacy: .public)"
+          )
+        })
+    }
   }
 }
 

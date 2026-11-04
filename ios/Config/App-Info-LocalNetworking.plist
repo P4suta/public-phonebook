@@ -5,6 +5,7 @@
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>$(PHONEBOOK_BUNDLE_ID).refresh</string>
+		<string>$(PHONEBOOK_BUNDLE_ID).check</string>
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>ja</string>
@@ -39,12 +40,15 @@
 	<string>$(PHONEBOOK_API_ORIGIN)</string>
 	<key>PhonebookAppGroup</key>
 	<string>$(PHONEBOOK_APP_GROUP)</string>
+	<key>PhonebookBackgroundCheck</key>
+	<string>$(PHONEBOOK_BUNDLE_ID).check</string>
 	<key>PhonebookBackgroundRefresh</key>
 	<string>$(PHONEBOOK_BUNDLE_ID).refresh</string>
 	<key>PhonebookCallDirectory</key>
 	<string>$(PHONEBOOK_CALL_DIRECTORY)</string>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>fetch</string>
 		<string>processing</string>
 	</array>
 	<key>UILaunchScreen</key>

@@ -29,6 +29,13 @@ import {
   decodeSearchIndex,
   type SearchIndex,
 } from "../../src/core/search-index.ts";
+import { uiCopy } from "../../src/ui/copy.ts";
+import { localRow } from "../../src/ui/local-search-service.ts";
+import {
+  catalogRegions,
+  localCard,
+  serverCard,
+} from "../../src/ui/result-cards.ts";
 import { checkFixtureContacts } from "../../tools/check-fixture.ts";
 import { databaseSchema } from "../../tools/database-schema.ts";
 import { contactSeedStatements } from "../../tools/directory-fixture.ts";
@@ -65,6 +72,8 @@ const phones = [
   ["083-1234-5678", "+818312345678"],
 ] as const;
 const generatedContacts = 150;
+/** Addresses whose details show nothing, including a map annotation alone, and one that shows an address. */
+const addresses = ["所在地", "", "所在地", "　", "所在地", "（地図）"] as const;
 
 function contact(index: number): Contact {
   const name =
@@ -82,7 +91,7 @@ function contact(index: number): Contact {
     prefectureCode: index % 2 === 0 ? "13" : "14",
     municipalityCode:
       index % 5 === 0 ? null : index % 2 === 0 ? "13101" : "14100",
-    address: "所在地",
+    address: addresses[index % addresses.length],
     phones:
       index % 4 === 0
         ? [
@@ -343,6 +352,39 @@ describe("local search parity with the server", () => {
       }
     }
     expect(continued).toBeGreaterThan(queries.length);
+  });
+
+  it("labels each detail action the same way for server and in-browser results", async () => {
+    const regions = catalogRegions(catalog);
+    const labels = new Set<string>();
+    for (const query of queries) {
+      const parsed = localQuery(query);
+      if (!parsed.ok) throw new Error(`The query must be valid: ${query}`);
+      const local = previewGroups(matchIndex(index, parsed.value));
+      const grouped = v.parse(
+        GroupedSearchResponseSchema,
+        await json(`/api/contact-groups?q=${encodeURIComponent(query)}`),
+      );
+      const server = grouped.groups.flatMap((group) =>
+        group.results.data.map((item) =>
+          uiCopy.resultDetail.label(serverCard(item, regions, "/").hasAddress),
+        ),
+      );
+      const browser = local.groups.flatMap((group) =>
+        group.rows.map((position) =>
+          uiCopy.resultDetail.label(
+            localCard(localRow(index, position), snapshot, regions, "/")
+              .hasAddress,
+          ),
+        ),
+      );
+      expect(browser, query).toEqual(server);
+      for (const label of server) labels.add(label);
+    }
+    expect([...labels].sort()).toEqual([
+      "くわしい情報を見る",
+      "住所などを見る",
+    ]);
   });
 
   it("rejects the queries the server rejects", async () => {

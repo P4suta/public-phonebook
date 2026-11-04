@@ -2,4 +2,5 @@
 PHONEBOOK_BUNDLE_ID = page.dial.publicphonebook.development
 PHONEBOOK_DISPLAY_NAME = Public Phonebook DEV
 PHONEBOOK_API_ORIGIN = http:/$()/127.0.0.1:3100
+PHONEBOOK_BUNDLED_DATASET = fixture
 ASSETCATALOG_COMPILER_APPICON_NAME = AppIconDevelopment

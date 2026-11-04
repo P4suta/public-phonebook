@@ -21,6 +21,7 @@ import {
   ContactSchema,
   RowLocationSchema,
 } from "../../src/core/models.ts";
+import { showsAddress } from "../../src/core/search.ts";
 import {
   decodeSearchIndex,
   encodeSearchIndex,
@@ -132,7 +133,9 @@ const index = encodeSearchIndex(
       (left, right) =>
         (rowNumbers.get(left.id) ?? 0) - (rowNumbers.get(right.id) ?? 0),
     )
-    .map((contact) => searchIndexRow(contact)),
+    .map((contact) =>
+      searchIndexRow({ ...contact, hasAddress: showsAddress(contact.address) }),
+    ),
   { snapshot, catalog },
 );
 const compressed = compressSearchIndex(index);

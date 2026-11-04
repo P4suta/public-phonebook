@@ -84,7 +84,14 @@ function row(
   category: string,
   phone: string,
 ): Record<string, unknown> {
-  return { row: position, name, category, region: "13101", phones: [phone] };
+  return {
+    row: position,
+    name,
+    category,
+    region: "13101",
+    phones: [phone],
+    hasAddress: true,
+  };
 }
 
 describe("local search worker", () => {

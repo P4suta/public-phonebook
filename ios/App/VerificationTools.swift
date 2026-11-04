@@ -50,11 +50,17 @@
       saved = entry
       telephone = entry.display
       label = entry.label
-      switch await integration.reloadCallerNames() {
-      case .on: tell("保存して、iPhoneに反映しました。")
-      case .off: tell("保存しました。iPhoneの設定で許可すると、電話がかかってきたときにこの名前が出ます。")
-      case .checking, .onRetrying, .unknown:
-        tell("保存しました。iPhoneに反映したかを確かめられませんでした。もう一度「保存する」を押してください。")
+      tell("保存しました。" + Self.reloaded(await integration.reloadCallerNames()))
+    }
+
+    /// Words the reload result, with the code that iOS returned, so a device check can report it.
+    static func reloaded(_ reload: CallerReload) -> String {
+      let code = reload.code.map { "（iPhoneの返答のコード：\($0)）" } ?? ""
+      switch reload.status {
+      case .on: return "iPhoneに反映しました。"
+      case .off: return "iPhoneの設定で許可すると、電話がかかってきたときにこの名前が出ます。"
+      case .loading: return "iPhoneが読み込んでいる途中です。読み込みが終わると反映します。\(code)"
+      case .checking, .onRetrying, .unknown: return "iPhoneへの反映は未確認です。\(code)"
       }
     }
 
@@ -68,12 +74,8 @@
       saved = nil
       telephone = ""
       label = Self.defaultLabel
-      switch await integration.reloadCallerNames() {
-      case .on: tell("消して、iPhoneに反映しました。")
-      case .off: tell("消しました。")
-      case .checking, .onRetrying, .unknown:
-        tell("消しました。iPhoneに反映したかを確かめられませんでした。もう一度「消す」を押してください。")
-      }
+      let reload = await integration.reloadCallerNames()
+      tell(reload.status == .off ? "消しました。" : "消しました。" + Self.reloaded(reload))
     }
 
     private func tell(_ text: String) {
@@ -120,16 +122,16 @@
             .accessibilityIdentifier("verification-clear")
           }
           .padding(.vertical, 24)
-          Rectangle().fill(.black).frame(height: 1)
+          Rectangle().fill(.ink).frame(height: 1)
           AutomaticUpdateStatus(integration: integration).padding(.vertical, 24)
-          Rectangle().fill(.black).frame(height: 1)
+          Rectangle().fill(.ink).frame(height: 1)
           Text("この画面は、QA用のビルドで使います。").font(.footnote).padding(.vertical, 24)
         }
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
       }
       .scrollDismissesKeyboard(.interactively)
-      .background(.white)
+      .background(.surface)
       .accessibilityIdentifier("verification-tools")
       .navigationTitle("QA用の確認")
       .navigationBarTitleDisplayMode(.inline)
@@ -152,7 +154,7 @@
           .textInputAutocapitalization(.never)
           .padding(.horizontal, 14)
           .frame(minHeight: 44)
-          .overlay { Rectangle().strokeBorder(.black, lineWidth: 1) }
+          .overlay { Rectangle().strokeBorder(.ink, lineWidth: 1) }
           .accessibilityLabel(label)
           .accessibilityIdentifier(identifier)
       }
@@ -167,30 +169,37 @@
       integration.manifest?.updatedAt.formatted(date: .long, time: .omitted) ?? "受け取る前です"
     }
 
+    private var answeredAt: Date? {
+      integration.updateRecord.state.answeredAt.map {
+        Date(timeIntervalSince1970: TimeInterval($0))
+      }
+    }
+
     private var lastCheck: String {
-      BackgroundRefresh.lastAttempt?.formatted(date: .long, time: .shortened) ?? "なし"
+      answeredAt?.formatted(date: .long, time: .shortened) ?? "なし"
     }
 
     private var nextDue: String {
-      guard let manifest = integration.manifest else { return "データを受け取ったあとに決まります" }
-      let next = RefreshPolicy.nextDate(
-        updatedAt: manifest.updatedAt, lastAttempt: BackgroundRefresh.lastAttempt)
-      return next.formatted(date: .long, time: .shortened) + "から"
+      guard integration.manifest != nil else { return "データを受け取ったあとに決まります" }
+      guard let answeredAt else { return "次にアプリを開いたとき" }
+      return answeredAt.addingTimeInterval(TimeInterval(UpdateCheck.intervalSeconds))
+        .formatted(date: .long, time: .shortened) + "から"
+    }
+
+    private var waiting: String {
+      integration.updateRecord.state.waiting == nil ? "なし" : "Wi-Fiなどにつながると受け取ります"
     }
 
     var body: some View {
       VStack(alignment: .leading, spacing: 12) {
         Text("データの自動の受け取り").font(.headline).accessibilityAddTraits(.isHeader)
         Text("データの日付：\(dataDate)")
-        Text("前に確かめた日時：\(lastCheck)")
-        Text("次に受け取る日時：\(nextDue)")
-        Text("問題：\(integration.problem ?? integration.stopped ?? "なし")")
+        Text("前にたしかめた日時：\(lastCheck)")
+        Text("次にたしかめる日時：\(nextDue)")
+        Text("待っている受け取り：\(waiting)")
+        Text("問題：\(integration.lastFailure ?? integration.stopped ?? "なし")")
           .fixedSize(horizontal: false, vertical: true)
           .accessibilityIdentifier("verification-problem")
-        if integration.costlyPath {
-          Text("モバイルデータ通信や省データモードのときは、Wi-Fiにつないでから押してください。")
-            .font(.callout).fixedSize(horizontal: false, vertical: true)
-        }
         Button {
           integration.updateNow()
         } label: {
@@ -218,7 +227,7 @@
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("QA用 1件")
         .accessibilityAddTraits(.isHeader)
-        Rectangle().fill(.black).frame(height: 2)
+        Rectangle().fill(.ink).frame(height: 2)
         VStack(alignment: .leading, spacing: 10) {
           Text(entry.label).font(.title3.bold()).multilineTextAlignment(.leading)
             .accessibilityAddTraits(.isHeader)
@@ -227,7 +236,7 @@
         .padding(.vertical, 16)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("verification-result")
-        Rectangle().fill(.black).frame(height: 1)
+        Rectangle().fill(.ink).frame(height: 1)
       }
     }
   }

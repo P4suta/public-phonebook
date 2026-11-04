@@ -99,45 +99,84 @@ private func moving(_ display: WaitDisplay, at now: Int, stableSince: Int = -1) 
 
 @Test func theLineChoicesMeetTheirBoundaries() {
   let start = WaitDisplay()
-  #expect(WaitDisplay.choose(start, start, 10_000, -1, 0).line == .weakSignal)
-  #expect(WaitDisplay.choose(start, start, 9_999, -1, 0).line == .measuring)
-  let short = WaitDisplay.choose(start, moving(start, at: 1_000), 1_000, 60_000, 0)
+  #expect(WaitDisplay.choose(start, start, 10_000, -1, 0, false).line == .weakSignal)
+  #expect(WaitDisplay.choose(start, start, 9_999, -1, 0, false).line == .measuring)
+  let short = WaitDisplay.choose(start, moving(start, at: 1_000), 1_000, 60_000, 0, false)
   #expect(short.line == .countdown && short.seconds == 60)
-  #expect(WaitDisplay.choose(start, moving(start, at: 1_000), 1_000, 60_001, 0).line == .longer)
+  #expect(
+    WaitDisplay.choose(start, moving(start, at: 1_000), 1_000, 60_001, 0, false).line == .longer)
+  let ending = moving(start, at: 1_000)
+  #expect(
+    WaitDisplay.choose(start, ending, 1_000, WaitDisplay.almostMs, 0, false).line == .almostDone)
+  #expect(
+    WaitDisplay.choose(start, ending, 1_000, WaitDisplay.almostMs + 1, 0, false).line
+      != .almostDone)
+}
+
+/// A display that reached each line, so the waiting decision meets every line that the screen can show.
+private let everyLine = [
+  WaitDisplay(), nineSeconds, oneMinute,
+  run([input(0, 0, 0, 0), input(100, 0, 0, 9_000), input(2_100, 0, 8_000, 9_000)]),
+  run([input(0, 0, 0, 0), input(100, 0, 0, 9_000), input(10_100, 0, 0, 9_000)]),
+]
+
+@Test func theWeakSignalFollowsTheWaitingAndTheStallOnEveryLine() {
+  #expect(everyLine.map(\.line) == [.measuring, .countdown, .longer, .almostDone, .weakSignal])
+  let now = 20_000
+  var checked = 0
+  for shown in everyLine {
+    for stage in 0...WaitDisplay.lastStage {
+      for waiting in [false, true] {
+        for stalled in [false, true] {
+          let tracked = moving(shown, at: now - WaitDisplay.stallMs + (stalled ? 0 : 1))
+          for left in [-1, 0, WaitDisplay.almostMs + 1, WaitDisplay.shortMs + 1] {
+            let line = WaitDisplay.choose(shown, tracked, now, left, stage, waiting).line
+            #expect(
+              (line == .weakSignal) == (stage == 0 && (waiting || stalled)),
+              "\(shown.line) stage \(stage) waiting \(waiting) stalled \(stalled) left \(left)")
+            checked += 1
+          }
+        }
+      }
+    }
+  }
+  #expect(checked == 5 * 3 * 2 * 2 * 4)
 }
 
 @Test func aCountdownTurnsLongerOnlyPastItsSlackAndTheShortTime() {
-  let behind = WaitDisplay.choose(nineSeconds, moving(nineSeconds, at: 2_000), 2_000, 11_100, 0)
+  let behind = WaitDisplay.choose(
+    nineSeconds, moving(nineSeconds, at: 2_000), 2_000, 11_100, 0, false)
   #expect(behind.line == .countdown && behind.seconds == 9)
   #expect(
-    WaitDisplay.choose(nineSeconds, moving(nineSeconds, at: 2_000), 2_000, 11_101, 0).line
+    WaitDisplay.choose(nineSeconds, moving(nineSeconds, at: 2_000), 2_000, 11_101, 0, false).line
       == .longer)
   let fiftyNine = run([
     input(0, 0, 0, 0), input(100, 0, 0, 600_000), input(1_100, 0, 10_000, 600_000),
   ])
   #expect(fiftyNine.line == .countdown && fiftyNine.number == 59)
   #expect(
-    WaitDisplay.choose(fiftyNine, moving(fiftyNine, at: 1_200), 1_200, 60_000, 0).line
+    WaitDisplay.choose(fiftyNine, moving(fiftyNine, at: 1_200), 1_200, 60_000, 0, false).line
       == .countdown)
 }
 
 @Test func coarseMinutesChangeOnlyAfterTheirHold() {
   #expect(
-    WaitDisplay.choose(oneMinute, moving(oneMinute, at: 12_200), 12_200, 200_000, 0).minutes
+    WaitDisplay.choose(oneMinute, moving(oneMinute, at: 12_200), 12_200, 200_000, 0, false).minutes
       == 3)
   #expect(
-    WaitDisplay.choose(oneMinute, moving(oneMinute, at: 8_000), 8_000, 200_000, 0).minutes == 1)
+    WaitDisplay.choose(oneMinute, moving(oneMinute, at: 8_000), 8_000, 200_000, 0, false).minutes
+      == 1)
 }
 
 @Test func coarseMinutesCountDownAgainOnlyAfterAStableShortEstimate() {
   let stable = moving(oneMinute, at: 3_300, stableSince: 0)
-  let returned = WaitDisplay.choose(oneMinute, stable, 3_300, 9_000, 0)
+  let returned = WaitDisplay.choose(oneMinute, stable, 3_300, 9_000, 0, false)
   #expect(returned.line == .countdown && returned.seconds == 9)
   let held = WaitDisplay.choose(
-    oneMinute, moving(oneMinute, at: 3_300, stableSince: 300), 3_300, 9_000, 0)
+    oneMinute, moving(oneMinute, at: 3_300, stableSince: 300), 3_300, 9_000, 0, false)
   #expect(held.line == .countdown)
   let waiting = WaitDisplay.choose(
-    oneMinute, moving(oneMinute, at: 2_500, stableSince: 0), 2_500, 9_000, 0)
+    oneMinute, moving(oneMinute, at: 2_500, stableSince: 0), 2_500, 9_000, 0, false)
   #expect(waiting.line == .longer && waiting.stableSince == 0)
 }
 

@@ -1,6 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { type BrotliOptions, brotliCompressSync, constants } from "node:zlib";
 import * as v from "valibot";
+import { showsAddress } from "../src/core/search.ts";
 import {
   encodeSearchIndex,
   type SearchIndexInput,
@@ -20,7 +21,8 @@ const ContactRowSchema = v.object({
   municipality: v.nullable(v.string()),
   payload: v.string(),
 });
-const PayloadPhonesSchema = v.object({
+const PayloadSchema = v.object({
+  address: v.string(),
   phones: v.array(v.object({ e164: v.string() })),
 });
 
@@ -50,14 +52,15 @@ function* databaseRows(db: DatabaseSync): Generator<SearchIndexRow> {
     position += 1;
     if (row.rowid !== position)
       throw new Error("Contact row numbers must count from one without gaps");
-    const decoded: unknown = JSON.parse(row.payload);
+    const payload = v.parse(PayloadSchema, JSON.parse(row.payload));
     yield searchIndexRow(
       {
         name: row.name,
         category: row.category,
         prefectureCode: row.prefecture,
         municipalityCode: row.municipality,
-        phones: v.parse(PayloadPhonesSchema, decoded).phones,
+        phones: payload.phones,
+        hasAddress: showsAddress(payload.address),
       },
       row.normalized_name,
     );

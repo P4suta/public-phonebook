@@ -3,7 +3,7 @@ import PhonebookCore
 import Synchronization
 
 /// Which network paths a request may use.
-public enum NetworkPaths: Sendable, Equatable {
+public enum NetworkPaths: Sendable, Equatable, CaseIterable {
   /// Every path, including mobile data and Low Data Mode, for the first download that the person started.
   case every
   /// Only paths that are neither expensive nor constrained, for the automatic monthly update.
@@ -13,6 +13,10 @@ public enum NetworkPaths: Sendable, Equatable {
     request.allowsExpensiveNetworkAccess = self == .every
     request.allowsConstrainedNetworkAccess = self == .every
   }
+
+  /// A transfer that the person started waits for a connection.
+  /// An automatic transfer fails at once, so a costly path reaches its deferral and the update decision starts it again.
+  var waitsForConnectivity: Bool { self == .every }
 }
 
 /// The bytes of one dataset file: those kept from earlier attempts, those received in this attempt, and the listed length.
@@ -20,6 +24,15 @@ public struct TransferProgress: Sendable, Equatable {
   public let resumed: Int
   public let received: Int
   public let total: Int
+  /// The transfer waits for a network connection, and the next received bytes end the wait.
+  public let waiting: Bool
+
+  public init(resumed: Int, received: Int, total: Int, waiting: Bool = false) {
+    self.resumed = resumed
+    self.received = received
+    self.total = total
+    self.waiting = waiting
+  }
 }
 
 private struct TransferState {
@@ -55,25 +68,24 @@ final class DatasetTransfer: NSObject, URLSessionDataDelegate, Sendable {
     state.withLock { $0.offset = offset }
   }
 
-  /// Sends the request and returns the final response, or nil when the reply restarted or resumed the file.
-  func run(_ request: URLRequest) async throws -> HTTPURLResponse? {
-    let configuration = URLSessionConfiguration.ephemeral
-    configuration.httpShouldSetCookies = false
-    configuration.httpCookieStorage = nil
-    configuration.urlCredentialStorage = nil
-    configuration.timeoutIntervalForResource = 900
-    configuration.timeoutIntervalForRequest = 30
-    let session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
-    defer { session.invalidateAndCancel() }
-    return try await withTaskCancellationHandler {
+  /// Sends the request in the client's transfer session and returns the final response, or nil when the reply restarted or resumed the file.
+  func run(_ request: URLRequest, in session: URLSession) async throws -> HTTPURLResponse? {
+    try await withTaskCancellationHandler {
       try await withCheckedThrowingContinuation { continuation in
         let task = session.dataTask(with: request)
+        task.delegate = self
         let cancelled = state.withLock {
           $0.continuation = continuation
           $0.task = task
           return $0.cancelled
         }
-        if cancelled { finish(CancellationError()) } else { task.resume() }
+        // The shared session outlives this transfer, so a task that never starts must still end.
+        if cancelled {
+          task.cancel()
+          finish(CancellationError())
+        } else {
+          task.resume()
+        }
       }
     } onCancel: {
       let task = self.state.withLock {
@@ -201,6 +213,16 @@ final class DatasetTransfer: NSObject, URLSessionDataDelegate, Sendable {
     willPerformHTTPRedirection response: HTTPURLResponse,
     newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void
   ) { completionHandler(nil) }
+
+  /// Reports a transfer that waits for a connection, which the wait display shows at once.
+  func urlSession(_ session: URLSession, taskIsWaitingForConnectivity task: URLSessionTask) {
+    let report = state.withLock { value -> TransferProgress? in
+      guard !value.finished else { return nil }
+      return TransferProgress(
+        resumed: value.offset, received: value.received, total: expected, waiting: true)
+    }
+    if let report { progress(report) }
+  }
 }
 
 /// The `bytes first-last/total` value of a single-range `Content-Range` header.

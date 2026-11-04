@@ -35,6 +35,9 @@ Run `mise x -- just ios-archive` to create a production Release archive and expo
 The command uses Xcode's existing account and automatic provisioning.
 It never uploads the package or submits a review.
 The command inspects the exported app and its embedded extension, verifies their signatures and distribution entitlements, and checks the production origin, shared group, version, build number, icon, privacy manifests, and bundled notices.
+It also requires the exported app to hold the directory archive and entry that `ios/bundled-dataset.json` declares, and the extension to hold neither.
+The generator reads that archive from the release asset and the immutable dataset URL, so the hosted runners obtain it without credentials.
+The unsigned Release app measured 3,780,791 bytes before the bundled archive and 17,274,257 bytes with the 13,428,507-byte archive of snapshot `5bd74f20`.
 It preserves a SHA-256 digest, source-file hashes, selected Git revision, dirty-tree state, and a CycloneDX dependency inventory under a unique `target/ios/app-store-*` directory.
 `target/ios/app-store-candidate.json` points to the inspected export from the command's preceding successful run.
 A local archive uses build number 1 unless `--build-number N` selects another.

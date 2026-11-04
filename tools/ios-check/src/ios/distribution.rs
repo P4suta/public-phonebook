@@ -87,6 +87,10 @@ fn validate(
         ("ASSETCATALOG_COMPILER_APPICON_NAME", icon.to_owned()),
         ("MARKETING_VERSION", "1.0".to_owned()),
         ("IPHONEOS_DEPLOYMENT_TARGET", "18.0".to_owned()),
+        (
+            "PHONEBOOK_BUNDLED_DATASET",
+            super::bundled::Dataset::of(config).name().to_owned(),
+        ),
     ];
     for (key, value) in expected {
         ensure!(
@@ -273,6 +277,7 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
             for key in [
                 "PHONEBOOK_BUNDLE_ID",
                 "PHONEBOOK_API_ORIGIN",
+                "PHONEBOOK_BUNDLED_DATASET",
                 "PHONEBOOK_APP_GROUP",
                 "PHONEBOOK_CALL_DIRECTORY",
                 "ASSETCATALOG_COMPILER_APPICON_NAME",
@@ -303,7 +308,7 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
         }
     }
     println!(
-        "PASS: all six build configurations, both native targets each, and 180 rejected environment defects"
+        "PASS: all six build configurations, both native targets each, and 204 rejected environment defects"
     );
     Ok(())
 }
@@ -411,8 +416,10 @@ fn verify_bundle(root: &Path, app: &Path, team: &str, build: BuildNumber) -> Res
             );
             ensure!(
                 info["PhonebookBackgroundRefresh"] == format!("{bundle}.refresh")
+                    && info["PhonebookBackgroundCheck"] == format!("{bundle}.check")
+                    && info["UIBackgroundModes"] == json!(["fetch", "processing"])
                     && info["BGTaskSchedulerPermittedIdentifiers"]
-                        == json!([format!("{bundle}.refresh")]),
+                        == json!([format!("{bundle}.refresh"), format!("{bundle}.check")]),
                 "Incorrect background task registration"
             );
             ensure!(
@@ -420,6 +427,7 @@ fn verify_bundle(root: &Path, app: &Path, team: &str, build: BuildNumber) -> Res
                     == fs::read(root.join("design/licenses/Lucide.txt"))?,
                 "Missing or altered third-party notices"
             );
+            super::bundled::check_built(root, &directory, "Release")?;
         }
     }
     Ok(())

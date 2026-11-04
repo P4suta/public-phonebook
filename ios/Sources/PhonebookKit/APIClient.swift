@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import PhonebookCore
+import Synchronization
 
 public enum ServiceError: Error, Equatable, Sendable {
   case invalidURL, invalidResponse, notFound, snapshotChanged
@@ -75,6 +76,14 @@ public struct DatasetListing: Sendable {
   public let deltas: String?
 }
 
+/// What a conditional read of the dataset listing answered.
+public enum ListingAnswer: Sendable {
+  /// The listing still has the saved ETag.
+  case notModified
+  /// The listing, its ETag, and its body, which a later transfer reuses without a second read.
+  case listed(DatasetListing, etag: String?, body: Data)
+}
+
 public protocol HTTPTransport: Sendable {
   func send(_ request: URLRequest) async throws -> HTTPResult
 }
@@ -85,6 +94,15 @@ public struct APIClient: Sendable {
   private let now: @Sendable () -> Date
   private let trace: any TraceSink
   private let retryWindow = RetryWindow()
+  /// The session of the dataset transfers that the person starts, which wait for a connection.
+  let waitingTransfers = OwnedSession(OwnedSession.transfers(waiting: true))
+  /// The session of the automatic dataset transfers, which fail at once without an allowed path.
+  let immediateTransfers = OwnedSession(OwnedSession.transfers(waiting: false))
+
+  /// The session that a transfer on `paths` takes.
+  func transferSession(for paths: NetworkPaths) -> URLSession {
+    (paths.waitsForConnectivity ? waitingTransfers : immediateTransfers).session
+  }
 
   public init(
     origin: URL, transport: any HTTPTransport = URLSessionTransport(),
@@ -200,6 +218,57 @@ public struct APIClient: Sendable {
     let response = try await get("/api/datasets", paths: paths)
     let listing = try JSONDecoder().decode(DirectoryDatasets.self, from: response.data)
     try validateIdentity(listing.snapshot, response: response.response)
+    return try parse(listing)
+  }
+
+  /// Reads the dataset listing with `If-None-Match`, and returns its body and ETag so a later transfer needs no second read.
+  public func datasets(paths: NetworkPaths = .every, etag: String?) async throws -> ListingAnswer {
+    let operation = TraceContext.operation ?? UUID()
+    trace.record(TraceEvent(operation: operation, phase: .request, outcome: .started))
+    do {
+      try Task.checkCancellation()
+      try await retryWindow.check(at: now())
+      var request = URLRequest(url: try resolve("/api/datasets"))
+      request.timeoutInterval = 30
+      request.setValue("application/json", forHTTPHeaderField: "Accept")
+      if let etag { request.setValue(etag, forHTTPHeaderField: "If-None-Match") }
+      paths.apply(to: &request)
+      let result = try await transport.send(request)
+      try Task.checkCancellation()
+      if etag != nil, result.response.statusCode == Self.notModified,
+        let url = result.response.url, try resolve(url.absoluteString) == url
+      {
+        trace.record(TraceEvent(operation: operation, phase: .request, outcome: .completed))
+        return .notModified
+      }
+      try await checkResponse(result.response)
+      guard result.data.count <= 8_388_608, result.response.mimeType == "application/json" else {
+        throw ServiceError.invalidResponse
+      }
+      let listing = try JSONDecoder().decode(DirectoryDatasets.self, from: result.data)
+      try validateIdentity(listing.snapshot, response: result.response)
+      let answer = ListingAnswer.listed(
+        try parse(listing), etag: result.response.value(forHTTPHeaderField: "ETag"),
+        body: result.data)
+      trace.record(TraceEvent(operation: operation, phase: .request, outcome: .completed))
+      return answer
+    } catch {
+      trace.record(
+        TraceEvent(
+          operation: operation, phase: .request,
+          outcome: error is CancellationError ? .cancelled : .rejected))
+      throw error
+    }
+  }
+
+  /// Decodes a listing body that an earlier answered read returned and checked.
+  public func listing(from body: Data) throws -> DatasetListing {
+    try parse(JSONDecoder().decode(DirectoryDatasets.self, from: body))
+  }
+
+  private static let notModified = 304
+
+  private func parse(_ listing: DirectoryDatasets) throws -> DatasetListing {
     if let deltas = listing.datasetDeltas {
       try validateLink(deltas, snapshot: listing.snapshot)
     }
@@ -265,7 +334,11 @@ public struct APIClient: Sendable {
         ?? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
       try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
       let lock = try TransferLock(url: directory.appendingPathComponent(TransferLock.name))
-      defer { lock.release() }
+      try HeldLocks.current?.hold(lock)
+      defer {
+        lock.release()
+        HeldLocks.current?.forget(lock)
+      }
       let partial = directory.appendingPathComponent(
         "\(archive.snapshot.rawValue)-\(archive.sha256.rawValue).partial")
       // A changed snapshot or digest names a different file, so the bytes of every other file go.
@@ -279,7 +352,7 @@ public struct APIClient: Sendable {
       if !FileManager.default.fileExists(atPath: partial.path) {
         try Data().write(to: partial, options: .withoutOverwriting)
       }
-      var offset = try Self.size(of: partial)
+      var offset = try FileSize.bytes(of: partial)
       if offset >= archive.bytes {
         if offset == archive.bytes,
           try DatasetArchive.digest(of: partial) == archive.sha256.rawValue
@@ -298,13 +371,15 @@ public struct APIClient: Sendable {
       let transfer = DatasetTransfer(
         partial: partial, offset: offset, expected: archive.bytes, snapshot: archive.snapshot,
         progress: progress)
-      if let response = try await transfer.run(request) {
+      if let response = try await transfer.run(request, in: transferSession(for: paths)) {
         if response.statusCode == 416 { try Data().write(to: partial) }
         try await checkResponse(response)
         throw ServiceError.http(response.statusCode)
       }
       try Task.checkCancellation()
-      guard try Self.size(of: partial) == archive.bytes else { throw ServiceError.invalidResponse }
+      guard try FileSize.bytes(of: partial) == archive.bytes else {
+        throw ServiceError.invalidResponse
+      }
       guard try DatasetArchive.digest(of: partial) == archive.sha256.rawValue else {
         try Data().write(to: partial)
         throw ServiceError.invalidResponse
@@ -320,18 +395,13 @@ public struct APIClient: Sendable {
       throw failure
     }
   }
-
-  /// Reads the size from the file system each time, because a URL caches its resource values.
-  private static func size(of url: URL) throws -> Int {
-    let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
-    return (attributes[.size] as? NSNumber)?.intValue ?? 0
-  }
 }
 
 /// Holds an exclusive advisory lock on one transfer directory, so two downloads never write the same partial file.
-private final class TransferLock: Sendable {
+/// The expiry handler may release it from the main thread, so the descriptor closes once under a lock.
+private final class TransferLock: ReleasableLock {
   static let name = "transfer.lock"
-  private let descriptor: Int32
+  private let descriptor: Mutex<Int32?>
 
   init(url: URL) throws {
     let descriptor = open(url.path, O_CREAT | O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR)
@@ -340,12 +410,16 @@ private final class TransferLock: Sendable {
       close(descriptor)
       throw ImportError.alreadyUpdating
     }
-    self.descriptor = descriptor
+    self.descriptor = Mutex(descriptor)
   }
 
   func release() {
-    flock(descriptor, LOCK_UN)
-    close(descriptor)
+    descriptor.withLock { descriptor in
+      guard let open = descriptor else { return }
+      flock(open, LOCK_UN)
+      close(open)
+      descriptor = nil
+    }
   }
 }
 

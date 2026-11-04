@@ -1,0 +1,8 @@
+{
+  "corpus": "ios/Tests/PhonebookKitTests/DirectoryContract.json",
+  "revision": "baseline",
+  "snapshot": "1de66a2ffd6d8d2a7c53fe990c20c3025f43c73c3460de175bddca60f1190e4c",
+  "contacts": 241,
+  "bytes": 2303,
+  "sha256": "7163c11b450f76d7623dba75a32e7b85268438d6f54926dd5ed6e3c565e5d756"
+}

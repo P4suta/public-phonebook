@@ -14,12 +14,17 @@ use std::{
 };
 mod app_info;
 mod build_number;
+mod bundled;
+mod colors;
+mod device;
 mod distribution;
 mod failure;
 mod lease;
+mod log_privacy;
 mod mutation;
 mod proof;
 mod receipts;
+mod required_reasons;
 mod screenshots;
 mod signing;
 mod store_build;
@@ -88,12 +93,13 @@ fn scenario_outcome(passed: bool, hung: bool) -> &'static str {
 /// Measures the process footprint, so it runs in its own invocation where no concurrent test allocates.
 const ISOLATED_FOOTPRINT_TEST: &str = "readerFootprintStaysFlatWhenRunAlone";
 const ISOLATED_FOOTPRINT_VARIABLE: &str = "PHONEBOOK_ISOLATED_FOOTPRINT";
-const SANITIZED_CONTRACTS: [&str; 3] = [
+const SANITIZED_CONTRACTS: [&str; 4] = [
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
     "readerBufferStaysBoundedOverMoreEntriesThanTheNationalDirectory",
     "cancellationBeforeAndDuringRealRequestsAlwaysCompletes",
+    "firstRunAppliesTheListedDeltaToTheBundleOnce",
 ];
-const UI_TESTS: [&str; 17] = [
+const UI_TESTS: [&str; 23] = [
     "testOnboardingSavesTheDirectoryBeforeSearch",
     "testSearchGroupsResultsAndShowsMore",
     "testTelephoneSearchFindsEveryRecordForTheNumber",
@@ -111,8 +117,16 @@ const UI_TESTS: [&str; 17] = [
     "testFailedAutomaticUpdateKeepsTheSavedDirectory",
     "testLandscapeLargeTextSettings",
     "testAboutStaysInTheAppAndLicenseIsReadable",
+    "testDeltaNoticeReceivesOnlyTheDeltaFromTheBundle",
+    "testNoTransferNoticePreparesTheBundledData",
+    "testFirstRunWithTheServiceStoppedUsesTheBundledData",
+    "testDarkAppearanceSwapsBlackAndWhite",
+    "testLargestTextScalesIconsBesideTheirLabels",
+    "testSearchFieldShowsOneClearControl",
 ];
-const REQUIRED_TESTS: [&str; 59] = [
+/// The UI scenarios that run with the simulator in the dark appearance.
+const DARK_UI_TESTS: [&str; 1] = ["testDarkAppearanceSwapsBlackAndWhite"];
+const REQUIRED_TESTS: [&str; 90] = [
     "currentProviderArchiveImportsTheNationalDirectory",
     "providerArchiveSavesTheExpectedGenerationContent",
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
@@ -172,6 +186,37 @@ const REQUIRED_TESTS: [&str; 59] = [
     "everyBackgroundTimeTransitionEndsTheTaskOnce",
     "expiryCancelsATransferAndReleasesItsLock",
     "expiryCancelsAnImportAndReleasesTheDatabase",
+    "everyReloadReplyLeadsToItsState",
+    "aRefusedReloadKeepsItsCallDirectoryCodeAndRecordsNoGeneration",
+    "callerChangeDecisionFollowsTheNumbersAndTheLabelBytes",
+    "streamedChangesMatchTheLeanModelOnSeededInputs",
+    "aChangedTestEntryAloneCostsAtMostTwoRemovalsAndTwoAdditions",
+    "theLoadedRecordNamesWhatIOSHoldsAndReadsTheEarlierText",
+    "everySynchronizationIntervalEndsOnceAfterSuccessFailureAndCancellation",
+    "aRepeatedStartEndsTheEarlierIntervalAndADecodeEndsTheStaging",
+    "providerArchiveOpensAndPassesTheBuildAdmission",
+    "everyDifferingEntryFieldIsNamed",
+    "firstRunPlanFollowsTheRecordForEveryPair",
+    "downloadSizesUnderOneMegabyteRoundUpToATenth",
+    "providerDeltaRebuildsTheUpdatedArchiveFromTheBundle",
+    "firstRunAppliesTheListedDeltaToTheBundleOnce",
+    "failedFirstRunsSaveTheBundledSnapshot",
+    "cancelledFirstRunLeavesNoTemporaryFileAndNoSnapshot",
+    "updateStepFollowsTheRecordOnEveryBoundaryInput",
+    "updatePropertiesHoldOnSeededTraces",
+    "everyUpdateTraceRefinesTheProofContract",
+    "aNotModifiedListingStartsNoTransfer",
+    "automaticTransfersWaitForAnInexpensivePath",
+    "aTransferThePersonStartsUsesAnExpensivePath",
+    "refreshCountsTheMonthFromTheSnapshotsGeneratedDate",
+    "expiryDuringTheActivationReleasesTheLeaseBeforeTheHandlerReturns",
+    "requestsOfOneClientShareOneSessionForJSONAndOneForEachTransferOrigin",
+    "aCancelledRequestLeavesTheSharedSessionUsable",
+    "aPersonsTransferWaitsWhileJSONRequestsAndAutomaticTransfersFailAtOnce",
+    "aClientsSessionsGoAwayWithTheClient",
+    "theWeakSignalFollowsTheWaitingAndTheStallOnEveryLine",
+    "eachTransferOriginTakesItsOwnSession",
+    "aRefusedAutomaticTransferFailsAtOnceAndWaitsAgain",
 ];
 const SCOPE: [&str; 19] = [
     "ios",
@@ -317,6 +362,12 @@ pub enum Action {
         #[arg(long)]
         output: Option<PathBuf>,
     },
+    /// Measures the first run on one connected iPhone in retired instructions, and walks the on-device checks.
+    DeviceRecord {
+        /// The UDID or CoreDevice identifier, needed only when several iPhones are connected.
+        #[arg(long)]
+        device: Option<String>,
+    },
 }
 
 const SECRET_ENVIRONMENT: [&str; 7] = [
@@ -381,6 +432,7 @@ fn generate(root: &Path) -> Result<()> {
     )?;
     app_info::derive(root)?;
     distribution::configurations(root)?;
+    bundled::prepare(root)?;
     println!("PASS: Xcode project generated from the shared Figma icon inventory");
     Ok(())
 }
@@ -445,7 +497,34 @@ fn build_number(run_number: u32, run_attempt: u32, output: Option<&Path>) -> Res
 
 /// The variable that carries the fixture's port to `tools/native-fixture.ts` and, with xcodebuild's runner prefix, to the UI tests.
 const FIXTURE_PORT_VARIABLE: &str = "PHONEBOOK_FIXTURE_PORT";
+/// The variable that carries the next revision's port to the UI tests.
+const UPDATED_FIXTURE_PORT_VARIABLE: &str = "PHONEBOOK_FIXTURE_UPDATED_PORT";
+/// The variable that selects the revision that `tools/native-fixture.ts` serves.
+const FIXTURE_REVISION_VARIABLE: &str = "PHONEBOOK_FIXTURE_REVISION";
 const TEST_RUNNER_PREFIX: &str = "TEST_RUNNER_";
+
+/// The fixture's revisions: the bundled baseline, and the next one with a delta from it.
+#[derive(Clone, Copy)]
+enum Revision {
+    Baseline,
+    Updated,
+}
+
+impl Revision {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Baseline => "baseline",
+            Self::Updated => "updated",
+        }
+    }
+
+    fn log(self) -> &'static str {
+        match self {
+            Self::Baseline => "target/ios/fixture-server.log",
+            Self::Updated => "target/ios/fixture-server-updated.log",
+        }
+    }
+}
 
 struct Fixture {
     child: Child,
@@ -454,17 +533,18 @@ struct Fixture {
 
 impl Fixture {
     /// Starts the fixture on a loopback port that the kernel reports free, so another process on the development port can't stop the gate.
-    fn start(root: &Path) -> Result<Self> {
+    fn start(root: &Path, revision: Revision) -> Result<Self> {
         let listener = TcpListener::bind((LOOPBACK_HOST, 0))
             .context("The iOS fixture found no free loopback port")?;
         let port = listener.local_addr()?.port();
         drop(listener);
         let address = (LOOPBACK_HOST, port);
-        let file = fs::File::create(root.join("target/ios/fixture-server.log"))?;
+        let file = fs::File::create(root.join(revision.log()))?;
         let child = Command::new("node")
             .current_dir(root)
             .args(["tools/native-fixture.ts", "--serve"])
             .env(FIXTURE_PORT_VARIABLE, port.to_string())
+            .env(FIXTURE_REVISION_VARIABLE, revision.name())
             .stdout(Stdio::from(file.try_clone()?))
             .stderr(Stdio::from(file))
             .spawn()?;
@@ -878,6 +958,16 @@ fn require_ui_inventory(inventory: &Value) -> Result<()> {
     Ok(())
 }
 
+/// Sets the simulator's system appearance, which `XCUIDevice` didn't change on the pinned simulator.
+fn appearance(root: &Path, identifier: &str, case: &str, style: &str) -> Result<()> {
+    logged(
+        root,
+        &format!("{case}-appearance-{style}"),
+        Command::new("xcrun").args(["simctl", "ui", identifier, "appearance", style]),
+    )?;
+    Ok(())
+}
+
 fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
     ensure!(
         selected
@@ -899,17 +989,29 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
         fs::remove_dir_all(&evidence)?;
     }
     let sources = source_hashes(root)?;
-    let fixture = if live {
-        None
+    let fixtures = if live {
+        Vec::new()
     } else {
-        Some(Fixture::start(root)?)
+        vec![
+            (
+                FIXTURE_PORT_VARIABLE,
+                Fixture::start(root, Revision::Baseline)?,
+            ),
+            (
+                UPDATED_FIXTURE_PORT_VARIABLE,
+                Fixture::start(root, Revision::Updated)?,
+            ),
+        ]
     };
-    let runner_port = fixture.as_ref().map(|fixture| {
-        (
-            format!("{TEST_RUNNER_PREFIX}{FIXTURE_PORT_VARIABLE}"),
-            fixture.port.to_string(),
-        )
-    });
+    let runner_ports = fixtures
+        .iter()
+        .map(|(variable, fixture)| {
+            (
+                format!("{TEST_RUNNER_PREFIX}{variable}"),
+                fixture.port.to_string(),
+            )
+        })
+        .collect::<Vec<_>>();
     let simulator = device(root)?;
     let identifier = simulator.id().to_owned();
     let directory = tempfile::Builder::new()
@@ -996,8 +1098,10 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
             let started = SystemTime::now();
             previous = started;
             let mut scenario = ui_command(root, &identifier);
-            if let Some((variable, port)) = &runner_port {
-                scenario.env(variable, port);
+            scenario.envs(runner_ports.iter().map(|(variable, port)| (variable, port)));
+            let dark = DARK_UI_TESTS.contains(&name);
+            if dark {
+                appearance(root, &identifier, &case, "dark")?;
             }
             let execution = logged(
                 root,
@@ -1010,6 +1114,9 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
                     ))
                     .arg("test-without-building"),
             );
+            if dark {
+                appearance(root, &identifier, &case, "light")?;
+            }
             let read_result = |kind| -> Result<Value> {
                 let output = logged(
                     root,
@@ -1145,6 +1252,11 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
             build_number.map(BuildNumber::new).transpose()?,
         )?;
     }
+    // A device record refuses before it waits for the lease or builds anything.
+    let prepared = match &action {
+        Action::DeviceRecord { device } => Some(device::prepare(root, device.as_deref())?),
+        _ => None,
+    };
     let _machine_lease = (!matches!(action, Action::Prove | Action::UnitTest))
         .then(lease::MachineLease::acquire)
         .transpose()?;
@@ -1196,6 +1308,10 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         ),
         Action::Screenshots { origin } => screenshots::capture(root, &origin),
         Action::Generate => Ok(()),
+        Action::DeviceRecord { .. } => {
+            let (device, delta) = prepared.context("The device record was not prepared")?;
+            device::run(root, &device, &delta)
+        }
         Action::StoreBuildControl => store_build::control(root),
         Action::UiTest { tests, live } => {
             ui_test(root, &tests, live)?;
@@ -1208,6 +1324,9 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                 fs::remove_file(&unit_receipt)?;
             }
             let sources = source_hashes(root)?;
+            log_privacy::check(root)?;
+            required_reasons::check(root)?;
+            colors::check(root)?;
             logged(
                 root,
                 "swiftlint",
@@ -1223,9 +1342,11 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "lint",
                     "--strict",
                     "--recursive",
+                    "ios/Admission",
                     "ios/App",
                     "ios/Native",
                     "ios/CallDirectory",
+                    "ios/DeviceMeasurements",
                     "ios/Sources",
                     "ios/Tests",
                     "ios/UITests",
@@ -1395,6 +1516,18 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                 "VerificationDebug",
             )?;
             app_info::check_built(
+                root,
+                &root.join("ios/DerivedData/Build/Products/Release-iphoneos/PublicPhonebook.app"),
+                "Release",
+            )?;
+            bundled::check_built(
+                root,
+                &root.join(
+                    "ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app",
+                ),
+                "VerificationDebug",
+            )?;
+            bundled::check_built(
                 root,
                 &root.join("ios/DerivedData/Build/Products/Release-iphoneos/PublicPhonebook.app"),
                 "Release",
@@ -1691,6 +1824,11 @@ mod tests {
             let _next = GateLease::acquire(&path)?;
         }
         Ok(())
+    }
+
+    #[test]
+    fn every_dark_appearance_case_is_a_declared_ui_case() {
+        assert!(DARK_UI_TESTS.iter().all(|name| UI_TESTS.contains(name)));
     }
 
     #[test]

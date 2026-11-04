@@ -1,4 +1,5 @@
 import Foundation
+import PhonebookCore
 import Synchronization
 import Testing
 
@@ -71,7 +72,7 @@ func everyConsumerAvailabilityFailureReceiptAndForceCombinationPreservesIndepend
         expectedStates.append(.current)
       } else {
         expectedCalls.append(consumer)
-        expectedStates.append(failures.contains(consumer) ? .failed : .notified)
+        expectedStates.append(failures.contains(consumer) ? .failed(.other) : .notified)
         if !failures.contains(consumer) { expectedReceipts[consumer] = generation }
       }
     }
@@ -96,13 +97,30 @@ func everyConsumerAvailabilityFailureReceiptAndForceCombinationPreservesIndepend
   #expect(checked == 32)
 }
 
+/// Refuses every reload with the Call Directory code it holds.
+private struct RefusingNotifier: ExtensionNotifier {
+  let code: Int
+  func enabled(_ consumer: SnapshotConsumer) async throws -> Bool { true }
+  func notify(_ consumer: SnapshotConsumer) async throws { throw CallDirectoryFailure(code: code) }
+}
+
+@Test func aRefusedReloadKeepsItsCallDirectoryCodeAndRecordsNoGeneration() async {
+  for code in [CallerReply.currentlyLoading, CallerReply.extensionDisabled, 2] {
+    let receipts = NotificationFixture()
+    let results = await ExtensionNotifications.refresh(
+      generation: UUID(), notifier: RefusingNotifier(code: code), receipts: receipts)
+    #expect(results.map(\.state) == [.failed(.callDirectory(code: code))])
+    #expect(await receipts.generation(for: .caller) == nil)
+  }
+}
+
 @Test func callerNotificationFailuresRetryUntilTheirGenerationIsRecorded() async {
   let fixture = NotificationFixture()
   let generation = UUID()
   await fixture.configure(enabled: [.caller], failures: [.caller])
   let failed = await ExtensionNotifications.refresh(
     generation: generation, notifier: fixture, receipts: fixture)
-  #expect(failed.map(\.state) == [.failed])
+  #expect(failed.map(\.state) == [.failed(.other)])
   #expect(await fixture.generation(for: .caller) == nil)
   await fixture.configure(enabled: [.caller], failures: [])
   _ = await ExtensionNotifications.refresh(
@@ -123,6 +141,30 @@ func everyConsumerAvailabilityFailureReceiptAndForceCombinationPreservesIndepend
   #expect(
     RefreshPolicy.nextDate(updatedAt: updated, lastAttempt: restored)
       == attempt.addingTimeInterval(86_400))
+}
+
+@Test func refreshCountsTheMonthFromTheSnapshotsGeneratedDate() throws {
+  let saved = try #require(ISO8601DateFormatter().date(from: "2026-11-04T00:00:00Z"))
+  let production = try #require(ISO8601DateFormatter().date(from: "2026-11-30T12:23:23Z"))
+  #expect(
+    abs(
+      RefreshPolicy.nextDate(
+        generatedAt: "2026-10-30T12:23:23.338Z", savedAt: saved, lastAttempt: nil
+      ).timeIntervalSince(production) - 0.338) < 0.001)
+  let fixture = try #require(ISO8601DateFormatter().date(from: "2026-11-29T00:00:00Z"))
+  #expect(
+    RefreshPolicy.nextDate(generatedAt: "2026-10-29T00:00:00Z", savedAt: saved, lastAttempt: nil)
+      == fixture)
+  let fallback = try #require(ISO8601DateFormatter().date(from: "2026-12-04T00:00:00Z"))
+  #expect(
+    RefreshPolicy.nextDate(generatedAt: "yesterday", savedAt: saved, lastAttempt: nil) == fallback)
+}
+
+@Test func theDataDateIsTheSnapshotsGeneratedDate() throws {
+  let saved = try #require(ISO8601DateFormatter().date(from: "2026-11-04T00:00:00Z"))
+  let generated = try #require(ISO8601DateFormatter().date(from: "2026-10-29T00:00:00Z"))
+  #expect(RefreshPolicy.dataDate(generatedAt: "2026-10-29T00:00:00Z", savedAt: saved) == generated)
+  #expect(RefreshPolicy.dataDate(generatedAt: "yesterday", savedAt: saved) == saved)
 }
 
 @Test(.timeLimit(.minutes(1)))

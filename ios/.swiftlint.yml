@@ -1,8 +1,10 @@
 included:
+  - Admission
   - App
   - Native
   - CallDirectory
   - ContactProvider
+  - DeviceMeasurements
   - Sources
   - Tests
   - UITests

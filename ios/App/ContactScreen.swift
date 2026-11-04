@@ -30,7 +30,7 @@ struct ContactScreen: View {
             IconLabel(icon: "external", text: "施設のホームページを開く")
           }.buttonStyle(MonoButtonStyle())
         }
-        Rectangle().fill(.black).frame(height: 1)
+        Rectangle().fill(.ink).frame(height: 1)
         Text("電話番号のもとの情報").font(.title2.bold()).accessibilityAddTraits(.isHeader)
         Text("\(contact.provenance.publisher)が公開したデータです。")
         if let date = DateText.japanese(contact.provenance.dataAsOf) {
@@ -45,7 +45,7 @@ struct ContactScreen: View {
         .accessibilityIdentifier("source-link")
       }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
     }
-    .background(.white).navigationTitle("施設の情報").navigationBarTitleDisplayMode(.inline)
+    .background(.surface).navigationTitle("施設の情報").navigationBarTitleDisplayMode(.inline)
   }
 }
 
@@ -100,6 +100,6 @@ private struct SourceScreen: View {
         }
       }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
     }
-    .background(.white).navigationTitle("電話番号のもとの情報").navigationBarTitleDisplayMode(.inline)
+    .background(.surface).navigationTitle("電話番号のもとの情報").navigationBarTitleDisplayMode(.inline)
   }
 }

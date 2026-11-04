@@ -1,6 +1,6 @@
 import type { LocalRow } from "../core/local-search-protocol.ts";
 import type { Contact } from "../core/models.ts";
-import { cleanAddress } from "../core/search.ts";
+import { showsAddress } from "../core/search.ts";
 
 const countryPrefix = "+81";
 const trunkPrefixLength = 1;
@@ -25,9 +25,6 @@ export interface ResultCardView {
   readonly href: string;
   readonly row: { readonly snapshot: string; readonly row: number } | null;
 }
-
-/** The search index carries no addresses, so a device result names the address that nearly every facility has. */
-const deviceRowHasAddress = true;
 
 export interface RegionLists {
   readonly prefectures: readonly {
@@ -84,7 +81,7 @@ export function serverCard(
       names,
     ),
     phones: contact.phones.map((phone) => phone.e164),
-    hasAddress: cleanAddress(contact.address) !== "",
+    hasAddress: showsAddress(contact.address),
     href: `/contacts/${encodeURIComponent(contact.id)}?from=${encodeURIComponent(returnTo)}`,
     row: null,
   };
@@ -103,7 +100,7 @@ export function localCard(
     phones: row.phones.map(
       (national) => `${countryPrefix}${national.slice(trunkPrefixLength)}`,
     ),
-    hasAddress: deviceRowHasAddress,
+    hasAddress: row.hasAddress,
     href: `/contacts/row/${snapshot}/${row.row}?from=${encodeURIComponent(returnTo)}`,
     row: { snapshot, row: row.row },
   };

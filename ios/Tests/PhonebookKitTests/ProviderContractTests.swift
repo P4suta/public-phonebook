@@ -4,7 +4,7 @@ import Testing
 
 @testable import PhonebookKit
 
-private struct CorpusEntry: Decodable {
+struct CorpusEntry: Decodable {
   let revision: String
   let path: String
   let status: Int
@@ -19,14 +19,14 @@ private struct CorpusEntry: Decodable {
   }
 }
 
-private func corpus(_ revision: String) throws -> [CorpusEntry] {
+func corpus(_ revision: String) throws -> [CorpusEntry] {
   let url = try #require(Bundle.module.url(forResource: "DirectoryContract", withExtension: "json"))
   return try JSONDecoder().decode([CorpusEntry].self, from: Data(contentsOf: url))
     .filter { $0.revision == revision }
 }
 
 /// Serves the responses that the merged producer wrote for one revision of the provider corpus.
-private func corpusServer(_ entries: [CorpusEntry], requests: RequestLog = RequestLog())
+func corpusServer(_ entries: [CorpusEntry], requests: RequestLog = RequestLog())
   async throws -> HTTPTestServer
 {
   let responses = try Dictionary(
@@ -190,7 +190,7 @@ private let expectedGenerationDigests = [
   "numbers": "2 eca00b202bc735e58d1f0416753b9423c8ce0ba6532752036beaf042eff65c73",
   "names": "e5b1be0beb6b351f1d186f61dd80bedd77ab5b3b3940e54c96f6ce00bddb163a",
   "kinds": "fd516d49024e15e7e9e2af783a92190b843b3ae99ffede6b8d1e135edf080bc9",
-  "callers": "301abbefbacc926d3201512684af30534b99201f4f718068ed7db2fe0aa339ac",
+  "callers": "e184b14d93ca6fd6754863e5cd71096dc47f10bfad014961a1fd6241dbae7706",
 ]
 
 private func callerEntries(_ url: URL) throws -> [IdentificationEntry] {
@@ -202,7 +202,7 @@ private func callerEntries(_ url: URL) throws -> [IdentificationEntry] {
   return entries
 }
 
-private func decodedBrotli(_ data: Data, in root: URL) async throws -> Data {
+func decodedBrotli(_ data: Data, in root: URL) async throws -> Data {
   let url = root.appendingPathComponent(UUID().uuidString + ".br")
   try data.write(to: url)
   var text = Data()

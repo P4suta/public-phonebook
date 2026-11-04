@@ -58,6 +58,52 @@ Check the enabled Call Directory extension and actual incoming system UI without
 A receiver alone can't originate that controlled call.
 A successful extension reload doesn't establish carrier caller identification.
 
+## Signposted intervals
+
+The app marks each synchronization phase as a signposted interval and each import phase's duration as a point, in the `directory` category of the `page.dial.publicphonebook` subsystem.
+The Call Directory extension marks each load as an interval with a point every 50,000 entries, in the `caller` category.
+Choose Product > Profile in Xcode, add the `os_signpost` instrument to a blank template, record a first run, and keep the trace beside the measurements of #231.
+Apple's guide to [recording performance data](https://developer.apple.com/documentation/os/recording-performance-data) describes the instrument.
+
+## Measured first run
+
+`just ios-device-record` measures the first run's three paths on one connected iPhone and walks the on-device checks of this page.
+It refuses before any build when no iPhone is connected, when the paired iPhone isn't connected, or when Developer Mode is off.
+With several connected iPhones, pass `--device` and one of the UDIDs that the refusal lists.
+
+The tool reads the service's listing and its delta listing, and records them with the delta from the bundled snapshot in `target/ios/device-measurement`.
+The `PhonebookDeviceMeasurements` tests replay that record from a loopback server inside the QA app, which builds in the Release-optimized `VerificationRelease` configuration.
+`testBundledImport` saves the bundled archive alone.
+`testDeltaFromTheBundle` rebuilds the listed archive from the bundle through the delta and imports it once.
+`testBundleThenDeltaFromTheStore` saves the bundle and then applies the delta to the saved store.
+Until the service lists a delta from the bundled snapshot, the two delta paths stay pending with that reason.
+
+Each test records `XCTCPUMetric`, `XCTClockMetric`, `XCTMemoryMetric`, and `XCTStorageMetric`, and the saved store's size after each iteration.
+The instructions retired come from `XCTCPUMetric` on the device, and the step meter counts only the tool's own processes on the Mac.
+The tool also records the size of the `VerificationRelease` app that it built for the device, and the Release size stays in `docs/ios-store-distribution.md`.
+
+The tool then asks for the outcome and a note of each on-device item on this page, and a run without a terminal keeps each item pending.
+After the item that leaves the app during an import, it copies the device's crash logs with `devicectl` and fails when a QA bundle report holds `0xdead10cc`.
+It writes `target/ios/device-record.json` and prints a section for this page.
+Add that section with the three conclusions of #231: the first-run path that the numbers favor, the wait display's budgets, and the prebuilt SQLite option.
+
+No run of `just ios-device-record` has happened yet, so every measurement and the crash log check remain pending until the owner's iPhone runs it.
+
+## Incremental caller names
+
+The extension sends removals and then additions when iOS asks for an incremental load and its loaded record names a kept caller file.
+Stream the extension's log with `log stream --level debug --predicate 'subsystem == "page.dial.publicphonebook" AND category == "caller"'` on the connected Mac.
+Each load ends with one `caller.load entries=… removed=… peakFootprintKB=… expired=…` line.
+Record these observations with the QA build, each with that line:
+
+- Save a test number, then change only its label, which removes the number and adds it again in one request; check the new label on an incoming call.
+- Save a test number below every national number and then one above them, which sends a removal and an addition out of number order between the two lists.
+- Publish or install a generation one step newer than the loaded one, and compare the load's time with a full load of 561,495 entries.
+- Turn the extension off and on in the iPhone settings, and check that the next load has `removed=0` and the full entry count.
+- Leave the app while a load runs, and check that the next load after an `expired=true` line sends the same difference again.
+
+A refused request logs `caller.request result=failed` with its domain and code, which the record needs as well.
+
 Run iOS 18 on a compatible device or simulator runtime and record its actual OS build.
 The connected iPhone Air runs its installed newer OS and can't substitute for an iOS 18 runtime.
 Keep runtime-download failures and unavailable local runtimes as environmental observations, not universal claims about iOS testing.

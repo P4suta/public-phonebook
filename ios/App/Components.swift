@@ -23,19 +23,25 @@ private struct MonoButton: View {
       .fixedSize(horizontal: false, vertical: true)
       .frame(maxWidth: .infinity, minHeight: 44)
       .padding(.horizontal, 12)
-      .foregroundStyle(filled ? .white : .black)
-      .background(filled ? Color.black : Color.white)
+      .foregroundStyle(filled ? .surface : .ink)
+      .background(filled ? .ink : .surface)
       .overlay {
         Rectangle().stroke(
-          .black, style: StrokeStyle(lineWidth: 2, dash: enabled ? [] : [6, 4]))
+          .ink, style: StrokeStyle(lineWidth: 2, dash: enabled ? [] : [6, 4]))
       }
       .contentShape(Rectangle())
   }
 }
 
+/// One icon from the design masters, which scales with the text size from its size at the default text size.
 struct DesignIcon: View {
   let name: String
-  var size: CGFloat = 22
+  @ScaledMetric private var size: CGFloat
+
+  init(name: String, size: CGFloat = 22) {
+    self.name = name
+    _size = ScaledMetric(wrappedValue: size)
+  }
 
   var body: some View {
     Image(name).renderingMode(.template).resizable()
@@ -85,7 +91,7 @@ enum ExternalDestination {
 
   var description: String {
     switch self {
-    case .facility: "この施設のページを開きます。"
+    case .facility: "この施設のホームページを開きます。"
     case .publication: "このデータを公開しているページを開きます。"
     case .license: "データを使うときの決まりのページを開きます。"
     case .source: "電話番号のもとになった資料を開きます。"
@@ -109,7 +115,7 @@ struct ExternalLink<Label: View>: View {
     }
     .alert("ほかのサイトを開きます", isPresented: $confirming) {
       Button("開く") { openURL(url) }
-      Button("やめる", role: .cancel) {}
+      Button("キャンセル", role: .cancel) {}
     } message: {
       Text("\(destination.description)\n行き先：\(url.host() ?? "")\nブラウザーで開きます。")
     }
@@ -142,14 +148,14 @@ struct MapButton: View {
           opening = false
         }
       }
-      Button("やめる", role: .cancel) {}
+      Button("キャンセル", role: .cancel) {}
     } message: {
-      Text("この施設の場所を、Appleのマップで表示します。\n場所を探すために、施設の名前と住所をAppleに送ります。")
+      Text("この施設の場所を、Appleのマップで表示します。\n場所をさがすために、施設の名前と住所をAppleに送ります。")
     }
     .alert("場所を見つけられませんでした", isPresented: $missing) {
       Button("閉じる", role: .cancel) {}
     } message: {
-      Text("インターネットにつながっているか確かめて、もう一度試してください。")
+      Text("インターネットにつながっているかたしかめて、もう一度試してください。")
     }
   }
 }

@@ -23,34 +23,84 @@ Override PHONEBOOK_API_ORIGIN only for an explicitly selected test build.
 The generator inspects all six actual Xcode configurations and rejects missing or incorrect environment fields.
 
 The app's property list declares a [launch screen](https://developer.apple.com/documentation/xcode/specifying-your-apps-launch-screen) with the `LaunchBackground` color from `ios/Config/Launch.xcassets`.
-That color matches the first screen's white background, as the [launching guidelines](https://developer.apple.com/design/human-interface-guidelines/launching) ask, and the launch screen shows no text or logo.
+That color matches the first screen's surface, white in the light appearance and black in the dark one, as the [launching guidelines](https://developer.apple.com/design/human-interface-guidelines/launching) ask, and the launch screen shows no text or logo.
+The app follows the system appearance by swapping the black and white of [the visual rules](design.md#visual-rules), as the [Dark Mode guidelines](https://developer.apple.com/design/human-interface-guidelines/dark-mode) ask.
+Icons scale with the text size through `@ScaledMetric` from their sizes at the default text size, and controls keep their 44-point targets.
+Every confirmation dialog titles its cancel button `キャンセル`, as the [Alerts guidelines](https://developer.apple.com/design/human-interface-guidelines/alerts) ask.
+The app ships without a String Catalog, because it supports Japanese alone and SwiftUI already treats each literal text as a localization key.
 XcodeGen writes `ios/Config/App-Info.plist` from `ios/project.yml`, and Release and VerificationRelease take that list.
 The generator writes `ios/Config/App-Info-LocalNetworking.plist` from it with `NSAllowsLocalNetworking` added, and the generator rejects any other difference.
 Debug, DevRelease, VerificationDebug, and ProductionDebug take that second list, because they reach the loopback fixture for development, the UI scenarios, and the store screenshots.
-Since iOS 17, [App Transport Security](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking) refuses IP addresses such as `127.0.0.1` without that key.
+On the iOS 27 simulator, a VerificationDebug build without that key still reached the loopback fixture over HTTP in a UI scenario, and no device has run that check.
+The [`NSAllowsLocalNetworking`](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking) page recommends the key as a declaration of intent even where the system doesn't block local loads, so those four configurations keep it.
 The builds for TestFlight and the App Store carry no transport exception.
 
+Each app build carries one directory archive and a generated entry that describes it, as [the bundled-data decision](adr/start-from-a-bundled-directory-archive-and-catch-up-through-deltas.md) states.
+`ios/bundled-dataset.json` names the national dataset by the SHA-256 of its ready manifest.
+It repeats the release tag, the snapshot, the row count, the archive length, and the archive SHA-256 for review.
+`ios/bundled-fixture.json` names the baseline archive of the provider corpus with the same fields.
+`ios-check generate` reads the declared release's `manifest.ready.json`, requires its digest, and takes its `directory.tsv.br` entry.
+It never reads the current listing.
+It reads the manifest and the archive from `target/datasets/MANIFEST_SHA256/`, which `mise x -- just data-fetch MANIFEST_SHA256 DIRECTORY` can fill.
+A missing file comes from the release asset or the entry's immutable URL, so a hosted runner needs no credentials.
+The archive must have the declared length and SHA-256.
+The `BundledAdmission` tool then admits it with `BundledDataset.admit` from PhonebookKit.
+That function checks the format line, the header's snapshot, row count, and `generatedAt`, and every row.
+Any difference fails the generator and names the field, and the generator requires one changed archive byte and one changed row count to fail.
+The admitted pairs land in `target/ios/bundled-dataset/national` and `target/ios/bundled-dataset/fixture`.
+A build phase copies the pair that `PHONEBOOK_BUNDLED_DATASET` names into the app as `directory.tsv.br` and `directory.json`.
+Production and verification configurations bundle the national dataset, and Debug and DevRelease bundle the fixture.
+The Call Directory extension carries neither file.
+The gate compares the VerificationDebug and Release apps and the exported TestFlight app with their declaration, and a changed byte must fail that comparison.
+The fast gate refuses a national declaration whose dataset `sources/shipped-snapshots.json` lacks, because preparation writes deltas only from listed datasets.
+The fixture never ships, so the list never names it.
+
 The app keeps the whole national directory on the device.
-The first launch opens a setup flow that starts the download when the reader presses the start button, explains caller identification, and then waits for the data.
-Over that button, a notice names the listed size rounded up to whole megabytes and suggests a fast connection.
-Without the listing, the notice names the 14 MB of the archive on 2026-11-04.
-The notice turns bold with the info icon on an expensive or constrained path, which `NWPathMonitor` reports.
-A relaunch after the start button continues the download without another press.
+The first launch opens a setup flow that starts the first run when the reader presses the start button, explains caller identification, and then waits for the data.
+Over that button, a notice follows the first run's plan.
+A delta or the complete archive names its listed size and suggests a fast connection.
+A size under 1 MB keeps one decimal rounded up to 0.1 MB, and a larger size rounds up to whole megabytes.
+A current bundle or an unreachable listing says that the data is in the app and that the setup needs no network.
+Until the listing answers, the notice follows an unreachable listing, so an app without a readable bundle names the 14 MB of the archive on 2026-11-04.
+A size turns bold with the info icon on an expensive or constrained path, which `NWPathMonitor` reports.
+When nothing needs receiving, the heading says that the app prepares its data, and the receive step shows as done.
+A first run that saved the bundled data alone adds that data's date and says that new data arrives automatically once the app can connect.
+That run leaves the daily check due, so the next launch or return to the foreground checks the listing.
+A relaunch after the start button continues the first run without another press.
 The app adds nothing to the Contacts app, and deleting the app removes everything it saved.
 The app reads `/api/datasets` and picks the one file whose `format` is `public-phonebook-directory/1`, and it skips entries in other formats unread.
-When the listing has no file in that format, the app asks the reader to update it.
+When the listing has no file in that format, a first run asks the reader to update the app, and after the first run About and the search start screen say so in one passive line.
 It downloads that `directory.tsv.br` and accepts it only when its length, the SHA-256 digest of the whole file, and its snapshot header match the listing.
 The received bytes stay in the store's `transfers` directory after a failure or suspension, and the next attempt asks for the rest with a Range request.
 A 206 reply must start at the kept length and end at the listed length, a 200 reply starts the file again, and a 416 reply discards the kept bytes.
 A changed snapshot or digest names a different file, so the app discards the kept bytes of every other file.
 The app removes the file once its generation activates, and a file lock keeps two downloads from writing it at once.
+`APIClient` owns one ephemeral `URLSession` for its JSON requests and two for its dataset transfers, and the last copy of the client invalidates all three.
+Each request still carries its own path rules, because `allowsExpensiveNetworkAccess` and `allowsConstrainedNetworkAccess` on a request override the session.
+The session of the transfers that the person starts sets `waitsForConnectivity`, so such a transfer without a connection waits for a path, and the wait display shows the weak-signal line at once.
+The JSON session fails at once without a connection, so the listing and its retries keep their timing.
+The transfer's 900-second resource timeout bounds the wait, and the first download's retry schedule takes over after it.
+For a waiting transfer, a refused connection also waits, because the session connects again only when the network path changes.
+Automatic transfers take the other transfer session, which doesn't wait, so a missing or costly path fails them at once and the update decision starts them again.
 It decodes the Brotli stream with the system Compression framework and validates the signature, the header dictionaries, every row, the byte order of the rows, and the per-prefecture counts.
 It saves the rows in a new SQLite generation with a file of normalized names and a file of row categories, and activates the generation atomically.
 The store saves one batch of 1,000 rows while the reader parses the next batch, and it saves the batches in archive order.
 A failed or cancelled import keeps the existing generation, and the current and previous generations remain readable.
 An import that ends with the app process leaves the active generation in place, and the next save removes the unfinished files.
 The first download uses any network path.
-Monthly updates stay silent and use only paths that are neither expensive nor constrained, through `allowsExpensiveNetworkAccess` and `allowsConstrainedNetworkAccess`.
+After the first run, a launch or a return to the foreground makes the daily check that `PhonebookCore.UpdateCheck` decides.
+The check reads `/api/datasets` with `If-None-Match` once 24 hours have passed since the last answered read, and a first run whose listing answered counts as that read.
+A 304 reply or a listing of the saved snapshot starts no transfer.
+A listing of another snapshot starts its delta or the complete archive at once on a path that is neither expensive nor constrained.
+On mobile data, a personal hotspot, or Low Data Mode, that automatic transfer waits, whatever its size, and the next report of an inexpensive path from `NWPathMonitor` starts it.
+The transfer reuses the checked listing's body, so it reads the listing no second time, and its requests also refuse those paths through `allowsExpensiveNetworkAccess` and `allowsConstrainedNetworkAccess`.
+A transfer that the person starts, such as the first download or the QA screen's, may use any path.
+A failed automatic check or transfer shows nothing, keeps the saved data, and tries again at the next daily check, and only the QA screen names its reason.
+The record of the last answered read, its ETag, the listing body, and a waiting transfer stays in the app's defaults, so a background task in a new process continues it.
+A background app refresh task makes the same check and shares the 24-hour limit, and it leaves a transfer waiting for the background processing task.
+The background processing task performs a waiting transfer and its import, and without one its earliest date falls a month after the saved snapshot's `generatedAt`.
+Updates stay silent.
+A clock set back delays the next check until it passes the last answered read by 24 hours.
 While the first download runs, the ready step and the search start screen show one heading, one bar, and three steps.
 The steps are receiving the data, preparing the search, and preparing caller names.
 The bar follows the transfer up to 40 percent and then the saved share of the archive's rows up to 95 percent.
@@ -62,7 +112,9 @@ A stopped first download names its automatic retry, which follows `DownloadSched
 The app transfers in the foreground, so it shows no background transfer line, and a suspended transfer resumes when the reader returns.
 The transfer holds a file lock and the import holds an exclusive SQLite transaction, and iOS terminates an app that it suspends while it holds either one.
 A first download or update that the open app starts runs under background execution time from `beginBackgroundTask(withName:expirationHandler:)`.
-When that time expires, the app cancels the synchronization, which releases both locks, and ends the background task once the synchronization has unwound.
+When that time expires, the handler cancels the synchronization and releases both locks before it returns, and the app ends the background task once the synchronization has unwound.
+The handler unlocks the transfer lock and rolls back and closes the `writer.sqlite` lease connection, which shares no statement with the import, so it never waits for the store actor.
+After that release the cancelled work takes no new lock, and a staging generation opens through SQLite's `unix-none` file system, so its writes hold no file lock either.
 `PhonebookCore.BackgroundTime` decides when to cancel and when to end, and the background processing task keeps its own expiry handler.
 The directory trace reports the milliseconds of decompression, parsing, row insertion, the number table, the caller file, COMMIT, and fsync for every import.
 Parsing and row insertion overlap, so their durations add up to more than the time between the start of staging and the end of decoding.
@@ -76,6 +128,21 @@ The app hashes the rebuilt archive while writing it and requires the row count, 
 The rebuilt archive then passes every check of a complete download before its generation can activate.
 After any delta failure, the app keeps the saved generation and downloads the complete `directory.tsv.br`.
 A cancelled update keeps the saved generation and downloads nothing more.
+
+`PhonebookCore.FirstRunPlan` maps the bundle state and the listing outcome to the first run's transfer and welcome notice, as the bundled-data decision's table states.
+`BundledDataset.open` checks the bundled archive's length, SHA-256, format line, and header with its entry, and a missing or failing bundle counts as no bundle.
+`SyncEngine.firstRun` reads the listing, and the delta listing when the listing names another snapshot.
+With a listed delta from the bundled snapshot, it decodes the bundled archive into a temporary plain file and records where each row starts.
+A `DeltaBase` over that file serves the copied rows, and the delta header's decoded base length and SHA-256 must match the file.
+The engine rebuilds the listed archive, stages it with the plain reader, and activates one generation.
+With nothing to receive, it stages the bundled archive directly.
+With a readable bundle, a failed listing, transfer, rebuild, or check stages the bundled archive alone, and the result reports that fallback.
+Bundled rows that fail during staging count as an unreadable bundle, so the app drops the bundle for the session and downloads the complete archive.
+The app opens `directory.tsv.br` and `directory.json` from its resources.
+Debug builds read `PHONEBOOK_BUNDLED_ARCHIVE` and `PHONEBOOK_BUNDLED_ENTRY` at launch in place of that pair, so a UI scenario can name the fixture's pair or missing files, and other builds ignore them.
+The decoded base and the rebuilt archive leave with the run after success, failure, or cancellation.
+A cut transfer keeps its received bytes in the store's `transfers` directory, as every download does.
+Progress reports keep the three stages, so `WaitDisplay` and its proof stay unchanged.
 
 Search runs on the device and sends nothing.
 The search field matches facility names and complete Japanese telephone numbers, with the website's normalization and exact, prefix, and substring ranking.
@@ -97,6 +164,10 @@ VoiceOver reads the facility name before that label.
 The detail screen shows the address as selectable text, and an outline `地図で見る` button below it opens Apple Maps after a confirmation.
 VoiceOver reads that button as the facility name followed by `の地図を見る`, and a facility without an address has no map button.
 Settings holds the caller section, which shows a filled check circle with `許可しています` or an empty circle with `まだ許可していません`.
+When iOS refuses a reload, `PhonebookCore.CallerReply` decides the state from the [Call Directory error code](https://developer.apple.com/documentation/callkit/cxerrorcodecalldirectorymanagererror-swift.struct/code).
+`currentlyLoading` shows `許可しています・iPhoneが準備しています`, `extensionDisabled` shows the off state, and any other error shows `許可しています・次にアプリを開くと使えるようになります`.
+The app records no generation after a refusal, so the next launch compares the extension's own record with the saved generation and asks again.
+The app logs the error domain and code of every refused reload or status read, and nothing else about it.
 The About screen shows the date that the app saved its data.
 
 The VerificationDebug and VerificationRelease configurations define the `PHONEBOOK_VERIFICATION_TOOLS` compile condition, and the other four configurations don't.
@@ -108,11 +179,18 @@ The app writes neither value to a log or a request.
 A search that matches the label or the complete number shows the entry under a `QA用` heading with the standard call button.
 That button opens the iOS call confirmation, so the owner can check calling with their own number instead of a facility's.
 The Call Directory extension reads the file and merges the entry into the national caller numbers in ascending order while it loads them.
+After iOS accepts a load, the extension records the generation and the test entry that iOS holds in `callers-loaded`.
+When iOS asks for an [incremental](https://developer.apple.com/documentation/callkit/cxcalldirectoryextensioncontext/isincremental) load and the record names a caller file that the store still keeps, the extension streams that file and the active one together.
+It removes every number that left or changed its label, and then adds every new or changed entry, each in ascending order.
+`PhonebookCore.CallerChange` holds the step decision, and `verification/ios/CallerDelta.lean` proves that the changes turn the held entries into the wanted ones.
+Any other record, a record from an earlier app version, or a full request loads every entry as before.
 When the national data lists the same number, the test label replaces the national label, because CallKit takes each number once.
 `PhonebookCore.CallerMerge` holds that decision, and `verification/ios/CallerMerge.lean` proves the merge.
-Saving or clearing the entry reloads the extension, and the screen reports the state that iOS gave.
-The screen also shows the saved data date, the last automatic check, the next due time from `RefreshPolicy`, and any problem.
-Its `いま受け取る` button runs the monthly update path once, or the first download before any data exists.
+Saving or clearing the entry reloads the extension, and the screen reports the state that iOS gave with the Call Directory code of a refusal.
+A reload that meets `currentlyLoading` waits 3 seconds and asks again, up to four requests, because the running load may hold the earlier entry.
+The screen never asks the owner to press the button again.
+The screen also shows the saved data date, the last answered check, the next check time, a waiting transfer, and any problem.
+Its `いま受け取る` button starts a transfer as the person, which may use any path, or the first download before any data exists.
 The gate in `ios-check` scans every file of the unsigned Release app and extension for six markers of the QA code and fails on any of them.
 The markers are the screen's type name, the file name, an accessibility identifier, and three phrases of its copy.
 The gate also requires all six markers in the VerificationDebug build, so the scan demonstrably sees them.
@@ -131,7 +209,8 @@ Set `PHONEBOOK_FIXTURE_CONTACTS` and `PHONEBOOK_FIXTURE_CATALOG` to a production
 Run `mise x -- just ios-unit-test` for all compiled Swift package tests, strict lints, and coverage.
 Run `mise x -- just ios-check` for those checks, unsigned simulator and device builds, and the complete isolated simulator UI inventory.
 Run `mise x -- just ios-prove`, `mise x -- just ios-sanitize`, and `mise x -- just ios-mutate` for the heavier assurance checks.
-`just ios-prove` compiles the seven Lean modules and replays two generated roots, `PublicationModels` and `OmegaModels`, with `leanchecker --fresh`.
+Run `mise x -- just ios-device-record` with one iPhone connected to measure the first run and walk the manual checks, as [device verification](ios-device-verification.md#measured-first-run) describes.
+`just ios-prove` compiles the eight Lean modules and two generated trace modules, and replays two generated roots, `PublicationModels` and `OmegaModels`, with `leanchecker --fresh`.
 `--fresh` replays every constant of a root's import closure, and the roots import each module exactly once, so they replay every constant that one run per module would.
 `PublicationModel` and `WaitDisplay` both declare `Phonebook.step`, so one root can't import every module.
 Each iOS command prints a final JSON line with the step record that [verification](verification.md#required-fast-gate) describes, and `ownInstructions` for the checker's own work.

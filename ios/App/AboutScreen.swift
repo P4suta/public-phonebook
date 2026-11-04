@@ -22,15 +22,19 @@ struct AboutScreen: View {
 
         section("データについて")
         Text("全国の施設が公開した電話番号のデータを、アプリの中に受け取って使います。")
-        Text("新しいデータは、月に1回くらい自動で受け取ります。")
+        Text("新しいデータが出ると、自動で受け取ります。")
+        Text("モバイルデータ通信や省データモードのときは、ほかの回線につながるまで待ちます。")
         if let manifest = integration.manifest {
-          Text("データの日付：\(manifest.updatedAt.formatted(date: .long, time: .omitted))")
+          Text("データの日付：\(manifest.dataDate.formatted(date: .long, time: .omitted))")
             .accessibilityIdentifier("data-date")
+        }
+        if integration.needsNewerApp {
+          Text(IntegrationModel.newerAppLine).accessibilityIdentifier("newer-app")
         }
         NavigationLink {
           SourcesScreen(categories: model.categories)
         } label: {
-          IconLabel(icon: "info", text: "データの出典を見る")
+          IconLabel(icon: "info", text: "データのもとを見る")
         }
         .buttonStyle(MonoButtonStyle())
         .accessibilityIdentifier("sources-link")
@@ -41,7 +45,7 @@ struct AboutScreen: View {
         Text("データを受け取るときは、IPアドレスなどの接続の情報を使います。配信にはCloudflareを使っています。")
         Text("iPhoneの設定で\(AppIdentity.displayName)を許可すると、受け取った公開データをiOSに渡します。")
         Text("アカウントの登録、広告、行動の追跡はありません。受け取ったデータは、アプリを削除すると消えます。")
-        Text("「地図で見る」からAppleのマップを開くときは、場所を探すために施設の名前と住所をAppleに送ります。")
+        Text("「地図で見る」からAppleのマップを開くときは、場所をさがすために施設の名前と住所をAppleに送ります。")
         Text("施設のページなど、ほかのサイトやアプリを開いたときは、そのサイトやアプリの決まりが使われます。")
 
         section("開発者に声を伝える")
@@ -68,7 +72,7 @@ struct AboutScreen: View {
         .font(.footnote)
       }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
     }
-    .background(.white)
+    .background(.surface)
     .navigationTitle("Public Phonebookについて").navigationBarTitleDisplayMode(.inline)
     .accessibilityIdentifier("about-content")
   }
@@ -94,12 +98,12 @@ private struct SourcesScreen: View {
           }
           .padding(.vertical, 12)
           .accessibilityElement(children: .combine)
-          Rectangle().fill(.black).frame(height: 1)
+          Rectangle().fill(.ink).frame(height: 1)
         }
       }.padding(20)
     }
-    .background(.white)
-    .navigationTitle("データの出典").navigationBarTitleDisplayMode(.inline)
+    .background(.surface)
+    .navigationTitle("データのもと").navigationBarTitleDisplayMode(.inline)
   }
 }
 
@@ -116,7 +120,7 @@ struct LicenseScreen: View {
       Text(notices).font(.callout).textSelection(.enabled)
         .frame(maxWidth: .infinity, alignment: .leading).padding(16)
     }
-    .foregroundStyle(.black).background(.white)
+    .foregroundStyle(.ink).background(.surface)
     .navigationTitle("ライセンス").navigationBarTitleDisplayMode(.inline)
     .accessibilityIdentifier("license-content")
   }

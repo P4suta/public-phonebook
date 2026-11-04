@@ -1,7 +1,12 @@
 import Foundation
+import PhonebookCore
 
 public enum SnapshotConsumer: String, CaseIterable, Sendable { case caller }
-public enum NotificationState: Sendable { case disabled, current, notified, unavailable, failed }
+public enum NotificationState: Equatable, Sendable {
+  case disabled, current, notified, unavailable
+  /// iOS refused the reload with this reply, so the app records no generation and the next launch asks again.
+  case failed(CallerReply)
+}
 public struct ConsumerResult: Sendable {
   public let consumer: SnapshotConsumer
   public let state: NotificationState
@@ -45,7 +50,10 @@ public enum ExtensionNotifications {
         results.append(ConsumerResult(consumer: consumer, state: .notified))
         trace.record(TraceEvent(operation: operation, phase: .notification, outcome: .completed))
       } catch {
-        results.append(ConsumerResult(consumer: consumer, state: .failed))
+        let reply = (error as? CallDirectoryFailure).map {
+          CallerReply.callDirectory(code: $0.code)
+        }
+        results.append(ConsumerResult(consumer: consumer, state: .failed(reply ?? .other)))
         trace.record(TraceEvent(operation: operation, phase: .notification, outcome: .deferred))
       }
     }

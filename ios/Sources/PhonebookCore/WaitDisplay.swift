@@ -12,14 +12,19 @@ public struct WaitInput: Sendable, Equatable {
   public let total: Int
   public let rows: Int
   public let complete: Bool
+  /// The transfer waits for a network connection.
+  public let waiting: Bool
 
-  public init(now: Int, stage: Int, done: Int, total: Int, rows: Int, complete: Bool) {
+  public init(
+    now: Int, stage: Int, done: Int, total: Int, rows: Int, complete: Bool, waiting: Bool = false
+  ) {
     self.now = now
     self.stage = stage
     self.done = done
     self.total = total
     self.rows = rows
     self.complete = complete
+    self.waiting = waiting
   }
 }
 
@@ -166,12 +171,15 @@ public struct WaitDisplay: Sendable, Equatable {
   }
 
   /// Chooses the line from the previous display `s`, the tracked display `t`, and the estimate `left`.
-  static func choose(_ s: Self, _ t: Self, _ now: Int, _ left: Int, _ stage: Int) -> WaitChoice {
+  static func choose(_ s: Self, _ t: Self, _ now: Int, _ left: Int, _ stage: Int, _ waiting: Bool)
+    -> WaitChoice
+  {
     let keep = WaitChoice(
       line: s.line, seconds: s.seconds, minutes: s.minutes, deadline: t.deadline,
       stableSince: t.stableSince)
-    // A transfer without progress reports a weak signal even after an estimate said the run was almost done.
-    if stage == 0 && now - t.progressAt >= stallMs {
+    // A transfer that waits for a connection, or has no progress for the stall time, reports a weak signal.
+    // It does so even after an estimate said the run was almost done.
+    if stage == 0 && (waiting || now - t.progressAt >= stallMs) {
       return WaitChoice(
         line: .weakSignal, seconds: s.seconds, minutes: s.minutes, deadline: t.deadline,
         stableSince: -1)
@@ -248,7 +256,7 @@ public struct WaitDisplay: Sendable, Equatable {
     }
     var r = advance(s, refined, now, stage)
     if r.fast || now - s.changedAt < lineHoldMs { return r }
-    let c = choose(s, r, now, left, stage)
+    let c = choose(s, r, now, left, stage, input.waiting)
     let visible =
       c.line != s.line
       || numberOf(c.line, c.seconds, c.minutes) != numberOf(s.line, s.seconds, s.minutes)

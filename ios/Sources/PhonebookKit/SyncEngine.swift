@@ -12,13 +12,18 @@ public struct SyncProgress: Sendable, Equatable {
   public let rows: Int
   /// The share of the whole run from 0 to 1, counting bytes kept from earlier attempts.
   public let fraction: Double
+  /// The transfer waits for a network connection.
+  public let waiting: Bool
 
-  public init(stage: Int, done: Int, total: Int, rows: Int, fraction: Double) {
+  public init(
+    stage: Int, done: Int, total: Int, rows: Int, fraction: Double, waiting: Bool = false
+  ) {
     self.stage = stage
     self.done = done
     self.total = total
     self.rows = rows
     self.fraction = fraction
+    self.waiting = waiting
   }
 
   public static let transfer = 0
@@ -39,16 +44,224 @@ public actor SyncEngine {
   private let store: SnapshotStore
   private let now: @Sendable () -> Date
   private let trace: any TraceSink
+  /// Holds the decoded base and the rebuilt archive of a delta, which leave with their run.
+  private let temporaryDirectory: URL
   private var updating = false
 
   public init(
     api: APIClient, store: SnapshotStore, now: @escaping @Sendable () -> Date = Date.init,
-    trace: any TraceSink = DiscardingTraceSink()
+    trace: any TraceSink = DiscardingTraceSink(),
+    temporaryDirectory: URL = FileManager.default.temporaryDirectory
   ) {
     self.api = api
     self.store = store
     self.now = now
     self.trace = trace
+    self.temporaryDirectory = temporaryDirectory
+  }
+
+  /// Reads the listing and plans a first run from `bundle`, so the welcome notice names what the run receives.
+  /// A failed listing plans with an unreachable listing, and only cancellation throws.
+  public func planFirstRun(bundle: BundledDataset?, paths: NetworkPaths = .every) async throws
+    -> FirstRunPlan
+  {
+    guard let bundle else {
+      do {
+        let archive = try await api.datasets(paths: paths).archive
+        return FirstRunPlan.decide(
+          bundle: .missing, listing: .noDeltaFromBundled(archiveBytes: archive.bytes))
+      } catch {
+        if Task.isCancelled || error is CancellationError { throw CancellationError() }
+        return FirstRunPlan.decide(bundle: .missing, listing: .unreachable)
+      }
+    }
+    return try await discover(bundle: bundle, paths: paths).plan
+  }
+
+  /// Saves the first directory from `bundle` and the listing, as `FirstRunPlan` decides.
+  /// Without a bundle the run downloads the complete archive, and any failure throws as it does today.
+  /// With a bundle, a failed listing, transfer, rebuild, or check saves the bundled snapshot alone.
+  public func firstRun(
+    bundle: BundledDataset?, paths: NetworkPaths = .every,
+    progress: @escaping @Sendable (SyncProgress) async -> Void
+  ) async throws -> FirstRunResult {
+    guard !updating else { throw ImportError.alreadyUpdating }
+    updating = true
+    defer { updating = false }
+    return try await TraceContext.$operation.withValue(UUID()) {
+      guard let bundle else {
+        return FirstRunResult(
+          manifest: try await perform(paths: paths, progress: progress), outcome: .listed)
+      }
+      return try await perform(bundle: bundle, paths: paths, progress: progress)
+    }
+  }
+
+  private func perform(
+    bundle: BundledDataset, paths: NetworkPaths,
+    progress: @escaping @Sendable (SyncProgress) async -> Void
+  ) async throws -> FirstRunResult {
+    trace.record(TraceEvent(phase: .discovery, outcome: .started))
+    let listing = try await discover(bundle: bundle, paths: paths)
+    guard let archive = listing.archive, listing.plan.transfer != .none else {
+      trace.record(
+        TraceEvent(
+          phase: .discovery, outcome: listing.archive == nil ? .deferred : .completed,
+          snapshot: bundle.entry.snapshot))
+      return FirstRunResult(
+        manifest: try await stage(bundle: bundle, progress: progress),
+        outcome: listing.archive == nil ? .bundled : .listed)
+    }
+    trace.record(TraceEvent(phase: .discovery, outcome: .completed, snapshot: archive.snapshot))
+    await progress(
+      SyncProgress(
+        stage: SyncProgress.transfer, done: 0, total: 0, rows: archive.contacts, fraction: 0))
+    do {
+      if let delta = listing.delta {
+        try await stage(
+          delta: delta, from: bundle, archive: archive, paths: paths, progress: progress)
+      } else {
+        try await stage(archive: archive, paths: paths, progress: progress)
+      }
+      return FirstRunResult(
+        manifest: try await activate(
+          snapshot: archive.snapshot, rows: archive.contacts, progress: progress),
+        outcome: .listed)
+    } catch ImportError.activationUncertain {
+      // The new generation may already be active, so the bundle must not replace it.
+      throw ImportError.activationUncertain
+    } catch let failure as SyncFailure {
+      // The store couldn't remove the unfinished generation, so it can't stage another one.
+      throw failure
+    } catch {
+      if Task.isCancelled || error is CancellationError { throw CancellationError() }
+      return FirstRunResult(
+        manifest: try await stage(bundle: bundle, progress: progress), outcome: .bundled)
+    }
+  }
+
+  /// Reads the listing and, when it names another snapshot, the delta listing, and plans the run from them.
+  private func discover(bundle: BundledDataset, paths: NetworkPaths) async throws
+    -> FirstRunListing
+  {
+    let bundled = bundle.entry.snapshot
+    do {
+      let listing = try await api.datasets(paths: paths)
+      let archive = listing.archive
+      guard archive.snapshot != bundled else {
+        return FirstRunListing(
+          plan: .decide(bundle: .readable, listing: .namesBundled(archiveBytes: archive.bytes)),
+          archive: archive, delta: nil)
+      }
+      if let link = listing.deltas,
+        let delta = try await api.directoryDeltas(link: link, paths: paths).first(where: {
+          $0.base == bundled && $0.snapshot == archive.snapshot
+            && $0.archiveSha256 == archive.sha256
+        })
+      {
+        return FirstRunListing(
+          plan: .decide(
+            bundle: .readable,
+            listing: .deltaFromBundled(deltaBytes: delta.bytes, archiveBytes: archive.bytes)),
+          archive: archive, delta: delta)
+      }
+      return FirstRunListing(
+        plan: .decide(bundle: .readable, listing: .noDeltaFromBundled(archiveBytes: archive.bytes)),
+        archive: archive, delta: nil)
+    } catch {
+      if Task.isCancelled || error is CancellationError { throw CancellationError() }
+      return FirstRunListing(
+        plan: .decide(bundle: .readable, listing: .unreachable), archive: nil, delta: nil)
+    }
+  }
+
+  /// Rebuilds the listed archive from the decoded bundle through `delta`, and stages it.
+  private func stage(
+    delta: DatasetDelta, from bundle: BundledDataset, archive: DatasetArchive, paths: NetworkPaths,
+    progress: @escaping @Sendable (SyncProgress) async -> Void
+  ) async throws {
+    trace.record(TraceEvent(phase: .delta, outcome: .started, snapshot: archive.snapshot))
+    let directory = temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    do {
+      let transfer = Self.downloadShare * Self.deltaTransferShare
+      let rows = archive.contacts
+      let file = try await api.download(delta, paths: paths, partials: store.transfers) { part in
+        Task {
+          await progress(
+            SyncProgress(
+              stage: SyncProgress.transfer, done: part.received, total: part.total - part.resumed,
+              rows: rows,
+              fraction: Double(part.resumed + part.received) / Double(max(part.total, 1))
+                * transfer, waiting: part.waiting))
+        }
+      }
+      defer { try? FileManager.default.removeItem(at: file) }
+      let base = try await DecodedArchive.decode(
+        bundle.archive, into: directory.appendingPathComponent("base"))
+      let rebuilt = directory.appendingPathComponent("rebuilt")
+      let admission = try await DirectoryDeltaApplier(url: file, delta: delta).rebuild(
+        from: base.base, into: rebuilt
+      ) { fraction in
+        let share = min(max(fraction, 0), 1)
+        await progress(
+          SyncProgress(
+            stage: SyncProgress.transfer, done: Int(share * Double(Self.rebuildSteps)),
+            total: Self.rebuildSteps, rows: rows,
+            fraction: transfer + share * (Self.downloadShare - transfer)))
+      }
+      guard admission == .apply else { throw DeltaRejection(admission: admission) }
+      try await stage(
+        DirectoryArchiveReader(url: rebuilt, encoding: .plain, trace: trace), archive: archive,
+        progress: progress)
+      trace.record(TraceEvent(phase: .delta, outcome: .completed, snapshot: archive.snapshot))
+    } catch {
+      trace.record(
+        TraceEvent(
+          phase: .delta, outcome: Task.isCancelled ? .cancelled : .rejected,
+          snapshot: archive.snapshot))
+      throw error
+    }
+  }
+
+  /// Downloads the complete archive and stages it.
+  private func stage(
+    archive: DatasetArchive, paths: NetworkPaths,
+    progress: @escaping @Sendable (SyncProgress) async -> Void
+  ) async throws {
+    let rows = archive.contacts
+    let file = try await api.download(archive, paths: paths, partials: store.transfers) { part in
+      Task {
+        await progress(
+          SyncProgress(
+            stage: SyncProgress.transfer, done: part.received, total: part.total - part.resumed,
+            rows: rows,
+            fraction: Double(part.resumed + part.received) / Double(max(part.total, 1))
+              * Self.downloadShare, waiting: part.waiting))
+      }
+    }
+    defer { try? FileManager.default.removeItem(at: file) }
+    try await stage(
+      DirectoryArchiveReader(url: file, trace: trace), archive: archive, progress: progress)
+  }
+
+  /// Stages and activates the bundled archive, and reports rows that fail their checks as an unreadable bundle.
+  private func stage(
+    bundle: BundledDataset, progress: @escaping @Sendable (SyncProgress) async -> Void
+  ) async throws -> SnapshotManifest {
+    let archive = bundle.entry.archive
+    do {
+      try await stage(
+        DirectoryArchiveReader(url: bundle.archive, trace: trace), archive: archive,
+        progress: progress)
+    } catch ImportError.invalidRecord, ImportError.invalidSnapshot, ImportError.unexpectedCount {
+      throw BundleMismatch(field: .rows)
+    } catch is BrotliError {
+      throw BundleMismatch(field: .rows)
+    }
+    return try await activate(
+      snapshot: archive.snapshot, rows: archive.contacts, progress: progress)
   }
 
   /// Downloads the national directory over the given paths, saves it as a new generation, and reports each stage.
@@ -64,11 +277,31 @@ public actor SyncEngine {
     }
   }
 
+  /// Synchronizes from a listing that an answered check already read, so the transfer reads the listing no second time.
+  public func synchronize(
+    listing: DatasetListing, paths: NetworkPaths,
+    progress: @escaping @Sendable (SyncProgress) async -> Void
+  ) async throws -> SnapshotManifest {
+    guard !updating else { throw ImportError.alreadyUpdating }
+    updating = true
+    defer { updating = false }
+    return try await TraceContext.$operation.withValue(UUID()) {
+      try await perform(listing: listing, paths: paths, progress: progress)
+    }
+  }
+
   private func perform(
     paths: NetworkPaths, progress: @escaping @Sendable (SyncProgress) async -> Void
   ) async throws -> SnapshotManifest {
     trace.record(TraceEvent(phase: .discovery, outcome: .started))
-    let listing = try await api.datasets(paths: paths)
+    return try await perform(
+      listing: api.datasets(paths: paths), paths: paths, progress: progress)
+  }
+
+  private func perform(
+    listing: DatasetListing, paths: NetworkPaths,
+    progress: @escaping @Sendable (SyncProgress) async -> Void
+  ) async throws -> SnapshotManifest {
     let archive = listing.archive
     let snapshot = archive.snapshot
     let rows = archive.contacts
@@ -87,7 +320,7 @@ public actor SyncEngine {
             stage: SyncProgress.transfer, done: part.received, total: part.total - part.resumed,
             rows: rows,
             fraction: Double(part.resumed + part.received) / Double(max(part.total, 1))
-              * Self.downloadShare))
+              * Self.downloadShare, waiting: part.waiting))
       }
     }
     try await stage(
@@ -128,12 +361,11 @@ public actor SyncEngine {
               stage: SyncProgress.transfer, done: part.received, total: part.total - part.resumed,
               rows: rows,
               fraction: Double(part.resumed + part.received) / Double(max(part.total, 1))
-                * transfer))
+                * transfer, waiting: part.waiting))
         }
       }
       defer { try? FileManager.default.removeItem(at: file) }
-      let rebuilt = FileManager.default.temporaryDirectory.appendingPathComponent(
-        UUID().uuidString)
+      let rebuilt = temporaryDirectory.appendingPathComponent(UUID().uuidString)
       defer { try? FileManager.default.removeItem(at: rebuilt) }
       let admission = try await DirectoryDeltaApplier(url: file, delta: delta).rebuild(
         from: base, into: rebuilt
@@ -233,6 +465,28 @@ public actor SyncEngine {
     }
     throw error
   }
+}
+
+/// The listing's answer for a first run from a readable bundle, with the files that the plan transfers.
+struct FirstRunListing: Sendable {
+  let plan: FirstRunPlan
+  /// The listed archive, or nil when the listing failed.
+  let archive: DatasetArchive?
+  /// The listed delta from the bundled snapshot to `archive`.
+  let delta: DatasetDelta?
+}
+
+/// The snapshot that a first run saved.
+public enum FirstRunOutcome: Sendable, Equatable {
+  /// The listed snapshot, received through the planned transfer or already in the bundle.
+  case listed
+  /// The bundled snapshot alone, because the listing, the transfer, the rebuild, or a check failed.
+  case bundled
+}
+
+public struct FirstRunResult: Sendable {
+  public let manifest: SnapshotManifest
+  public let outcome: FirstRunOutcome
 }
 
 public struct SyncFailure: Error, Sendable {
