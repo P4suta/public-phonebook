@@ -164,7 +164,7 @@ export async function checkImportIdentity(
 
 async function importProgress(
   port: SqlPort,
-  databaseSha256: string,
+  importSha256: string,
 ): Promise<v.InferOutput<typeof ProgressSchema>> {
   const progress = v.parse(
     ProgressSchema,
@@ -178,7 +178,7 @@ async function importProgress(
   if (
     progress.length !== stages.length ||
     new Set(progress.map((item) => item.stage)).size !== stages.length ||
-    progress.some((item) => item.snapshot !== databaseSha256)
+    progress.some((item) => item.snapshot !== importSha256)
   )
     throw new Error("Incomplete import progress");
   return progress;
@@ -242,11 +242,12 @@ export const RemoteCountsSchema = v.strictObject({
 });
 export type RemoteCounts = v.InferOutput<typeof RemoteCountsSchema>;
 
-/** What the preparation knows before it reads the database: the evidence stored for its digest and resource, and the journal's bindings. */
+/** What the preparation knows before it reads the database: its import identity, the evidence stored for that identity and resource, and the journal's bindings. */
 export interface VerificationFacts {
+  readonly importSha256: string;
   readonly resource: string;
   readonly evidence: {
-    readonly databaseSha256: string;
+    readonly importSha256: string;
     readonly database: string;
   } | null;
   readonly bound: boolean;
@@ -278,19 +279,19 @@ export async function seedDatabase(
 ): Promise<SeedResult> {
   const source = new DatabaseSync(path, { readOnly: true });
   try {
-    const decision = await checkImportIdentity(port, manifest.databaseSha256);
+    const decision = await checkImportIdentity(port, facts.importSha256);
     let progress =
       decision === "start"
         ? null
-        : await importProgress(port, manifest.databaseSha256);
+        : await importProgress(port, facts.importSha256);
     const complete =
       progress?.every(
         (item) => item.completed === sourceRowCount(source, item.stage),
       ) ?? false;
     const verification = databaseVerification(
       facts.evidence !== null,
-      facts.evidence?.databaseSha256 ?? "",
-      manifest.databaseSha256,
+      facts.evidence?.importSha256 ?? "",
+      facts.importSha256,
       facts.evidence?.database ?? "",
       facts.resource,
       complete,
@@ -325,10 +326,10 @@ export async function seedDatabase(
         },
         ...stages.map((stage) => ({
           sql: "INSERT INTO __dial_import VALUES (?,?,0)",
-          params: [stage, manifest.databaseSha256],
+          params: [stage, facts.importSha256],
         })),
       ]);
-      progress = await importProgress(port, manifest.databaseSha256);
+      progress = await importProgress(port, facts.importSha256);
     }
     for (const stage of stages) {
       const previous = progress?.find((item) => item.stage === stage);
@@ -342,7 +343,7 @@ export async function seedDatabase(
           source,
           stage,
           previous.completed,
-          manifest.databaseSha256,
+          facts.importSha256,
         )) !== expected
       )
         throw new Error(`Incomplete remote stage: ${stage}`);

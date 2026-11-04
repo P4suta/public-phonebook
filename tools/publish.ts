@@ -10,6 +10,7 @@ import {
   type ControlStore,
   controlStoreFromEnvironment,
 } from "./control-store.ts";
+import { importIdentity } from "./import-identity.ts";
 import { command, requireCommand } from "./process.ts";
 import {
   awaitExpectedVersion,
@@ -227,15 +228,17 @@ function releasePorts(
     deployed: () => deployedVersions(environment),
     async prepare(target): Promise<void> {
       const manifest = await checkedDataBundle(sourceBundle);
+      const identity = importIdentity(target.databaseSha256);
       const prepared = v.parse(
         v.object({
           environment: v.literal(environment),
           snapshot: v.literal(target.snapshot),
           databaseSha256: v.literal(target.databaseSha256),
+          importSha256: v.literal(identity.importSha256),
           manifestSha256: v.literal(target.manifestSha256),
           database: v.literal(target.databaseId),
           databaseName: v.literal(
-            databaseResourceName(environment, target.databaseSha256),
+            databaseResourceName(environment, identity.importSha256),
           ),
           bucket: v.literal(environments[environment].bucket),
           result: v.literal("verified"),

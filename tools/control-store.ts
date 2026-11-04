@@ -148,9 +148,9 @@ export const controlKeys = {
     `leases/${environment}.json`,
   evidence: (scope: string, sha256: string): string =>
     checkedKey(`evidence/${scope}/${v.parse(DigestSchema, sha256)}.json`),
-  databaseEvidence: (databaseSha256: string, databaseId: string): string =>
+  databaseEvidence: (importSha256: string, databaseId: string): string =>
     checkedKey(
-      `evidence/databases/${v.parse(DigestSchema, databaseSha256)}/${v.parse(databaseIdSchema, databaseId)}.json`,
+      `evidence/databases/${v.parse(DigestSchema, importSha256)}/${v.parse(databaseIdSchema, databaseId)}.json`,
     ),
 } as const;
 

@@ -190,7 +190,10 @@ Both platforms' tests fold every table entry to a representative that folding ke
 D1 and the browser index derive their forms from the same TypeScript function, and the data check requires each D1 row's `folded_name` to equal it.
 A conflicting import identity also has a source-mutating negative control that must fail verification.
 The database verification decision scans a database in full only when it has no evidence and no Worker version binds it.
-Its controls let a bound database reach the full verification and accept evidence for another digest.
+Its controls let a bound database reach the full verification and accept evidence for another import identity.
+The target binding decision lets a release target bind only the D1 database whose ID its Worker version holds.
+The target vouches for that database only after the release tools prepared and staged it for the same dataset.
+Its control binds a database of the same dataset under another ID and must fail verification.
 Publication controls also promote an unverified candidate, ignore a changed current version, ignore a different candidate version, and withdraw a foreign candidate.
 Further controls drop recovery ownership, pending-resource protection, coverage retention, lease expiry, and the evidence signer.
 The production coverage decision admits only validated integer counts within ten million records, keeping its arithmetic within exact JavaScript integer representation.

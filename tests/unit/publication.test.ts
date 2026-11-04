@@ -13,9 +13,14 @@ import {
   databaseVerification,
   importDecision,
   promotionAdmission,
+  targetBinding,
   withdrawalDecision,
 } from "../../src/core/publication-policy.ts";
 import { writeCheckFixture } from "../../tools/check-fixture.ts";
+import {
+  importIdentity,
+  importTransformation,
+} from "../../tools/import-identity.ts";
 import type { SqlPort } from "../../tools/remote-statements.ts";
 import { insertStatements } from "../../tools/remote-statements.ts";
 import {
@@ -44,6 +49,30 @@ it("starts only an empty import and resumes only the same publication", () => {
   expect(importDecision("", "publication")).toBe("start");
   expect(importDecision("publication", "publication")).toBe("resume");
   expect(importDecision("different", "publication")).toBe("conflict");
+});
+
+it("binds exactly the database that a target holds by ID and vouches only for one it staged for the same dataset", () => {
+  for (const sameDatabase of [false, true])
+    for (const sameDataset of [false, true])
+      for (const prepared of [false, true])
+        for (const digestBound of [false, true]) {
+          const label = JSON.stringify({
+            sameDatabase,
+            sameDataset,
+            prepared,
+            digestBound,
+          });
+          const binding = targetBinding(
+            sameDatabase,
+            sameDataset,
+            prepared,
+            digestBound,
+          );
+          expect(binding === "unrelated", label).toBe(!sameDatabase);
+          expect(binding === "vouches", label).toBe(
+            sameDatabase && sameDataset && prepared && digestBound,
+          );
+        }
 });
 
 describe("database verification decision", () => {
@@ -188,8 +217,10 @@ describe("database verification during preparation", () => {
   let root = "";
   let path = "";
   let manifest: DatasetManifest;
+  let identity = "";
   let evidence: VerificationFacts["evidence"];
   const unbound = (): VerificationFacts => ({
+    importSha256: identity,
     resource,
     evidence: null,
     bound: false,
@@ -205,7 +236,8 @@ describe("database verification during preparation", () => {
         await readFile(join(root, "bundle", "manifest.ready.json"), "utf8"),
       ),
     );
-    evidence = { databaseSha256: manifest.databaseSha256, database: resource };
+    identity = importIdentity(manifest.databaseSha256).importSha256;
+    evidence = { importSha256: identity, database: resource };
   });
   afterAll(async () => {
     await rm(root, { recursive: true, force: true });
@@ -282,11 +314,12 @@ describe("database verification during preparation", () => {
     }
   });
 
-  it("refuses evidence for another digest or resource before any full scan or write", async () => {
+  it("refuses evidence for another import identity or resource before any full scan or write", async () => {
     for (const foreign of [
-      { databaseSha256: "f".repeat(64), database: resource },
+      { importSha256: "f".repeat(64), database: resource },
+      { importSha256: manifest.databaseSha256, database: resource },
       {
-        databaseSha256: manifest.databaseSha256,
+        importSha256: identity,
         database: "7d1e2f3a-4b5c-4d6e-8f70-8192a3b4c5d6",
       },
     ]) {
@@ -337,6 +370,62 @@ describe("database verification during preparation", () => {
       expect(remote.statements.some((sql) => write.test(sql))).toBe(false);
     } finally {
       remote.close();
+    }
+  });
+
+  it("refuses a database of the same dataset that an earlier import identity filled before any full scan or write", async () => {
+    const earlier = {
+      "the bare dataset digest": manifest.databaseSha256,
+      "the schema without folded names": importIdentity(
+        manifest.databaseSha256,
+        {
+          ...importTransformation,
+          schema: importTransformation.schema.replace(
+            "  folded_name TEXT NOT NULL,\n",
+            "",
+          ),
+        },
+      ).importSha256,
+      "a smaller fold table": importIdentity(manifest.databaseSha256, {
+        ...importTransformation,
+        folds: importTransformation.folds.slice(1),
+      }).importSha256,
+    };
+    for (const [label, importSha256] of Object.entries(earlier)) {
+      expect(importSha256, label).not.toBe(identity);
+      const remote = localDatabase();
+      try {
+        expect(
+          (
+            await seedDatabase(remote.port, path, manifest, {
+              ...unbound(),
+              importSha256,
+            })
+          ).verification,
+          label,
+        ).toBe("verify");
+        remote.statements.length = 0;
+        await expect(
+          seedDatabase(remote.port, path, manifest, unbound()),
+          label,
+        ).rejects.toThrow("different publication");
+        await expect(
+          seedDatabase(remote.port, path, manifest, {
+            ...unbound(),
+            bound: true,
+            publicationVerified: true,
+          }),
+          label,
+        ).rejects.toThrow("different publication");
+        expect(
+          remote.statements.filter(
+            (sql) => fullScan.test(sql) || write.test(sql),
+          ),
+          label,
+        ).toEqual([]);
+      } finally {
+        remote.close();
+      }
     }
   });
 });

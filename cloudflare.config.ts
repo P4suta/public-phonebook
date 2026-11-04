@@ -1,11 +1,8 @@
 import { bindings, defineConfig } from "cf/config";
 import * as v from "valibot";
-import {
-  databaseResourceName,
-  deploymentEnvironment,
-  environments,
-} from "./src/core/environment.ts";
+import { deploymentEnvironment, environments } from "./src/core/environment.ts";
 import { DigestSchema } from "./src/core/models.ts";
+import { importedDatabaseName } from "./tools/import-identity.ts";
 
 const workerCpuLimitMs = 100;
 
@@ -25,7 +22,7 @@ export default defineConfig(({ mode }) => {
       env: {
         ASSETS: bindings.assets(),
         DB: bindings.d1({
-          name: databaseResourceName(
+          name: importedDatabaseName(
             environment,
             process.env.DIAL_DATABASE_SHA256,
           ),
