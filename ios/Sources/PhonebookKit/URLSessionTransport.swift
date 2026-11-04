@@ -32,10 +32,10 @@ final class OwnedSession: Sendable {
     return configuration
   }
 
-  /// A transfer waits for a connection, and the resource timeout bounds that wait with the transfer.
-  static func transfers() -> URLSessionConfiguration {
+  /// A waiting transfer's resource timeout bounds the wait with the transfer.
+  static func transfers(waiting: Bool) -> URLSessionConfiguration {
     let configuration = base()
-    configuration.waitsForConnectivity = true
+    configuration.waitsForConnectivity = waiting
     configuration.timeoutIntervalForResource = 900
     configuration.timeoutIntervalForRequest = 30
     return configuration
