@@ -1,4 +1,5 @@
 import Foundation
+import PhonebookCore
 import Synchronization
 import Testing
 
@@ -71,7 +72,7 @@ func everyConsumerAvailabilityFailureReceiptAndForceCombinationPreservesIndepend
         expectedStates.append(.current)
       } else {
         expectedCalls.append(consumer)
-        expectedStates.append(failures.contains(consumer) ? .failed : .notified)
+        expectedStates.append(failures.contains(consumer) ? .failed(.other) : .notified)
         if !failures.contains(consumer) { expectedReceipts[consumer] = generation }
       }
     }
@@ -96,13 +97,30 @@ func everyConsumerAvailabilityFailureReceiptAndForceCombinationPreservesIndepend
   #expect(checked == 32)
 }
 
+/// Refuses every reload with the Call Directory code it holds.
+private struct RefusingNotifier: ExtensionNotifier {
+  let code: Int
+  func enabled(_ consumer: SnapshotConsumer) async throws -> Bool { true }
+  func notify(_ consumer: SnapshotConsumer) async throws { throw CallDirectoryFailure(code: code) }
+}
+
+@Test func aRefusedReloadKeepsItsCallDirectoryCodeAndRecordsNoGeneration() async {
+  for code in [CallerReply.currentlyLoading, CallerReply.extensionDisabled, 2] {
+    let receipts = NotificationFixture()
+    let results = await ExtensionNotifications.refresh(
+      generation: UUID(), notifier: RefusingNotifier(code: code), receipts: receipts)
+    #expect(results.map(\.state) == [.failed(.callDirectory(code: code))])
+    #expect(await receipts.generation(for: .caller) == nil)
+  }
+}
+
 @Test func callerNotificationFailuresRetryUntilTheirGenerationIsRecorded() async {
   let fixture = NotificationFixture()
   let generation = UUID()
   await fixture.configure(enabled: [.caller], failures: [.caller])
   let failed = await ExtensionNotifications.refresh(
     generation: generation, notifier: fixture, receipts: fixture)
-  #expect(failed.map(\.state) == [.failed])
+  #expect(failed.map(\.state) == [.failed(.other)])
   #expect(await fixture.generation(for: .caller) == nil)
   await fixture.configure(enabled: [.caller], failures: [])
   _ = await ExtensionNotifications.refresh(

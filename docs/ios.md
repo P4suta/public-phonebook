@@ -27,7 +27,8 @@ That color matches the first screen's white background, as the [launching guidel
 XcodeGen writes `ios/Config/App-Info.plist` from `ios/project.yml`, and Release and VerificationRelease take that list.
 The generator writes `ios/Config/App-Info-LocalNetworking.plist` from it with `NSAllowsLocalNetworking` added, and the generator rejects any other difference.
 Debug, DevRelease, VerificationDebug, and ProductionDebug take that second list, because they reach the loopback fixture for development, the UI scenarios, and the store screenshots.
-Since iOS 17, [App Transport Security](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking) refuses IP addresses such as `127.0.0.1` without that key.
+On the iOS 27 simulator, a VerificationDebug build without that key still reached the loopback fixture over HTTP in a UI scenario, and no device has run that check.
+The [`NSAllowsLocalNetworking`](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking) page recommends the key as a declaration of intent even where the system doesn't block local loads, so those four configurations keep it.
 The builds for TestFlight and the App Store carry no transport exception.
 
 The app keeps the whole national directory on the device.
@@ -97,6 +98,10 @@ VoiceOver reads the facility name before that label.
 The detail screen shows the address as selectable text, and an outline `地図で見る` button below it opens Apple Maps after a confirmation.
 VoiceOver reads that button as the facility name followed by `の地図を見る`, and a facility without an address has no map button.
 Settings holds the caller section, which shows a filled check circle with `許可しています` or an empty circle with `まだ許可していません`.
+When iOS refuses a reload, `PhonebookCore.CallerReply` decides the state from the [Call Directory error code](https://developer.apple.com/documentation/callkit/cxerrorcodecalldirectorymanagererror-swift.struct/code).
+`currentlyLoading` shows `許可しています・iPhoneが読み込んでいます`, `extensionDisabled` shows the off state, and any other error shows `許可しています・次にアプリを開いたときに反映します`.
+The app records no generation after a refusal, so the next launch compares the extension's own record with the saved generation and asks again.
+The app logs the error domain and code of every refused reload or status read, and nothing else about it.
 The About screen shows the date that the app saved its data.
 
 The VerificationDebug and VerificationRelease configurations define the `PHONEBOOK_VERIFICATION_TOOLS` compile condition, and the other four configurations don't.
@@ -110,7 +115,9 @@ That button opens the iOS call confirmation, so the owner can check calling with
 The Call Directory extension reads the file and merges the entry into the national caller numbers in ascending order while it loads them.
 When the national data lists the same number, the test label replaces the national label, because CallKit takes each number once.
 `PhonebookCore.CallerMerge` holds that decision, and `verification/ios/CallerMerge.lean` proves the merge.
-Saving or clearing the entry reloads the extension, and the screen reports the state that iOS gave.
+Saving or clearing the entry reloads the extension, and the screen reports the state that iOS gave with the Call Directory code of a refusal.
+A reload that meets `currentlyLoading` waits 3 seconds and asks again, up to four requests, because the running load may hold the earlier entry.
+The screen never asks the owner to press the button again.
 The screen also shows the saved data date, the last automatic check, the next due time from `RefreshPolicy`, and any problem.
 Its `いま受け取る` button runs the monthly update path once, or the first download before any data exists.
 The gate in `ios-check` scans every file of the unsigned Release app and extension for six markers of the QA code and fails on any of them.

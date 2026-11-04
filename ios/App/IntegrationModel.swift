@@ -2,19 +2,33 @@ import BackgroundTasks
 import CallKit
 import Foundation
 import Network
+import OSLog
 import Observation
 import PhonebookCore
 import PhonebookKit
 import SwiftUI
 
 enum ExtensionOperations {
+  private static let logger = Logger(subsystem: "page.dial.publicphonebook", category: "caller")
+
+  /// Reduces a Call Directory error to its code, which the reload decision reads without CallKit.
+  private static func classified(_ error: any Error) -> any Error {
+    let failure = error as NSError
+    return failure.domain == CXErrorDomainCallDirectoryManager
+      ? CallDirectoryFailure(code: failure.code) : error
+  }
+
   static func callerEnabled() async throws -> Bool {
     try await withCheckedThrowingContinuation { continuation in
       CXCallDirectoryManager.sharedInstance.getEnabledStatusForExtension(
         withIdentifier: AppIdentity.callDirectory
       ) { status, error in
         if let error {
-          continuation.resume(throwing: error)
+          let failure = error as NSError
+          logger.error(
+            "caller.status result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public)"
+          )
+          continuation.resume(throwing: classified(error))
         } else if status == .unknown {
           continuation.resume(throwing: ServiceError.invalidResponse)
         } else {
@@ -30,7 +44,12 @@ enum ExtensionOperations {
       CXCallDirectoryManager.sharedInstance.reloadExtension(
         withIdentifier: AppIdentity.callDirectory
       ) { error in
-        if let error { continuation.resume(throwing: error) } else { continuation.resume() }
+        guard let error else { return continuation.resume() }
+        let failure = error as NSError
+        logger.error(
+          "caller.reload result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public)"
+        )
+        continuation.resume(throwing: classified(error))
       }
     }
   }
@@ -67,6 +86,14 @@ struct SavedGenerationReceipts: GenerationReceipts {
     UserDefaults.standard.set(generation.uuidString, forKey: consumer.rawValue + "Generation")
   }
 }
+
+#if PHONEBOOK_VERIFICATION_TOOLS
+  /// The caller state after a reload, and the Call Directory code that iOS returned, which the QA screen shows.
+  struct CallerReload: Equatable {
+    let status: CallerStatus
+    let code: Int?
+  }
+#endif
 
 @Observable @MainActor
 final class IntegrationModel {
@@ -365,7 +392,7 @@ final class IntegrationModel {
       switch result.state {
       case .disabled: status = .off
       case .current, .notified: status = .on
-      case .failed: status = .onRetrying
+      case .failed(let reply): status = reply.status
       case .unavailable: status = .unknown
       }
       switch result.consumer {
@@ -382,26 +409,38 @@ final class IntegrationModel {
       update(first: manifest == nil)
     }
 
-    /// Asks iOS to load the caller names again after the test number changes, and reports the state that iOS gave.
-    func reloadCallerNames() async -> CallerStatus {
+    /// Asks iOS to load the caller names again after the test number changes, and reports the state and the code that iOS gave.
+    /// A load that is already running may hold the earlier test number, so the request waits for it and asks again a few times.
+    func reloadCallerNames() async -> CallerReload {
       let enabled: Bool
       do { enabled = try await ExtensionOperations.callerEnabled() } catch {
         show(.unknown)
-        return .unknown
+        return CallerReload(status: .unknown, code: (error as? CallDirectoryFailure)?.code)
       }
       guard enabled else {
         show(.off)
-        return .off
+        return CallerReload(status: .off, code: nil)
       }
-      do {
-        try await ExtensionOperations.reloadCaller()
-        show(.on)
-        return .on
-      } catch {
-        // The next launch retries only a new generation, so Settings keeps its state and the QA screen asks for another save.
-        return .onRetrying
+      var reply = CallerReply.other
+      for attempt in 0..<Self.reloadAttempts {
+        if attempt > 0 { try? await Task.sleep(for: Self.reloadSpacing) }
+        do {
+          try await ExtensionOperations.reloadCaller()
+          reply = .loaded
+        } catch {
+          reply = (error as? CallDirectoryFailure).map { .callDirectory(code: $0.code) } ?? .other
+        }
+        guard reply.status == .loading else { break }
       }
+      show(reply.status)
+      if case .callDirectory(let code) = reply {
+        return CallerReload(status: reply.status, code: code)
+      }
+      return CallerReload(status: reply.status, code: nil)
     }
+
+    static let reloadAttempts = 4
+    static let reloadSpacing = Duration.seconds(3)
   #endif
 
   func openCallerSettings() {

@@ -50,11 +50,17 @@
       saved = entry
       telephone = entry.display
       label = entry.label
-      switch await integration.reloadCallerNames() {
-      case .on: tell("保存して、iPhoneに反映しました。")
-      case .off: tell("保存しました。iPhoneの設定で許可すると、電話がかかってきたときにこの名前が出ます。")
-      case .checking, .onRetrying, .unknown:
-        tell("保存しました。iPhoneに反映したかを確かめられませんでした。もう一度「保存する」を押してください。")
+      tell("保存しました。" + Self.reloaded(await integration.reloadCallerNames()))
+    }
+
+    /// Words the reload result, with the code that iOS returned, so a device check can report it.
+    static func reloaded(_ reload: CallerReload) -> String {
+      let code = reload.code.map { "（iPhoneの返答のコード：\($0)）" } ?? ""
+      switch reload.status {
+      case .on: return "iPhoneに反映しました。"
+      case .off: return "iPhoneの設定で許可すると、電話がかかってきたときにこの名前が出ます。"
+      case .loading: return "iPhoneが読み込んでいる途中です。読み込みが終わると反映します。\(code)"
+      case .checking, .onRetrying, .unknown: return "iPhoneへの反映は未確認です。\(code)"
       }
     }
 
@@ -68,12 +74,8 @@
       saved = nil
       telephone = ""
       label = Self.defaultLabel
-      switch await integration.reloadCallerNames() {
-      case .on: tell("消して、iPhoneに反映しました。")
-      case .off: tell("消しました。")
-      case .checking, .onRetrying, .unknown:
-        tell("消しました。iPhoneに反映したかを確かめられませんでした。もう一度「消す」を押してください。")
-      }
+      let reload = await integration.reloadCallerNames()
+      tell(reload.status == .off ? "消しました。" : "消しました。" + Self.reloaded(reload))
     }
 
     private func tell(_ text: String) {
