@@ -12,6 +12,7 @@ use std::{
     thread,
     time::{Duration, Instant, SystemTime},
 };
+mod app_info;
 mod build_number;
 mod distribution;
 mod failure;
@@ -349,6 +350,7 @@ fn generate(root: &Path) -> Result<()> {
             .current_dir(root.join("ios"))
             .arg("generate"),
     )?;
+    app_info::derive(root)?;
     distribution::configurations(root)?;
     println!("PASS: Xcode project generated from the shared Figma icon inventory");
     Ok(())
@@ -1307,6 +1309,18 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app",
                 ),
                 "VerificationDebug",
+            )?;
+            app_info::check_built(
+                root,
+                &root.join(
+                    "ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app",
+                ),
+                "VerificationDebug",
+            )?;
+            app_info::check_built(
+                root,
+                &root.join("ios/DerivedData/Build/Products/Release-iphoneos/PublicPhonebook.app"),
+                "Release",
             )?;
             let results = ui_test(root, &[], false)?;
             require_current_sources(root, &sources)?;
