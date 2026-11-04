@@ -18,7 +18,10 @@ import {
   type CommandResult,
   command,
   mapConcurrently,
+  ownInstructions,
+  prepareMeter,
   requireCommand,
+  useMeter,
 } from "./process.ts";
 import {
   digestOrNull,
@@ -30,7 +33,7 @@ import {
   staleProof,
 } from "./proof-receipt.ts";
 import { fileDigest } from "./snapshot.ts";
-import { StepTimer } from "./step-timing.ts";
+import { countWork, StepTimer } from "./step-timing.ts";
 
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
@@ -515,7 +518,27 @@ const inventory: ProofInventory = {
   verifiedUnits: provenUnitCount,
   postconditions: provenPostconditionCount,
 };
-const timer = new StepTimer();
+const timer = new StepTimer(undefined, ownInstructions);
+/** The resource count is the second field from the end of each CSV row. */
+const resourceCountField = -2;
+const resourceLogHeader =
+  "TestResult.DisplayName,TestResult.Outcome,TestResult.Duration,TestResult.ResourceCount,RandomSeed";
+
+/** Splits Dafny's output from the CSV that `--log-format csv` appends, and sums the solver resource units of its rows. */
+function resourceLog(output: string): {
+  readonly report: string;
+  readonly resourceUnits: number | null;
+} {
+  const lines = output.split("\n");
+  const header = lines.indexOf(resourceLogHeader);
+  if (header < 0) return { report: output, resourceUnits: null };
+  let resourceUnits = 0;
+  for (const row of lines.slice(header + 1)) {
+    const units = row.split(",").at(resourceCountField);
+    if (units && /^[0-9]+$/u.test(units)) resourceUnits += Number(units);
+  }
+  return { report: lines.slice(0, header).join("\n"), resourceUnits };
+}
 
 async function verifierImage(): Promise<string> {
   const build = await command(
@@ -535,6 +558,7 @@ async function verifierImage(): Promise<string> {
   const image = build.output.trim().split("\n").at(-1) ?? "";
   if (build.code !== 0 || !/^sha256:[a-f0-9]{64}$/u.test(image))
     throw new Error(`Verifier image build failed: ${build.output}`);
+  countWork("image builds", 1);
   return image;
 }
 
@@ -628,6 +652,7 @@ async function runGenerator(
     throw new Error(
       `Model generation failed (${generated.code}) for ${path}: ${generated.output}`,
     );
+  countWork("model generations", 1);
 }
 
 /**
@@ -673,8 +698,8 @@ async function withVerifier<T>(
   action: (verify: Verifier) => Promise<T>,
 ): Promise<T> {
   const name = `dial-proof-${randomUUID()}`;
-  const verify: Verifier = (models) =>
-    command(
+  const verify: Verifier = async (models) => {
+    const result = await command(
       "docker",
       [
         "exec",
@@ -686,13 +711,22 @@ async function withVerifier<T>(
         "--verification-time-limit=30",
         "--unicode-char=false",
         "--allow-deprecation",
+        // Each verification condition's row carries the solver's deterministic resource count.
+        "--log-format=csv;LogFileName=/dev/stdout",
       ],
       true,
     );
+    const { report, resourceUnits } = resourceLog(result.output);
+    countWork("Dafny processes", 1);
+    if (resourceUnits !== null)
+      countWork("solver resource units", resourceUnits);
+    return { ...result, output: report };
+  };
   let result: Result<T, unknown>;
   try {
-    const started = await timer.time("container", () =>
-      command(
+    const started = await timer.time("container", async () => {
+      countWork("container starts", 1);
+      return command(
         "docker",
         [
           "run",
@@ -719,8 +753,8 @@ async function withVerifier<T>(
           String(safetyStopSeconds),
         ],
         true,
-      ),
-    );
+      );
+    });
     if (started.code !== 0)
       throw new Error(`Proof container start failed: ${started.output}`);
     result = { ok: true, value: await action(verify) };
@@ -912,6 +946,7 @@ async function receiptControls(): Promise<void> {
 
 async function main(): Promise<void> {
   await mkdir(".local", { recursive: true });
+  useMeter(await prepareMeter());
   const lock = await open(".local/proof.lock", "wx");
   try {
     const outcome = await provedOrReused(inventory, {

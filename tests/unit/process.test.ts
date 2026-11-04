@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapConcurrently } from "../../tools/process.ts";
+import { mapConcurrently, meterCount } from "../../tools/process.ts";
 
 const items = [1, 2, 3, 4, 5, 6, 7];
 const limit = 3;
@@ -18,6 +18,23 @@ function gate(): Gate {
   });
   return { opened, open };
 }
+
+describe("step meter records", () => {
+  it("reads a count and the descendant flag, and treats anything else as no count", () => {
+    expect(
+      meterCount('{"instructions":12345,"reapedDescendants":true}\n'),
+    ).toEqual({ instructions: 12345, reapedDescendants: true });
+    for (const record of [
+      '{"instructions":null,"reapedDescendants":null,"reason":"Unsupported"}',
+      '{"instructions":-1,"reapedDescendants":false}',
+      '{"instructions":1.5,"reapedDescendants":false}',
+      '{"instructions":1,"reapedDescendants":false,"extra":1}',
+      "not json",
+      "",
+    ])
+      expect(meterCount(record), record).toBeNull();
+  });
+});
 
 describe("bounded concurrency", () => {
   it("never runs more than the limit at once and returns results in input order", async () => {
