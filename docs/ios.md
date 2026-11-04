@@ -22,6 +22,14 @@ A DevRelease simulator build for one simulator needs no `ONLY_ACTIVE_ARCH` overr
 Override PHONEBOOK_API_ORIGIN only for an explicitly selected test build.
 The generator inspects all six actual Xcode configurations and rejects missing or incorrect environment fields.
 
+The app's property list declares a [launch screen](https://developer.apple.com/documentation/xcode/specifying-your-apps-launch-screen) with the `LaunchBackground` color from `ios/Config/Launch.xcassets`.
+That color matches the first screen's white background, as the [launching guidelines](https://developer.apple.com/design/human-interface-guidelines/launching) ask, and the launch screen shows no text or logo.
+XcodeGen writes `ios/Config/App-Info.plist` from `ios/project.yml`, and Release and VerificationRelease take that list.
+The generator writes `ios/Config/App-Info-LocalNetworking.plist` from it with `NSAllowsLocalNetworking` added, and the generator rejects any other difference.
+Debug, DevRelease, VerificationDebug, and ProductionDebug take that second list, because they reach the loopback fixture for development, the UI scenarios, and the store screenshots.
+Since iOS 17, [App Transport Security](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking) refuses IP addresses such as `127.0.0.1` without that key.
+The builds for TestFlight and the App Store carry no transport exception.
+
 The app keeps the whole national directory on the device.
 The first launch opens a setup flow that starts the download when the reader presses the start button, explains caller identification, and then waits for the data.
 Over that button, a notice names the listed size rounded up to whole megabytes and suggests a fast connection.

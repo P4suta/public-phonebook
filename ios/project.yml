@@ -72,6 +72,9 @@ targets:
       - Native
       - path: GeneratedAssets.xcassets
         buildPhase: resources
+      # The icon generator rewrites GeneratedAssets.xcassets, so the launch color lives in its own catalog.
+      - path: Config/Launch.xcassets
+        buildPhase: resources
       - path: Config/PrivacyInfo.xcprivacy
         buildPhase: resources
       - path: ../design/licenses/Lucide.txt
@@ -89,8 +92,16 @@ targets:
         PROVISIONING_PROFILE_SPECIFIER: $(PHONEBOOK_APP_PROFILE)
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_ENTITLEMENTS: Config/Shared.entitlements
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+      # The configurations that reach the loopback fixture take the property list with local networking.
+      configs:
+        Debug:
+          INFOPLIST_FILE: Config/App-Info-LocalNetworking.plist
+        DevRelease:
+          INFOPLIST_FILE: Config/App-Info-LocalNetworking.plist
+        VerificationDebug:
+          INFOPLIST_FILE: Config/App-Info-LocalNetworking.plist
+        ProductionDebug:
+          INFOPLIST_FILE: Config/App-Info-LocalNetworking.plist
     info:
       path: Config/App-Info.plist
       properties:
@@ -105,8 +116,8 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         UIBackgroundModes: [processing]
         BGTaskSchedulerPermittedIdentifiers: [$(PHONEBOOK_BUNDLE_ID).refresh]
-        NSAppTransportSecurity:
-          NSAllowsLocalNetworking: true
+        UILaunchScreen:
+          UIColorName: LaunchBackground
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
   CallDirectory:
     type: app-extension
