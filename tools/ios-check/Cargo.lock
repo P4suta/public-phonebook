@@ -301,6 +301,7 @@ dependencies = [
  "anyhow",
  "base64",
  "clap",
+ "libc",
  "png",
  "resvg",
  "roxmltree",

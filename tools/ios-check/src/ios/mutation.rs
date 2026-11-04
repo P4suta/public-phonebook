@@ -4,10 +4,27 @@ use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
-    path::Path,
+    os::unix::process::CommandExt,
+    path::{Path, PathBuf},
     process::Command,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    thread,
     time::{Duration, Instant},
 };
+
+/// The largest file of an unmutated package build, the SDK stat cache, measured on 2026-11-04.
+const LARGEST_BUILD_FILE_BYTES: u64 = 15_332_512;
+/// Every file of a mutation run, including compiler outputs and the tool's sandbox, stays under this cap.
+const FILE_LIMIT_BYTES: u64 = 256 * 1024 * 1024;
+/// A profile's temporary directory holds at most this much at once; one unmutated package build takes 118 MiB.
+const SCRATCH_BUDGET_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+/// How often the gate samples the size of a profile's temporary directory.
+const SCRATCH_SAMPLE_INTERVAL: Duration = Duration::from_millis(500);
+/// What macOS reports for a write past the file size cap once the process ignores SIGXFSZ.
+const FILE_LIMIT_ERROR: &str = "File too large";
 
 const VERSION: &str = "1.6.4";
 /// The pinned tool limits each mutant's test run in wall-clock seconds and offers no CPU-time limit.
@@ -24,12 +41,151 @@ const OPERATORS: [&str; 7] = [
     "RemoveSideEffects",
 ];
 
+/// The `<` declarations of `Comparable` types, by file and type, whose renamed operator the compiler must reject.
+const DECLARATIONS: [(&str, &str); 2] = [
+    ("Sources/PhonebookCore/Contracts.swift", "PrefectureCode"),
+    ("Sources/PhonebookCore/SearchInput.swift", "NameRank"),
+];
+
+/// A mutant that can't change any result, named by its file, its trimmed source line, and its operation.
+/// An edited line no longer matches, so its mutant returns as a survivor until someone reviews it again.
+struct Equivalent {
+    file: &'static str,
+    line: &'static str,
+    operator: &'static str,
+    original: &'static str,
+    replacement: &'static str,
+    reason: &'static str,
+}
+
+const EQUIVALENTS: [Equivalent; 4] = [
+    Equivalent {
+        file: "Sources/PhonebookCore/CallerFile.swift",
+        line: "buffer.removeAll(keepingCapacity: true)",
+        operator: "BooleanLiteralReplacement",
+        original: "true",
+        replacement: "false",
+        reason: "Keeping the capacity only spares a reallocation; no written byte, record, or count depends on it.",
+    },
+    Equivalent {
+        file: "Sources/PhonebookCore/CallerFile.swift",
+        line: "guard buffer.count - position < bytes, !ended else { return }",
+        operator: "RelationalOperatorReplacement",
+        original: "<",
+        replacement: "<=",
+        reason: "With exactly `bytes` unread, the extra pass moves the unread bytes to the front and reads nothing, because its loop needs fewer than `bytes`.",
+    },
+    Equivalent {
+        file: "Sources/PhonebookCore/CallerFile.swift",
+        line: "while buffer.count < bytes, !ended {",
+        operator: "RelationalOperatorReplacement",
+        original: "<",
+        replacement: "<=",
+        reason: "A refill keeps at least one unread byte because every record is shorter than maximumRecordBytes, and each read adds at least that many, so the buffer holds exactly `bytes` only at the end of the file, where one more read returns nothing.",
+    },
+    Equivalent {
+        file: "Sources/PhonebookCore/CallerFile.swift",
+        line: "ended = true",
+        operator: "BooleanLiteralReplacement",
+        original: "true",
+        replacement: "false",
+        reason: "At the end of the file every further read returns nothing as well, so the flag only saves those reads.",
+    },
+];
+
 #[derive(Debug, Default, PartialEq)]
 struct Counts {
     killed: usize,
+    /// Mutants whose activated code ended the test process, which the tool records as a crash.
+    crashed: usize,
     compiler_rejected: usize,
+    /// Survivors that `EQUIVALENTS` explains, as file, line, and operation.
+    equivalent: Vec<String>,
     /// Mutants that reached the hang guard, about which the run holds no evidence.
     inconclusive: Vec<String>,
+    /// Mutants whose tests stopped at the file size cap, which proves nothing about the mutant.
+    resource_stopped: Vec<String>,
+}
+
+/// Caps every file that the command and its children write, and makes a write past the cap fail with an error instead of a signal.
+/// A signal would look like any crash in the tool's report, while the error text names the cap in the mutant's log.
+fn limit_file_size(command: &mut Command, bytes: u64) -> &mut Command {
+    // SAFETY: the closure runs in the forked child before exec and calls only setrlimit and signal, which are async-signal-safe.
+    unsafe {
+        command.pre_exec(move || {
+            let limit = libc::rlimit {
+                rlim_cur: bytes,
+                rlim_max: bytes,
+            };
+            if libc::setrlimit(libc::RLIMIT_FSIZE, &raw const limit) != 0
+                || libc::signal(libc::SIGXFSZ, libc::SIG_IGN) == libc::SIG_ERR
+            {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        })
+    }
+}
+
+/// The bytes of every regular file under `path`, skipping entries that vanish while the build churns.
+fn tree_bytes(path: &Path) -> u64 {
+    let Ok(entries) = fs::read_dir(path) else {
+        return 0;
+    };
+    entries
+        .filter_map(Result::ok)
+        .map(|entry| match entry.file_type() {
+            Ok(kind) if kind.is_dir() => tree_bytes(&entry.path()),
+            Ok(kind) if kind.is_file() => entry.metadata().map_or(0, |data| data.len()),
+            _ => 0,
+        })
+        .sum()
+}
+
+/// Samples the size of `path` at each interval until `done` turns true, and returns the largest sample.
+fn sample_peak(path: PathBuf, done: Arc<AtomicBool>) -> thread::JoinHandle<u64> {
+    thread::spawn(move || {
+        let mut peak = 0;
+        loop {
+            peak = peak.max(tree_bytes(&path));
+            if done.load(Ordering::Relaxed) {
+                return peak;
+            }
+            thread::sleep(SCRATCH_SAMPLE_INTERVAL);
+        }
+    })
+}
+
+/// Reads the kept log of one mutant after checking that its identity names a log file.
+fn mutant_log(logs: &Path, mutant: &Value) -> Result<String> {
+    let id = mutant["id"]
+        .as_str()
+        .context("Missing mutant log identity")?;
+    ensure!(
+        id.strip_prefix("swift-mutation-testing_").is_some_and(
+            |suffix| !suffix.is_empty() && suffix.bytes().all(|byte| byte.is_ascii_digit())
+        ),
+        "Invalid mutation log name"
+    );
+    Ok(fs::read_to_string(logs.join(format!("{id}.log")))?)
+}
+
+/// The trimmed text of a planned mutant's source line.
+fn source_line(root: &Path, planned: &Value) -> Option<String> {
+    let line = usize::try_from(planned["line"].as_u64()?).ok()?;
+    let source = fs::read_to_string(root.join("ios").join(planned["file"].as_str()?)).ok()?;
+    source
+        .lines()
+        .nth(line.checked_sub(1)?)
+        .map(|text| text.trim().to_owned())
+}
+
+fn matches(equivalent: &Equivalent, planned: &Value, line: Option<&str>) -> bool {
+    planned["file"] == equivalent.file
+        && planned["operator"] == equivalent.operator
+        && planned["original"] == equivalent.original
+        && planned["replacement"] == equivalent.replacement
+        && line == Some(equivalent.line)
 }
 
 /// The hang guard in whole seconds, rounded up.
@@ -69,19 +225,25 @@ fn baseline(root: &Path, name: &str, target: &str) -> Result<Duration> {
 }
 
 fn declaration_rejection(root: &Path, mutant: &Value, log: &str) -> bool {
-    if mutant["file"] != "Sources/PhonebookCore/Contracts.swift"
-        || mutant["operator"] != "RelationalOperatorReplacement"
+    let Some((file, kind)) = DECLARATIONS
+        .iter()
+        .find(|(file, _)| mutant["file"] == *file)
+    else {
+        return false;
+    };
+    if mutant["operator"] != "RelationalOperatorReplacement"
         || mutant["replacementKind"] != "binaryOperator"
         || mutant["original"] != "<"
         || !matches!(mutant["replacement"].as_str(), Some("<=" | ">"))
         || mutant["schematizable"] != false
-        || !log.contains("type 'PrefectureCode' does not conform to protocol 'Comparable'")
+        || !log.contains(&format!(
+            "type '{kind}' does not conform to protocol 'Comparable'"
+        ))
         || !log.contains("protocol requires function '<'")
     {
         return false;
     }
-    let Ok(source) = fs::read_to_string(root.join("ios/Sources/PhonebookCore/Contracts.swift"))
-    else {
+    let Ok(source) = fs::read_to_string(root.join("ios").join(file)) else {
         return false;
     };
     let Some(start) = mutant["utf8Start"]
@@ -111,6 +273,7 @@ fn results(
     report: &Value,
     plan_hash: &str,
     logs: &Path,
+    equivalents: &[Equivalent],
 ) -> Result<Counts> {
     ensure!(
         plan["formatVersion"] == 1
@@ -151,6 +314,31 @@ fn results(
         );
     }
     ensure!(!expected.is_empty(), "The mutation plan is empty");
+    // Each entry for a planned file names exactly one planned mutant, so a moved or killed one never hides another.
+    let mut explained = BTreeMap::new();
+    for (index, equivalent) in equivalents.iter().enumerate() {
+        if !expected
+            .values()
+            .any(|planned| planned["file"] == equivalent.file)
+        {
+            continue;
+        }
+        let named = expected
+            .iter()
+            .filter(|(_, planned)| {
+                matches(equivalent, planned, source_line(root, planned).as_deref())
+            })
+            .map(|(fingerprint, _)| *fingerprint)
+            .collect::<Vec<_>>();
+        ensure!(
+            named.len() == 1,
+            "The equivalent mutant at {} `{}` names {} planned mutants instead of one",
+            equivalent.file,
+            equivalent.line,
+            named.len()
+        );
+        explained.insert(named[0], index);
+    }
     let mut observed = BTreeSet::new();
     let mut counts = Counts::default();
     for (file, value) in report["files"]
@@ -177,7 +365,41 @@ fn results(
                     && mutant["location"]["start"]["column"] == planned["column"],
                 "Mutation result differs from its planned operation"
             );
+            if let Some(index) = explained.get(fingerprint) {
+                ensure!(
+                    mutant["status"] == "Survived",
+                    "An equivalent mutant is {}, so its entry no longer holds",
+                    mutant["status"]
+                );
+                let equivalent = &equivalents[*index];
+                counts.equivalent.push(format!(
+                    "{}:{} {} {} -> {}: {}",
+                    equivalent.file,
+                    planned["line"],
+                    equivalent.operator,
+                    equivalent.original,
+                    equivalent.replacement,
+                    equivalent.reason
+                ));
+                continue;
+            }
+            if mutant["status"] == "Killed" && mutant_log(logs, mutant)?.contains(FILE_LIMIT_ERROR)
+            {
+                counts.resource_stopped.push(fingerprint.to_owned());
+                continue;
+            }
             match mutant["status"].as_str() {
+                Some("Killed") if mutant["statusReason"] == "crash" => {
+                    ensure!(
+                        mutant["activated"] == true
+                            && mutant_log(logs, mutant)?.lines().any(|line| {
+                                line.strip_prefix("status:")
+                                    .is_some_and(|status| status.trim() == "Crash")
+                            }),
+                        "A crashed mutant lacks activation and the tool's crash record"
+                    );
+                    counts.crashed += 1;
+                }
                 Some("Killed") => {
                     ensure!(
                         mutant["activated"] == true
@@ -192,16 +414,7 @@ fn results(
                     counts.killed += 1;
                 }
                 Some("CompileError") => {
-                    let id = mutant["id"]
-                        .as_str()
-                        .context("Missing compiler-rejected mutant identity")?;
-                    ensure!(
-                        id.strip_prefix("swift-mutation-testing_")
-                            .is_some_and(|suffix| !suffix.is_empty()
-                                && suffix.bytes().all(|byte| byte.is_ascii_digit())),
-                        "Invalid mutation log name"
-                    );
-                    let log = fs::read_to_string(logs.join(format!("{id}.log")))?;
+                    let log = mutant_log(logs, mutant)?;
                     ensure!(
                         declaration_rejection(root, planned, &log),
                         "An unexplained mutation build failure supplies no test evidence"
@@ -216,7 +429,10 @@ fn results(
         }
     }
     ensure!(
-        observed.len() == expected.len() && (counts.killed > 0 || !counts.inconclusive.is_empty()),
+        observed.len() == expected.len()
+            && (counts.killed + counts.crashed > 0
+                || !counts.inconclusive.is_empty()
+                || !counts.resource_stopped.is_empty()),
         "The mutation result inventory is incomplete or unexecuted"
     );
     Ok(counts)
@@ -283,29 +499,49 @@ pub fn run(root: &Path) -> Result<()> {
         );
         let measured = baseline(root, name, target)?;
         let guard = hang_guard(measured);
-        logged(
+        // The tool and every test process it starts write their temporary files here, and dropping it removes them on every exit path.
+        let scratch = tempfile::Builder::new()
+            .prefix(&format!("{name}-tmp-"))
+            .tempdir_in(&directory)?;
+        let done = Arc::new(AtomicBool::new(false));
+        let sampler = sample_peak(scratch.path().to_owned(), Arc::clone(&done));
+        let run = logged(
             root,
             &format!("mutation-{name}"),
-            Command::new("swift-mutation-testing")
-                .current_dir(root.join("ios"))
-                .args(["run", ".", "--plan"])
-                .arg(&plan_path)
-                .args(["--concurrency", "1", "--timeout"])
-                .arg(guard.to_string())
-                .args([
-                    "--build-timeout",
-                    "120",
-                    "--no-cache",
-                    "--min-score",
-                    "100",
-                    "--max-integrity-warnings",
-                    "0",
-                    "--output",
-                ])
-                .arg(&report_path)
-                .arg("--keep-logs")
-                .arg(&logs),
-        )?;
+            limit_file_size(
+                Command::new("swift-mutation-testing")
+                    .current_dir(root.join("ios"))
+                    .env("TMPDIR", scratch.path())
+                    .args(["run", ".", "--plan"])
+                    .arg(&plan_path)
+                    .args(["--concurrency", "1", "--timeout"])
+                    .arg(guard.to_string())
+                    .args([
+                        "--build-timeout",
+                        "120",
+                        "--no-cache",
+                        "--min-score",
+                        "100",
+                        "--max-integrity-warnings",
+                        "0",
+                        "--output",
+                    ])
+                    .arg(&report_path)
+                    .arg("--keep-logs")
+                    .arg(&logs),
+                FILE_LIMIT_BYTES,
+            ),
+        );
+        done.store(true, Ordering::Relaxed);
+        let peak = sampler
+            .join()
+            .map_err(|_| anyhow::anyhow!("The scratch size sampler stopped"))?;
+        drop(scratch);
+        ensure!(
+            peak <= SCRATCH_BUDGET_BYTES,
+            "INCONCLUSIVE: the {name} profile's temporary files reached {peak} bytes, past the {SCRATCH_BUDGET_BYTES}-byte budget, so the run stopped on a resource rather than on a test"
+        );
+        run?;
         let hash = crate::sha256_hex(plan_bytes);
         let counts = results(
             root,
@@ -313,9 +549,11 @@ pub fn run(root: &Path) -> Result<()> {
             &serde_json::from_slice(&fs::read(&report_path)?)?,
             &hash,
             &logs,
+            &EQUIVALENTS,
         )?;
-        profiles.push(json!({"scope":source,"target":target,"plan":plan_path,"report":report_path,"plan_sha256":hash,"baseline_seconds":measured.as_secs_f64(),"hang_guard_seconds":guard,"killed":counts.killed,"compiler_rejected_declaration_renames":counts.compiler_rejected,"survived":0,"uncovered":0,"inconclusive_timeouts":counts.inconclusive}));
+        profiles.push(json!({"scope":source,"target":target,"plan":plan_path,"report":report_path,"plan_sha256":hash,"baseline_seconds":measured.as_secs_f64(),"hang_guard_seconds":guard,"killed":counts.killed,"crashed":counts.crashed,"compiler_rejected_declaration_renames":counts.compiler_rejected,"equivalent":counts.equivalent,"survived":0,"uncovered":0,"inconclusive_timeouts":counts.inconclusive,"resource_stopped":counts.resource_stopped,"file_limit_bytes":FILE_LIMIT_BYTES,"largest_unmutated_build_file_bytes":LARGEST_BUILD_FILE_BYTES,"scratch_budget_bytes":SCRATCH_BUDGET_BYTES,"scratch_peak_bytes":peak}));
         inconclusive.extend(counts.inconclusive);
+        inconclusive.extend(counts.resource_stopped);
     }
     require_current_sources(root, &sources)?;
     let result = if inconclusive.is_empty() {
@@ -331,7 +569,7 @@ pub fn run(root: &Path) -> Result<()> {
     )?;
     ensure!(
         inconclusive.is_empty(),
-        "INCONCLUSIVE: {} mutants reached the hang guard, so the gate holds no evidence about them: {}",
+        "INCONCLUSIVE: {} mutants reached the hang guard or the file size cap, so the gate holds no evidence about them: {}",
         inconclusive.len(),
         inconclusive.join(", ")
     );
@@ -371,6 +609,93 @@ mod tests {
         let mut unknown = mutant.clone();
         unknown["replacement"] = json!("!=");
         assert!(!declaration_rejection(root.path(), &unknown, diagnostic));
+        fs::write(path.join("SearchInput.swift"), source)?;
+        let mut rank = mutant.clone();
+        rank["file"] = json!("Sources/PhonebookCore/SearchInput.swift");
+        assert!(!declaration_rejection(root.path(), &rank, diagnostic));
+        let named = "type 'NameRank' does not conform to protocol 'Comparable'\nprotocol requires function '<'";
+        assert!(declaration_rejection(root.path(), &rank, named));
+        let mut other = mutant;
+        other["file"] = json!("Sources/PhonebookCore/Other.swift");
+        fs::write(path.join("Other.swift"), source)?;
+        assert!(!declaration_rejection(root.path(), &other, named));
+        Ok(())
+    }
+
+    #[test]
+    fn an_equivalent_entry_explains_exactly_its_own_surviving_mutant() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        fs::create_dir_all(root.path().join("ios/Sources"))?;
+        let source = root.path().join("ios/Sources/Example.swift");
+        fs::write(&source, "  ready = true\n  done = true\n")?;
+        fs::write(
+            root.path().join("swift-mutation-testing_1.log"),
+            "status:    Killed\n",
+        )?;
+        let entry = [Equivalent {
+            file: "Sources/Example.swift",
+            line: "ready = true",
+            operator: "BooleanLiteralReplacement",
+            original: "true",
+            replacement: "false",
+            reason: "The flag only saves work.",
+        }];
+        let planned = |fingerprint: &str, line: u64| json!({"fingerprint":fingerprint,"file":"Sources/Example.swift","operator":"BooleanLiteralReplacement","original":"true","replacement":"false","line":line,"column":11});
+        let result = |fingerprint: &str, line: u64, status: &str| json!({"fingerprint":fingerprint,"id":"swift-mutation-testing_1","mutatorName":"BooleanLiteralReplacement","originalText":"true","replacement":"false","location":{"start":{"line":line,"column":11}},"status":status,"activated":true,"killedBy":["contract()"]});
+        let plan = json!({"formatVersion":1,"toolVersion":VERSION,"scope":{"operators":OPERATORS,"excludePatterns":[]},"mutants":[planned("flag", 1), planned("done", 2)]});
+        let report = |first: &str, second: &str| json!({"config":{"toolVersion":VERSION,"planSha256":"hash"},"files":{"/Sources/Example.swift":{"mutants":[result("flag", 1, first), result("done", 2, second)]}}});
+        let counts = results(
+            root.path(),
+            &plan,
+            &report("Survived", "Killed"),
+            "hash",
+            root.path(),
+            &entry,
+        )?;
+        assert_eq!(counts.killed, 1);
+        assert_eq!(
+            counts.equivalent,
+            [
+                "Sources/Example.swift:1 BooleanLiteralReplacement true -> false: The flag only saves work."
+            ]
+        );
+        // The planted survivor on the other line stays a failure.
+        assert!(
+            results(
+                root.path(),
+                &plan,
+                &report("Survived", "Survived"),
+                "hash",
+                root.path(),
+                &entry
+            )
+            .is_err()
+        );
+        // A killed mutant shows that its entry no longer holds.
+        assert!(
+            results(
+                root.path(),
+                &plan,
+                &report("Killed", "Killed"),
+                "hash",
+                root.path(),
+                &entry
+            )
+            .is_err()
+        );
+        // An edited line names no mutant, so the entry fails until someone reviews it.
+        fs::write(&source, "  ready = !false\n  done = true\n")?;
+        assert!(
+            results(
+                root.path(),
+                &plan,
+                &report("Survived", "Killed"),
+                "hash",
+                root.path(),
+                &entry
+            )
+            .is_err()
+        );
         Ok(())
     }
 
@@ -381,30 +706,66 @@ mod tests {
         let plan = json!({"formatVersion":1,"toolVersion":VERSION,"scope":{"operators":OPERATORS,"excludePatterns":[]},"mutants":[planned]});
         let mutant = json!({"fingerprint":"one","id":"swift-mutation-testing_0","mutatorName":"NegateConditional","originalText":"ready","replacement":"!ready","location":{"start":{"line":1,"column":1}},"status":"Killed","activated":true,"killedBy":["contract()"]});
         let report = json!({"config":{"toolVersion":VERSION,"planSha256":"hash"},"files":{"/Sources/Example.swift":{"mutants":[mutant.clone()]}}});
+        let log = root.path().join("swift-mutation-testing_0.log");
+        fs::write(
+            &log,
+            "mutant:    swift-mutation-testing_0\nstatus:    Killed\n",
+        )?;
         assert_eq!(
-            results(root.path(), &plan, &report, "hash", root.path())?,
+            results(root.path(), &plan, &report, "hash", root.path(), &[])?,
             Counts {
                 killed: 1,
-                compiler_rejected: 0,
-                inconclusive: Vec::new()
+                ..Counts::default()
             }
         );
         let mut timed_out = report.clone();
         timed_out["files"]["/Sources/Example.swift"]["mutants"][0]["status"] = json!("Timeout");
         assert_eq!(
-            results(root.path(), &plan, &timed_out, "hash", root.path())?,
+            results(root.path(), &plan, &timed_out, "hash", root.path(), &[])?,
             Counts {
-                killed: 0,
-                compiler_rejected: 0,
-                inconclusive: vec!["one".to_owned()]
+                inconclusive: vec!["one".to_owned()],
+                ..Counts::default()
             }
         );
+        let mut crashed = report.clone();
+        crashed["files"]["/Sources/Example.swift"]["mutants"][0]["killedBy"] = Value::Null;
+        crashed["files"]["/Sources/Example.swift"]["mutants"][0]["statusReason"] = json!("crash");
+        assert!(results(root.path(), &plan, &crashed, "hash", root.path(), &[]).is_err());
+        fs::write(
+            &log,
+            "mutant:    swift-mutation-testing_0\nstatus:    Crash\n",
+        )?;
+        assert_eq!(
+            results(root.path(), &plan, &crashed, "hash", root.path(), &[])?,
+            Counts {
+                crashed: 1,
+                ..Counts::default()
+            }
+        );
+        crashed["files"]["/Sources/Example.swift"]["mutants"][0]["activated"] = json!(false);
+        assert!(results(root.path(), &plan, &crashed, "hash", root.path(), &[]).is_err());
+        // A test that stopped at the file size cap proves nothing, even though the tool calls it killed.
+        fs::write(
+            &log,
+            "Caught error: Error Domain=NSPOSIXErrorDomain Code=27 \"File too large\"\n",
+        )?;
+        assert_eq!(
+            results(root.path(), &plan, &report, "hash", root.path(), &[])?,
+            Counts {
+                resource_stopped: vec!["one".to_owned()],
+                ..Counts::default()
+            }
+        );
+        fs::write(
+            &log,
+            "mutant:    swift-mutation-testing_0\nstatus:    Killed\n",
+        )?;
         let mut invalid = report.clone();
         invalid["files"]["/Sources/Example.swift"]["mutants"] = json!([]);
-        assert!(results(root.path(), &plan, &invalid, "hash", root.path()).is_err());
+        assert!(results(root.path(), &plan, &invalid, "hash", root.path(), &[]).is_err());
         invalid["files"]["/Sources/Example.swift"]["mutants"] = json!([mutant.clone(), mutant]);
-        assert!(results(root.path(), &plan, &invalid, "hash", root.path()).is_err());
-        assert!(results(root.path(), &plan, &report, "wrong", root.path()).is_err());
+        assert!(results(root.path(), &plan, &invalid, "hash", root.path(), &[]).is_err());
+        assert!(results(root.path(), &plan, &report, "wrong", root.path(), &[]).is_err());
         for status in [
             "Survived",
             "NoCoverage",
@@ -414,7 +775,7 @@ mod tests {
         ] {
             let mut invalid = report.clone();
             invalid["files"]["/Sources/Example.swift"]["mutants"][0]["status"] = json!(status);
-            assert!(results(root.path(), &plan, &invalid, "hash", root.path()).is_err());
+            assert!(results(root.path(), &plan, &invalid, "hash", root.path(), &[]).is_err());
         }
         for (field, value) in [
             ("activated", json!(false)),
@@ -423,8 +784,38 @@ mod tests {
         ] {
             let mut invalid = report.clone();
             invalid["files"]["/Sources/Example.swift"]["mutants"][0][field] = value;
-            assert!(results(root.path(), &plan, &invalid, "hash", root.path()).is_err());
+            assert!(results(root.path(), &plan, &invalid, "hash", root.path(), &[]).is_err());
         }
+        Ok(())
+    }
+
+    #[test]
+    fn the_file_size_cap_turns_a_runaway_write_into_an_error() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let file = directory.path().join("runaway");
+        let output = limit_file_size(
+            Command::new("dd")
+                .arg("if=/dev/zero")
+                .arg(format!("of={}", file.display()))
+                .args(["bs=1m", "count=64"]),
+            1024 * 1024,
+        )
+        .output()?;
+        assert!(!output.status.success());
+        assert!(output.status.code().is_some(), "dd ended by a signal");
+        assert!(String::from_utf8_lossy(&output.stderr).contains(FILE_LIMIT_ERROR));
+        assert!(fs::metadata(&file)?.len() <= 1024 * 1024);
+        Ok(())
+    }
+
+    #[test]
+    fn the_scratch_size_counts_every_nested_file() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        fs::create_dir_all(directory.path().join("a/b"))?;
+        fs::write(directory.path().join("one"), [0; 10])?;
+        fs::write(directory.path().join("a/b/two"), [0; 32])?;
+        assert_eq!(tree_bytes(directory.path()), 42);
+        assert_eq!(tree_bytes(&directory.path().join("missing")), 0);
         Ok(())
     }
 
