@@ -242,8 +242,11 @@ final class IntegrationModel {
     update(.check)
   }
 
+  /// Reads the listing once it answers, and again at each launch and return to the welcome while an app without a bundle lacks it.
+  /// With a bundle, an unreachable listing and a listing of the bundled snapshot plan the same run, so the first answer stays.
   private func readPlan() async {
-    guard plan == nil else { return }
+    let unanswered = FirstRunPlan.decide(bundle: .missing, listing: .unreachable)
+    guard plan == nil || (bundleState == .missing && plan == unanswered) else { return }
     let bundle = await openBundle()
     plan = try? await sync.planFirstRun(bundle: bundle)
   }
