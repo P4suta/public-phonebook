@@ -65,6 +65,12 @@ public enum CallerFile {
     private var position = 0
     private var ended = false
     private var previous: Int64 = 0
+    /// The most bytes the buffer has held at once, which stays under `bufferLimit` however long the file is.
+    public private(set) var peakBufferedBytes = 0
+    /// A refill starts with fewer unread bytes than one record or the header and adds at most one chunk.
+    public var bufferLimit: Int {
+      chunk + max(CallerFile.maximumRecordBytes, CallerFile.header.count)
+    }
 
     public init(url: URL, chunk: Int = 65_536) throws {
       handle = try FileHandle(forReadingFrom: url)
@@ -126,6 +132,7 @@ public enum CallerFile {
           break
         }
         buffer.append(contentsOf: data)
+        peakBufferedBytes = max(peakBufferedBytes, buffer.count)
       }
     }
   }

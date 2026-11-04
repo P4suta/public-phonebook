@@ -57,6 +57,14 @@ const RUNTIME: &str = "com.apple.CoreSimulator.SimRuntime.iOS-27-0";
 const DEVICE_TYPE: &str = "com.apple.CoreSimulator.SimDeviceType.iPhone-17";
 const DEVICE_NAME: &str = "Public Phonebook Checks";
 const LIVE_UI_TEST: &str = "testLivePublicDirectorySearchAndSource";
+/// Measures the process footprint, so it runs in its own invocation where no concurrent test allocates.
+const ISOLATED_FOOTPRINT_TEST: &str = "readerFootprintStaysFlatWhenRunAlone";
+const ISOLATED_FOOTPRINT_VARIABLE: &str = "PHONEBOOK_ISOLATED_FOOTPRINT";
+const SANITIZED_CONTRACTS: [&str; 3] = [
+    "byteParserMatchesTheStringParserOnEveryMutatedLine",
+    "readerBufferStaysBoundedOverMoreEntriesThanTheNationalDirectory",
+    "cancellationBeforeAndDuringRealRequestsAlwaysCompletes",
+];
 const UI_TESTS: [&str; 17] = [
     "testOnboardingSavesTheDirectoryBeforeSearch",
     "testSearchGroupsResultsAndShowsMore",
@@ -684,6 +692,54 @@ fn plist_string(path: &Path, key: &str) -> Result<String> {
     Ok(value)
 }
 
+/// Requires that the main run left out the footprint test and that the isolated run passed it alone.
+fn require_isolated_footprint(main: &str, isolated: &str) -> Result<()> {
+    let name = format!("Test {ISOLATED_FOOTPRINT_TEST}()");
+    ensure!(
+        !main.lines().any(|line| line.contains(&name)),
+        "The main Swift test run included {ISOLATED_FOOTPRINT_TEST}, which shares its process with concurrent tests"
+    );
+    ensure!(
+        isolated
+            .lines()
+            .any(|line| line.starts_with(&format!("✔ {name} passed after ")))
+            && isolated
+                .lines()
+                .any(|line| line.contains("Test run with 1 test ")
+                    && line.contains(" passed after ")),
+        "The isolated Swift test run did not pass {ISOLATED_FOOTPRINT_TEST} alone"
+    );
+    Ok(())
+}
+
+/// Requires that a sanitizer run passed the tests that drive untrusted bytes, bounded buffers, and cancellation through the code.
+fn require_sanitized_contracts(output: &str) -> Result<()> {
+    for contract in SANITIZED_CONTRACTS {
+        ensure!(
+            output
+                .lines()
+                .any(|line| line.starts_with(&format!("✔ Test {contract}() "))
+                    && line.contains(" passed after ")),
+            "Sanitizer gate did not pass required behavioral test {contract}"
+        );
+    }
+    Ok(())
+}
+
+/// Removes the footprint test from a test enumeration, and refuses an enumeration that lacks it.
+fn without_isolated_footprint(list: &str) -> Result<String> {
+    let suffix = format!(".{ISOLATED_FOOTPRINT_TEST}()");
+    let (removed, kept): (Vec<&str>, Vec<&str>) = list
+        .lines()
+        .partition(|line| line.trim().ends_with(&suffix));
+    ensure!(
+        removed.len() == 1,
+        "The Swift test enumeration lists {ISOLATED_FOOTPRINT_TEST} {} times instead of once",
+        removed.len()
+    );
+    Ok(kept.join("\n"))
+}
+
 fn require_unit_inventory(list: &str, log: &str) -> Result<usize> {
     let mut expected = BTreeSet::new();
     for identifier in list.lines().filter(|line| !line.trim().is_empty()) {
@@ -1094,12 +1150,42 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "--jobs",
                     "2",
                     "--enable-code-coverage",
+                    "--skip",
+                    ISOLATED_FOOTPRINT_TEST,
                     "-Xswiftc",
                     "-warnings-as-errors",
                 ]),
             )?;
             let mut log = String::from_utf8_lossy(&unit.stdout).into_owned();
             log.push_str(&String::from_utf8_lossy(&unit.stderr));
+            // The coverage data stays the main run's, because this run writes its profile elsewhere.
+            let isolated = logged(
+                root,
+                "unit-isolated-footprint",
+                Command::new("xcrun")
+                    .current_dir(root)
+                    .env(ISOLATED_FOOTPRINT_VARIABLE, "1")
+                    .env(
+                        "LLVM_PROFILE_FILE",
+                        root.join("target/ios/unit-isolated-footprint-%p.profraw"),
+                    )
+                    .args([
+                        "swift",
+                        "test",
+                        "--package-path",
+                        "ios",
+                        "--skip-build",
+                        "--filter",
+                        ISOLATED_FOOTPRINT_TEST,
+                    ]),
+            )?;
+            let isolated_log = format!(
+                "{}{}",
+                String::from_utf8_lossy(&isolated.stdout),
+                String::from_utf8_lossy(&isolated.stderr)
+            );
+            require_isolated_footprint(&log, &isolated_log)?;
+            log.push_str(&isolated_log);
             for harness in REQUIRED_TESTS {
                 ensure!(
                     log.lines()
@@ -1257,21 +1343,16 @@ fn sanitize(root: &Path) -> Result<()> {
                 .current_dir(root)
                 .args(["swift", "test", "--package-path", "ios", "--scratch-path"])
                 .arg(root.join(format!("target/ios/sanitize-{sanitizer}")))
-                .args(["--sanitize", sanitizer, "--jobs", "2"]),
+                .args(["--sanitize", sanitizer, "--jobs", "2"])
+                // A sanitizer's shadow memory and quarantine make the footprint meaningless, and the bounded-buffer test covers the reader's code here.
+                .args(["--skip", ISOLATED_FOOTPRINT_TEST]),
         )?;
         let output = format!(
             "{}{}",
             String::from_utf8_lossy(&result.stdout),
             String::from_utf8_lossy(&result.stderr)
         );
-        ensure!(
-            output.contains("seededChunkingAndByteMutationsAgreeWithTheWholeDocumentDecoder")
-                && output
-                    .contains("legacyProjectionPayloadsAreBoundedBeforeDecodingAndRemainOnDisk")
-                && output.contains("cancellationBeforeAndDuringRealRequestsAlwaysCompletes")
-                && output.contains("Test run with"),
-            "Sanitizer gate executed no required behavioral tests"
-        );
+        require_sanitized_contracts(&output)?;
         let inventory = logged(
             root,
             &format!("sanitize-{sanitizer}-inventory"),
@@ -1294,7 +1375,10 @@ fn sanitize(root: &Path) -> Result<()> {
                 .arg(root.join(format!("target/ios/sanitize-{sanitizer}")))
                 .args(["--sanitize", sanitizer, "--skip-build"]),
         )?;
-        require_unit_inventory(&String::from_utf8(inventory.stdout)?, &output)?;
+        require_unit_inventory(
+            &without_isolated_footprint(&String::from_utf8(inventory.stdout)?)?,
+            &output,
+        )?;
     }
     require_current_sources(root, &sources)?;
     fs::write(
@@ -1385,6 +1469,65 @@ mod tests {
             require_unit_inventory("PhonebookCoreTests.first()\nPhonebookKitTests.first()", log)
                 .is_err()
         );
+        Ok(())
+    }
+
+    #[test]
+    fn isolated_footprint_runs_alone_and_only_in_its_own_invocation() -> Result<()> {
+        let main = "✔ Test first() passed after 0.1 seconds.\n✔ Test run with 1 test in 0 suites passed after 0.1 seconds.\n";
+        let isolated = format!(
+            "◇ Test run started.\n✔ Test {ISOLATED_FOOTPRINT_TEST}() passed after 0.4 seconds.\n✔ Test run with 1 test in 0 suites passed after 0.4 seconds.\n"
+        );
+        require_isolated_footprint(main, &isolated)?;
+        let shared = format!("{main}{isolated}");
+        assert!(require_isolated_footprint(&shared, &isolated).is_err());
+        let skipped = format!("{main}➜ Test {ISOLATED_FOOTPRINT_TEST}() skipped.\n");
+        assert!(require_isolated_footprint(&skipped, &isolated).is_err());
+        for invalid in [
+            isolated.replace(
+                " passed after 0.4 seconds.\n✔ Test run",
+                " failed after 0.4 seconds.\n✔ Test run",
+            ),
+            isolated.replace("with 1 test ", "with 2 tests "),
+            isolated.replace(ISOLATED_FOOTPRINT_TEST, "readerBufferStaysBounded"),
+            String::new(),
+        ] {
+            assert!(require_isolated_footprint(main, &invalid).is_err());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn sanitizer_requires_each_contract_to_pass_not_merely_start() -> Result<()> {
+        let passed = SANITIZED_CONTRACTS
+            .iter()
+            .map(|name| {
+                format!("◇ Test {name}() started.\n✔ Test {name}() passed after 0.1 seconds.\n")
+            })
+            .collect::<String>();
+        require_sanitized_contracts(&passed)?;
+        let started = SANITIZED_CONTRACTS
+            .iter()
+            .map(|name| format!("◇ Test {name}() started.\n"))
+            .collect::<String>();
+        assert!(require_sanitized_contracts(&started).is_err());
+        let failed = passed.replacen(" passed after ", " failed after ", 1);
+        assert!(require_sanitized_contracts(&failed).is_err());
+        assert!(require_sanitized_contracts("").is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn sanitizer_inventory_drops_exactly_the_isolated_footprint_test() -> Result<()> {
+        let list = format!(
+            "PhonebookCoreTests.first()\nPhonebookCoreTests.{ISOLATED_FOOTPRINT_TEST}()\nPhonebookKitTests.second()"
+        );
+        assert_eq!(
+            without_isolated_footprint(&list)?,
+            "PhonebookCoreTests.first()\nPhonebookKitTests.second()"
+        );
+        assert!(without_isolated_footprint("PhonebookCoreTests.first()").is_err());
+        assert!(without_isolated_footprint(&format!("{list}\n{list}")).is_err());
         Ok(())
     }
 
