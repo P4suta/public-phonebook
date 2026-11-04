@@ -1,38 +1,25 @@
 import MapKit
-import PhonebookKit
 
-/// Opens a facility in Apple Maps: the place that map search finds by name near its address, or a pin at the address with its name.
+/// Opens a facility in Apple Maps at the point of its address, as a map item named after the facility.
+/// A search by the facility name found shops named after it, so the app geocodes only the address.
 @MainActor
 enum MapDestination {
-  /// Searching by name and address together returns only the address, so the address anchors a search for the name nearby.
   static func open(name: String, address: String) async -> Bool {
-    guard let addressItem = await search(address, types: .address, region: nil).first else {
-      return false
-    }
-    let anchor = coordinate(of: addressItem)
-    let places = await search(
-      name, types: .pointOfInterest,
-      region: MKCoordinateRegion(
-        center: anchor, latitudinalMeters: 2 * PlaceMatch.radius,
-        longitudinalMeters: 2 * PlaceMatch.radius))
-    if let index = PlaceMatch.nearest(to: anchor, among: places.map(coordinate(of:))) {
-      return places[index].openInMaps()
-    }
-    addressItem.name = name
-    return addressItem.openInMaps()
+    guard let item = await geocode(address) else { return false }
+    item.name = name
+    return item.openInMaps()
   }
 
-  private static func search(
-    _ query: String, types: MKLocalSearch.ResultType, region: MKCoordinateRegion?
-  ) async -> [MKMapItem] {
+  private static func geocode(_ address: String) async -> MKMapItem? {
+    if #available(iOS 26, *) {
+      // https://developer.apple.com/documentation/mapkit/mkgeocodingrequest
+      return try? await MKGeocodingRequest(addressString: address)?.mapItems.first
+    }
+    // iOS 26 deprecates CLGeocoder, so earlier versions search MapKit for the address alone:
+    // https://developer.apple.com/documentation/corelocation/clgeocoder
     let request = MKLocalSearch.Request()
-    request.naturalLanguageQuery = query
-    request.resultTypes = types
-    if let region { request.region = region }
-    return (try? await MKLocalSearch(request: request).start().mapItems) ?? []
-  }
-
-  private static func coordinate(of item: MKMapItem) -> CLLocationCoordinate2D {
-    if #available(iOS 26, *) { item.location.coordinate } else { item.placemark.coordinate }
+    request.naturalLanguageQuery = address
+    request.resultTypes = .address
+    return try? await MKLocalSearch(request: request).start().mapItems.first
   }
 }

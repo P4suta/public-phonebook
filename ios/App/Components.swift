@@ -123,22 +123,32 @@ struct ExternalLink<Label: View>: View {
 }
 
 /// Opens the facility in Apple Maps after a confirmation, beneath the address that stays plain selectable text.
+/// While the address lookup runs, an activity indicator and a busy label replace the pin and the label, so a tap never looks ignored.
+/// See https://developer.apple.com/design/human-interface-guidelines/feedback and https://developer.apple.com/design/human-interface-guidelines/buttons.
 struct MapButton: View {
   let name: String
   let address: String
   @State private var confirming = false
   @State private var opening = false
   @State private var missing = false
+  @ScaledMetric private var iconSize: CGFloat = 22
 
   var body: some View {
     Button {
-      confirming = true
+      if !opening { confirming = true }
     } label: {
-      IconLabel(icon: "location", text: "地図で見る")
+      HStack(spacing: 8) {
+        if opening {
+          ProgressView().tint(.ink).frame(width: iconSize, height: iconSize)
+            .accessibilityHidden(true)
+        } else {
+          DesignIcon(name: "location")
+        }
+        Text(opening ? "場所をさがしています" : "地図で見る")
+      }
     }
     .buttonStyle(MonoButtonStyle())
-    .disabled(opening)
-    .accessibilityLabel("\(name)を地図で見る")
+    .accessibilityLabel(opening ? "\(name)の場所をさがしています" : "\(name)を地図で見る")
     .accessibilityIdentifier("map-button")
     .alert("マップで開きます", isPresented: $confirming) {
       Button("開く") {
