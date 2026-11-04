@@ -75,13 +75,13 @@ The received bytes stay in the store's `transfers` directory after a failure or 
 A 206 reply must start at the kept length and end at the listed length, a 200 reply starts the file again, and a 416 reply discards the kept bytes.
 A changed snapshot or digest names a different file, so the app discards the kept bytes of every other file.
 The app removes the file once its generation activates, and a file lock keeps two downloads from writing it at once.
-`APIClient` owns one ephemeral `URLSession` for its JSON requests and one for its dataset transfers, and the last copy of the client invalidates both.
+`APIClient` owns one ephemeral `URLSession` for its JSON requests and two for its dataset transfers, and the last copy of the client invalidates all three.
 Each request still carries its own path rules, because `allowsExpensiveNetworkAccess` and `allowsConstrainedNetworkAccess` on a request override the session.
-The transfer session sets `waitsForConnectivity`, so a transfer without a connection waits for a path, and the wait display shows the weak-signal line at once.
+The session of the transfers that the person starts sets `waitsForConnectivity`, so such a transfer without a connection waits for a path, and the wait display shows the weak-signal line at once.
 The JSON session fails at once without a connection, so the listing and its retries keep their timing.
 The transfer's 900-second resource timeout bounds the wait, and the first download's retry schedule takes over after it.
-A refused connection also waits, because the session connects again only when the network path changes.
-Apple lists a forbidden mobile path among the reasons to wait, so an automatic transfer whose path turns costly waits within the same bound.
+For a waiting transfer, a refused connection also waits, because the session connects again only when the network path changes.
+Automatic transfers take the other transfer session, which doesn't wait, so a missing or costly path fails them at once and the update decision starts them again.
 It decodes the Brotli stream with the system Compression framework and validates the signature, the header dictionaries, every row, the byte order of the rows, and the per-prefecture counts.
 It saves the rows in a new SQLite generation with a file of normalized names and a file of row categories, and activates the generation atomically.
 The store saves one batch of 1,000 rows while the reader parses the next batch, and it saves the batches in archive order.

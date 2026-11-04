@@ -3,7 +3,7 @@ import PhonebookCore
 import Synchronization
 
 /// Which network paths a request may use.
-public enum NetworkPaths: Sendable, Equatable {
+public enum NetworkPaths: Sendable, Equatable, CaseIterable {
   /// Every path, including mobile data and Low Data Mode, for the first download that the person started.
   case every
   /// Only paths that are neither expensive nor constrained, for the automatic monthly update.
@@ -13,6 +13,10 @@ public enum NetworkPaths: Sendable, Equatable {
     request.allowsExpensiveNetworkAccess = self == .every
     request.allowsConstrainedNetworkAccess = self == .every
   }
+
+  /// A transfer that the person started waits for a connection.
+  /// An automatic transfer fails at once, so a costly path reaches its deferral and the update decision starts it again.
+  var waitsForConnectivity: Bool { self == .every }
 }
 
 /// The bytes of one dataset file: those kept from earlier attempts, those received in this attempt, and the listed length.

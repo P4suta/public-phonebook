@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import Synchronization
 import Testing
 
 @testable import PhonebookKit
@@ -29,21 +30,35 @@ private func keptServer() async throws -> HTTPTestServer {
   }
 }
 
-@Test(.timeLimit(.minutes(1))) func requestsOfOneClientShareOneSessionForJSONAndOneForTransfers()
+@Test(.timeLimit(.minutes(1)))
+func requestsOfOneClientShareOneSessionForJSONAndOneForEachTransferOrigin()
   async throws
 {
   let server = try await keptServer()
   defer { server.close() }
   let api = try APIClient(origin: server.origin)
   for _ in 0..<2 { #expect(try await api.get("/api/datasets").data == json) }
-  for _ in 0..<2 {
-    let file = try await api.download(archive())
+  for paths in [NetworkPaths.every, .every, .inexpensive, .inexpensive] {
+    let file = try await api.download(archive(), paths: paths)
     defer { try? FileManager.default.removeItem(at: file) }
     #expect(try Data(contentsOf: file) == body)
   }
-  #expect(server.requestCount == 4)
-  // The JSON session and the transfer session each keep one connection for both of their requests.
-  #expect(server.connectionCount == 2)
+  #expect(server.requestCount == 6)
+  // The JSON session and each transfer session keep one connection for both of their requests.
+  #expect(server.connectionCount == 3)
+}
+
+@Test func eachTransferOriginTakesItsOwnSession() throws {
+  let api = try APIClient(origin: #require(URL(string: "https://www.dial.page")))
+  var sessions = Set<ObjectIdentifier>()
+  for paths in NetworkPaths.allCases {
+    #expect(paths.waitsForConnectivity == (paths == .every))
+    let session = api.transferSession(for: paths)
+    #expect(session.configuration.waitsForConnectivity == paths.waitsForConnectivity)
+    #expect(session.configuration.httpCookieStorage == nil)
+    sessions.insert(ObjectIdentifier(session))
+  }
+  #expect(sessions.count == NetworkPaths.allCases.count)
 }
 
 @Test(.timeLimit(.minutes(1))) func aCancelledRequestLeavesTheSharedSessionUsable() async throws {
@@ -71,7 +86,8 @@ private func keptServer() async throws -> HTTPTestServer {
   #expect(server.requestCount == 2)
 }
 
-@Test(.timeLimit(.minutes(1))) func aTransferWaitsForAConnectionWhileJSONRequestsFailAtOnce()
+@Test(.timeLimit(.minutes(1)))
+func aPersonsTransferWaitsWhileJSONRequestsAndAutomaticTransfersFailAtOnce()
   async throws
 {
   // A listener that stopped leaves its port refusing connections.
@@ -80,9 +96,18 @@ private func keptServer() async throws -> HTTPTestServer {
   // A JSON request that waited would end with a timeout instead.
   let refused = await #expect(throws: URLError.self) { try await api.get("/api/datasets") }
   #expect(refused?.code == .cannotConnectToHost)
+  // An automatic transfer fails at once too, so the update decision starts it again.
+  let automaticWaits = Mutex(0)
+  let automatic = await #expect(throws: URLError.self) {
+    try await api.download(archive(), paths: .inexpensive) { report in
+      if report.waiting { automaticWaits.withLock { $0 += 1 } }
+    }
+  }
+  #expect(automatic?.code == .cannotConnectToHost)
+  #expect(automaticWaits.withLock { $0 } == 0)
   let (waits, waited) = AsyncStream.makeStream(of: TransferProgress.self)
   let transfer = Task {
-    try await api.download(archive()) { if $0.waiting { waited.yield($0) } }
+    try await api.download(archive(), paths: .every) { if $0.waiting { waited.yield($0) } }
   }
   var reports = waits.makeAsyncIterator()
   #expect(
@@ -109,17 +134,23 @@ private func keptServer() async throws -> HTTPTestServer {
   let server = try await keptServer()
   defer { server.close() }
   weak var jsonSession: OwnedSession?
-  weak var transferSession: OwnedSession?
+  weak var waitingSession: OwnedSession?
+  weak var immediateSession: OwnedSession?
   do {
     let transport = URLSessionTransport()
     let api = try APIClient(origin: server.origin, transport: transport)
     jsonSession = transport.owned
-    transferSession = api.transfers
+    waitingSession = api.waitingTransfers
+    immediateSession = api.immediateTransfers
     #expect(try await api.get("/api/datasets").data == json)
-    let file = try await api.download(archive())
-    try FileManager.default.removeItem(at: file)
-    withExtendedLifetime(api) { #expect(jsonSession != nil && transferSession != nil) }
+    for paths in NetworkPaths.allCases {
+      let file = try await api.download(archive(), paths: paths)
+      try FileManager.default.removeItem(at: file)
+    }
+    withExtendedLifetime(api) {
+      #expect(jsonSession != nil && waitingSession != nil && immediateSession != nil)
+    }
   }
-  // No task delegate holds an owner, so the last copy of the client invalidates both sessions.
-  #expect(jsonSession == nil && transferSession == nil)
+  // No task delegate holds an owner, so the last copy of the client invalidates every session.
+  #expect(jsonSession == nil && waitingSession == nil && immediateSession == nil)
 }

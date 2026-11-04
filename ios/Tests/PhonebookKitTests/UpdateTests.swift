@@ -127,6 +127,27 @@ func automaticTransfersWaitForAnInexpensivePath(_ path: UpdatePath, _ transfer: 
   #expect(requests.ordered.filter { $0 == "/api/datasets" }.count == 1)
 }
 
+/// An automatic transfer whose connection is refused fails at once, and its transfer waits again for the path rule.
+@Test(.timeLimit(.minutes(1))) func aRefusedAutomaticTransferFailsAtOnceAndWaitsAgain()
+  async throws
+{
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let (store, baseline) = try await baselineStore(in: root)
+  var server: HTTPTestServer? = try await updatedServer(deltas: false, requests: RequestLog())
+  let records = MemoryUpdateRecords()
+  let update = try updater(#require(server), store, records)
+  #expect(try await update.check(path: costlyPaths[0]).start == nil)
+  #expect(records.load().state.waiting == .archive)
+  // A stopped listener leaves its port refusing the transfer that the saved listing names.
+  server = nil
+  let refused = await #expect(throws: URLError.self) { try await update.pathChanged(inexpensive) }
+  // A transfer that waited for a connection would end with a timeout instead.
+  #expect(refused?.code == .cannotConnectToHost)
+  #expect(records.load().state.waiting == .archive)
+  #expect(try await store.manifest()?.generation == baseline.generation)
+}
+
 @Test(.timeLimit(.minutes(1))) func aTransferThePersonStartsUsesAnExpensivePath() async throws {
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }

@@ -126,7 +126,7 @@ const UI_TESTS: [&str; 23] = [
 ];
 /// The UI scenarios that run with the simulator in the dark appearance.
 const DARK_UI_TESTS: [&str; 1] = ["testDarkAppearanceSwapsBlackAndWhite"];
-const REQUIRED_TESTS: [&str; 88] = [
+const REQUIRED_TESTS: [&str; 90] = [
     "currentProviderArchiveImportsTheNationalDirectory",
     "providerArchiveSavesTheExpectedGenerationContent",
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
@@ -210,11 +210,13 @@ const REQUIRED_TESTS: [&str; 88] = [
     "aTransferThePersonStartsUsesAnExpensivePath",
     "refreshCountsTheMonthFromTheSnapshotsGeneratedDate",
     "expiryDuringTheActivationReleasesTheLeaseBeforeTheHandlerReturns",
-    "requestsOfOneClientShareOneSessionForJSONAndOneForTransfers",
+    "requestsOfOneClientShareOneSessionForJSONAndOneForEachTransferOrigin",
     "aCancelledRequestLeavesTheSharedSessionUsable",
-    "aTransferWaitsForAConnectionWhileJSONRequestsFailAtOnce",
+    "aPersonsTransferWaitsWhileJSONRequestsAndAutomaticTransfersFailAtOnce",
     "aClientsSessionsGoAwayWithTheClient",
     "theWeakSignalFollowsTheWaitingAndTheStallOnEveryLine",
+    "eachTransferOriginTakesItsOwnSession",
+    "aRefusedAutomaticTransferFailsAtOnceAndWaitsAgain",
 ];
 const SCOPE: [&str; 19] = [
     "ios",
