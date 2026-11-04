@@ -64,6 +64,10 @@ const names = [
   "山崎図書館",
   "髙田医院",
   "高田医院",
+  "澤田医院",
+  "沢田クリニック",
+  "渡邊会館",
+  "齋藤医院",
 ] as const;
 const categories = ["library", "library", "medical", "museum"] as const;
 const phones = [
@@ -298,6 +302,10 @@ const queries = [
   "山崎",
   "髙田",
   "高田",
+  "澤田",
+  "沢田",
+  "渡辺",
+  "國立",
   "崎",
   "千代田 図書館",
   "東京　分室",
@@ -417,6 +425,11 @@ describe("local search parity with the server", () => {
       ["崎", "\u{fa11}山図書館"],
       ["髙田", "高田医院"],
       ["高田", "髙田医院"],
+      ["沢田", "澤田医院"],
+      ["澤田", "沢田クリニック"],
+      ["渡辺", "渡邊会館"],
+      ["斎藤", "齋藤医院"],
+      ["國立", "国立国会図書館"],
     ] as const) {
       const grouped = v.parse(
         GroupedSearchResponseSchema,

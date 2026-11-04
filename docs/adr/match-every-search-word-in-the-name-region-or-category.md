@@ -39,16 +39,24 @@ Place every row that needs its region or category for some word in a fourth tier
 Keep the normalized name in UTF-8 order and then the identifier as the order within a tier, and keep the category groups and their continuation pages.
 Keep the existing normalized name as the sort key, because the row numbers, the browser index positions, and the archive order all follow it, and keep the comparison form beside it.
 
-Build the kanji table with `tools/kanji-variants.ts` from Unihan 18.0.0, which the tool pins by URL and SHA-256 and fetches into `target/`.
+Build the kanji table with `tools/kanji-variants.ts` from the Joyo Kanji Table notice of 2010-11-30 and Unihan 18.0.0, which the tool pins by URL and SHA-256 and fetches into `target/`.
 The tool joins characters in a fixed order of evidence.
-It first joins the kJoyoKanji and kJinmeiyoKanji entries that point a variant at its standard form, and then the kZVariant pairs.
+It first joins each traditional form that the notice prints in round brackets beside a standard character, so no later Unihan edge can pull that form into another group.
+It then joins the kJoyoKanji and kJinmeiyoKanji entries that point a variant at its standard form, and then the kZVariant pairs.
 It then joins the kSemanticVariant entries that a source marks as z-variants, and last a nonstandard character's only kSemanticVariant that is a standard form.
 No join puts two 常用漢字 or 人名用漢字 standard forms in one group, so `崎` and `埼` stay apart.
 The representative is the group's standard form, or else its lowest code point, so a representative never folds again.
 The semantic variants are part of the rule because the list pointers and z-variants alone join neither `﨑` with `崎` nor `髙` with `高`, and the owner requires both.
-The tool writes the same pairs into `src/core/kanji-variants.ts` and `ios/Sources/PhonebookCore/KanjiVariants.swift`.
-`just check` stays offline and requires both files to carry the same pairs under the pinned provenance.
-`just check-build` fetches the pinned archive, verifies its digest, regenerates both files, and requires the committed bytes.
+Every traditional form must fold into its standard character, or the generation stops.
+The tool writes the same pairs into `src/core/kanji-variants.ts` and `ios/Sources/PhonebookCore/KanjiVariants.swift`, and it writes the notice's traditional forms into `tools/joyo-traditional-forms.ts`.
+`just check` stays offline and requires both tables to carry the same pairs under the pinned provenance and to fold every committed traditional form into its standard character.
+`just check-build` fetches both pinned files, verifies their digests, regenerates the three files, and requires the committed bytes.
+
+The tool reads the notice's main table from the Agency for Cultural Affairs PDF through pdf.js, and it refuses any text in the bracket column that isn't a bracketed form.
+It requires the notice's 2136 characters, which must equal Unihan's kJoyoKanji list, and 364 traditional forms beside 362 of them.
+The notice draws the form beside `亀` as outlines, so the tool supplies `龜` for those empty brackets, and it reads the three forms that `弁` stacks inside one pair of drawn brackets.
+The square brackets beside five characters give permitted printed forms with the same code points, so they stay out, and `餅` carries its traditional form `餠` in round brackets on the next line.
+Unihan 18.0.0's kJapaneseNewVariant and kJapaneseOldVariant list the same 364 pairs, and the generation requires both equalities, so a form that the layout hides stops it.
 
 Define the comparison form once per platform and pin the two definitions together.
 `src/core/search-text.ts` defines it for the website, and `SearchInput` defines it for the app.
@@ -72,5 +80,17 @@ The search cache keys on the Worker version, so no cached response from the earl
 The search identity of a word query changes, so a continuation cursor issued for a name query before the change fails as an invalid cursor, while searches without words keep their identity and cursors.
 An app that saved a generation in format 2 counts as having no saved directory, so its next launch saves the bundled archive again before it catches up through deltas.
 A query typed with `山﨑` finds `山崎`, and a query typed with `髙田` finds `高田`, in both directions on every path.
-Unihan 18.0.0 joins neither `澤` with `沢`, `邊` or `邉` with `辺`, nor `齋` with `斎` through these fields, so those pairs still differ until a curated table adds them.
+A query typed with `澤`, `邊`, or `齋` finds `沢`, `辺`, or `斎`, and the reverse, on every path, and so does every other traditional form that the notice brackets.
+Unihan's list pointers, z-variants, and semantic variants join none of those three pairs, which is why the notice's forms come first.
+The table grows from 1033 to 1133 pairs.
+Nine variants change representative, because the notice's forms now join before any Unihan edge.
+`壹` folds into `壱` instead of `一`, `貳` into `弐` instead of `二`, `豫` into `予` instead of `預`, and `濱` into `浜` instead of `瀕`.
+`歸`, `總`, `縂`, `遲`, and `樓` move from a nonstandard representative to `帰`, `総`, `総`, `遅`, and `楼`.
+`邉` stays apart from `辺` and `邊`, because neither the notice nor these Unihan fields join it.
+The variant pairs of the name kanji table in the Family Register Act's enforcement regulations come only from Unihan's kJinmeiyoKanji pointers.
+No primary machine-readable publication of that table exists, because e-Gov's law XML carries it as images and the Ministry of Justice publishes it as a vertically set PDF.
+The app raises its saved format from 3 to 4, so an app that saved comparison names under the earlier table saves the bundled archive again on its next launch.
+A D1 database keeps the `folded_name` values of its import, and a release that reuses a database by its dataset digest keeps them too.
+Until a release imports a dataset with a new digest, the server matches a name that holds a newly folded form by neither form.
+The build gate downloads the notice from the Agency for Cultural Affairs, and Unihan's kJapaneseNewVariant alone would give the same pairs if that download stopped working.
 The table also folds some simplified Chinese forms, such as U+4E1C, into their Japanese standard forms, which only widens a query that uses them.

@@ -71,6 +71,8 @@ private func index(_ lines: [ArchiveLine]) async throws -> (LocalSearch, Snapsho
   let lines = [
     ArchiveLine(name: "山崎図書館"), ArchiveLine(name: "\u{FA11}山会館"),
     ArchiveLine(category: 1, name: "高田医院"), ArchiveLine(category: 1, name: "髙田クリニック"),
+    ArchiveLine(category: 1, name: "澤田医院"), ArchiveLine(category: 1, name: "沢田クリニック"),
+    ArchiveLine(name: "渡邊会館"), ArchiveLine(category: 1, name: "斎藤医院"),
   ]
   let (search, store, generation, root) = try await index(lines)
   defer { try? FileManager.default.removeItem(at: root) }
@@ -88,6 +90,10 @@ private func index(_ lines: [ArchiveLine]) async throws -> (LocalSearch, Snapsho
   #expect(try await names("崎") == ["山崎図書館", "\u{FA11}山会館"])
   #expect(try await names("髙田") == ["高田医院", "髙田クリニック"])
   #expect(try await names("高田") == ["高田医院", "髙田クリニック"])
+  #expect(try await names("澤田") == ["澤田医院", "沢田クリニック"])
+  #expect(try await names("沢田") == ["澤田医院", "沢田クリニック"])
+  #expect(try await names("渡辺") == ["渡邊会館"])
+  #expect(try await names("齋藤") == ["斎藤医院"])
 }
 
 @Test func phoneMatchesGroupEveryRecordForTheNumber() async throws {
