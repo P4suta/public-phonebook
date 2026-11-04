@@ -31,7 +31,7 @@ import {
   type Source,
   SourceSchema,
 } from "../src/core/models.ts";
-import { nameTokens, normalizeName } from "../src/core/search.ts";
+import { nameTokens, normalizeName, showsAddress } from "../src/core/search.ts";
 import {
   encodeSearchIndex,
   searchIndexFile,
@@ -461,7 +461,12 @@ export async function directoryFixture(
           (left, right) =>
             (rowNumbers.get(left.id) ?? 0) - (rowNumbers.get(right.id) ?? 0),
         )
-        .map((contact) => searchIndexRow(contact)),
+        .map((contact) =>
+          searchIndexRow({
+            ...contact,
+            hasAddress: showsAddress(contact.address),
+          }),
+        ),
       { snapshot, catalog },
     );
     const compressedIndex = compressSearchIndex(searchIndex);

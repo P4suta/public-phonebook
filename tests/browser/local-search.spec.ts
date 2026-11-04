@@ -103,6 +103,27 @@ test("the server answers until the index loads, and the switch keeps focus and r
   expect(searches).toHaveLength(1);
 });
 
+test("a local result names its detail action by the address its details show", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await waitForLocalSearch(page);
+  for (const { facility, label } of [
+    { facility: query, label: "住所などを見る" },
+    { facility: "いなべ警察署　東員交番", label: "くわしい情報を見る" },
+  ]) {
+    await page.getByRole("searchbox").fill(facility);
+    const card = page.locator("article").first();
+    await expect(card.getByRole("heading")).toHaveText(facility);
+    const detail = card.getByRole("link", {
+      name: `${facility}の${label}`,
+      exact: true,
+    });
+    await expect(detail).toHaveText(label);
+    await expect(detail).toHaveAttribute("href", /^\/contacts\/row\//u);
+  }
+});
+
 test("search keeps working offline after the index loads", async ({
   page,
   context,

@@ -65,6 +65,7 @@ const library: SearchIndexRow = {
   category: "library",
   region: "13101",
   phones: ["0335812331", "09012345678"],
+  hasAddress: true,
 };
 const clinic: SearchIndexRow = {
   normalizedName: "例診療所",
@@ -72,6 +73,7 @@ const clinic: SearchIndexRow = {
   category: "medical",
   region: "01",
   phones: ["0774981200"],
+  hasAddress: false,
 };
 
 interface Layout {
@@ -185,6 +187,7 @@ const rowArbitrary = fc
       fc.constantFrom("0335812331", "0774981200", "09012345678", "0120123456"),
       { minLength: 1, maxLength: 3 },
     ),
+    hasAddress: fc.boolean(),
   })
   .map((row) => ({ ...row, normalizedName: normalizeName(row.name) }))
   .filter((row) => row.normalizedName !== "");
@@ -210,6 +213,7 @@ describe("search index", () => {
       "prefectures",
       "municipalities",
       "regions",
+      "rowsWithoutAddress",
       "parts",
     ]);
     const decoded = layout(bytes);
@@ -217,6 +221,7 @@ describe("search index", () => {
       snapshot,
       contacts: 2,
       regions: ["01", "13101"],
+      rowsWithoutAddress: [1],
       parts: { categories: 2, regions: 4 },
     });
     expect(decoded.header.categories[libraryIndex]).toEqual({
@@ -251,6 +256,9 @@ describe("search index", () => {
         expect(decoded.header.regions).toEqual(
           [...new Set(rows.map((row) => row.region))].sort(compareUtf8),
         );
+        expect(decoded.header.rowsWithoutAddress).toEqual(
+          rows.flatMap((row, position) => (row.hasAddress ? [] : [position])),
+        );
         expect(encodeSearchIndex(decoded.rows, input)).toEqual(bytes);
       }),
       { seed: 20261106, numRuns: 200 },
@@ -282,6 +290,7 @@ describe("search index", () => {
         prefectureCode: "13",
         municipalityCode: null,
         phones: [{ e164: "+81335812331" }, { e164: "+819012345678" }],
+        hasAddress: false,
       }),
     ).toEqual({
       normalizedName: "a図書館",
@@ -289,6 +298,7 @@ describe("search index", () => {
       category: "library",
       region: "13",
       phones: ["0335812331", "09012345678"],
+      hasAddress: false,
     });
     expect(() =>
       searchIndexRow({
@@ -297,8 +307,21 @@ describe("search index", () => {
         prefectureCode: "13",
         municipalityCode: null,
         phones: [{ e164: "+12025550123" }],
+        hasAddress: true,
       }),
     ).toThrow("Japanese number");
+  });
+
+  it("reads an older header without the address list as rows that all have an address", () => {
+    const bytes = encodeSearchIndex([library, clinic], input);
+    const older = withHeader(bytes, (header) => {
+      delete header.rowsWithoutAddress;
+    });
+    expect(decodeSearchIndex(older).rows).toEqual([
+      library,
+      { ...clinic, hasAddress: true },
+    ]);
+    expect(decodeSearchIndex(bytes).rows).toEqual([library, clinic]);
   });
 
   it("rejects rows the format can't carry", () => {
@@ -385,6 +408,17 @@ describe("search index", () => {
         }),
         "Invalid",
       ],
+      ...[[2], [1, 1], [1, 0], [-1], [0.5]].map(
+        (rows) =>
+          [
+            withHeader(bytes, (header) => {
+              header.rowsWithoutAddress = rows;
+            }),
+            rows.every((row) => Number.isSafeInteger(row) && row >= 0)
+              ? "unique, ascending row positions"
+              : "Invalid",
+          ] as const,
+      ),
       [withNames(bytes, "a図書館\tＡ図書館\n例診療所"), "line feed"],
       [withNames(bytes, "a図書館\tＡ図書館\n"), "contact count"],
       [withNames(bytes, "a図書館\ta図書館\n例診療所\n"), "repeats"],

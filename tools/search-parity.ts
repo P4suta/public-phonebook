@@ -27,6 +27,7 @@ import {
   SearchResponseSchema,
 } from "../src/core/models.ts";
 import { formatPhone, normalizePhone } from "../src/core/phone.ts";
+import { showsAddress } from "../src/core/search.ts";
 import {
   decodeSearchIndex,
   type SearchIndex,
@@ -85,6 +86,7 @@ export interface ComparedRow {
   readonly category: string;
   readonly region: string;
   readonly phones: readonly string[];
+  readonly hasAddress: boolean;
 }
 
 export interface ComparedGroup {
@@ -299,6 +301,7 @@ function serverRow(contact: Contact): ComparedRow {
     phones: contact.phones.map(
       (phone) => `${trunkPrefix}${phone.e164.slice(countryPrefix.length)}`,
     ),
+    hasAddress: showsAddress(contact.address),
   };
 }
 
@@ -309,6 +312,7 @@ function localRow(row: LocalRow, ids: readonly string[]): ComparedRow {
     category: row.category,
     region: row.region,
     phones: row.phones,
+    hasAddress: row.hasAddress,
   };
 }
 
@@ -493,6 +497,7 @@ function previewOf(
             category: row.category,
             region: row.region,
             phones: [...row.phones],
+            hasAddress: row.hasAddress,
           },
           ids,
         );

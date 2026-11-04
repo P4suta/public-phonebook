@@ -193,6 +193,9 @@ Each must fail with an unproved contract rather than a tool error.
 A tool error, timeout, exhausted resource limit, missing condition, or empty inventory cannot count as that rejection.
 
 The verifier uses a pinned base-image digest and a checked upstream archive digest.
+It installs `unzip` from the Debian package file that snapshot.debian.org serves under its SHA-1, and the build checks that file's SHA-256.
+The Lean image for `just ios-prove` gets `zstd` the same way, so neither verifier image reads the live Debian mirrors.
+Lean runs with no network, so its image carries no CA certificates.
 Each run copies its bound source, configuration, and lockfiles into a read-only input snapshot under `proof/input` before generating any models.
 The generator reads a per-run copy of that snapshot in a new temporary directory outside the checkout, so the TypeScript project it builds finds no installed packages.
 Before generating, the gate requires every proof source to type-check with only the snapshot and the ES2023 library.
@@ -349,7 +352,7 @@ Run `mise x -- node tools/search-parity.ts BUNDLE` after `mise x -- just data-lo
 It loads the bundle's index through the service that the browser Worker runs, with its admission checks.
 It asks the actual API against the seeded D1 for the same queries.
 A fixed seed draws 2,000 substrings and 1,000 display names from the index, 1,000 listed telephone numbers in two spellings, and 200 valid numbers that no contact lists.
-Each query compares the total, the category order, each category's count, and each preview row's contact ID, name, category, region, and numbers.
+Each query compares the total, the category order, each category's count, and each preview row's contact ID, name, category, region, numbers, and whether its details show an address.
 For the first category of 4 to 100 rows, it also compares the complete ordered category.
 It checks 100 row positions with the row locator, the lookup that opens a device result's details.
 The run fails on any difference.

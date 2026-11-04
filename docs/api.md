@@ -165,6 +165,8 @@ The response revalidates with an ETag, like the catalog.
 
 `GET /api/search-index/{snapshot}/{sha256}` returns the stored Brotli bytes with `Content-Encoding: br`, so the HTTP client decodes them.
 The decoded bytes are `search-index.br` format 1, which [the search index decision](adr/publish-a-name-ordered-search-index-for-the-website.md) describes.
+Its header also lists, in `rowsWithoutAddress`, the ascending 0-based positions of rows whose details show no address.
+A header without that list marks every row as having an address.
 Only the current snapshot and the current digest exist, and any other pair returns 404.
 A request returns 406 unless its `Accept-Encoding` names `br`, or `*`, with a nonzero weight.
 Cloudflare rewrites `Accept-Encoding` before the Worker runs, so the Worker first reads the visitor's own value from `cf.clientAcceptEncoding`.

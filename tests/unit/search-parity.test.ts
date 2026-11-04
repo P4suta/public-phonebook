@@ -41,6 +41,7 @@ const results: ComparedResults = {
           category: "library",
           region: "13101",
           phones: ["09012345678"],
+          hasAddress: true,
         },
         {
           id: "c:1",
@@ -48,6 +49,7 @@ const results: ComparedResults = {
           category: "library",
           region: "13101",
           phones: ["0335812331"],
+          hasAddress: true,
         },
       ],
     },
@@ -61,6 +63,7 @@ const results: ComparedResults = {
           category: "medical",
           region: "13101",
           phones: ["0335812332"],
+          hasAddress: false,
         },
       ],
     },
@@ -126,6 +129,19 @@ describe("search parity", () => {
                 ...row,
                 phones: ["0335812331"],
               })),
+            },
+          ],
+        },
+      ],
+      [
+        "groups[1].rows[0]",
+        {
+          ...results,
+          groups: [
+            library,
+            {
+              ...medical,
+              rows: medical.rows.map((row) => ({ ...row, hasAddress: true })),
             },
           ],
         },
