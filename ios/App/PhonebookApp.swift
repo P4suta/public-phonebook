@@ -15,7 +15,7 @@ struct PhonebookApp: App {
       let store = try AppIdentity.store()
       _directory = State(initialValue: DirectoryModel(store: store))
       _integration = State(initialValue: IntegrationModel(api: api, store: store))
-    } catch { _startupError = State(initialValue: "アプリを開けませんでした。開き直してください。") }
+    } catch { _startupError = State(initialValue: "アプリを開けませんでした。アプリを開き直してください。") }
   }
 
   var body: some Scene {
@@ -24,7 +24,7 @@ struct PhonebookApp: App {
         RootView(directory: directory, integration: integration)
           .tint(.ink)
       } else {
-        Text(startupError ?? "アプリを開けませんでした。")
+        Text(startupError ?? "アプリを開けませんでした。アプリを開き直してください。")
           .padding()
       }
     }

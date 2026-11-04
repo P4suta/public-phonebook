@@ -53,8 +53,8 @@ private struct CallerStatusLabel: View {
     switch status {
     case .checking: "確認しています"
     case .on: "許可しています"
-    case .loading: "許可しています・iPhoneが読み込んでいます"
-    case .onRetrying: "許可しています・次にアプリを開いたときに反映します"
+    case .loading: "許可しています・iPhoneが準備しています"
+    case .onRetrying: "許可しています・次にアプリを開くと使えるようになります"
     case .off: "まだ許可していません"
     case .unknown: "確認できません"
     }

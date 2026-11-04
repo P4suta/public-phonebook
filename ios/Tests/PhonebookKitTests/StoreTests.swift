@@ -42,7 +42,7 @@ import Testing
     ], to: store)
   let entries = try await store.identification(generation: active.generation, after: 0)
   #expect(entries.map(\.number) == [81_300_000_001, 81_300_000_002])
-  #expect(entries.first?.label == "公共施設（2つの名称で登録）")
+  #expect(entries.first?.label == "公共施設（名前が2つあります）")
   #expect(entries.last?.label == "B（図書館）")
   let next = try await store.identification(
     generation: active.generation, after: 81_300_000_001, limit: 1)

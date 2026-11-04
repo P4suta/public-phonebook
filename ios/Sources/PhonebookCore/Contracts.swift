@@ -86,6 +86,6 @@ public enum CallerLabel {
     if names.count == 1 { return "\(names[0])（\(category)）" }
     let unique = Set(names).sorted()
     if unique.count == 1, let name = unique.first { return "\(name)（\(category)）" }
-    return "公共施設（\(unique.count)つの名称で登録）"
+    return "公共施設（名前が\(unique.count)つあります）"
   }
 }

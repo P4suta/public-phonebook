@@ -13,7 +13,7 @@ struct FirstDownloadProgress: View {
   static func heading(preparing: Bool) -> String {
     preparing ? "アプリで使うデータを準備しています" : "アプリで使うデータを受け取っています"
   }
-  static let steps = ["データを受け取る", "さがせるように整える", "電話の相手が分かるようにする"]
+  static let steps = ["データを受け取る", "さがせるように準備する", "電話の相手が分かるようにする"]
 
   /// What the line under the current step says, one entry per line.
   static func timeLines(_ wait: WaitDisplay) -> [String] {
@@ -22,7 +22,7 @@ struct FirstDownloadProgress: View {
     case .countdown: ["あと\(wait.number)秒"]
     case .longer: ["時間がかかっています", "あと\(wait.number)分ほど"]
     case .almostDone: ["まもなく終わります"]
-    case .weakSignal: ["電波が弱いようです", "つながると、続きから受け取ります。"]
+    case .weakSignal: ["通信がとぎれています", "通信がもどると、自動で続きを受け取ります。"]
     }
   }
 

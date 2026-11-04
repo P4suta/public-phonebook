@@ -38,7 +38,7 @@ import Testing
 @Test func sharedNumbersNeverPickAnArbitraryOrganization() {
   #expect(
     CallerLabel.make(names: ["City Hall", "City Hall"], category: "Office") == "City Hall（Office）")
-  #expect(CallerLabel.make(names: ["School", "Library"], category: "Office") == "公共施設（2つの名称で登録）")
+  #expect(CallerLabel.make(names: ["School", "Library"], category: "Office") == "公共施設（名前が2つあります）")
 }
 
 /// The single-name shortcut returns what the set-based rule returns, including canonically equal spellings.
@@ -46,7 +46,7 @@ import Testing
   func reference(_ names: [String], _ category: String) -> String {
     let unique = Set(names).sorted()
     if unique.count == 1, let name = unique.first { return "\(name)（\(category)）" }
-    return "公共施設（\(unique.count)つの名称で登録）"
+    return "公共施設（名前が\(unique.count)つあります）"
   }
   let alphabet = ["", "A", "a", "が", "か\u{3099}", "ｶﾞ", "市役所", "市役所 "]
   var longest = alphabet.map { [$0] }

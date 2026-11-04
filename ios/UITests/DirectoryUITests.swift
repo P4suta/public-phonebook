@@ -230,8 +230,8 @@ final class DirectoryUITests: XCTestCase {
     capture(app, name: "search-caller-prompt-on")
     // A running load and a refused reload keep the extension on and ask for no further press.
     for (status, label) in [
-      ("loading", "許可しています・iPhoneが読み込んでいます"),
-      ("onRetrying", "許可しています・次にアプリを開いたときに反映します"),
+      ("loading", "許可しています・iPhoneが準備しています"),
+      ("onRetrying", "許可しています・次にアプリを開くと使えるようになります"),
     ] {
       app.terminate()
       app.launchEnvironment["PHONEBOOK_CALLER_STATUS"] = status
@@ -393,7 +393,7 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(progress.waitForExistence(timeout: 10))
     // The line appears after 10 s without bytes and stays while the fixture holds the connection, up to the app's 30 s request timeout.
     waitForValue(of: progress, "the time line reports a weak signal", timeout: 20) {
-      $0.contains("電波が弱いようです、つながると、続きから受け取ります。")
+      $0.contains("通信がとぎれています、通信がもどると、自動で続きを受け取ります。")
     }
     capture(app, name: "onboarding-weak-signal")
     try proxy().release()
@@ -485,7 +485,7 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertFalse(app.staticTexts["アプリで使うデータを受け取っています"].exists)
     XCTAssertEqual(progress.label, "アプリで使うデータを準備しています")
     waitForValue(of: progress, "the preparing step is current", timeout: 10) {
-      $0.contains("パーセント、さがせるように整える")
+      $0.contains("パーセント、さがせるように準備する")
     }
     capture(app, name: "onboarding-preparing")
     try proxy().release()
@@ -614,7 +614,7 @@ final class DirectoryUITests: XCTestCase {
     let sources = app.buttons["sources-link"]
     reveal(sources, in: app)
     sources.tap()
-    XCTAssertTrue(app.navigationBars["データの出典"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.navigationBars["データのもと"].waitForExistence(timeout: 5))
     goBack(app)
     let license = app.buttons["license-link"]
     reveal(license, in: app)
@@ -887,7 +887,7 @@ final class DirectoryUITests: XCTestCase {
     let retry = app.buttons["sync-retry"]
     waitUntil(
       "the stopped step says when it retries",
-      (try? problem.snapshot())?.label == "5秒後に、自動でもう一度受け取ります。" && heading.exists
+      (try? problem.snapshot())?.label == "データを受け取れませんでした。5秒後に、自動でもう一度受け取ります。" && heading.exists
         && !retry.exists,
       timeout: 20, observed: { self.saveState(app) }, file: file, line: line)
   }

@@ -220,7 +220,7 @@ final class IntegrationModel {
     if !busy {
       do { manifest = try await store.manifest() } catch {
         manifest = nil
-        problem = "アプリのデータを開けなかったので、受け取り直します。"
+        problem = "アプリのデータを読めなかったので、もう一度受け取ります。"
       }
     }
     if let manifest, !busy {
@@ -373,7 +373,7 @@ final class IntegrationModel {
         }
         busy = false
         failures = 0
-        if outcome.reply == .failed { problem = "データを新しくできませんでした。前のデータのまま使えます。" }
+        if outcome.reply == .failed { problem = Self.message(.updateKeepsData, delay: 0) }
         guard let result = outcome.manifest else {
           if let manifest { try? BackgroundRefresh.schedule(manifest: manifest) }
           return
@@ -413,7 +413,7 @@ final class IntegrationModel {
         complete: complete, waiting: latest.waiting))
     if next != current {
       if next.line == .weakSignal && current.line != .weakSignal {
-        AccessibilityAnnouncement.post("電波が弱いようです。つながると、続きから受け取ります。")
+        AccessibilityAnnouncement.post("通信がとぎれています。通信がもどると、自動で続きを受け取ります。")
       }
       if next.finished && !current.finished {
         AccessibilityAnnouncement.post("準備ができました。")
@@ -445,28 +445,29 @@ final class IntegrationModel {
     }
     failures += 1
     let delay = DownloadSchedule.retryDelay(afterFailures: failures)
-    let reason: String?
-    switch error {
-    case ImportError.activationUncertain:
-      reason = "データを受け取れたかをたしかめられませんでした。アプリを開き直してください。"
-    case ImportError.projectionTooLarge:
-      reason = "一つの電話番号に集まる情報が多すぎるため、データを受け取れませんでした。"
-    case ServiceError.unsupportedFormat:
-      reason =
-        manifest == nil
-        ? "データの形式がこのアプリに合わないため、受け取れませんでした。アプリを新しくしてください。"
-        : "データの形式がこのアプリに合わないため、新しくできませんでした。前のデータのまま使えます。アプリを新しくしてください。"
-    default: reason = nil
-    }
+    let message = Self.message(FailureNotice.decide(error, saved: manifest != nil), delay: delay)
     guard manifest == nil else {
       // An automatic update keeps the saved data and says so in Settings without speaking.
-      problem = reason ?? "データを新しくできませんでした。前のデータのまま使えます。"
+      problem = message
       return
     }
     stopFirstDownload()
-    stopped = reason ?? "\(Self.duration(delay))後に、自動でもう一度受け取ります。"
-    AccessibilityAnnouncement.post("データの受け取りが止まりました。\(stopped ?? "")")
+    stopped = message
+    AccessibilityAnnouncement.post("データの受け取りが止まりました。\(message)")
     scheduleRetry(after: delay)
+  }
+
+  /// The words of each notice, which name the one step that the person can take.
+  static func message(_ notice: FailureNotice, delay: Int) -> String {
+    switch notice {
+    case .firstRunRetries:
+      "データを受け取れませんでした。\(duration(delay))後に、自動でもう一度受け取ります。"
+    case .updateKeepsData: "データを新しくできませんでした。前のデータのまま使えます。"
+    case .appTooOld: "このアプリでは新しいデータを読めません。App Storeでアプリを新しくしてください。"
+    case .appTooOldKeepingData:
+      "このアプリでは新しいデータを読めません。App Storeでアプリを新しくしてください。前のデータのまま使えます。"
+    case .reopen: "データを受け取れませんでした。アプリを開き直してください。"
+    }
   }
 
   private func scheduleRetry(after seconds: Int) {

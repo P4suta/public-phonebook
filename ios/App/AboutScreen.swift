@@ -31,7 +31,7 @@ struct AboutScreen: View {
         NavigationLink {
           SourcesScreen(categories: model.categories)
         } label: {
-          IconLabel(icon: "info", text: "データの出典を見る")
+          IconLabel(icon: "info", text: "データのもとを見る")
         }
         .buttonStyle(MonoButtonStyle())
         .accessibilityIdentifier("sources-link")
@@ -100,7 +100,7 @@ private struct SourcesScreen: View {
       }.padding(20)
     }
     .background(.surface)
-    .navigationTitle("データの出典").navigationBarTitleDisplayMode(.inline)
+    .navigationTitle("データのもと").navigationBarTitleDisplayMode(.inline)
   }
 }
 

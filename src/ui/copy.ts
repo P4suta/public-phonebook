@@ -1,6 +1,6 @@
 type Instruction = `${string}ください${"" | "。"}`;
 type Action =
-  `${string}${"する" | "さがす" | "見る" | "開く" | "もどる" | "知る" | "かける" | "試す" | "読みこむ" | "やめる"}`;
+  `${string}${"する" | "さがす" | "見る" | "開く" | "もどる" | "知る" | "かける" | "試す" | "読みこむ"}`;
 type Statement = `${string}ます。`;
 
 export const uiCopy = {
@@ -59,7 +59,7 @@ export const uiCopy = {
     host: (host: string): `行き先：${string}` => `行き先：${host}`,
     newTab: "新しいタブで開きます。" satisfies Statement,
     open: "開く" satisfies Action,
-    cancel: "やめる" satisfies Action,
+    cancel: "キャンセル",
   },
 } as const;
 

@@ -165,7 +165,7 @@ The detail screen shows the address as selectable text, and an outline `地図�
 VoiceOver reads that button as the facility name followed by `の地図を見る`, and a facility without an address has no map button.
 Settings holds the caller section, which shows a filled check circle with `許可しています` or an empty circle with `まだ許可していません`.
 When iOS refuses a reload, `PhonebookCore.CallerReply` decides the state from the [Call Directory error code](https://developer.apple.com/documentation/callkit/cxerrorcodecalldirectorymanagererror-swift.struct/code).
-`currentlyLoading` shows `許可しています・iPhoneが読み込んでいます`, `extensionDisabled` shows the off state, and any other error shows `許可しています・次にアプリを開いたときに反映します`.
+`currentlyLoading` shows `許可しています・iPhoneが準備しています`, `extensionDisabled` shows the off state, and any other error shows `許可しています・次にアプリを開くと使えるようになります`.
 The app records no generation after a refusal, so the next launch compares the extension's own record with the saved generation and asks again.
 The app logs the error domain and code of every refused reload or status read, and nothing else about it.
 The About screen shows the date that the app saved its data.

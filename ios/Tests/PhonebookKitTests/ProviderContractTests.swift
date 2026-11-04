@@ -190,7 +190,7 @@ private let expectedGenerationDigests = [
   "numbers": "2 eca00b202bc735e58d1f0416753b9423c8ce0ba6532752036beaf042eff65c73",
   "names": "e5b1be0beb6b351f1d186f61dd80bedd77ab5b3b3940e54c96f6ce00bddb163a",
   "kinds": "fd516d49024e15e7e9e2af783a92190b843b3ae99ffede6b8d1e135edf080bc9",
-  "callers": "301abbefbacc926d3201512684af30534b99201f4f718068ed7db2fe0aa339ac",
+  "callers": "e184b14d93ca6fd6754863e5cd71096dc47f10bfad014961a1fd6241dbae7706",
 ]
 
 private func callerEntries(_ url: URL) throws -> [IdentificationEntry] {
