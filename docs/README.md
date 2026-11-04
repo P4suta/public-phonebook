@@ -24,5 +24,6 @@
 - [Search in the browser once the index loads](adr/search-in-the-browser-once-the-index-loads.md).
 - [Publish target-ordered deltas between directory archives](adr/publish-target-ordered-deltas-between-directory-archives.md).
 - [Count the first download down toward a deadline that only moves earlier](adr/count-the-first-download-down-toward-a-deadline-that-only-moves-earlier.md).
+- [Start from a bundled directory archive and catch up through deltas](adr/start-from-a-bundled-directory-archive-and-catch-up-through-deltas.md).
 - [Number TestFlight builds from the workflow run and upload them with altool](adr/number-testflight-builds-from-the-workflow-run.md).
 - [Run only the fast gate on pull requests and verify at the release gate](adr/run-only-the-fast-gate-on-pull-requests-and-verify-at-the-release-gate.md).
