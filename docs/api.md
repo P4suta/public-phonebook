@@ -13,6 +13,10 @@ It holds `snapshot`, `generatedAt`, the contact and telephone counts, the source
 Both listings accept an optional `?snapshot=` pin and name the current snapshot in `X-Dataset-Snapshot`.
 A pinned listing returns 409 after a change, so a client can tell that its link went stale.
 A duplicate or malformed `snapshot` returns 400.
+Both listings revalidate with `Cache-Control: public, no-cache, must-revalidate` and a strong ETag, the SHA-256 of the response body.
+A request whose `If-None-Match` matches that ETag under the weak comparison of RFC 9110 gets 304 with the ETag, `Cache-Control`, and `X-Dataset-Snapshot`, and no body.
+The pin check runs first, so a stale pin returns 409 even when its validator matches.
+`HEAD` returns the same headers without the body.
 No route carries a version in its path.
 
 ```sh
@@ -103,10 +107,11 @@ A delta rebuilds the current decoded `directory.tsv.br` from the decoded archive
 The response holds the current `snapshot`, the `archiveSha256` of the `directory.tsv.br` that every delta rebuilds, and a `deltas` array that may be empty.
 Each entry names its `base` snapshot, the `baseArchiveSha256` of that snapshot's `directory.tsv.br`, its `file`, `format`, and `url`, and the `bytes` and `sha256` of its Brotli bytes.
 It also gives the `uncompressedBytes` and `uncompressedSha256` of the decoded delta, so a client can bound its decoder.
-The listing revalidates like the dataset manifest.
+The listing revalidates with its own strong ETag, like the dataset listing.
 The URL serves the exact Brotli bytes as `application/octet-stream` without `Content-Encoding`, with the immutable caching of the complete files.
 The file is `directory-delta-` followed by the base snapshot and `.tsv.br`.
-Preparation publishes a delta only when its Brotli bytes are at most half of the complete archive's, and keeps at most 12 of them.
+Preparation publishes a delta only when its Brotli bytes are at most half of the complete archive's.
+It starts deltas from every snapshot that a supported app version bundles and from the 12 most recently published snapshots, so the listing holds at most 24 of them.
 
 The decoded delta is UTF-8 text with LF line endings and no byte order mark, and its last line ends with LF.
 Line 1 is `public-phonebook-directory-delta`, a TAB, and the format version `1`.

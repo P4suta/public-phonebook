@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   mkdir,
   mkdtemp,
@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import * as v from "valibot";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { maximumShippedDeltaBases } from "../../src/core/dataset-storage.ts";
 import { ContactSchema, SourceSchema } from "../../src/core/models.ts";
 import type { SourceArtifact } from "../../tools/collection/artifacts.ts";
 import {
@@ -21,10 +22,16 @@ import {
   type BaseDatasetPin,
   BaseDatasetPinSchema,
   fetchBaseDatabase,
+  fetchDeltaBases,
   parseCollectionStoreArguments,
+  publishedDatasets,
   readBasePin,
+  readShippedSnapshots,
   requireIdenticalCollections,
+  type ShippedSnapshots,
+  ShippedSnapshotsSchema,
   storeCollection,
+  unservedShippedBases,
 } from "../../tools/collection-store.ts";
 import {
   type ControlStore,
@@ -32,6 +39,7 @@ import {
   fileControlStore,
   writeOnce,
 } from "../../tools/control-store.ts";
+import type { ReleaseJournal } from "../../tools/release-lifecycle.ts";
 
 const encoder = new TextEncoder();
 const digest = (text: string | Uint8Array): string =>
@@ -244,10 +252,16 @@ describe("collection store arguments", () => {
       cache: resolve("b"),
       dataset: resolve("c"),
     });
+    expect(parseCollectionStoreArguments(["delta-bases", "bases"])).toEqual({
+      kind: "delta-bases",
+      directory: resolve("bases"),
+    });
     for (const args of [
       [],
       ["base"],
       ["base", "a", "b"],
+      ["delta-bases"],
+      ["delta-bases", "a", "b"],
       ["compare", "a"],
       ["store", "a", "b"],
       ["upload", "a"],
@@ -368,6 +382,257 @@ describe("base dataset pin", () => {
         join(root, "base"),
       ),
     ).rejects.toThrow("no base database");
+  });
+});
+
+describe("shipped snapshots", () => {
+  const entry = {
+    manifestSha256: "a".repeat(64),
+    snapshot: "b".repeat(64),
+    firstAppVersion: "1.0",
+  };
+
+  it("reads the repository list and accepts a well-formed entry", async () => {
+    const repositoryList = await readShippedSnapshots();
+    expect(v.is(ShippedSnapshotsSchema, repositoryList)).toBe(true);
+    expect(v.is(ShippedSnapshotsSchema, { datasets: [entry] })).toBe(true);
+    expect(
+      v.is(ShippedSnapshotsSchema, {
+        datasets: [{ ...entry, firstAppVersion: "1.2.3" }],
+      }),
+    ).toBe(true);
+  });
+
+  it("refuses unknown keys, malformed digests and versions, repeats, and too many entries", async () => {
+    const other = {
+      manifestSha256: "c".repeat(64),
+      snapshot: "d".repeat(64),
+      firstAppVersion: "1.1",
+    };
+    const refused: Record<string, unknown> = {
+      "unknown top-level key": { datasets: [], formatVersion: 1 },
+      "unknown entry key": { datasets: [{ ...entry, build: "7" }] },
+      "missing list": {},
+      "uppercase manifest digest": {
+        datasets: [{ ...entry, manifestSha256: "A".repeat(64) }],
+      },
+      "short manifest digest": {
+        datasets: [{ ...entry, manifestSha256: "a".repeat(63) }],
+      },
+      "non-hex snapshot": {
+        datasets: [{ ...entry, snapshot: "g".repeat(64) }],
+      },
+      "malformed version": {
+        datasets: [{ ...entry, firstAppVersion: "v1.0" }],
+      },
+      "repeated manifest": {
+        datasets: [entry, { ...other, manifestSha256: entry.manifestSha256 }],
+      },
+      "repeated snapshot": {
+        datasets: [entry, { ...other, snapshot: entry.snapshot }],
+      },
+      "too many entries": {
+        datasets: Array.from(
+          { length: maximumShippedDeltaBases + 1 },
+          (_, index) => ({
+            manifestSha256: index.toString(16).padStart(64, "a"),
+            snapshot: index.toString(16).padStart(64, "b"),
+            firstAppVersion: "1.0",
+          }),
+        ),
+      },
+    };
+    for (const [label, list] of Object.entries(refused)) {
+      expect(v.is(ShippedSnapshotsSchema, list), label).toBe(false);
+      const path = join(root, "shipped.json");
+      await writeFile(path, JSON.stringify(list));
+      await expect(readShippedSnapshots(path), label).rejects.toThrow();
+    }
+  });
+});
+
+describe("delta bases", () => {
+  const archiveText = "archive bytes";
+  const otherArchive = "other archive bytes";
+  const bases = {
+    shipped: { snapshot: "1".repeat(64), archive: archiveText },
+    published: { snapshot: "2".repeat(64), archive: otherArchive },
+    unarchived: { snapshot: "3".repeat(64), archive: null },
+  } as const;
+  const manifestText = (snapshot: string, archive: string | null): string =>
+    JSON.stringify({
+      snapshot,
+      files:
+        archive === null
+          ? []
+          : [
+              {
+                file: "directory.tsv.br",
+                sha256: digest(archive),
+                bytes: encoder.encode(archive).byteLength,
+              },
+            ],
+    });
+  const candidate = (
+    base: (typeof bases)[keyof typeof bases],
+  ): { readonly manifestSha256: string; readonly snapshot: string } => ({
+    manifestSha256: digest(manifestText(base.snapshot, base.archive)),
+    snapshot: base.snapshot,
+  });
+  const shippedList = (): ShippedSnapshots => ({
+    datasets: [{ ...candidate(bases.shipped), firstAppVersion: "1.0" }],
+  });
+
+  async function storeBase(
+    base: (typeof bases)[keyof typeof bases],
+  ): Promise<void> {
+    const manifest = manifestText(base.snapshot, base.archive);
+    await writeOnce(
+      store,
+      controlKeys.dataset(digest(manifest), "manifest.ready.json"),
+      encoder.encode(manifest),
+    );
+    if (base.archive !== null)
+      await store.write(
+        controlKeys.blob(digest(base.archive)),
+        encoder.encode(base.archive),
+        { kind: "create" },
+      );
+  }
+
+  function journal(
+    phase: ReleaseJournal["phase"],
+    base: (typeof bases)[keyof typeof bases],
+  ): ReleaseJournal {
+    const target = {
+      releaseId: randomUUID(),
+      versionId: randomUUID(),
+      sourceTree: null,
+      databaseSha256: "4".repeat(64),
+      databaseId: randomUUID(),
+      ...candidate(base),
+      artifactSha256: null,
+      manifestBinding: "snapshot",
+    } as const;
+    return { phase, candidate: target, previous: null };
+  }
+
+  it("lists the dataset of each verified release, oldest first", () => {
+    expect(
+      publishedDatasets([
+        journal("verified", bases.shipped),
+        journal("withdrawn", bases.unarchived),
+        journal("staged", bases.unarchived),
+        journal("verified", bases.published),
+      ]),
+    ).toEqual([candidate(bases.shipped), candidate(bases.published)]);
+  });
+
+  it("fetches each base's manifest and archive, skips a published dataset without an archive, and writes nothing to the store", async () => {
+    for (const base of Object.values(bases)) await storeBase(base);
+    const before = await storedKeys();
+    const directory = join(root, "delta-bases");
+    const plan = await fetchDeltaBases(
+      store,
+      shippedList(),
+      [
+        candidate(bases.shipped),
+        candidate(bases.published),
+        candidate(bases.unarchived),
+      ],
+      directory,
+    );
+    expect(plan).toEqual([
+      { ...candidate(bases.shipped), origin: "shipped" },
+      { ...candidate(bases.published), origin: "published" },
+    ]);
+    for (const base of [bases.shipped, bases.published]) {
+      const bundle = join(directory, candidate(base).manifestSha256);
+      expect(await readdir(bundle)).toEqual([
+        "directory.tsv.br",
+        "manifest.ready.json",
+      ]);
+      expect(await readFile(join(bundle, "directory.tsv.br"), "utf8")).toBe(
+        base.archive,
+      );
+      expect(await readFile(join(bundle, "manifest.ready.json"), "utf8")).toBe(
+        manifestText(base.snapshot, base.archive),
+      );
+    }
+    expect(await readdir(directory)).toHaveLength(2);
+    expect(await storedKeys()).toEqual(before);
+  });
+
+  it("refuses a missing, altered, or archive-less shipped base and a tampered archive before preparation", async () => {
+    const directory = join(root, "delta-bases");
+    await expect(
+      fetchDeltaBases(store, shippedList(), [], directory),
+    ).rejects.toThrow("no manifest for delta base");
+    await storeBase(bases.unarchived);
+    await expect(
+      fetchDeltaBases(
+        store,
+        {
+          datasets: [
+            { ...candidate(bases.unarchived), firstAppVersion: "1.0" },
+          ],
+        },
+        [],
+        directory,
+      ),
+    ).rejects.toThrow("lists no directory.tsv.br");
+    await expect(
+      fetchDeltaBases(
+        store,
+        {
+          datasets: [
+            {
+              ...candidate(bases.unarchived),
+              snapshot: bases.shipped.snapshot,
+              firstAppVersion: "1.0",
+            },
+          ],
+        },
+        [],
+        directory,
+      ),
+    ).rejects.toThrow("names another snapshot");
+    const manifest = manifestText(bases.shipped.snapshot, archiveText);
+    await writeOnce(
+      store,
+      controlKeys.dataset(digest(manifest), "manifest.ready.json"),
+      encoder.encode(manifest),
+    );
+    await store.write(
+      controlKeys.blob(digest(archiveText)),
+      encoder.encode("tampered archive"),
+      { kind: "create" },
+    );
+    await expect(
+      fetchDeltaBases(store, shippedList(), [], directory),
+    ).rejects.toThrow("differs from its manifest");
+  });
+
+  it("reports each shipped dataset that the prepared manifest serves no delta from", () => {
+    const shipped: ShippedSnapshots = {
+      datasets: [
+        { ...candidate(bases.shipped), firstAppVersion: "1.0" },
+        { ...candidate(bases.published), firstAppVersion: "1.1" },
+        { ...candidate(bases.unarchived), firstAppVersion: "1.2" },
+      ],
+    };
+    expect(
+      unservedShippedBases(shipped, {
+        snapshot: bases.unarchived.snapshot,
+        deltas: [{ base: bases.shipped.snapshot }],
+      }),
+    ).toEqual([shipped.datasets[1]]);
+    expect(
+      unservedShippedBases(shipped, {
+        snapshot: "5".repeat(64),
+        deltas: [],
+      }),
+    ).toEqual(shipped.datasets);
   });
 });
 

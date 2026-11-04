@@ -487,6 +487,150 @@ describe("native D1 public API", () => {
     ).toEqual({ snapshot, archiveSha256: "3".repeat(64), deltas: [] });
     expect((await fetch("/api/dataset-deltas", "")).status).toBe(503);
   });
+  it("revalidates both listings with a strong ETag of the body after the pin check", async () => {
+    const bucket = await runtime.getR2Bucket("DATASETS");
+    const manifestWith = (archiveSha256: string): string =>
+      JSON.stringify({
+        snapshot,
+        generatedAt: "2026-10-30T00:00:00Z",
+        contacts: contacts.length,
+        phones: 1,
+        sourceCount: 1,
+        sourceDatabaseSha256: "1".repeat(64),
+        databaseSha256: "2".repeat(64),
+        files: [
+          "contacts.jsonl.gz",
+          "contacts.csv.gz",
+          "contacts.vcf.gz",
+          "directory.tsv.br",
+        ].map((file) => {
+          const sha256 =
+            file === "directory.tsv.br" ? archiveSha256 : "3".repeat(64);
+          return {
+            file,
+            sha256,
+            bytes: 1,
+            url: `/api/datasets/${snapshot}/${sha256}/${file}`,
+          };
+        }),
+        searchIndex: {
+          file: "search-index.br",
+          sha256: "5".repeat(64),
+          bytes: 1,
+          uncompressedSha256: "6".repeat(64),
+          uncompressedBytes: 2,
+        },
+        deltas: [],
+      });
+    const manifests = [
+      manifestWith("3".repeat(64)),
+      manifestWith("4".repeat(64)),
+    ];
+    const [current = "", changed = ""] = await Promise.all(
+      manifests.map(async (manifest) => {
+        const digest = await sha256(manifest);
+        await bucket.put(manifestObjectKey(snapshot, digest), manifest);
+        return digest;
+      }),
+    );
+    const fetch = async (
+      path: string,
+      init: RequestInit = {},
+      manifestSha256 = current,
+    ): Promise<Response> =>
+      api.fetch(new Request(`https://www.dial.page${path}`, init), {
+        ...bindings,
+        APP_ENV: "production",
+        DATASET_MANIFEST_SHA256: manifestSha256,
+      });
+    const unrelatedTag = `"${"0".repeat(64)}"`;
+
+    for (const path of [
+      "/api/datasets",
+      `/api/datasets?snapshot=${snapshot}`,
+      "/api/dataset-deltas",
+      `/api/dataset-deltas?snapshot=${snapshot}`,
+    ]) {
+      const response = await fetch(path);
+      expect(response.status, path).toBe(200);
+      const body = await response.text();
+      const etag = response.headers.get("ETag") ?? "";
+      expect(etag, path).toBe(`"${await sha256(body)}"`);
+      expect(response.headers.get("Content-Type"), path).toBe(
+        "application/json",
+      );
+      for (const validator of [
+        etag,
+        `W/${etag}`,
+        `${unrelatedTag}, ${etag}`,
+        "*",
+      ]) {
+        const revalidated = await fetch(path, {
+          headers: { "If-None-Match": validator },
+        });
+        const label = `${path} ${validator}`;
+        expect(revalidated.status, label).toBe(304);
+        expect(await revalidated.text(), label).toBe("");
+        expect(revalidated.headers.get("ETag"), label).toBe(etag);
+        expect(revalidated.headers.get("Cache-Control"), label).toBe(
+          "public, no-cache, must-revalidate",
+        );
+        expect(revalidated.headers.get("X-Dataset-Snapshot"), label).toBe(
+          snapshot,
+        );
+      }
+      const different = await fetch(path, {
+        headers: { "If-None-Match": unrelatedTag },
+      });
+      expect(different.status, path).toBe(200);
+      expect(await different.text(), path).toBe(body);
+      const head = await fetch(path, { method: "HEAD" });
+      expect(head.status, path).toBe(200);
+      expect(head.headers.get("ETag"), path).toBe(etag);
+      expect(head.headers.get("X-Dataset-Snapshot"), path).toBe(snapshot);
+      expect(await head.text(), path).toBe("");
+      expect(
+        (
+          await fetch(path, {
+            method: "HEAD",
+            headers: { "If-None-Match": etag },
+          })
+        ).status,
+        path,
+      ).toBe(304);
+      const replaced = await fetch(path, {}, changed);
+      expect(replaced.status, path).toBe(200);
+      expect(replaced.headers.get("ETag"), path).not.toBe(etag);
+      expect(
+        (
+          await fetch(path, {
+            headers: { Origin: "https://consumer.example" },
+          })
+        ).headers
+          .get("Access-Control-Expose-Headers")
+          ?.split(/,\s*/u),
+        path,
+      ).toContain("ETag");
+    }
+
+    for (const listing of ["/api/datasets", "/api/dataset-deltas"])
+      for (const [pin, status] of [
+        ["0".repeat(64), 409],
+        ["x", 400],
+        [`${snapshot}&snapshot=${snapshot}`, 400],
+      ] as const) {
+        const path = `${listing}?snapshot=${pin}`;
+        const refused = await fetch(path, {
+          headers: { "If-None-Match": "*" },
+        });
+        expect(refused.status, path).toBe(status);
+        expect(refused.headers.get("ETag"), path).toBeNull();
+        expect(refused.headers.get("X-Dataset-Snapshot"), path).toBe(snapshot);
+        expect(v.parse(ProblemSchema, await refused.json()).code, path).toBe(
+          status === 409 ? "snapshot_changed" : "invalid_query",
+        );
+      }
+  });
   it("rejects duplicate categories, foreign rows, mixed snapshots, and false group totals", async () => {
     const body: unknown = await (
       await request("/api/contact-groups?q=図書館")

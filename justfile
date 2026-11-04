@@ -7,8 +7,8 @@ dev:
 build environment="development":
     npm run build -- {{ quote(environment) }}
 
-data-prepare source output collection="":
-    npm run data -- prepare {{ quote(source) }} {{ quote(output) }} {{ quote(collection) }}
+data-prepare source output collection="" delta_bases="":
+    npm run data -- prepare {{ quote(source) }} {{ quote(output) }} {{ quote(collection) }} {{ if delta_bases == "" { "" } else { "--delta-base-root " + quote(delta_bases) } }}
 
 data-collect output:
     node tools/collect.ts run sources/public-facilities.json --output {{ quote(output) }}
