@@ -67,7 +67,7 @@ struct SystemTraceSink: TraceSink {
           signposter.beginInterval(
             "phase", id: signposter.makeSignpostID(), "\(key.phase.rawValue, privacy: .public)")
         },
-        end: { key, state in
+        end: { _, state in
           signposter.endInterval("phase", state, "\(event.outcome.rawValue, privacy: .public)")
         },
         mark: { point in

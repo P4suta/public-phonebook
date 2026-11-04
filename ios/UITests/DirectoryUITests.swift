@@ -205,6 +205,21 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(app.descendants(matching: .any)["search-hint"].waitForExistence(timeout: 5))
     XCTAssertFalse(prompt.exists)
     capture(app, name: "search-caller-prompt-on")
+    // A running load and a refused reload keep the extension on and ask for no further press.
+    for (status, label) in [
+      ("loading", "許可しています・iPhoneが読み込んでいます"),
+      ("onRetrying", "許可しています・次にアプリを開いたときに反映します"),
+    ] {
+      app.terminate()
+      app.launchEnvironment["PHONEBOOK_CALLER_STATUS"] = status
+      app.launch()
+      XCTAssertTrue(app.descendants(matching: .any)["search-hint"].waitForExistence(timeout: 15))
+      XCTAssertFalse(prompt.exists)
+      openSettings(in: app)
+      waitForLabel(state, label)
+      capture(app, name: "settings-caller-\(status)")
+      goBack(app)
+    }
   }
 
   /// The harness runs the VerificationDebug build, which holds the QA verification screen.
@@ -224,6 +239,7 @@ final class DirectoryUITests: XCTestCase {
     waitUntil(
       "the save message appears", message.exists && message.label.hasPrefix("保存し"),
       observed: { message.exists ? "It shows “\(message.label)”." : "It doesn't exist." })
+    XCTAssertFalse(message.label.contains("もう一度"))
     capture(app, name: "verification-saved")
     goBack(app)
     search("確認用", in: app)
@@ -244,6 +260,7 @@ final class DirectoryUITests: XCTestCase {
     waitUntil(
       "the clear message appears", message.exists && message.label.hasPrefix("消し"),
       observed: { message.exists ? "It shows “\(message.label)”." : "It doesn't exist." })
+    XCTAssertFalse(message.label.contains("もう一度"))
     XCTAssertEqual(app.textFields["verification-label"].value as? String, "確認用の番号")
     goBack(app)
     search("確認用", in: app)
