@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import { copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -473,7 +473,7 @@ it("numbers D1 rows by normalized name and identifier and rebuilds the search in
       "Search index exceeds",
     );
     await rejectsIndex(
-      randomBytes(searchIndexLimits.compressedBytes + 1),
+      new Uint8Array(searchIndexLimits.compressedBytes + 1),
       String(searchIndexLimits.compressedBytes),
     );
     await writeFile(indexPath, compressedIndex);

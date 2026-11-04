@@ -381,7 +381,7 @@ describe("directory archive", () => {
           expect(encode(contacts.toReversed())).toBe(text);
         },
       ),
-      { numRuns: 200 },
+      { seed: 20261107, numRuns: 200 },
     );
   });
 
@@ -396,7 +396,7 @@ describe("directory archive", () => {
           );
         },
       ),
-      { numRuns: 1000 },
+      { seed: 20261108, numRuns: 1000 },
     );
     const rows = encode([
       { ...base, name: "😀" },

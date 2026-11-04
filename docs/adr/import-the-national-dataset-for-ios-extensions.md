@@ -11,6 +11,7 @@ It supersedes the prefecture selection, the paged import, and the one-contact sa
 The App Group generations, the per-number projections, and the activation order of that record still apply.
 Since #188, the first download starts from the start button and shows the steps of [Count the first download down toward a deadline that only moves earlier](count-the-first-download-down-toward-a-deadline-that-only-moves-earlier.md).
 Monthly updates since then use only paths that are neither expensive nor constrained.
+[Start from a bundled directory archive and catch up through deltas](start-from-a-bundled-directory-archive-and-catch-up-through-deltas.md) partly supersedes the first-run download and the monthly cadence.
 
 ## Context
 
