@@ -24,6 +24,31 @@ async function collect(chunks: AsyncIterable<unknown>): Promise<unknown[]> {
   return collected;
 }
 
+/**
+ * A decoder whose close waits until `release`, and then fails with `failure` when one is given.
+ * The tests release it a macrotask after the close starts, so a reader that ignores the close has settled by then.
+ */
+function heldDecoder(failure: Error | null): {
+  readonly decoder: PassThrough;
+  readonly closing: Promise<void>;
+  readonly release: () => void;
+} {
+  let closeStarted = (): void => {};
+  const closing = new Promise<void>((resolve) => {
+    closeStarted = resolve;
+  });
+  let finishClose = (): void => {};
+  const decoder = new PassThrough({
+    destroy(error, callback): void {
+      finishClose = (): void => {
+        callback(failure ?? error);
+      };
+      closeStarted();
+    },
+  });
+  return { decoder, closing, release: () => finishClose() };
+}
+
 describe("gzip archive reading", () => {
   let directory = "";
   let path = "";
@@ -46,6 +71,7 @@ describe("gzip archive reading", () => {
     await rm(directory, { recursive: true, force: true });
   });
 
+  /** Every stage has closed once the reader settles, so only Node's rejection tracking, which reports before the next macrotask, can still record an escape. */
   async function expectNothingEscaped(): Promise<void> {
     await new Promise((resolve) => setImmediate(resolve));
     expect(escaped).toEqual([]);
@@ -68,6 +94,34 @@ describe("gzip archive reading", () => {
       String(recordCount - 1),
       "x".repeat(recordPadding),
     ]);
+    await expectNothingEscaped();
+  });
+
+  it("settles a drained reader only after its decoder has closed", async () => {
+    const { decoder, closing, release } = heldDecoder(null);
+    const order: string[] = [];
+    decoder.on("close", () => order.push("decoder closed"));
+    const reading = collect(readGzipArchive(path, decoder)).finally(() =>
+      order.push("reader settled"),
+    );
+    await closing;
+    await new Promise((resolve) => setImmediate(resolve));
+    release();
+    await reading;
+    expect(order).toEqual(["decoder closed", "reader settled"]);
+    await expectNothingEscaped();
+  });
+
+  it("reports a failure that a drained reader's decoder raises while closing", async () => {
+    const { decoder, closing, release } = heldDecoder(
+      new Error("decoder close failed"),
+    );
+    const reading = collect(readGzipArchive(path, decoder));
+    await closing;
+    await new Promise((resolve) => setImmediate(resolve));
+    release();
+    await expect(reading).rejects.toThrow("decoder close failed");
+    expect(decoder.closed).toBe(true);
     await expectNothingEscaped();
   });
 
