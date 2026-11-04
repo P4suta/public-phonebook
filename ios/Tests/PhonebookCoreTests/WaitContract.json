@@ -8,7 +8,8 @@
           "now" : 0,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 0
+          "total" : 0,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -16,7 +17,8 @@
           "now" : 300,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -24,7 +26,8 @@
           "now" : 900,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -32,7 +35,8 @@
           "now" : 1100,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -40,7 +44,8 @@
           "now" : 2100,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -48,7 +53,8 @@
           "now" : 2700,
           "rows" : 667696,
           "stage" : 1,
-          "total" : 667696
+          "total" : 667696,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -56,7 +62,8 @@
           "now" : 3200,
           "rows" : 667696,
           "stage" : 1,
-          "total" : 667696
+          "total" : 667696,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -64,7 +71,8 @@
           "now" : 4200,
           "rows" : 667696,
           "stage" : 1,
-          "total" : 667696
+          "total" : 667696,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -72,7 +80,8 @@
           "now" : 5200,
           "rows" : 667696,
           "stage" : 1,
-          "total" : 667696
+          "total" : 667696,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -80,7 +89,8 @@
           "now" : 6000,
           "rows" : 667696,
           "stage" : 2,
-          "total" : 1
+          "total" : 1,
+          "waiting" : false
         },
         {
           "complete" : true,
@@ -88,7 +98,8 @@
           "now" : 7400,
           "rows" : 667696,
           "stage" : 2,
-          "total" : 1
+          "total" : 1,
+          "waiting" : false
         }
       ],
       "name" : "A Wi-Fi run counts down, follows a faster estimate, and ends after its steps",
@@ -191,7 +202,8 @@
           "now" : 0,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 0
+          "total" : 0,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -199,7 +211,8 @@
           "now" : 200,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -207,7 +220,8 @@
           "now" : 1200,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -215,7 +229,8 @@
           "now" : 2300,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -223,7 +238,8 @@
           "now" : 12000,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -231,7 +247,8 @@
           "now" : 13000,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -239,7 +256,8 @@
           "now" : 15100,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -247,7 +265,8 @@
           "now" : 16200,
           "rows" : 667696,
           "stage" : 1,
-          "total" : 667696
+          "total" : 667696,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -255,7 +274,8 @@
           "now" : 17300,
           "rows" : 667696,
           "stage" : 1,
-          "total" : 667696
+          "total" : 667696,
+          "waiting" : false
         },
         {
           "complete" : true,
@@ -263,7 +283,8 @@
           "now" : 18000,
           "rows" : 667696,
           "stage" : 1,
-          "total" : 667696
+          "total" : 667696,
+          "waiting" : false
         }
       ],
       "name" : "A slow transfer gives coarse minutes and counts down again after a stable short estimate",
@@ -358,7 +379,8 @@
           "now" : 0,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 0
+          "total" : 0,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -366,7 +388,8 @@
           "now" : 100,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -374,7 +397,8 @@
           "now" : 1100,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -382,7 +406,8 @@
           "now" : 2200,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -390,7 +415,8 @@
           "now" : 3300,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -398,7 +424,8 @@
           "now" : 4400,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -406,7 +433,8 @@
           "now" : 15000,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -414,7 +442,8 @@
           "now" : 70000,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         }
       ],
       "name" : "A countdown that falls behind its deadline turns into coarse minutes that change slowly",
@@ -493,7 +522,8 @@
           "now" : 0,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 0
+          "total" : 0,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -501,7 +531,8 @@
           "now" : 100,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -509,7 +540,8 @@
           "now" : 1200,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -517,7 +549,8 @@
           "now" : 5000,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -525,7 +558,8 @@
           "now" : 11300,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -533,7 +567,8 @@
           "now" : 13000,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -541,7 +576,8 @@
           "now" : 14100,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -549,7 +585,8 @@
           "now" : 15200,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -557,7 +594,8 @@
           "now" : 18300,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         }
       ],
       "name" : "A stalled transfer reports a weak signal and measures again once data flows",
@@ -644,7 +682,8 @@
           "now" : 0,
           "rows" : 241,
           "stage" : 0,
-          "total" : 0
+          "total" : 0,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -652,7 +691,8 @@
           "now" : 40,
           "rows" : 241,
           "stage" : 0,
-          "total" : 9000
+          "total" : 9000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -660,7 +700,8 @@
           "now" : 60,
           "rows" : 241,
           "stage" : 0,
-          "total" : 9000
+          "total" : 9000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -668,7 +709,8 @@
           "now" : 80,
           "rows" : 241,
           "stage" : 1,
-          "total" : 241
+          "total" : 241,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -676,7 +718,8 @@
           "now" : 120,
           "rows" : 241,
           "stage" : 2,
-          "total" : 1
+          "total" : 1,
+          "waiting" : false
         },
         {
           "complete" : true,
@@ -684,7 +727,8 @@
           "now" : 150,
           "rows" : 241,
           "stage" : 2,
-          "total" : 1
+          "total" : 1,
+          "waiting" : false
         }
       ],
       "name" : "A run that ends at once goes straight to done",
@@ -747,7 +791,8 @@
           "now" : 0,
           "rows" : 20000,
           "stage" : 0,
-          "total" : 0
+          "total" : 0,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -755,7 +800,8 @@
           "now" : 100,
           "rows" : 20000,
           "stage" : 0,
-          "total" : 200000
+          "total" : 200000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -763,7 +809,8 @@
           "now" : 700,
           "rows" : 20000,
           "stage" : 0,
-          "total" : 200000
+          "total" : 200000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -771,7 +818,8 @@
           "now" : 900,
           "rows" : 20000,
           "stage" : 1,
-          "total" : 20000
+          "total" : 20000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -779,7 +827,8 @@
           "now" : 1300,
           "rows" : 20000,
           "stage" : 2,
-          "total" : 1
+          "total" : 1,
+          "waiting" : false
         },
         {
           "complete" : true,
@@ -787,7 +836,8 @@
           "now" : 1500,
           "rows" : 20000,
           "stage" : 2,
-          "total" : 1
+          "total" : 1,
+          "waiting" : false
         }
       ],
       "name" : "A run predicted to end within the fast time keeps its first screen",
@@ -850,7 +900,8 @@
           "now" : 0,
           "rows" : 20000,
           "stage" : 0,
-          "total" : 0
+          "total" : 0,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -858,7 +909,8 @@
           "now" : 100,
           "rows" : 20000,
           "stage" : 0,
-          "total" : 200000
+          "total" : 200000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -866,7 +918,8 @@
           "now" : 700,
           "rows" : 20000,
           "stage" : 0,
-          "total" : 200000
+          "total" : 200000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -874,7 +927,8 @@
           "now" : 2000,
           "rows" : 20000,
           "stage" : 0,
-          "total" : 200000
+          "total" : 200000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -882,7 +936,8 @@
           "now" : 4100,
           "rows" : 20000,
           "stage" : 0,
-          "total" : 200000
+          "total" : 200000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -890,7 +945,8 @@
           "now" : 4200,
           "rows" : 20000,
           "stage" : 1,
-          "total" : 20000
+          "total" : 20000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -898,7 +954,8 @@
           "now" : 4900,
           "rows" : 20000,
           "stage" : 1,
-          "total" : 20000
+          "total" : 20000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -906,7 +963,8 @@
           "now" : 5000,
           "rows" : 20000,
           "stage" : 2,
-          "total" : 1
+          "total" : 1,
+          "waiting" : false
         },
         {
           "complete" : true,
@@ -914,7 +972,8 @@
           "now" : 5300,
           "rows" : 20000,
           "stage" : 2,
-          "total" : 1
+          "total" : 1,
+          "waiting" : false
         },
         {
           "complete" : true,
@@ -922,7 +981,8 @@
           "now" : 5700,
           "rows" : 20000,
           "stage" : 2,
-          "total" : 1
+          "total" : 1,
+          "waiting" : false
         }
       ],
       "name" : "A fast prediction that misses shows the steps, each for its hold",
@@ -1017,7 +1077,8 @@
           "now" : -50,
           "rows" : -3,
           "stage" : -1,
-          "total" : -10
+          "total" : -10,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -1025,7 +1086,8 @@
           "now" : 300,
           "rows" : 999999999999,
           "stage" : 7,
-          "total" : 999999999999
+          "total" : 999999999999,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -1033,7 +1095,8 @@
           "now" : 200,
           "rows" : 0,
           "stage" : 0,
-          "total" : 0
+          "total" : 0,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -1041,7 +1104,8 @@
           "now" : 1300,
           "rows" : 999999999999,
           "stage" : 2,
-          "total" : 999999999999
+          "total" : 999999999999,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -1049,7 +1113,8 @@
           "now" : 99999999999,
           "rows" : 999999999999,
           "stage" : 2,
-          "total" : 999999999999
+          "total" : 999999999999,
+          "waiting" : false
         },
         {
           "complete" : true,
@@ -1057,7 +1122,8 @@
           "now" : 99999999999,
           "rows" : 999999999999,
           "stage" : 2,
-          "total" : 999999999999
+          "total" : 999999999999,
+          "waiting" : false
         }
       ],
       "name" : "Samples outside their ranges clamp, and an older sample changes nothing",
@@ -1120,7 +1186,8 @@
           "now" : 0,
           "rows" : 241,
           "stage" : 0,
-          "total" : 0
+          "total" : 0,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -1128,7 +1195,8 @@
           "now" : 100,
           "rows" : 241,
           "stage" : 0,
-          "total" : 9000
+          "total" : 9000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -1136,7 +1204,8 @@
           "now" : 1100,
           "rows" : 241,
           "stage" : 0,
-          "total" : 9000
+          "total" : 9000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -1144,7 +1213,8 @@
           "now" : 6000,
           "rows" : 241,
           "stage" : 0,
-          "total" : 9000
+          "total" : 9000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -1152,7 +1222,8 @@
           "now" : 11200,
           "rows" : 241,
           "stage" : 0,
-          "total" : 9000
+          "total" : 9000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -1160,7 +1231,8 @@
           "now" : 12500,
           "rows" : 241,
           "stage" : 0,
-          "total" : 9000
+          "total" : 9000,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -1168,7 +1240,8 @@
           "now" : 13600,
           "rows" : 241,
           "stage" : 0,
-          "total" : 9000
+          "total" : 9000,
+          "waiting" : false
         }
       ],
       "name" : "A transfer that stalls after the line said almost done reports a weak signal",
@@ -1239,7 +1312,8 @@
           "now" : 0,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 0
+          "total" : 0,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -1247,7 +1321,8 @@
           "now" : 100,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -1255,7 +1330,8 @@
           "now" : 1100,
           "rows" : 667696,
           "stage" : 0,
-          "total" : 13428507
+          "total" : 13428507,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -1263,7 +1339,8 @@
           "now" : 1700,
           "rows" : 667696,
           "stage" : 1,
-          "total" : 667696
+          "total" : 667696,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -1271,7 +1348,8 @@
           "now" : 2100,
           "rows" : 667696,
           "stage" : 1,
-          "total" : 667696
+          "total" : 667696,
+          "waiting" : false
         },
         {
           "complete" : false,
@@ -1279,7 +1357,8 @@
           "now" : 12000,
           "rows" : 667696,
           "stage" : 1,
-          "total" : 667696
+          "total" : 667696,
+          "waiting" : false
         }
       ],
       "name" : "Between stages the countdown ticks toward its deadline, and a passed deadline says almost done",
@@ -1326,6 +1405,217 @@
         },
         {
           "changedAt" : 12000,
+          "fast" : false,
+          "finished" : false,
+          "line" : "almostDone",
+          "number" : 0,
+          "shown" : 1
+        }
+      ]
+    },
+    {
+      "inputs" : [
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 0,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 0,
+          "waiting" : false
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 300,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507,
+          "waiting" : true
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 1200,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507,
+          "waiting" : true
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 2400,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507,
+          "waiting" : true
+        },
+        {
+          "complete" : false,
+          "done" : 500000,
+          "now" : 3000,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507,
+          "waiting" : false
+        },
+        {
+          "complete" : false,
+          "done" : 3000000,
+          "now" : 4100,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507,
+          "waiting" : false
+        },
+        {
+          "complete" : false,
+          "done" : 6000000,
+          "now" : 5200,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507,
+          "waiting" : false
+        },
+        {
+          "complete" : false,
+          "done" : 6000000,
+          "now" : 6300,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507,
+          "waiting" : true
+        },
+        {
+          "complete" : false,
+          "done" : 7000000,
+          "now" : 7400,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507,
+          "waiting" : false
+        },
+        {
+          "complete" : false,
+          "done" : 10000000,
+          "now" : 8500,
+          "rows" : 667696,
+          "stage" : 0,
+          "total" : 13428507,
+          "waiting" : false
+        },
+        {
+          "complete" : false,
+          "done" : 0,
+          "now" : 9000,
+          "rows" : 667696,
+          "stage" : 1,
+          "total" : 667696,
+          "waiting" : true
+        },
+        {
+          "complete" : false,
+          "done" : 300000,
+          "now" : 9600,
+          "rows" : 667696,
+          "stage" : 1,
+          "total" : 667696,
+          "waiting" : false
+        }
+      ],
+      "name" : "A transfer that waits for a connection reports a weak signal at once and measures again once data flows",
+      "views" : [
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 0,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 1200,
+          "fast" : false,
+          "finished" : false,
+          "line" : "weakSignal",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 1200,
+          "fast" : false,
+          "finished" : false,
+          "line" : "weakSignal",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 3000,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 4100,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 12,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 5200,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 10,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 6300,
+          "fast" : false,
+          "finished" : false,
+          "line" : "weakSignal",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 7400,
+          "fast" : false,
+          "finished" : false,
+          "line" : "measuring",
+          "number" : 0,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 8500,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 8,
+          "shown" : 0
+        },
+        {
+          "changedAt" : 8500,
+          "fast" : false,
+          "finished" : false,
+          "line" : "countdown",
+          "number" : 8,
+          "shown" : 1
+        },
+        {
+          "changedAt" : 9600,
           "fast" : false,
           "finished" : false,
           "line" : "almostDone",

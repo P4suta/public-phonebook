@@ -410,7 +410,7 @@ final class IntegrationModel {
       current,
       WaitInput(
         now: now, stage: latest.stage, done: latest.done, total: latest.total, rows: latest.rows,
-        complete: complete))
+        complete: complete, waiting: latest.waiting))
     if next != current {
       if next.line == .weakSignal && current.line != .weakSignal {
         AccessibilityAnnouncement.post("電波が弱いようです。つながると、続きから受け取ります。")

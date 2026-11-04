@@ -230,7 +230,7 @@ fn read_declaration<T: for<'de> Deserialize<'de>>(root: &Path, path: &str) -> Re
 }
 
 /// Downloads a public immutable file over HTTPS without credentials, keeping at most `limit` bytes.
-fn download(root: &Path, url: &str, destination: &Path, limit: u64) -> Result<()> {
+pub(super) fn download(root: &Path, url: &str, destination: &Path, limit: u64) -> Result<()> {
     let partial = destination.with_extension("partial");
     let result = logged(
         root,

@@ -65,6 +65,30 @@ The Call Directory extension marks each load as an interval with a point every 5
 Choose Product > Profile in Xcode, add the `os_signpost` instrument to a blank template, record a first run, and keep the trace beside the measurements of #231.
 Apple's guide to [recording performance data](https://developer.apple.com/documentation/os/recording-performance-data) describes the instrument.
 
+## Measured first run
+
+`just ios-device-record` measures the first run's three paths on one connected iPhone and walks the on-device checks of this page.
+It refuses before any build when no iPhone is connected, when the paired iPhone isn't connected, or when Developer Mode is off.
+With several connected iPhones, pass `--device` and one of the UDIDs that the refusal lists.
+
+The tool reads the service's listing and its delta listing, and records them with the delta from the bundled snapshot in `target/ios/device-measurement`.
+The `PhonebookDeviceMeasurements` tests replay that record from a loopback server inside the QA app, which builds in the Release-optimized `VerificationRelease` configuration.
+`testBundledImport` saves the bundled archive alone.
+`testDeltaFromTheBundle` rebuilds the listed archive from the bundle through the delta and imports it once.
+`testBundleThenDeltaFromTheStore` saves the bundle and then applies the delta to the saved store.
+Until the service lists a delta from the bundled snapshot, the two delta paths stay pending with that reason.
+
+Each test records `XCTCPUMetric`, `XCTClockMetric`, `XCTMemoryMetric`, and `XCTStorageMetric`, and the saved store's size after each iteration.
+The instructions retired come from `XCTCPUMetric` on the device, and the step meter counts only the tool's own processes on the Mac.
+The tool also records the size of the `VerificationRelease` app that it built for the device, and the Release size stays in `docs/ios-store-distribution.md`.
+
+The tool then asks for the outcome and a note of each on-device item on this page, and a run without a terminal keeps each item pending.
+After the item that leaves the app during an import, it copies the device's crash logs with `devicectl` and fails when a QA bundle report holds `0xdead10cc`.
+It writes `target/ios/device-record.json` and prints a section for this page.
+Add that section with the three conclusions of #231: the first-run path that the numbers favor, the wait display's budgets, and the prebuilt SQLite option.
+
+No run of `just ios-device-record` has happened yet, so every measurement and the crash log check remain pending until the owner's iPhone runs it.
+
 ## Incremental caller names
 
 The extension sends removals and then additions when iOS asks for an incremental load and its loaded record names a kept caller file.

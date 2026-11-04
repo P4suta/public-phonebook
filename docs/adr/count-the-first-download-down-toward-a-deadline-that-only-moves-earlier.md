@@ -32,12 +32,14 @@ An estimate more than 3 seconds past the deadline, or longer than a minute, turn
 The line counts down again only after a short estimate holds for 3 seconds and fits under the lowest countdown so far.
 At 3 seconds or less the line says the run is almost done, and it says so until the end unless the transfer stalls.
 Ten seconds without transfer progress report a weak signal, and the next bytes start a new measurement.
+A transfer that waits for a connection reports the weak signal at once, as soon as the line hold and the fast time permit a change.
+While it waits, the line keeps what it shows or turns to the weak signal, and it never shows a new estimate.
 The line changes at most once a second, each step stays current for at least 0.6 seconds, and a run that ends within 2 seconds goes straight to the done state.
 
 `verification/ios/WaitDisplay.lean` models the Swift file function for function and proves these promises for every finite trace of samples.
 The proof gate pins the SHA-256 of the whitespace-free Swift file, so any edit to it fails the gate until the model is checked again.
-The kernel also replays ten traces that the Swift tests record, so both implementations must draw the same screens.
-Three planted defects must each fail inside the theorem that they break.
+The kernel also replays eleven traces that the Swift tests record, so both implementations must draw the same screens.
+Four planted defects must each fail inside the theorem that they break.
 
 ## Consequences
 

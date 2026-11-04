@@ -163,6 +163,25 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_BUNDLE_ID).UITests
         GENERATE_INFOPLIST_FILE: YES
+  # `ios-check device-record` runs these tests on a physical iPhone, and no simulator gate builds them.
+  PhonebookDeviceMeasurements:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - DeviceMeasurements
+      # The service's listing, delta listing, and delta that `ios-check device-record` records.
+      - path: ../target/ios/device-measurement
+        type: folder
+        buildPhase: resources
+        optional: true
+    dependencies:
+      - target: PublicPhonebook
+      - package: Phonebook
+        product: PhonebookKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_BUNDLE_ID).DeviceMeasurements
+        GENERATE_INFOPLIST_FILE: YES
 schemes:
   PublicPhonebook:
     build:
@@ -194,3 +213,10 @@ schemes:
       targets: [PhonebookUITests]
     archive:
       config: VerificationRelease
+  PublicPhonebookDeviceMeasurements:
+    build:
+      targets:
+        PublicPhonebook: all
+    test:
+      config: VerificationRelease
+      targets: [PhonebookDeviceMeasurements]

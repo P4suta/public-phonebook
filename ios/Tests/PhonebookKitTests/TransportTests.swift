@@ -23,13 +23,16 @@ final class HTTPTestServer: Sendable {
 
   /// Without `finish`, each connection stays open after its reply until `close()`, so a test ends a cut reply only after the client reports its bytes.
   /// URLSession can drop the bytes of a cut reply that closes at once, while a complete reply arrives whole.
+  /// With `keepAlive`, an open connection reads the next request after each reply, so a client can reuse it.
   init(
-    finish: Bool = true, response: @escaping @Sendable (String) -> Data
+    finish: Bool = true, keepAlive: Bool = false, port: NWEndpoint.Port = .any,
+    response: @escaping @Sendable (String) -> Data
   ) async throws {
     let (received, continuation) = AsyncStream.makeStream(of: Void.self)
     self.received = received
     let parameters = NWParameters.tcp
-    parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
+    parameters.allowLocalEndpointReuse = true
+    parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: port)
     let listener = try NWListener(using: parameters)
     self.listener = listener
     let requests = self.requests
@@ -38,7 +41,7 @@ final class HTTPTestServer: Sendable {
       connection.start(queue: .global())
       Self.receive(
         connection, prefix: Data(), requests: requests, received: continuation,
-        finish: finish, response: response)
+        finish: finish, keepAlive: keepAlive, response: response)
     }
     let ready = Mutex<CheckedContinuation<Void, any Error>?>(nil)
     try await withCheckedThrowingContinuation { continuation in
@@ -66,7 +69,7 @@ final class HTTPTestServer: Sendable {
 
   private static func receive(
     _ connection: NWConnection, prefix: Data, requests: ServerState,
-    received: AsyncStream<Void>.Continuation, finish: Bool,
+    received: AsyncStream<Void>.Continuation, finish: Bool, keepAlive: Bool,
     response: @escaping @Sendable (String) -> Data
   ) {
     connection.receive(minimumIncompleteLength: 1, maximumLength: 16_384 - prefix.count) {
@@ -79,7 +82,7 @@ final class HTTPTestServer: Sendable {
         }
         receive(
           connection, prefix: bytes, requests: requests, received: received,
-          finish: finish, response: response)
+          finish: finish, keepAlive: keepAlive, response: response)
         return
       }
       requests.value.withLock { $0.count += 1 }
@@ -87,7 +90,13 @@ final class HTTPTestServer: Sendable {
       connection.send(
         content: response(String(decoding: bytes, as: UTF8.self)),
         completion: .contentProcessed { _ in
-          if finish { connection.cancel() }
+          if finish {
+            connection.cancel()
+          } else if keepAlive {
+            receive(
+              connection, prefix: Data(), requests: requests, received: received,
+              finish: finish, keepAlive: keepAlive, response: response)
+          }
         })
     }
   }
@@ -102,6 +111,7 @@ final class HTTPTestServer: Sendable {
     close()
   }
   var requestCount: Int { requests.value.withLock { $0.count } }
+  var connectionCount: Int { requests.value.withLock { $0.connections.count } }
 }
 
 @Test(.timeLimit(.minutes(1)), .serialized, arguments: 0..<16)

@@ -4,6 +4,7 @@ included:
   - Native
   - CallDirectory
   - ContactProvider
+  - DeviceMeasurements
   - Sources
   - Tests
   - UITests

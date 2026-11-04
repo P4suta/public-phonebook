@@ -75,6 +75,13 @@ The received bytes stay in the store's `transfers` directory after a failure or 
 A 206 reply must start at the kept length and end at the listed length, a 200 reply starts the file again, and a 416 reply discards the kept bytes.
 A changed snapshot or digest names a different file, so the app discards the kept bytes of every other file.
 The app removes the file once its generation activates, and a file lock keeps two downloads from writing it at once.
+`APIClient` owns one ephemeral `URLSession` for its JSON requests and one for its dataset transfers, and the last copy of the client invalidates both.
+Each request still carries its own path rules, because `allowsExpensiveNetworkAccess` and `allowsConstrainedNetworkAccess` on a request override the session.
+The transfer session sets `waitsForConnectivity`, so a transfer without a connection waits for a path, and the wait display shows the weak-signal line at once.
+The JSON session fails at once without a connection, so the listing and its retries keep their timing.
+The transfer's 900-second resource timeout bounds the wait, and the first download's retry schedule takes over after it.
+A refused connection also waits, because the session connects again only when the network path changes.
+Apple lists a forbidden mobile path among the reasons to wait, so an automatic transfer whose path turns costly waits within the same bound.
 It decodes the Brotli stream with the system Compression framework and validates the signature, the header dictionaries, every row, the byte order of the rows, and the per-prefecture counts.
 It saves the rows in a new SQLite generation with a file of normalized names and a file of row categories, and activates the generation atomically.
 The store saves one batch of 1,000 rows while the reader parses the next batch, and it saves the batches in archive order.
@@ -202,6 +209,7 @@ Set `PHONEBOOK_FIXTURE_CONTACTS` and `PHONEBOOK_FIXTURE_CATALOG` to a production
 Run `mise x -- just ios-unit-test` for all compiled Swift package tests, strict lints, and coverage.
 Run `mise x -- just ios-check` for those checks, unsigned simulator and device builds, and the complete isolated simulator UI inventory.
 Run `mise x -- just ios-prove`, `mise x -- just ios-sanitize`, and `mise x -- just ios-mutate` for the heavier assurance checks.
+Run `mise x -- just ios-device-record` with one iPhone connected to measure the first run and walk the manual checks, as [device verification](ios-device-verification.md#measured-first-run) describes.
 `just ios-prove` compiles the eight Lean modules and two generated trace modules, and replays two generated roots, `PublicationModels` and `OmegaModels`, with `leanchecker --fresh`.
 `--fresh` replays every constant of a root's import closure, and the roots import each module exactly once, so they replay every constant that one run per module would.
 `PublicationModel` and `WaitDisplay` both declare `Phonebook.step`, so one root can't import every module.

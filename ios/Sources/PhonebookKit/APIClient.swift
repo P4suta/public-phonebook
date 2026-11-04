@@ -94,6 +94,8 @@ public struct APIClient: Sendable {
   private let now: @Sendable () -> Date
   private let trace: any TraceSink
   private let retryWindow = RetryWindow()
+  /// The session of every dataset transfer of this client, which waits for a connection.
+  let transfers = OwnedSession(OwnedSession.transfers())
 
   public init(
     origin: URL, transport: any HTTPTransport = URLSessionTransport(),
@@ -362,7 +364,7 @@ public struct APIClient: Sendable {
       let transfer = DatasetTransfer(
         partial: partial, offset: offset, expected: archive.bytes, snapshot: archive.snapshot,
         progress: progress)
-      if let response = try await transfer.run(request) {
+      if let response = try await transfer.run(request, in: transfers.session) {
         if response.statusCode == 416 { try Data().write(to: partial) }
         try await checkResponse(response)
         throw ServiceError.http(response.statusCode)
