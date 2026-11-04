@@ -49,7 +49,7 @@ final class DirectoryUITests: XCTestCase {
     let finish = app.buttons["onboarding-finish"]
     XCTAssertTrue(finish.waitForExistence(timeout: 10))
     waitUntilSaved(finish, in: app, timeout: 60)
-    XCTAssertTrue(app.staticTexts["準備ができました"].exists)
+    XCTAssertTrue(app.staticTexts["準備ができました"].waitForExistence(timeout: 5))
     capture(app, name: "onboarding-ready")
     finish.tap()
     XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 10))
@@ -308,7 +308,7 @@ final class DirectoryUITests: XCTestCase {
   /// A slow transfer shows the three steps with a countdown under the current one, then the done state.
   func testFirstDownloadShowsItsStepsWhileReceiving() throws {
     let app = application()
-    try proxy().failNext(.dataset, with: .drip(bytes: 256, interval: .seconds(1)))
+    try proxy().failNext(.dataset, with: .paced(bytes: 128, after: .seconds(1)))
     app.launch()
     let start = app.buttons["onboarding-start"]
     XCTAssertTrue(start.waitForExistence(timeout: 15))
@@ -319,24 +319,24 @@ final class DirectoryUITests: XCTestCase {
     let progress = app.descendants(matching: .any)["sync-progress"]
     XCTAssertTrue(progress.waitForExistence(timeout: 10))
     XCTAssertTrue(app.staticTexts["アプリで使うデータを受け取っています"].exists)
-    waitUntil(
-      "the time line counts down in seconds",
-      (progress.value as? String).map { $0.contains("、あと") && $0.hasSuffix("秒") } == true,
-      timeout: 20, observed: { "It reads “\(progress.value as? String ?? "")”." })
-    let value = progress.value as? String ?? ""
-    XCTAssertTrue(value.contains("パーセント、データを受け取る、あと"), value)
+    // The pace starts once the scenario watches, and the held rest keeps the countdown until 10 s pass without bytes.
+    try proxy().release()
+    waitForValue(of: progress, "the first step counts down in seconds", timeout: 20) {
+      $0.contains("パーセント、データを受け取る、あと") && $0.hasSuffix("秒")
+    }
     capture(app, name: "onboarding-receiving")
     let finish = app.buttons["onboarding-finish"]
     XCTAssertFalse(finish.isEnabled)
+    try proxy().release()
     waitUntilSaved(finish, in: app, timeout: 60)
-    XCTAssertTrue(app.staticTexts["準備ができました"].exists)
+    XCTAssertTrue(app.staticTexts["準備ができました"].waitForExistence(timeout: 5))
     XCTAssertEqual(try proxy().injected, 1)
   }
 
   /// A transfer that stops partway reports a weak signal, says when it retries, and resumes from the kept bytes.
   func testFirstDownloadResumesAfterAWeakSignalAndAStop() throws {
     let app = application()
-    try proxy().failNext(.dataset, with: .stall(bytes: 1_000, hold: .seconds(13)))
+    try proxy().failNext(.dataset, with: .stall(bytes: 1_000))
     app.launch()
     let start = app.buttons["onboarding-start"]
     XCTAssertTrue(start.waitForExistence(timeout: 15))
@@ -346,15 +346,13 @@ final class DirectoryUITests: XCTestCase {
     later.tap()
     let progress = app.descendants(matching: .any)["sync-progress"]
     XCTAssertTrue(progress.waitForExistence(timeout: 10))
-    waitUntil(
-      "the time line reports a weak signal",
-      (progress.value as? String)?.contains("電波が弱いようです、つながると、続きから受け取ります。") == true,
-      timeout: 20, observed: { "It reads “\(progress.value as? String ?? "")”." })
+    // The line appears after 10 s without bytes and stays while the fixture holds the connection, up to the app's 30 s request timeout.
+    waitForValue(of: progress, "the time line reports a weak signal", timeout: 20) {
+      $0.contains("電波が弱いようです、つながると、続きから受け取ります。")
+    }
     capture(app, name: "onboarding-weak-signal")
-    let problem = app.staticTexts["sync-error"]
-    XCTAssertTrue(problem.waitForExistence(timeout: 20))
-    XCTAssertTrue(app.staticTexts["データの受け取りが止まりました"].exists)
-    XCTAssertEqual(problem.label, "5秒後に、自動でもう一度受け取ります。")
+    try proxy().release()
+    waitUntilStopped(in: app)
     capture(app, name: "onboarding-download-stopped")
     let finish = app.buttons["onboarding-finish"]
     waitUntilSaved(finish, in: app, timeout: 60)
@@ -376,12 +374,9 @@ final class DirectoryUITests: XCTestCase {
     let later = app.buttons["onboarding-later"]
     XCTAssertTrue(later.waitForExistence(timeout: 10))
     later.tap()
-    let problem = app.staticTexts["sync-error"]
-    XCTAssertTrue(problem.waitForExistence(timeout: 20))
-    XCTAssertTrue(app.staticTexts["データの受け取りが止まりました"].exists)
-    XCTAssertEqual(problem.label, "5秒後に、自動でもう一度受け取ります。")
+    waitUntilStopped(in: app)
     capture(app, name: "directory-failure")
-    XCTAssertFalse(app.buttons["sync-retry"].exists)
+    let problem = app.staticTexts["sync-error"]
     let finish = app.buttons["onboarding-finish"]
     XCTAssertTrue(finish.waitForExistence(timeout: 10))
     waitUntilSaved(finish, in: app, timeout: 60)
@@ -611,6 +606,38 @@ final class DirectoryUITests: XCTestCase {
     }
   }
 
+  /// Waits until one snapshot of the element has a value that satisfies the condition, and reports and returns that value.
+  @discardableResult
+  private func waitForValue(
+    of element: XCUIElement, _ description: String, timeout: TimeInterval = 10,
+    file: StaticString = #filePath, line: UInt = #line,
+    where condition: @escaping (String) -> Bool
+  ) -> String? {
+    let reading = Reading()
+    waitUntil(
+      description, reading.accepts(element, condition), timeout: timeout,
+      observed: { "It last read “\(reading.last ?? "nothing")”." }, file: file, line: line)
+    if let accepted = reading.accepted {
+      XCTContext.runActivity(named: "It read “\(accepted)”") { _ in }
+    }
+    return reading.accepted
+  }
+
+  /// Waits until one round of reads finds the stopped step with its retry time and without a retry button.
+  /// The app retries 5 s after the stop and clears the step, so a later separate read could miss it.
+  private func waitUntilStopped(
+    in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line
+  ) {
+    let problem = app.staticTexts["sync-error"]
+    let heading = app.staticTexts["データの受け取りが止まりました"]
+    let retry = app.buttons["sync-retry"]
+    waitUntil(
+      "the stopped step says when it retries",
+      (try? problem.snapshot())?.label == "5秒後に、自動でもう一度受け取ります。" && heading.exists
+        && !retry.exists,
+      timeout: 20, observed: { self.saveState(app) }, file: file, line: line)
+  }
+
   /// Waits for a completed save to enable the finish button, reporting the save state on timeout.
   private func waitUntilSaved(
     _ finish: XCUIElement, in app: XCUIApplication, timeout: TimeInterval,
@@ -671,5 +698,19 @@ final class DirectoryUITests: XCTestCase {
       start.press(forDuration: 0.01, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
     }
     return element.exists && element.isHittable
+  }
+}
+
+/// The values that a wait read from one element, each from a single snapshot.
+@MainActor private final class Reading {
+  private(set) var last: String?
+  private(set) var accepted: String?
+
+  func accepts(_ element: XCUIElement, _ condition: (String) -> Bool) -> Bool {
+    let value = (try? element.snapshot())?.value as? String
+    last = value
+    guard let value, condition(value) else { return false }
+    accepted = value
+    return true
   }
 }

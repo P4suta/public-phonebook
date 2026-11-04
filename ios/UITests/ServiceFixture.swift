@@ -16,10 +16,11 @@ final class ServiceFixture: Sendable {
 
   enum Fault: Sendable {
     case unavailable, incomplete
-    /// Sends the upstream reply in pieces of `bytes` bytes, one every `interval`.
-    case drip(bytes: Int, interval: Duration)
-    /// Sends the head and the first `bytes` bytes, waits `hold`, and then closes the connection.
-    case stall(bytes: Int, hold: Duration)
+    /// Holds the reply until the first `release()`, then sends the head with one byte, because URLSession reports a head only with body bytes.
+    /// It sends the next `bytes` bytes `after` that, so the app measures one pace, and holds the rest until the second `release()`.
+    case paced(bytes: Int, after: Duration)
+    /// Sends the head and the first `bytes` bytes, holds the connection open, and closes it at the first `release()`.
+    case stall(bytes: Int)
   }
 
   /// One proxied request: when it arrived after the fixture started, the range it asked for, and how it ended.
@@ -35,6 +36,9 @@ final class ServiceFixture: Sendable {
     var injected = 0
     var exchanges: [Exchange] = []
     var connections: [NWConnection] = []
+    var releases = 0
+    var closed = false
+    var holds: [(point: Int, continuation: CheckedContinuation<Void, Never>)] = []
   }
 
   private final class Storage: Sendable {
@@ -87,6 +91,30 @@ final class ServiceFixture: Sendable {
 
   func failNext(_ route: Route, with fault: Fault = .unavailable) {
     state.value.withLock { $0.next = (route, fault) }
+  }
+
+  /// Moves an injected reply past its next hold, and counts a release that comes before the reply reaches that hold.
+  func release() {
+    let resumed = state.value.withLock { value in
+      value.releases += 1
+      let releases = value.releases
+      let resumed = value.holds.filter { $0.point <= releases }.map(\.continuation)
+      value.holds.removeAll { $0.point <= releases }
+      return resumed
+    }
+    for continuation in resumed { continuation.resume() }
+  }
+
+  /// Waits until the fixture has counted `point` releases or has stopped.
+  private static func hold(_ point: Int, state: Storage) async {
+    await withCheckedContinuation { continuation in
+      let passed = state.value.withLock { value in
+        guard !value.closed, value.releases < point else { return true }
+        value.holds.append((point, continuation))
+        return false
+      }
+      if passed { continuation.resume() }
+    }
   }
 
   var injected: Int { state.value.withLock { $0.injected } }
@@ -154,6 +182,12 @@ final class ServiceFixture: Sendable {
       let finish: @Sendable (String) -> Void = { outcome in
         state.value.withLock { $0.exchanges[index].outcome = outcome }
       }
+      let note: @Sendable (String) -> Void = { event in
+        state.value.withLock { value in
+          value.exchanges[index].outcome = [value.exchanges[index].outcome, event].compactMap { $0 }
+            .joined(separator: "; ")
+        }
+      }
       switch fault {
       case .unavailable:
         finish("injected unavailable")
@@ -167,7 +201,7 @@ final class ServiceFixture: Sendable {
               .utf8),
           completion: .contentProcessed { _ in })
         return
-      case .drip, .stall, nil: break
+      case .paced, .stall, nil: break
       }
       var forwarded = URLRequest(url: url)
       if let host = header("Host", in: request) {
@@ -199,29 +233,36 @@ final class ServiceFixture: Sendable {
           if let value = response.value(forHTTPHeaderField: field) { headers[field] = value }
         }
         switch fault {
-        case .drip(let bytes, let interval):
+        case .paced(let bytes, let after):
           Task {
+            let waiting = ContinuousClock.now
+            await hold(1, state: state)
+            note("held the reply \(seconds(waiting.duration(to: .now))) until release 1")
             connection.send(
-              content: head(status: response.statusCode, headers: headers, length: body.count),
+              content: head(status: response.statusCode, headers: headers, length: body.count)
+                + body.prefix(1),
               completion: .contentProcessed { _ in })
-            var offset = 0
-            while offset < body.count {
-              try? await Task.sleep(for: interval)
-              let end = min(offset + bytes, body.count)
-              connection.send(content: body[offset..<end], completion: .contentProcessed { _ in })
-              offset = end
-            }
+            try? await Task.sleep(for: after)
+            let rest = body.dropFirst(1 + bytes)
             connection.send(
-              content: nil, isComplete: true,
-              completion: .contentProcessed { _ in connection.cancel() })
+              content: body.dropFirst(1).prefix(bytes), completion: .contentProcessed { _ in })
+            let measured = ContinuousClock.now
+            await hold(2, state: state)
+            note(
+              "held the last \(rest.count) bytes \(seconds(measured.duration(to: .now))) until release 2"
+            )
+            connection.send(
+              content: rest, completion: .contentProcessed { _ in connection.cancel() })
           }
-        case .stall(let bytes, let hold):
+        case .stall(let bytes):
           Task {
             connection.send(
               content: head(status: response.statusCode, headers: headers, length: body.count)
                 + body.prefix(bytes),
               completion: .contentProcessed { _ in })
-            try? await Task.sleep(for: hold)
+            let stalled = ContinuousClock.now
+            await hold(1, state: state)
+            note("held the connection \(seconds(stalled.duration(to: .now))) until release 1")
             connection.cancel()
           }
         default:
@@ -250,6 +291,12 @@ final class ServiceFixture: Sendable {
   deinit {
     listener.cancel()
     session.invalidateAndCancel()
-    for connection in state.value.withLock({ $0.connections }) { connection.cancel() }
+    let (connections, holds) = state.value.withLock { value in
+      value.closed = true
+      defer { value.holds = [] }
+      return (value.connections, value.holds.map(\.continuation))
+    }
+    for continuation in holds { continuation.resume() }
+    for connection in connections { connection.cancel() }
   }
 }
