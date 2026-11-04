@@ -47,6 +47,34 @@ export async function command(
   });
 }
 
+/** Runs `action` on every item with at most `limit` running at once, and returns the results in input order once every item settles; it rethrows the first failure in input order. */
+export async function mapConcurrently<T, R>(
+  items: readonly T[],
+  limit: number,
+  action: (item: T) => Promise<R>,
+): Promise<R[]> {
+  if (!Number.isInteger(limit) || limit < 1)
+    throw new RangeError("The concurrency limit must be a positive integer");
+  const queue = items.entries();
+  const settled: PromiseSettledResult<R>[] = [];
+  const worker = async (): Promise<void> => {
+    for (const [index, item] of queue) {
+      try {
+        settled[index] = { status: "fulfilled", value: await action(item) };
+      } catch (reason) {
+        settled[index] = { status: "rejected", reason };
+      }
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker),
+  );
+  return settled.map((result) => {
+    if (result.status === "rejected") throw result.reason;
+    return result.value;
+  });
+}
+
 export async function requireCommand(
   executable: string,
   args: readonly string[],
