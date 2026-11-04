@@ -31,11 +31,7 @@ import {
   type Source,
   SourceSchema,
 } from "../src/core/models.ts";
-import {
-  nameTokens,
-  normalizeName,
-  showsAddress,
-} from "../src/core/search.ts";
+import { nameTokens, normalizeName, showsAddress } from "../src/core/search.ts";
 import {
   encodeSearchIndex,
   searchIndexFile,

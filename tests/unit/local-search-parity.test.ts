@@ -381,7 +381,10 @@ describe("local search parity with the server", () => {
       expect(browser, query).toEqual(server);
       for (const label of server) labels.add(label);
     }
-    expect([...labels].sort()).toEqual(["くわしい情報を見る", "住所などを見る"]);
+    expect([...labels].sort()).toEqual([
+      "くわしい情報を見る",
+      "住所などを見る",
+    ]);
   });
 
   it("rejects the queries the server rejects", async () => {
