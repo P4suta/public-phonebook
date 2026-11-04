@@ -45,6 +45,13 @@ final class ServiceFixture: Sendable {
     let value = Mutex(State())
   }
 
+  /// The provider fixture on the port that the iOS gate passed to the test runner, or on the development port.
+  private static let upstream: String = {
+    let port =
+      ProcessInfo.processInfo.environment["PHONEBOOK_FIXTURE_PORT"].flatMap { UInt16($0) } ?? 3_100
+    return "http://127.0.0.1:\(port)"
+  }()
+
   private let listener: NWListener
   private let state = Storage()
   private let session: URLSession
@@ -162,7 +169,7 @@ final class ServiceFixture: Sendable {
       guard let line = request.components(separatedBy: "\r\n").first else { return }
       let parts = line.split(separator: " ")
       guard parts.count == 3, parts[0] == "GET", parts[1].hasPrefix("/api"),
-        let url = URL(string: "http://127.0.0.1:3100" + parts[1])
+        let url = URL(string: Self.upstream + parts[1])
       else {
         connection.cancel()
         return
