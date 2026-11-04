@@ -35,6 +35,10 @@ private func index(_ lines: [ArchiveLine]) async throws -> (LocalSearch, Snapsho
   #expect(try search.search(["館\n公"]).isEmpty)
   #expect(try search.search([]).isEmpty)
   #expect(try search.search(["見つからない"]).isEmpty)
+  #expect(try !search.search(Array(repeating: "館", count: SearchInput.maximumQueryWords)).isEmpty)
+  #expect(
+    try search.search(Array(repeating: "館", count: SearchInput.maximumQueryWords + 1)).isEmpty)
+  #expect(try search.search([String(repeating: "館", count: 171)]).isEmpty)
 }
 
 @Test func localSearchMatchesEveryWordInTheNameRegionOrCategory() async throws {

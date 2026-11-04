@@ -120,7 +120,7 @@ private func rank(name: String, places: [String], query: String) -> NameRank? {
 
 @Test func foldsAndSplitsGeneratedTextLikeTheReference() {
   let alphabet = Array(
-    "図書館市川中央ア ｱァヵヶケカかけゕゖトとーｰ-‐‑‒–—―−﹣－ヷヴゔヽヾゝゞAaＡａ1１ｶﾞガが\u{3099}\u{309B}\t\n\u{85}\u{A0}\u{1680}\u{2000}\u{2028}\u{202F}\u{205F}\u{3000}\u{200B}\u{FEFF}"
+    "図書館市川中央ア ｱァヵヶケカかけゕゖトとーｰ-‐‑‒–—―−﹣－ヷヴゔヽヾゝゞAaＡａ1１ｶﾞガが\u{3099}\u{309B}\t\n\u{85}\u{A0}\u{1680}\u{2000}\u{2028}\u{202F}\u{205F}\u{3000}\u{200B}\u{FEFF}\u{FE00}\u{FE0F}\u{E0100}"
       .unicodeScalars)
   var generator = SplitMix(seed: 20_261_104)
   for _ in 0..<4000 {
@@ -193,6 +193,8 @@ func everyNationalNameFoldsLikeTheWebsite() throws {
   #expect(rank(name: "高田医院", places: tokyo, query: "髙田") == .prefix)
   #expect(rank(name: "髙田医院", places: tokyo, query: "高田") == .prefix)
   #expect(SearchInput.searchForm("葛\u{E0100}") == SearchInput.searchForm("葛"))
+  #expect(SearchInput.searchForm("辻\u{FE00}") == "辻")
+  #expect(SearchInput.searchForm("か\u{FE0F}\u{3099}") == "が")
   #expect(SearchInput.searchForm("崎") != SearchInput.searchForm("埼"))
   let pairs = SearchInput.kanjiVariants
   #expect(pairs.count > 1000)

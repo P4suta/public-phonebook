@@ -22,6 +22,7 @@ const alphabet = [
   ...[
     0x3099, 0x309b, 0x09, 0x0a, 0x0d, 0x0b, 0x0c, 0x85, 0xa0, 0x1680, 0x2000,
     0x200a, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0x200b, 0xfeff, 0x180e,
+    0xfe00, 0xfe0f, 0xe0100,
   ].map((point) => String.fromCodePoint(point)),
 ];
 const textArbitrary = fc
@@ -104,6 +105,8 @@ describe("search text", () => {
     expect(searchForm("一ヵ所")).toBe(searchForm("一カ所"));
     expect(searchForm("ＡＢＣ")).toBe("abc");
     expect(searchForm("ガ")).toBe(searchForm("ｶﾞ"));
+    expect(searchForm(`辻${String.fromCodePoint(0xfe00)}`)).toBe("辻");
+    expect(searchForm(`か${String.fromCodePoint(0xfe0f, 0x3099)}`)).toBe("が");
   });
 
   it("finds a name from any respelling of it", () => {

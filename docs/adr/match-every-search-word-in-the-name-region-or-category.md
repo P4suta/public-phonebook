@@ -28,7 +28,9 @@ Before compatibility composition, the comparison form drops the variation select
 After lowercase, it turns each kanji variant into its group's representative through a generated table.
 Apply the same folding to each row's name, prefecture name, municipality name, and category label, and never change displayed text.
 Keep the 512-byte query limit and reject a name query of more than eight words as an invalid query.
-Eight words keep a D1 search within its limit of 100 bound parameters, because each word adds a name condition, up to three region and category code lists, and a rank term.
+Eight words keep a D1 search within its limit of 100 bound parameters.
+Each word adds a name condition and up to three code lists, and the page query repeats each word in its rank expression for the selection, the order, and the continuation.
+A test pins that worst case below the limit, because the local D1 runtime doesn't enforce it.
 
 Match a row when every word occurs in its comparison name or in its prefecture name, municipality name, or category label.
 Rank a one-word query by its exact, prefix, and substring position in the comparison name.

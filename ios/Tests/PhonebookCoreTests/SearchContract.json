@@ -6884,28 +6884,30 @@
       ]
     },
     {
-      "text": "\n\u2212\u3099\u304c\u309b\u5ddd\uff11\u9928\u30f4\u2010",
+      "text": "\u00a0\ufe63\t\u309b\n\u5ddd\uff9e\u9928\u30fd\u2011",
       "words": [
-        "-\u3099\u304c",
-        "\u3099\u5ddd1\u9928\u3094-"
+        "-",
+        "\u3099",
+        "\u5ddd\u3099\u9928\u309d-"
       ]
     },
     {
-      "text": "\u3051\u5ddd\u3094\u592e\u5e02\u30ac\uff76",
+      "text": "\u3095\u4e2d\u30fe\u592e\u5ddd\u3099\u30ac",
       "words": [
-        "\u3051\u5ddd\u3094\u592e\u5e02\u304c\u304b"
+        "\u304b\u4e2d\u309e\u592e\u5ddd\u3099\u304c"
       ]
     },
     {
-      "text": "\u5ddd\u2011",
+      "text": "\u5ddd\u2012",
       "words": [
         "\u5ddd-"
       ]
     },
     {
-      "text": "\u2212\u30a2\u2212\ufeff",
+      "text": "\ufe63 \ufe63\udb40\udd00",
       "words": [
-        "-\u3042-\ufeff"
+        "-",
+        "-"
       ]
     },
     {
@@ -6915,53 +6917,49 @@
       ]
     },
     {
-      "text": "\uff70",
+      "text": "-",
       "words": [
         "-"
       ]
     },
     {
-      "text": "\u2010\n\u5e02\uff76\u66f8\u304b \u30fd\u66f8",
+      "text": "\u2011\u1680\u5e02\u304c\u66f8\u304b \u309d\u66f8",
       "words": [
         "-",
-        "\u5e02\u304b\u66f8\u304b",
+        "\u5e02\u304c\u66f8\u304b",
         "\u309d\u66f8"
       ]
     },
     {
-      "text": "\ufeff\u1680",
+      "text": "\ufe0f\u202f",
+      "words": []
+    },
+    {
+      "text": "\n",
+      "words": []
+    },
+    {
+      "text": "1\u30ac\uff41\u30c8\u2014\uff71A\ufe63\u20101\u2015\ufe0f",
       "words": [
-        "\ufeff"
+        "1\u304ca\u3068-\u3042a--1-"
       ]
     },
     {
-      "text": "\u3099",
+      "text": "\u3094\u30f7\uff70\u30a1",
       "words": [
-        "\u3099"
+        "\u3094\u30f7-\u3041"
       ]
     },
     {
-      "text": "\uff21\uff76a\u3096\u2012\uff71\u309d\u2015-\uff21\u2013\u200b",
-      "words": [
-        "a\u304ba\u3051-\u3042\u309d--a-\u200b"
-      ]
-    },
-    {
-      "text": "\u30f4\uff0d\u30fc\u30a1",
-      "words": [
-        "\u3094--\u3041"
-      ]
-    },
-    {
-      "text": "\u304b\u66f8\u30ab\u592e\u2011\u00a0",
+      "text": "\u304b\u66f8\u304b\u592e\u2012\u2028",
       "words": [
         "\u304b\u66f8\u304b\u592e-"
       ]
     },
     {
-      "text": "\n\u309d",
+      "text": "\u1680A",
       "words": [
-        "\u309d"
+        "a"
       ]
     },
     {
@@ -6971,1628 +6969,163 @@
       ]
     },
     {
-      "text": "\u30f7\u205f\u30ab\u1680\u592e\uff0d\u309e1\u30a2\ufe63",
+      "text": "\u30f4\ufeff\u304b\u202f\u592e\u30f7a\uff76\u30a2\uff0d",
       "words": [
-        "\u30f7",
-        "\u304b",
-        "\u592e-\u309e1\u3042-"
+        "\u3094\ufeff\u304b",
+        "\u592e\u30f7a\u304b\u3042-"
       ]
     },
     {
-      "text": "\u3068\u2012-\u304b\u309d\u30f5\u30ac\u2212\u30a1",
+      "text": "\u30fc\u2013\u2010\u3051\u309e\u30f6\u3099\uff0d\u30a1",
       "words": [
-        "\u3068--\u304b\u309d\u304b\u304c-\u3041"
+        "---\u3051\u309e\u3052-\u3041"
       ]
     },
     {
-      "text": "\u30c8\u30a1\u30ab\u205f",
+      "text": "\u30c8\u30a1\u304b\u200b",
       "words": [
-        "\u3068\u3041\u304b"
+        "\u3068\u3041\u304b\u200b"
       ]
     },
     {
-      "text": "\u309e\u3095\ufe63\u9928\u30fd\u2014\u2212\u66f8\u2012\u30fe\u2011\u5ddd",
+      "text": "a\u3096\u30f7\u9928\u309d\u2015\uff0d\u66f8\u2013\u309e\u2012\u5ddd",
       "words": [
-        "\u309e\u304b-\u9928\u309d--\u66f8-\u309e-\u5ddd"
+        "a\u3051\u30f7\u9928\u309d--\u66f8-\u309e-\u5ddd"
       ]
     },
     {
-      "text": "\u30fd\uff21\u205f\uff70\u30f7\u3099",
+      "text": "\u309d1\ufeff-\u30f4\n",
       "words": [
-        "\u309da",
-        "-\u30f7\u3099"
+        "\u309d1\ufeff-\u3094"
       ]
     },
     {
-      "text": "\u2015\uff21\u2212",
+      "text": "\ufe631\uff0d",
       "words": [
-        "-a-"
+        "-1-"
       ]
     },
     {
-      "text": "\uff70\u30fe\u5ddd\u16801-\u202f\u30f4\uff9e",
+      "text": "-\u309d\u4e2d\u202f\uff76\u2010\u200b\u3094\u304c",
       "words": [
-        "-\u309e\u5ddd",
-        "1-",
-        "\u3094\u3099"
+        "-\u309d\u4e2d",
+        "\u304b-\u200b\u3094\u304c"
       ]
     },
     {
-      "text": "\u5e02\u56f3\u30ab\u3099\u2012",
+      "text": "\u5e02\u56f3\u30ab\t\u2013",
       "words": [
-        "\u5e02\u56f3\u304c-"
+        "\u5e02\u56f3\u304b",
+        "-"
       ]
     },
     {
-      "text": "\u30a2\u304b\uff70\u30a2\u202f\u2012\u30ac",
+      "text": " \u3051-\u30a2\u200b\u2013\u3099",
       "words": [
-        "\u3042\u304b-\u3042",
-        "-\u304c"
+        "\u3051-\u3042\u200b-\u3099"
       ]
     },
     {
-      "text": "\u30f7",
+      "text": "\u30f4",
       "words": [
-        "\u30f7"
+        "\u3094"
       ]
     },
     {
-      "text": "\u5ddd\u3094\u66f8\u56f3",
+      "text": "\u5ddd\u30fe\u66f8\u56f3",
       "words": [
-        "\u5ddd\u3094\u66f8\u56f3"
+        "\u5ddd\u309e\u66f8\u56f3"
       ]
     },
     {
-      "text": "\u2028\u2013\u2212\u2010A\uff76\u309b\u30f6\u5e02\u30f6\uff70\uff21",
+      "text": "\u205f\u2014\ufe63\u2011\uff21\u30ac\u0085\u30b1\u5e02\u30b1-1",
       "words": [
-        "---a\u304b",
-        "\u3099\u3051\u5e02\u3051-a"
+        "---a\u304c",
+        "\u3051\u5e02\u3051-1"
       ]
     },
     {
-      "text": "\ufeff\u2012\uff70",
+      "text": "\udb40\udd00\u2013-",
       "words": [
-        "\ufeff--"
+        "--"
       ]
     },
     {
-      "text": "\u4e2d\u30fc\u30fd\t\u2015\u30f6\u30c8",
+      "text": "\u4e2d\uff70\u309d\u0085\ufe63\u30f6\u3068",
       "words": [
         "\u4e2d-\u309d",
         "-\u3051\u3068"
       ]
     },
     {
-      "text": "\uff9e\u304b\uff21\u30b1\u00a0\uff70",
+      "text": "\u304c\u30511\u30ab\u2000-",
       "words": [
-        "\u3099\u304ba\u3051",
+        "\u304c\u30511\u304b",
         "-"
       ]
     },
     {
-      "text": "\u30fd\u30f4\u3000\u2011-\u66f8\u3099a \u2011",
+      "text": "\u30fe\u30fd\ufeff\u2012\u2010\u66f8\t\uff41 \u2013",
       "words": [
-        "\u309d\u3094",
-        "--\u66f8\u3099a",
+        "\u309e\u309d\ufeff--\u66f8",
+        "a",
         "-"
       ]
     },
     {
-      "text": "\u30fd\u30fe\u3068A\u0085\u3094\t\uff71\u30f7\u309b\u5e02\u9928",
+      "text": "\u309d\u309d\u30fc\uff21\u2000\u30fe\u0085\uff71\u3094\n\u5e02\u9928",
       "words": [
-        "\u309d\u309e\u3068a",
-        "\u3094",
-        "\u3042\u30f7",
-        "\u3099\u5e02\u9928"
+        "\u309d\u309d-a",
+        "\u309e",
+        "\u3042\u3094",
+        "\u5e02\u9928"
       ]
     },
     {
-      "text": "\u30fd\u2000\u30f7\uff0d-\u309e\u30fd\u3096\u30a2\u3068",
+      "text": "\u309d\u202f\u3094\u30f4\u2010a\u30fe\u30c8\u30a2\u30fc",
       "words": [
         "\u309d",
-        "\u30f7--\u309e\u309d\u3051\u3042\u3068"
+        "\u3094\u3094-a\u309e\u3068\u3042-"
       ]
     },
     {
-      "text": "\uff41\u66f8\u3051\u30f6\u309e",
+      "text": "\uff11\u66f8\u3095\u30f6a",
       "words": [
-        "a\u66f8\u3051\u3051\u309e"
+        "1\u66f8\u304b\u3051a"
       ]
     },
     {
-      "text": "\uff0d\u4e2d\u304b",
+      "text": "\u30f4\u4e2d\u304b",
       "words": [
-        "-\u4e2d\u304b"
+        "\u3094\u4e2d\u304b"
       ]
     },
     {
-      "text": "\u00a0\u5ddd\t\u9928\u3094a\uff71",
+      "text": "\u2028\u4e2d\u0085\u5e02\u30fe\uff41\uff71",
       "words": [
-        "\u5ddd",
-        "\u9928\u3094a\u3042"
+        "\u4e2d",
+        "\u5e02\u309ea\u3042"
       ]
     },
     {
-      "text": "\u30f5\u2015\n\u309d\u309b\u2212\u304b\u2014\u2011\u205f ",
-      "words": [
-        "\u304b-",
-        "\u309d",
-        "\u3099-\u304b--"
-      ]
-    },
-    {
-      "text": "\uff0d \ufe63\ufe63\u3094\u30f5\u30f5\u30f6\u66f8\uff76\ufeff\u30fe",
-      "words": [
-        "-",
-        "--\u3094\u304b\u304b\u3051\u66f8\u304b\ufeff\u309e"
-      ]
-    },
-    {
-      "text": "\u3068\u2012\u3095a\u0085\u0085",
-      "words": [
-        "\u3068-\u304ba"
-      ]
-    },
-    {
-      "text": "\u2000",
-      "words": []
-    },
-    {
-      "text": "\u1680\u30a2\u30ab",
-      "words": [
-        "\u3042\u304b"
-      ]
-    },
-    {
-      "text": "\u3099",
-      "words": [
-        "\u3099"
-      ]
-    },
-    {
-      "text": "\u3068\u309e\uff76\u30f6\u30fd\u3096A\u309d\u2013\u3095",
-      "words": [
-        "\u3068\u309e\u304b\u3051\u309d\u3051a\u309d-\u304b"
-      ]
-    },
-    {
-      "text": "\uff70\u30a1\u66f8\uff71\u66f8\n\u309d\u30c8\u4e2d",
-      "words": [
-        "-\u3041\u66f8\u3042\u66f8",
-        "\u309d\u3068\u4e2d"
-      ]
-    },
-    {
-      "text": "\u30fd\uff9e\u30a1\u304c\u304c\uff11\u2015\uff11",
-      "words": [
-        "\u309e\u3041\u304c\u304c1-1"
-      ]
-    },
-    {
-      "text": "\u309da\u30ac\u30f6\u30fe\uff9e\u30fe\u2015\t",
-      "words": [
-        "\u309da\u304c\u3051\u309e\u3099\u309e-"
-      ]
-    },
-    {
-      "text": "\ufeff",
-      "words": [
-        "\ufeff"
-      ]
-    },
-    {
-      "text": "\u3095\u0085\uff21\u4e2d\u2013",
-      "words": [
-        "\u304b",
-        "a\u4e2d-"
-      ]
-    },
-    {
-      "text": "\u3095\u0085\u3096\u30ab1\u200b\u2028\u0085\uff9e\uff0d",
-      "words": [
-        "\u304b",
-        "\u3051\u304b1\u200b",
-        "\u3099-"
-      ]
-    },
-    {
-      "text": "\u3096\u3096\u2212\u2010\u30b1\u30a1\u30c8\u2015",
-      "words": [
-        "\u3051\u3051--\u3051\u3041\u3068-"
-      ]
-    },
-    {
-      "text": "\u30fe\u0085",
-      "words": [
-        "\u309e"
-      ]
-    },
-    {
-      "text": "\u30b1\u30a2\u200b\u200b\u66f8",
-      "words": [
-        "\u3051\u3042\u200b\u200b\u66f8"
-      ]
-    },
-    {
-      "text": "\n\uff0d\u2212\uff11\u2212\ufe63",
-      "words": [
-        "--1--"
-      ]
-    },
-    {
-      "text": "\u5ddd\uff76\u30c8\u2212\u3000\u30b1\u2015\uff11\u2000\u3096\uff76",
-      "words": [
-        "\u5ddd\u304b\u3068-",
-        "\u3051-1",
-        "\u3051\u304b"
-      ]
-    },
-    {
-      "text": "A\u30a1A\u30f5",
-      "words": [
-        "a\u3041a\u304b"
-      ]
-    },
-    {
-      "text": "\u30fd\u56f3\uff71\u2000\uff71\u30fc",
-      "words": [
-        "\u309d\u56f3\u3042",
-        "\u3042-"
-      ]
-    },
-    {
-      "text": "\u30f7\u309b\uff70",
-      "words": [
-        "\u30f7",
-        "\u3099-"
-      ]
-    },
-    {
-      "text": "\uff76\u3051\u22121\u3094\uff0d\u30f5\u3051",
-      "words": [
-        "\u304b\u3051-1\u3094-\u304b\u3051"
-      ]
-    },
-    {
-      "text": "\uff70\n",
-      "words": [
-        "-"
-      ]
-    },
-    {
-      "text": "\u3095\ufeff\u2015",
-      "words": [
-        "\u304b\ufeff-"
-      ]
-    },
-    {
-      "text": "\u3099\t\uff41\u2028\n\u30fd\u2014",
-      "words": [
-        "\u3099",
-        "a",
-        "\u309d-"
-      ]
-    },
-    {
-      "text": "\uff11\u30fc\u3000",
-      "words": [
-        "1-"
-      ]
-    },
-    {
-      "text": "\u30ac\u30f4",
-      "words": [
-        "\u304c\u3094"
-      ]
-    },
-    {
-      "text": "\u30fe\u30ab\t\u5e02",
-      "words": [
-        "\u309e\u304b",
-        "\u5e02"
-      ]
-    },
-    {
-      "text": "\u200ba",
-      "words": [
-        "\u200ba"
-      ]
-    },
-    {
-      "text": "\ufeff-",
-      "words": [
-        "\ufeff-"
-      ]
-    },
-    {
-      "text": "\u202f\u2028",
-      "words": []
-    },
-    {
-      "text": "\u592e\u3051\u30f7\u30a1\uff21\u2013",
-      "words": [
-        "\u592e\u3051\u30f7\u3041a-"
-      ]
-    },
-    {
-      "text": "\u0085\t\uff0d\u2015\u304b\u200b\u30b1",
-      "words": [
-        "--\u304b\u200b\u3051"
-      ]
-    },
-    {
-      "text": "\u3096-\u56f3\uff41\u3099",
-      "words": [
-        "\u3051-\u56f3a\u3099"
-      ]
-    },
-    {
-      "text": "\u2015\u30a2\ufe63",
-      "words": [
-        "-\u3042-"
-      ]
-    },
-    {
-      "text": "\u30fc\uff9e\uff76\u3096\u5ddd\u30f4a",
-      "words": [
-        "-\u3099\u304b\u3051\u5ddd\u3094a"
-      ]
-    },
-    {
-      "text": " \u30a1\uff76\u30a2\uff76\ufeff\u30fc",
-      "words": [
-        "\u3041\u304b\u3042\u304b\ufeff-"
-      ]
-    },
-    {
-      "text": "\uff70\u3096",
-      "words": [
-        "-\u3051"
-      ]
-    },
-    {
-      "text": "\uff9e\u205f\u30f6\u00a0\u5ddd\u16801\u3094\u66f8\u30ab\u3095\u4e2d",
-      "words": [
-        "\u3099",
-        "\u3051",
-        "\u5ddd",
-        "1\u3094\u66f8\u304b\u304b\u4e2d"
-      ]
-    },
-    {
-      "text": "\n\u30fd",
-      "words": [
-        "\u309d"
-      ]
-    },
-    {
-      "text": "\u30a1\u30fc\u2011\u0085",
-      "words": [
-        "\u3041--"
-      ]
-    },
-    {
-      "text": "a\u304c",
-      "words": [
-        "a\u304c"
-      ]
-    },
-    {
-      "text": "\u202f\u9928\u30fe\uff11\u0085\u200b\ufeff\u30f4 \u30f5\t\u2010",
-      "words": [
-        "\u9928\u309e1",
-        "\u200b\ufeff\u3094",
-        "\u304b",
-        "-"
-      ]
-    },
-    {
-      "text": "\uff76\u205f\u3068\u309e\u304c\u200b\u2012",
-      "words": [
-        "\u304b",
-        "\u3068\u309e\u304c\u200b-"
-      ]
-    },
-    {
-      "text": "\u30b1\n\uff71\u2000\u4e2d\uff9e\t\uff11\u2013\u9928\t",
-      "words": [
-        "\u3051",
-        "\u3042",
-        "\u4e2d\u3099",
-        "1-\u9928"
-      ]
-    },
-    {
-      "text": "\u202f\t\u30f4\uff76\u2000\u309b\u304b\u309d-",
-      "words": [
-        "\u3094\u304b",
-        "\u3099\u304b\u309d-"
-      ]
-    },
-    {
-      "text": "\u2013\uff76\uff11 \u30a2",
-      "words": [
-        "-\u304b1",
-        "\u3042"
-      ]
-    },
-    {
-      "text": "\u304c\n\uff21\u2013\u30b1\uff11\u30f5\u3051-\u2011",
-      "words": [
-        "\u304c",
-        "a-\u30511\u304b\u3051--"
-      ]
-    },
-    {
-      "text": "\u30a1\u3000\u30ac\u2015\u30ab\u3099\u3068\u2028\u5e02",
-      "words": [
-        "\u3041",
-        "\u304c-\u304c\u3068",
-        "\u5e02"
-      ]
-    },
-    {
-      "text": "\u2013\u5ddd\u30f7\u3068\ufe63\u5ddd",
-      "words": [
-        "-\u5ddd\u30f7\u3068-\u5ddd"
-      ]
-    },
-    {
-      "text": "\u00a0\u30f4\u3068\ufe63\u304b\u304b\u3094\u2012\u3000\u66f8\u5e02\u1680",
-      "words": [
-        "\u3094\u3068-\u304b\u304b\u3094-",
-        "\u66f8\u5e02"
-      ]
-    },
-    {
-      "text": "\u309d\u2015\u0085\u30a2\u5e02a\u30f6A",
-      "words": [
-        "\u309d-",
-        "\u3042\u5e02a\u3051a"
-      ]
-    },
-    {
-      "text": " A\u3095\u2013\u30ac\u2000",
-      "words": [
-        "a\u304b-\u304c"
-      ]
-    },
-    {
-      "text": "\t",
-      "words": []
-    },
-    {
-      "text": "\u30a1",
-      "words": [
-        "\u3041"
-      ]
-    },
-    {
-      "text": "\u30fc\u30a2\u202f",
-      "words": [
-        "-\u3042"
-      ]
-    },
-    {
-      "text": "\uff0d\u2000\u200b",
-      "words": [
-        "-",
-        "\u200b"
-      ]
-    },
-    {
-      "text": "\u592e\u30fc\uff11\u2014",
-      "words": [
-        "\u592e-1-"
-      ]
-    },
-    {
-      "text": "\u3096\u3000 \u66f8\uff9e\u205f\u30ab\uff71",
-      "words": [
-        "\u3051",
-        "\u66f8\u3099",
-        "\u304b\u3042"
-      ]
-    },
-    {
-      "text": "\u30c8\u30fc\u30fd",
-      "words": [
-        "\u3068-\u309d"
-      ]
-    },
-    {
-      "text": "\u2014\u56f3",
-      "words": [
-        "-\u56f3"
-      ]
-    },
-    {
-      "text": "\u304c\u3096\u3051\t\u30f7",
-      "words": [
-        "\u304c\u3051\u3051",
-        "\u30f7"
-      ]
-    },
-    {
-      "text": "\u56f3\u30c8\u30f4\u30f5\uff9e",
-      "words": [
-        "\u56f3\u3068\u3094\u304c"
-      ]
-    },
-    {
-      "text": "\u2013\u66f8\ufe63\uff21\u309d\u30a1\u30ab\u4e2d\u30c8",
-      "words": [
-        "-\u66f8-a\u309d\u3041\u304b\u4e2d\u3068"
-      ]
-    },
-    {
-      "text": "\u309b\u4e2d\u30fc\ufe63\t",
-      "words": [
-        "\u3099\u4e2d--"
-      ]
-    },
-    {
-      "text": "\u304c\t\u9928\uff70\u30f4\u2015\u309e\u304c\uff41",
-      "words": [
-        "\u304c",
-        "\u9928-\u3094-\u309e\u304ca"
-      ]
-    },
-    {
-      "text": " ",
-      "words": []
-    },
-    {
-      "text": "\uff70\u30c8\u30ab\u309e\u2011\u3094\u2013\u30a1\u304b\u3000",
-      "words": [
-        "-\u3068\u304b\u309e-\u3094-\u3041\u304b"
-      ]
-    },
-    {
-      "text": "\u30f7\u30f7\u1680\u2014\uff71\u4e2d\u200b\uff21\u3051\u0085",
-      "words": [
-        "\u30f7\u30f7",
-        "-\u3042\u4e2d\u200ba\u3051"
-      ]
-    },
-    {
-      "text": "\ufe63\u202f",
-      "words": [
-        "-"
-      ]
-    },
-    {
-      "text": "\u5e02\u2010\uff9e\u9928\u2013",
-      "words": [
-        "\u5e02-\u3099\u9928-"
-      ]
-    },
-    {
-      "text": "A\u202f",
-      "words": [
-        "a"
-      ]
-    },
-    {
-      "text": "\u205f-\u202f\u3000\u30b1",
-      "words": [
-        "-",
-        "\u3051"
-      ]
-    },
-    {
-      "text": "\u304c",
-      "words": [
-        "\u304c"
-      ]
-    },
-    {
-      "text": "\u3068\u30fc",
-      "words": [
-        "\u3068-"
-      ]
-    },
-    {
-      "text": "\t\u205f\uff76\uff0d\u30a2\u30c8\u3000\u2014\u3068\uff71",
-      "words": [
-        "\u304b-\u3042\u3068",
-        "-\u3068\u3042"
-      ]
-    },
-    {
-      "text": "\u3094\u1680\u30f4\uff71\u30c8\u4e2d\ufe63",
-      "words": [
-        "\u3094",
-        "\u3094\u3042\u3068\u4e2d-"
-      ]
-    },
-    {
-      "text": "\uff41\u1680\u30f4\u56f3\ufe63\u66f8\uff71\u3096",
-      "words": [
-        "a",
-        "\u3094\u56f3-\u66f8\u3042\u3051"
-      ]
-    },
-    {
-      "text": "\u5ddd\u304c",
-      "words": [
-        "\u5ddd\u304c"
-      ]
-    },
-    {
-      "text": "\u30c8\u2010\u30fe\u3094\u30f4\u3051\u30fd\u2028",
-      "words": [
-        "\u3068-\u309e\u3094\u3094\u3051\u309d"
-      ]
-    },
-    {
-      "text": "\uff11\u2014\u30fd\u3095",
-      "words": [
-        "1-\u309d\u304b"
-      ]
-    },
-    {
-      "text": "\uff11\u3096A\u3096\u200b\uff71",
-      "words": [
-        "1\u3051a\u3051\u200b\u3042"
-      ]
-    },
-    {
-      "text": "\u200b\u1680\u205f\u30fc\u2028\u592e\u30ab\ufeff\u9928\u3099\uff11\uff9e",
-      "words": [
-        "\u200b",
-        "-",
-        "\u592e\u304b\ufeff\u9928\u30991\u3099"
-      ]
-    },
-    {
-      "text": "\u30a2\u3068\u30a1\u2028\t\uff21\u2014\u3095\u30ac\u2010\u2028",
-      "words": [
-        "\u3042\u3068\u3041",
-        "a-\u304b\u304c-"
-      ]
-    },
-    {
-      "text": "\u30f5\u00a0\u592e\uff41\u2010\u2028\u2212\u309e\u30f7\u2000",
-      "words": [
-        "\u304b",
-        "\u592ea-",
-        "-\u309e\u30f7"
-      ]
-    },
-    {
-      "text": "-\u30fc\uff71\u309d\u200b\u30a2\uff0d",
-      "words": [
-        "--\u3042\u309d\u200b\u3042-"
-      ]
-    },
-    {
-      "text": "\u592e\ufe63\u3094\u30fc \u3051\u2012\u309da",
-      "words": [
-        "\u592e-\u3094-",
-        "\u3051-\u309da"
-      ]
-    },
-    {
-      "text": "\u30f5\u3099\u56f3\u5ddd\u2212\u1680\uff41\uff11",
-      "words": [
-        "\u304c\u56f3\u5ddd-",
-        "a1"
-      ]
-    },
-    {
-      "text": "\u2010\u2013\uff0d\u205f\u2013",
-      "words": [
-        "---",
-        "-"
-      ]
-    },
-    {
-      "text": "\u2028\u30fd\u5e02",
-      "words": [
-        "\u309d\u5e02"
-      ]
-    },
-    {
-      "text": "\u2028\u200b\u3068\n\u30f7\u30fd\ufeff",
-      "words": [
-        "\u200b\u3068",
-        "\u30f7\u309d\ufeff"
-      ]
-    },
-    {
-      "text": " \u3096\u30aca",
-      "words": [
-        "\u3051\u304ca"
-      ]
-    },
-    {
-      "text": "\u3000\u202f\u309e",
-      "words": [
-        "\u309e"
-      ]
-    },
-    {
-      "text": "\u30b1\u2011\t\uff71\uff71\u2212\u30a1",
+      "text": "\u30f6\u2212\u1680A\u0085\ufe63\u3051\u2212\u2012\ufeff ",
       "words": [
         "\u3051-",
-        "\u3042\u3042-\u3041"
-      ]
-    },
-    {
-      "text": "\u5e02\u5ddd\u9928\u2000\ufe63\u66f8\u3094\u9928\ufeff\uff41\uff76\uff41",
-      "words": [
-        "\u5e02\u5ddd\u9928",
-        "-\u66f8\u3094\u9928\ufeffa\u304ba"
-      ]
-    },
-    {
-      "text": "\u00a0",
-      "words": []
-    },
-    {
-      "text": "\u30b1\u30a1\t\u309e\u5e02\u4e2d\u3094\n\u3099\u30ab\u30fd",
-      "words": [
-        "\u3051\u3041",
-        "\u309e\u5e02\u4e2d\u3094",
-        "\u3099\u304b\u309d"
-      ]
-    },
-    {
-      "text": "\u30fe\u592e\u30b1-\uff71\u4e2d\uff9e\u56f3\u205f\uff76\u2013\u304c",
-      "words": [
-        "\u309e\u592e\u3051-\u3042\u4e2d\u3099\u56f3",
-        "\u304b-\u304c"
-      ]
-    },
-    {
-      "text": "\u3068\u56f3\u309d\u30f7a\u3095\u2013",
-      "words": [
-        "\u3068\u56f3\u309d\u30f7a\u304b-"
-      ]
-    },
-    {
-      "text": "\uff76\u3094\u2015\u2010\u3094\u1680",
-      "words": [
-        "\u304b\u3094--\u3094"
-      ]
-    },
-    {
-      "text": "\u3096",
-      "words": [
-        "\u3051"
-      ]
-    },
-    {
-      "text": "\u2011\u3095\u30c8\u0085A\u30a2 \u3095\u309b\u30a2\u3000",
-      "words": [
-        "-\u304b\u3068",
-        "a\u3042",
-        "\u304b",
-        "\u3099\u3042"
-      ]
-    },
-    {
-      "text": "\uff11\u205f\u309d\u309b\t\u30a1\u30f6\uff71\u2014",
-      "words": [
-        "1",
-        "\u309d",
-        "\u3099",
-        "\u3041\u3051\u3042-"
-      ]
-    },
-    {
-      "text": "\u200b\u0085a\u30f5\u2014\u9928\u3000",
-      "words": [
-        "\u200b",
-        "a\u304b-\u9928"
-      ]
-    },
-    {
-      "text": "\u3099\u5e02\u2212\u304b\ufe63\u30ab",
-      "words": [
-        "\u3099\u5e02-\u304b-\u304b"
-      ]
-    },
-    {
-      "text": "\u30ac\u0085-\u309e\u30f6",
-      "words": [
-        "\u304c",
-        "-\u309e\u3051"
-      ]
-    },
-    {
-      "text": "\u309b\u592e",
-      "words": [
-        "\u3099\u592e"
-      ]
-    },
-    {
-      "text": "\u304c\u3099\ufe63\u9928 \u309d\u309e\u2015",
-      "words": [
-        "\u304c\u3099-\u9928",
-        "\u309d\u309e-"
-      ]
-    },
-    {
-      "text": "\u30f4\uff70",
-      "words": [
-        "\u3094-"
-      ]
-    },
-    {
-      "text": "\u00a0\u3000\u309d\u30f5\uff0d\u30b1\u5ddd\u3094\u304c\u30a2\u30f6\u2012",
-      "words": [
-        "\u309d\u304b-\u3051\u5ddd\u3094\u304c\u3042\u3051-"
-      ]
-    },
-    {
-      "text": "\u9928\u3094\u2010\u30fd\u30fd\u3000\u3095\u2012",
-      "words": [
-        "\u9928\u3094-\u309d\u309d",
-        "\u304b-"
-      ]
-    },
-    {
-      "text": "\u2014\u3099\u30fe\u30ab\u30f7\u304c\ufeffa\u5e02\u66f8",
-      "words": [
-        "-\u3099\u309e\u304b\u30f7\u304c\ufeffa\u5e02\u66f8"
-      ]
-    },
-    {
-      "text": "\u30f6a\uff71\u2028\uff76\uff41\u304c\uff70\u30f7\u5ddd\u66f8",
-      "words": [
-        "\u3051a\u3042",
-        "\u304ba\u304c-\u30f7\u5ddd\u66f8"
-      ]
-    },
-    {
-      "text": "\u30a2\u30b1\u2010\u304b",
-      "words": [
-        "\u3042\u3051-\u304b"
-      ]
-    },
-    {
-      "text": "\uff41",
-      "words": [
-        "a"
-      ]
-    },
-    {
-      "text": "\u1680\u30f5\u30ab\u56f3\u30f6\u30c8\u5ddd\u2000\u309e1",
-      "words": [
-        "\u304b\u304b\u56f3\u3051\u3068\u5ddd",
-        "\u309e1"
-      ]
-    },
-    {
-      "text": "A",
-      "words": [
-        "a"
-      ]
-    },
-    {
-      "text": "\uff71\u2000",
-      "words": [
-        "\u3042"
-      ]
-    },
-    {
-      "text": "\ufe63\u0085\u4e2d\u2015\uff41\u205f\u304b\u4e2d\u2015",
-      "words": [
-        "-",
-        "\u4e2d-a",
-        "\u304b\u4e2d-"
-      ]
-    },
-    {
-      "text": "\uff0d",
-      "words": [
-        "-"
-      ]
-    },
-    {
-      "text": "\ufeff\u30f4\u3095\u00a0\u309e\u30fe\uff70 A",
-      "words": [
-        "\ufeff\u3094\u304b",
-        "\u309e\u309e-",
-        "a"
-      ]
-    },
-    {
-      "text": "1\u56f3\u3096\u30a2\u309d\uff71\t\u309b\u304b\u309d",
-      "words": [
-        "1\u56f3\u3051\u3042\u309d\u3042",
-        "\u3099\u304b\u309d"
-      ]
-    },
-    {
-      "text": "\u2014\uff21\u2028\u3096",
-      "words": [
-        "-a",
-        "\u3051"
-      ]
-    },
-    {
-      "text": "\u309b\u5e02\u3068",
-      "words": [
-        "\u3099\u5e02\u3068"
-      ]
-    },
-    {
-      "text": "\u3000\u2011\u2013-\u2015\u30a1\u1680\u202f\u2015\u2012\t\u4e2d",
-      "words": [
-        "----\u3041",
-        "--",
-        "\u4e2d"
-      ]
-    },
-    {
-      "text": "\t\u30fc\uff21\u30b1\u00a0\uff71\u30f4\n\u2010\u30fc\uff0d\uff11",
-      "words": [
-        "-a\u3051",
-        "\u3042\u3094",
-        "---1"
-      ]
-    },
-    {
-      "text": "\u3099\uff76\u30fd\u30fd",
-      "words": [
-        "\u3099\u304b\u309d\u309d"
-      ]
-    },
-    {
-      "text": "\u2014a\u2015\ufeff\u592e\u30c8\u3051\u592e",
-      "words": [
-        "-a-\ufeff\u592e\u3068\u3051\u592e"
-      ]
-    },
-    {
-      "text": "\u5e02",
-      "words": [
-        "\u5e02"
-      ]
-    },
-    {
-      "text": "\u5e02\u0085\uff0d \u30fe\u30fc\u4e2d\u30a2\u205f\u309e\u3094\u2212",
-      "words": [
-        "\u5e02",
-        "-",
-        "\u309e-\u4e2d\u3042",
-        "\u309e\u3094-"
-      ]
-    },
-    {
-      "text": "\u2011\uff41\u20001",
-      "words": [
-        "-a",
-        "1"
-      ]
-    },
-    {
-      "text": "\u30a2\uff9e\ufe63\u205f\u30fd\u30fc\u3094\uff9e\u66f8\u3051\u309d",
-      "words": [
-        "\u3042\u3099-",
-        "\u309d-\u3094\u3099\u66f8\u3051\u309d"
-      ]
-    },
-    {
-      "text": "\u304b\u309b\u0085\uff21\u0085\u30fc\uff0d \u309b\uff70\u56f3\uff71",
-      "words": [
-        "\u304b",
-        "\u3099",
         "a",
-        "--",
-        "\u3099-\u56f3\u3042"
+        "-\u3051--\ufeff"
       ]
     },
     {
-      "text": "\uff21",
-      "words": [
-        "a"
-      ]
-    },
-    {
-      "text": "\u30f4 \u30ac\ufeff",
+      "text": "\u30f4 \uff0d\uff0d\u30fe\u30f5\u30f6\u30b1\u66f8\u30ac\udb40\udd00\u309d",
       "words": [
         "\u3094",
-        "\u304c\ufeff"
+        "--\u309e\u304b\u3051\u3051\u66f8\u304c\u309d"
       ]
     },
     {
-      "text": "\u2014\u2212a\u2011\u309d",
+      "text": "\u30fc\u2013\u3095\uff41\u1680\u1680",
       "words": [
-        "--a-\u309d"
-      ]
-    },
-    {
-      "text": "\u30fe\u592e\u2012\u2014",
-      "words": [
-        "\u309e\u592e--"
-      ]
-    },
-    {
-      "text": "\u309b\ufeff\u3094\u5ddd \u3068\u2014\u30a1\u304c\u00a0",
-      "words": [
-        "\u3099\ufeff\u3094\u5ddd",
-        "\u3068-\u3041\u304c"
-      ]
-    },
-    {
-      "text": "\u2012",
-      "words": [
-        "-"
-      ]
-    },
-    {
-      "text": "\uff70\u2028\u309d\u30c8\u5e02\u30a2\u30fc\u30a2\u00a01\n\u2028",
-      "words": [
-        "-",
-        "\u309d\u3068\u5e02\u3042-\u3042",
-        "1"
-      ]
-    },
-    {
-      "text": "\u2212\u3094\u30ab\u2028\ufe63\u30ac\u304c",
-      "words": [
-        "-\u3094\u304b",
-        "-\u304c\u304c"
-      ]
-    },
-    {
-      "text": "\u30f5\u309b\u30fc\u2015\u3094\u30fe\u30a2\u30ac\uff21",
-      "words": [
-        "\u304b",
-        "\u3099--\u3094\u309e\u3042\u304ca"
-      ]
-    },
-    {
-      "text": "\u2013\u205f\uff71\u2000\uff76\u2015\u30f5",
-      "words": [
-        "-",
-        "\u3042",
-        "\u304b-\u304b"
-      ]
-    },
-    {
-      "text": "\u309e\uff41A\u30a1\u2000 \u309b\u2014\u30f4\u309e\u3000",
-      "words": [
-        "\u309eaa\u3041",
-        "\u3099-\u3094\u309e"
-      ]
-    },
-    {
-      "text": "\u30fc\u2011\u200b\ufeff\u3051",
-      "words": [
-        "--\u200b\ufeff\u3051"
-      ]
-    },
-    {
-      "text": "\u2028\u3094",
-      "words": [
-        "\u3094"
-      ]
-    },
-    {
-      "text": "\u30fe\u2212\u3094\u2011\u2013",
-      "words": [
-        "\u309e-\u3094--"
-      ]
-    },
-    {
-      "text": "\u30ab \u30ab\uff11\u9928\t\u2212",
-      "words": [
-        "\u304b",
-        "\u304b1\u9928",
-        "-"
-      ]
-    },
-    {
-      "text": "\u9928\u30b1\u30fe",
-      "words": [
-        "\u9928\u3051\u309e"
-      ]
-    },
-    {
-      "text": "\uff11\u3051\u30f4\uff9e\u66f8\u202f\u2015\u3068",
-      "words": [
-        "1\u3051\u3094\u3099\u66f8",
-        "-\u3068"
-      ]
-    },
-    {
-      "text": "\u309e1\u309b\u2010",
-      "words": [
-        "\u309e1",
-        "\u3099-"
-      ]
-    },
-    {
-      "text": "A\u1680\u3051\u309b\uff11\uff76",
-      "words": [
-        "a",
-        "\u3051",
-        "\u30991\u304b"
-      ]
-    },
-    {
-      "text": "\u5ddd\uff71\ufe63\u30ab\u30fdA\uff9e",
-      "words": [
-        "\u5ddd\u3042-\u304b\u309da\u3099"
-      ]
-    },
-    {
-      "text": "\u200b1\u2010\u304c \uff70\u2011\uff70\u4e2d\n",
-      "words": [
-        "\u200b1-\u304c",
-        "---\u4e2d"
-      ]
-    },
-    {
-      "text": "\u202f\u2014\u30a2\u1680\u3095\u66f8\u30c8\u2010\u30f4\u309e\u3099",
-      "words": [
-        "-\u3042",
-        "\u304b\u66f8\u3068-\u3094\u309e\u3099"
-      ]
-    },
-    {
-      "text": "\u202f",
-      "words": []
-    },
-    {
-      "text": "\u30fd\u3000\u30c8 \u205f\t\u30fe\u200b\u2015\u304b\u0085\u30ac",
-      "words": [
-        "\u309d",
-        "\u3068",
-        "\u309e\u200b-\u304b",
-        "\u304c"
-      ]
-    },
-    {
-      "text": "\u304c\u3094\u304b\u304c\u30f7\uff41\u592e",
-      "words": [
-        "\u304c\u3094\u304b\u304c\u30f7a\u592e"
-      ]
-    },
-    {
-      "text": "\u2028\u66f8\uff70\u2013 ",
-      "words": [
-        "\u66f8--"
-      ]
-    },
-    {
-      "text": "\uff70\u5e02\u30fda\u205f\uff11\u3068a\u2015\u2010a\u3000",
-      "words": [
-        "-\u5e02\u309da",
-        "1\u3068a--a"
-      ]
-    },
-    {
-      "text": "\u30f6\u2010\u304c\u205f\uff71\u5ddd-\uff11\u30f4",
-      "words": [
-        "\u3051-\u304c",
-        "\u3042\u5ddd-1\u3094"
-      ]
-    },
-    {
-      "text": "\u30ab\u30f5\u205f\u56f3\u202f\u5e02\u3000\u30b1\u2011\u3096",
-      "words": [
-        "\u304b\u304b",
-        "\u56f3",
-        "\u5e02",
-        "\u3051-\u3051"
-      ]
-    },
-    {
-      "text": "\u30fe\u304b\u30f6\u2010\u3000a\u30fd\uff0d\u66f8\u30ab\u30fe",
-      "words": [
-        "\u309e\u304b\u3051-",
-        "a\u309d-\u66f8\u304b\u309e"
-      ]
-    },
-    {
-      "text": "\uff41\u30ab\u30b1\u592e\uff21\uff701\u30ac\u3000\u30f7\u30b1\u30f6",
-      "words": [
-        "a\u304b\u3051\u592ea-1\u304c",
-        "\u30f7\u3051\u3051"
-      ]
-    },
-    {
-      "text": "\u30ab\u3068\u30f6A\u30fc",
-      "words": [
-        "\u304b\u3068\u3051a-"
-      ]
-    },
-    {
-      "text": "\uff21\u00a0\u30ab",
-      "words": [
-        "a",
-        "\u304b"
-      ]
-    },
-    {
-      "text": "\uff76",
-      "words": [
-        "\u304b"
-      ]
-    },
-    {
-      "text": "\n\u3068",
-      "words": [
-        "\u3068"
-      ]
-    },
-    {
-      "text": "\u30fe\u56f3\u2013\n\u2013\u3099 ",
-      "words": [
-        "\u309e\u56f3-",
-        "-\u3099"
-      ]
-    },
-    {
-      "text": "\n",
-      "words": []
-    },
-    {
-      "text": "\u30f5\u3099\u3096\uff21\u30fd",
-      "words": [
-        "\u304c\u3051a\u309d"
-      ]
-    },
-    {
-      "text": " \u2028\uff76\u309d\u2011",
-      "words": [
-        "\u304b\u309d-"
-      ]
-    },
-    {
-      "text": "\u3051\u30c8",
-      "words": [
-        "\u3051\u3068"
-      ]
-    },
-    {
-      "text": "\u30a1\u304c\u3099\u30ac\u2013\u304b\uff0d\u202f \uff0d",
-      "words": [
-        "\u3041\u304c\u3099\u304c-\u304b-",
-        "-"
-      ]
-    },
-    {
-      "text": "\u5ddd\u4e2d\u2010\u30f7\u9928\u200b",
-      "words": [
-        "\u5ddd\u4e2d-\u30f7\u9928\u200b"
-      ]
-    },
-    {
-      "text": "\u5ddd",
-      "words": [
-        "\u5ddd"
-      ]
-    },
-    {
-      "text": "\u30a1\uff21\u3096\u2013 \u3051\u2014\u3068\u309e\u2212\uff11\u00a0",
-      "words": [
-        "\u3041a\u3051-",
-        "\u3051-\u3068\u309e-1"
-      ]
-    },
-    {
-      "text": "\uff9e\u3068",
-      "words": [
-        "\u3099\u3068"
-      ]
-    },
-    {
-      "text": "\u304b\u56f3\u3000",
-      "words": [
-        "\u304b\u56f3"
-      ]
-    },
-    {
-      "text": "\u2011\u2010\u30ab\u30fe\uff0d\u30ab-\u30ab\u30fc",
-      "words": [
-        "--\u304b\u309e-\u304b-\u304b-"
-      ]
-    },
-    {
-      "text": "\u3096\uff11\uff0d\u30fc\uff21 ",
-      "words": [
-        "\u30511--a"
-      ]
-    },
-    {
-      "text": "\u3051",
-      "words": [
-        "\u3051"
-      ]
-    },
-    {
-      "text": "\u309e\u5e02\u5ddd\u3000\u2012",
-      "words": [
-        "\u309e\u5e02\u5ddd",
-        "-"
-      ]
-    },
-    {
-      "text": "\u3051\u5ddd\u3068\u30f7\u30fc\u30ab",
-      "words": [
-        "\u3051\u5ddd\u3068\u30f7-\u304b"
-      ]
-    },
-    {
-      "text": "\u3094\uff11\u3099\u30f4\u309b\u2010\uff76",
-      "words": [
-        "\u30941\u3099\u3094",
-        "\u3099-\u304b"
-      ]
-    },
-    {
-      "text": "\uff9e\u56f3",
-      "words": [
-        "\u3099\u56f3"
-      ]
-    },
-    {
-      "text": "\u56f3\u2015\u304c\u2012\u309b\u3051\u30fd\uff71",
-      "words": [
-        "\u56f3-\u304c-",
-        "\u3099\u3051\u309d\u3042"
-      ]
-    },
-    {
-      "text": "\u309b\u2012\u5ddd\u3099\u205f\u309d\u00a0\u0085\u00a0",
-      "words": [
-        "\u3099-\u5ddd\u3099",
-        "\u309d"
-      ]
-    },
-    {
-      "text": "\u309e\u202f",
-      "words": [
-        "\u309e"
-      ]
-    },
-    {
-      "text": "\ufeff\u3095\u202f\u30fc\u30c8 \u309b\u9928\uff70",
-      "words": [
-        "\ufeff\u304b",
-        "-\u3068",
-        "\u3099\u9928-"
-      ]
-    },
-    {
-      "text": "\u2015\u30f5\u2013",
-      "words": [
-        "-\u304b-"
-      ]
-    },
-    {
-      "text": "-\u0085-\u16801\u3000",
-      "words": [
-        "-",
-        "-",
-        "1"
-      ]
-    },
-    {
-      "text": "\u2014\u2010\u309d\u202f\u309d\u30ab\u3094\u5ddd",
-      "words": [
-        "--\u309d",
-        "\u309d\u304b\u3094\u5ddd"
-      ]
-    },
-    {
-      "text": "\u4e2dA\u592e\u304c\u30ab\u304b\u592e1\uff76\u9928\uff71",
-      "words": [
-        "\u4e2da\u592e\u304c\u304b\u304b\u592e1\u304b\u9928\u3042"
-      ]
-    },
-    {
-      "text": "\u30fd\u200b\u202f\u309d\u30ac\uff0d\u4e2d\u30fc-",
-      "words": [
-        "\u309d\u200b",
-        "\u309d\u304c-\u4e2d--"
-      ]
-    },
-    {
-      "text": "\u00a0\u66f8\u30fe\u30c8\u9928\u30fc\u30a1\u202f",
-      "words": [
-        "\u66f8\u309e\u3068\u9928-\u3041"
-      ]
-    },
-    {
-      "text": "A\uff411\u309d\u30a2\u202f\u1680\u1680\u2013",
-      "words": [
-        "aa1\u309d\u3042",
-        "-"
-      ]
-    },
-    {
-      "text": "\u3094\u5e02\uff211\u30a1\ufe63\u3099\u309e\u3051\uff11\u4e2d\u30f4",
-      "words": [
-        "\u3094\u5e02a1\u3041-\u3099\u309e\u30511\u4e2d\u3094"
-      ]
-    },
-    {
-      "text": "1\u30ac\u2010",
-      "words": [
-        "1\u304c-"
-      ]
-    },
-    {
-      "text": "\u309d\u1680\u3094a\nA\n\u309b\u309e",
-      "words": [
-        "\u309d",
-        "\u3094a",
-        "a",
-        "\u3099\u309e"
-      ]
-    },
-    {
-      "text": "\u3096\u592e\uff21\u30511",
-      "words": [
-        "\u3051\u592ea\u30511"
-      ]
-    },
-    {
-      "text": "\uff71\uff9e\u205f-\u30f5\u2028\u30fd\u2012\u9928\u5e02\u3099",
-      "words": [
-        "\u3042\u3099",
-        "-\u304b",
-        "\u309d-\u9928\u5e02\u3099"
-      ]
-    },
-    {
-      "text": "\u309bA\uff21\u30c8\u2028\u2014\uff41\uff41",
-      "words": [
-        "\u3099aa\u3068",
-        "-aa"
-      ]
-    },
-    {
-      "text": "\u0085\u00a0\uff41\u99281\u309d\t\uff9e\uff0d\u2000",
-      "words": [
-        "a\u99281\u309d",
-        "\u3099-"
-      ]
-    },
-    {
-      "text": "\u30f6\uff21\u3094\ufeff\u30c8\uff11A\u30ab\uff0d",
-      "words": [
-        "\u3051a\u3094\ufeff\u30681a\u304b-"
-      ]
-    },
-    {
-      "text": "\u3095\u3094\uff71\u30f4\u3068\u9928\u5ddd\ufeff\u4e2d",
-      "words": [
-        "\u304b\u3094\u3042\u3094\u3068\u9928\u5ddd\ufeff\u4e2d"
-      ]
-    },
-    {
-      "text": "\u3095\u3099\u3095\u5ddd\u5ddd\u20151\u30c8\u3000",
-      "words": [
-        "\u304c\u304b\u5ddd\u5ddd-1\u3068"
-      ]
-    },
-    {
-      "text": "\u2212\u66f8",
-      "words": [
-        "-\u66f8"
-      ]
-    },
-    {
-      "text": "\u309b\u2010\u5ddd\u5e02\u304b\uff71\uff21\u30f6\u30f5\uff71",
-      "words": [
-        "\u3099-\u5ddd\u5e02\u304b\u3042a\u3051\u304b\u3042"
-      ]
-    },
-    {
-      "text": "\uff21\u2015\ufe63\uff11\n",
-      "words": [
-        "a--1"
-      ]
-    },
-    {
-      "text": "\u1680\u2011\u30b1\u30ac\u30f4\u2015\ufeff ",
-      "words": [
-        "-\u3051\u304c\u3094-\ufeff"
-      ]
-    },
-    {
-      "text": " \u30b1",
-      "words": [
-        "\u3051"
-      ]
-    },
-    {
-      "text": "\u30c8\ufe63\u3096\t\u2000\uff71\ufeff",
-      "words": [
-        "\u3068-\u3051",
-        "\u3042\ufeff"
-      ]
-    },
-    {
-      "text": "\u2011\u30f5\ufeff\u2015\u30fc\u2011\u56f3\u0085",
-      "words": [
-        "-\u304b\ufeff---\u56f3"
-      ]
-    },
-    {
-      "text": "\uff71\uff0d\ufe63\u2015\u304b\ufe63\u3094\u202f\u2014\u592e",
-      "words": [
-        "\u3042---\u304b-\u3094",
-        "-\u592e"
-      ]
-    },
-    {
-      "text": "\u30f5\u2013\u30a1\u304c\u30c8\u1680\u309d\u309e",
-      "words": [
-        "\u304b-\u3041\u304c\u3068",
-        "\u309d\u309e"
-      ]
-    },
-    {
-      "text": "\u2015",
-      "words": [
-        "-"
-      ]
-    },
-    {
-      "text": "\uff0d\ufe63\u309d\u9928\u3000 \u66f8\u30a1",
-      "words": [
-        "--\u309d\u9928",
-        "\u66f8\u3041"
-      ]
-    },
-    {
-      "text": "\u200b\u30f4\u56f31\uff0d\u304b",
-      "words": [
-        "\u200b\u3094\u56f31-\u304b"
-      ]
-    },
-    {
-      "text": "\u3095\u5e02\t\u2012\u0085\u30f7A\u2010\u2013\u30f5\u66f8",
-      "words": [
-        "\u304b\u5e02",
-        "-",
-        "\u30f7a--\u304b\u66f8"
-      ]
-    },
-    {
-      "text": "\uff76\u2010\t",
-      "words": [
-        "\u304b-"
-      ]
-    },
-    {
-      "text": "\uff21\u304c\u2015\t\uff21",
-      "words": [
-        "a\u304c-",
-        "a"
-      ]
-    },
-    {
-      "text": "\u9928\u309b\uff71\u2013\u309b\u3000\u3068\u30ac\u0085\u2000",
-      "words": [
-        "\u9928",
-        "\u3099\u3042-",
-        "\u3099",
-        "\u3068\u304c"
-      ]
-    },
-    {
-      "text": "\n\u2012\u2013\u1680\u2010-\u30fe\u30a1\u205f",
-      "words": [
-        "--",
-        "--\u309e\u3041"
-      ]
-    },
-    {
-      "text": "\u3068\ufe63\u9928\u2028\n\u309d\u30c8",
-      "words": [
-        "\u3068-\u9928",
-        "\u309d\u3068"
+        "--\u304ba"
       ]
     },
     {
@@ -8600,253 +7133,439 @@
       "words": []
     },
     {
-      "text": "\u30c8A\u3099\u2014\u30c8\u00a0\n",
+      "text": "\u202f\u30a2\u30ab",
       "words": [
-        "\u3068a\u3099-\u3068"
+        "\u3042\u304b"
       ]
     },
     {
-      "text": "\u200b\uff70\u30ac",
-      "words": [
-        "\u200b-\u304c"
-      ]
-    },
-    {
-      "text": "\uff21\u30ab\u66f8\u202f\u30b1",
-      "words": [
-        "a\u304b\u66f8",
-        "\u3051"
-      ]
-    },
-    {
-      "text": "\uff0d\n\u304c\u2013A\u2014\u2212\u30f4\u00a0\u30b1",
-      "words": [
-        "-",
-        "\u304c-a--\u3094",
-        "\u3051"
-      ]
-    },
-    {
-      "text": "\uff9e\t\uff76\uff0d\t\u4e2d\u1680",
-      "words": [
-        "\u3099",
-        "\u304b-",
-        "\u4e2d"
-      ]
-    },
-    {
-      "text": "-\u3099\u5e02\uff71",
-      "words": [
-        "-\u3099\u5e02\u3042"
-      ]
-    },
-    {
-      "text": "\t\u30f6\t\uff76\u3095\ufe63\n\u2013Aa\u309e",
-      "words": [
-        "\u3051",
-        "\u304b\u304b-",
-        "-aa\u309e"
-      ]
-    },
-    {
-      "text": "\u3000\u3095\u309b\u66f8",
-      "words": [
-        "\u304b",
-        "\u3099\u66f8"
-      ]
-    },
-    {
-      "text": "\u30c8\uff76\u3099\u66f8",
-      "words": [
-        "\u3068\u304c\u66f8"
-      ]
-    },
-    {
-      "text": "\u30f4\u30ab\u30f7\u56f3\u30fc\u3000\u2012\u30fc\u30c8\u202f\u3096",
-      "words": [
-        "\u3094\u304b\u30f7\u56f3-",
-        "--\u3068",
-        "\u3051"
-      ]
-    },
-    {
-      "text": "\u3095\u4e2d\u2028\u1680\u309d\u200b\u30f5\uff11",
-      "words": [
-        "\u304b\u4e2d",
-        "\u309d\u200b\u304b1"
-      ]
-    },
-    {
-      "text": "\u202f\n\u1680\u30a2\ufeff\u3051",
-      "words": [
-        "\u3042\ufeff\u3051"
-      ]
-    },
-    {
-      "text": "\u3099\uff70\uff11\u5e02\u2015a1\u309e\u30f5\u304b\u3095\u3000",
-      "words": [
-        "\u3099-1\u5e02-a1\u309e\u304b\u304b\u304b"
-      ]
-    },
-    {
-      "text": "\uff9e\u30ab-\u30a2\u9928\u2013",
-      "words": [
-        "\u3099\u304b-\u3042\u9928-"
-      ]
-    },
-    {
-      "text": "\u30ac\u30ab\u205f\u205f\u2212\u3051\u309b\u205f\uff0d\u30b1\u3094\ufeff",
-      "words": [
-        "\u304c\u304b",
-        "-\u3051",
-        "\u3099",
-        "-\u3051\u3094\ufeff"
-      ]
-    },
-    {
-      "text": "\u3068\u205f\t\n",
-      "words": [
-        "\u3068"
-      ]
-    },
-    {
-      "text": "\u3051\u3096\u202f\u309b\u3094",
-      "words": [
-        "\u3051\u3051",
-        "\u3099\u3094"
-      ]
-    },
-    {
-      "text": "\u66f8\u30b1\u30ac\u304b\uff11\uff21\u30fd\u2011",
-      "words": [
-        "\u66f8\u3051\u304c\u304b1a\u309d-"
-      ]
-    },
-    {
-      "text": "\uff71-\u3000\u30ab\u30c8\u30ab\n\u2212\u3095\u304c",
-      "words": [
-        "\u3042-",
-        "\u304b\u3068\u304b",
-        "-\u304b\u304c"
-      ]
-    },
-    {
-      "text": "\ufeff\u30a1\u3000\u3095\u205f\u30f6 \u3000\uff9e\u309b\uff76",
-      "words": [
-        "\ufeff\u3041",
-        "\u304b",
-        "\u3051",
-        "\u3099",
-        "\u3099\u304b"
-      ]
-    },
-    {
-      "text": "-\u2011",
-      "words": [
-        "--"
-      ]
-    },
-    {
-      "text": "\u9928\ufe63\uff9e\u309d\u30f6\u309e\u2000",
-      "words": [
-        "\u9928-\u3099\u309d\u3051\u309e"
-      ]
-    },
-    {
-      "text": "\ufe63\u56f3\u3068\u1680\u3096\t\uff0d\u2012\u205f",
-      "words": [
-        "-\u56f3\u3068",
-        "\u3051",
-        "--"
-      ]
-    },
-    {
-      "text": "\u1680\u30ac\u1680a",
-      "words": [
-        "\u304c",
-        "a"
-      ]
-    },
-    {
-      "text": "\u3099\u3094\u9928\u3068\u2011\u2212\u309b\uff21\ufe63\u30b1\u30a1",
-      "words": [
-        "\u3099\u3094\u9928\u3068--",
-        "\u3099a-\u3051\u3041"
-      ]
-    },
-    {
-      "text": "\u200b\u30fe\uff70\u30c8\u2012\u30fc",
-      "words": [
-        "\u200b\u309e-\u3068--"
-      ]
-    },
-    {
-      "text": "\u4e2d\u3095\uff76",
-      "words": [
-        "\u4e2d\u304b\u304b"
-      ]
-    },
-    {
-      "text": "\u3099\u30c8\u30a2\u5e02\ufe63\u304b\u2013\u30fd\u30fc",
-      "words": [
-        "\u3099\u3068\u3042\u5e02-\u304b-\u309d-"
-      ]
-    },
-    {
-      "text": "\u2011-\u2212\u202f\u20151",
-      "words": [
-        "---",
-        "-1"
-      ]
-    },
-    {
-      "text": "\ufe63\u3099\u30a2\u30f7\u30f4",
-      "words": [
-        "-\u3099\u3042\u30f7\u3094"
-      ]
-    },
-    {
-      "text": "\uff76\u30a2",
-      "words": [
-        "\u304b\u3042"
-      ]
-    },
-    {
-      "text": "\u2212\uff76\u30fe\u309e\u0085\uff21\u30fd\u2028\u30c8\u30f6\u2012",
-      "words": [
-        "-\u304b\u309e\u309e",
-        "a\u309d",
-        "\u3068\u3051-"
-      ]
-    },
-    {
-      "text": "\u1680",
+      "text": "\n",
       "words": []
     },
     {
-      "text": "\uff71\u2014\uff21\u30ab\u30c8\u30f6\uff41",
+      "text": "\u30fcA\u30ac\u30f6\u309d\u30c8a\u309e\u2014\u3096",
       "words": [
-        "\u3042-a\u304b\u3068\u3051a"
+        "-a\u304c\u3051\u309d\u3068a\u309e-\u3051"
       ]
     },
     {
-      "text": "\u30f6\n\u30a2\u30a1\ufe63\u309b\uff9e",
+      "text": "-\u30f5\u66f8\uff71\u66f8\u00a0A\u30c8\u4e2d",
+      "words": [
+        "-\u304b\u66f8\u3042\u66f8",
+        "a\u3068\u4e2d"
+      ]
+    },
+    {
+      "text": "\u309d\u304c\u30f5\t\t\uff9e\u2212\uff9e",
+      "words": [
+        "\u309d\u304c\u304b",
+        "\u3099-\u3099"
+      ]
+    },
+    {
+      "text": "A\uff41\u3099\u30b1\u309e\u304c\u309e\u2212\u0085",
+      "words": [
+        "aa\u3099\u3051\u309e\u304c\u309e-"
+      ]
+    },
+    {
+      "text": "\udb40\udd00",
+      "words": []
+    },
+    {
+      "text": "\u3096\u20001\u592e\u2015",
       "words": [
         "\u3051",
-        "\u3042\u3041-",
-        "\u3099\u3099"
+        "1\u592e-"
       ]
     },
     {
-      "text": "\uff411\u30b1",
+      "text": "\u3096\u1680\u30c8\u304b\uff76\ufe00\u3000\u1680\u304c\u30f4",
       "words": [
-        "a1\u3051"
+        "\u3051",
+        "\u3068\u304b\u304b",
+        "\u304c\u3094"
       ]
     },
     {
-      "text": "a",
+      "text": "\u30c8\u3096\ufe63\u2011\u30ab\u30f5\u3068\ufe63",
+      "words": [
+        "\u3068\u3051--\u304b\u304b\u3068-"
+      ]
+    },
+    {
+      "text": "\u309e\u1680",
+      "words": [
+        "\u309e"
+      ]
+    },
+    {
+      "text": "\u30b1\u30a2\ufe00\ufe0f\u66f8",
+      "words": [
+        "\u3051\u3042\u66f8"
+      ]
+    },
+    {
+      "text": "\u00a0\u30f4\uff0d\uff9e\ufe63\u30f7",
+      "words": [
+        "\u3094-\u3099-\u30f7"
+      ]
+    },
+    {
+      "text": "\u4e2d\u30ac\u3068\ufe63\ufe00\u30ab\u2212\uff9e\u205f\u3096\u30ac",
+      "words": [
+        "\u4e2d\u304c\u3068-\u304b-\u3099",
+        "\u3051\u304c"
+      ]
+    },
+    {
+      "text": "\uff21\u30f5\uff21\u30f6",
+      "words": [
+        "a\u304ba\u3051"
+      ]
+    },
+    {
+      "text": "\u309d\u56f3\u30a1\u202f\uff71\uff70",
+      "words": [
+        "\u309d\u56f3\u3041",
+        "\u3042-"
+      ]
+    },
+    {
+      "text": "\u3094\u0085-",
+      "words": [
+        "\u3094",
+        "-"
+      ]
+    },
+    {
+      "text": "\u30ac\u3095\uff0d\uff76\u30fe\u30f4\u30f6\u3051",
+      "words": [
+        "\u304c\u304b-\u304b\u309e\u3094\u3051\u3051"
+      ]
+    },
+    {
+      "text": "-\u1680",
+      "words": [
+        "-"
+      ]
+    },
+    {
+      "text": "\u3096\udb40\udd00\ufe63",
+      "words": [
+        "\u3051-"
+      ]
+    },
+    {
+      "text": "\t\u0085\uff11\u3000\u00a0\u309d\u2015",
+      "words": [
+        "1",
+        "\u309d-"
+      ]
+    },
+    {
+      "text": "\uff9e\uff70\ufe00",
+      "words": [
+        "\u3099-"
+      ]
+    },
+    {
+      "text": "\u3099\u30fd",
+      "words": [
+        "\u3099\u309d"
+      ]
+    },
+    {
+      "text": "\u309e\u304b\u00a0\u5e02",
+      "words": [
+        "\u309e\u304b",
+        "\u5e02"
+      ]
+    },
+    {
+      "text": "\ufe0f\uff41",
       "words": [
         "a"
+      ]
+    },
+    {
+      "text": "\udb40\udd00\u2010",
+      "words": [
+        "-"
+      ]
+    },
+    {
+      "text": "\u200b\u3000",
+      "words": [
+        "\u200b"
+      ]
+    },
+    {
+      "text": "\u592e\u3095\u30f4\u30f51\u2015",
+      "words": [
+        "\u592e\u304b\u3094\u304b1-"
+      ]
+    },
+    {
+      "text": "\u1680\u00a0\u30f7\u2212\u304b\ufe00\u30b1",
+      "words": [
+        "\u30f7-\u304b\u3051"
+      ]
+    },
+    {
+      "text": "\u30c8\u2010\u56f3\uff11\n",
+      "words": [
+        "\u3068-\u56f31"
+      ]
+    },
+    {
+      "text": "\u2212\u30a2\uff0d",
+      "words": [
+        "-\u3042-"
+      ]
+    },
+    {
+      "text": "\uff70\u3099\u30ac\u30c8\u5ddd\u3094\uff41",
+      "words": [
+        "-\u3099\u304c\u3068\u5ddd\u3094a"
+      ]
+    },
+    {
+      "text": " \u30a1\u30ac\u30a2\u30ac\udb40\udd00\uff70",
+      "words": [
+        "\u3041\u304c\u3042\u304c-"
+      ]
+    },
+    {
+      "text": "-\u30c8",
+      "words": [
+        "-\u3068"
+      ]
+    },
+    {
+      "text": "\u304c\ufeff\u30f6\u2028\u5ddd\u202f\uff76\u30fe\u66f8\u304b\u3096\u4e2d",
+      "words": [
+        "\u304c\ufeff\u3051",
+        "\u5ddd",
+        "\u304b\u309e\u66f8\u304b\u3051\u4e2d"
+      ]
+    },
+    {
+      "text": "\u1680\u309d",
+      "words": [
+        "\u309d"
+      ]
+    },
+    {
+      "text": "\u30a1\uff70\u2012\u2000",
+      "words": [
+        "\u3041--"
+      ]
+    },
+    {
+      "text": "\uff41\u309b",
+      "words": [
+        "a",
+        "\u3099"
+      ]
+    },
+    {
+      "text": "\u3000\u9928\u309e\uff9e\u2000\ufe0f\udb40\udd00\u30fd \u30f5\u00a0\u2011",
+      "words": [
+        "\u9928\u309e\u3099",
+        "\u309d",
+        "\u304b",
+        "-"
+      ]
+    },
+    {
+      "text": "\u30ac\ufeff\u30fca\u309b\ufe0f\u2013",
+      "words": [
+        "\u304c\ufeff-a",
+        "\u3099-"
+      ]
+    },
+    {
+      "text": "\u30b1\u00a0\uff71\u205f\u4e2d\u3099\u00a0\u30ac\u2015\u9928\u00a0",
+      "words": [
+        "\u3051",
+        "\u3042",
+        "\u4e2d\u3099",
+        "\u304c-\u9928"
+      ]
+    },
+    {
+      "text": "\u200b\u00a0\u3094\u30ac\u202f\u0085\u3051A\u2010",
+      "words": [
+        "\u200b",
+        "\u3094\u304c",
+        "\u3051a-"
+      ]
+    },
+    {
+      "text": "\u2014\u304c\uff9e \u30a2",
+      "words": [
+        "-\u304c\u3099",
+        "\u3042"
+      ]
+    },
+    {
+      "text": "\t\u1680\uff41\u2015\u30ab\u30ac\u30f6\u3051\u2010\u2013",
+      "words": [
+        "a-\u304b\u304c\u3051\u3051--"
+      ]
+    },
+    {
+      "text": "\u30a1\ufe00\u3099\u2212\u304b\t\u30fc\u3000\u5e02",
+      "words": [
+        "\u3041\u3099-\u304b",
+        "-",
+        "\u5e02"
+      ]
+    },
+    {
+      "text": "\u2015\u5ddd\u30f4\u30fc\u30f7\u5ddd",
+      "words": [
+        "-\u5ddd\u3094-\u30f7\u5ddd"
+      ]
+    },
+    {
+      "text": "\u2028\u30fd\u30fc\u30f7\u3051\u3051\u30fe\u2013\ufe00\u66f8\u5e02\u202f",
+      "words": [
+        "\u309d-\u30f7\u3051\u3051\u309e-\u66f8\u5e02"
+      ]
+    },
+    {
+      "text": "A\u2212\u2000 \u5e02\uff41\u30f6\uff21",
+      "words": [
+        "a-",
+        "\u5e02a\u3051a"
+      ]
+    },
+    {
+      "text": " \uff21\u3096\u2014\u3099\u205f",
+      "words": [
+        "a\u3051-\u3099"
+      ]
+    },
+    {
+      "text": "\u00a0",
+      "words": []
+    },
+    {
+      "text": "\u30f5",
+      "words": [
+        "\u304b"
+      ]
+    },
+    {
+      "text": "\uff70\u30a2\u3000",
+      "words": [
+        "-\u3042"
+      ]
+    },
+    {
+      "text": "\u30f4\u205f\ufe0f",
+      "words": [
+        "\u3094"
+      ]
+    },
+    {
+      "text": "\u592e\uff70\uff9e\u2015",
+      "words": [
+        "\u592e-\u3099-"
+      ]
+    },
+    {
+      "text": "\u30c8\ufe00 \u66f8\u304c\u200b\u304b\uff71",
+      "words": [
+        "\u3068",
+        "\u66f8\u304c\u200b\u304b\u3042"
+      ]
+    },
+    {
+      "text": "\u3068\uff70\u309d",
+      "words": [
+        "\u3068-\u309d"
+      ]
+    },
+    {
+      "text": "\u2015\u56f3",
+      "words": [
+        "-\u56f3"
+      ]
+    },
+    {
+      "text": "\t\u30c8\u3095\u0085\u30f4",
+      "words": [
+        "\u3068\u304b",
+        "\u3094"
+      ]
+    },
+    {
+      "text": "\u56f3\u3068\u30fd\u30f6\u304c",
+      "words": [
+        "\u56f3\u3068\u309d\u3051\u304c"
+      ]
+    },
+    {
+      "text": "\u2014\u66f8\uff0d1A\u30f5\u30ab\u592e\u3068",
+      "words": [
+        "-\u66f8-1a\u304b\u304b\u592e\u3068"
+      ]
+    },
+    {
+      "text": "\n\u4e2d\uff70\u30f7\u00a0",
+      "words": [
+        "\u4e2d-\u30f7"
+      ]
+    },
+    {
+      "text": "\t\u00a0\u9928-\u3094\u2212a\u309b\uff11",
+      "words": [
+        "\u9928-\u3094-a",
+        "\u30991"
+      ]
+    },
+    {
+      "text": " ",
+      "words": []
+    },
+    {
+      "text": "-\u3068\u304ba\u2012\u30fd\u2015\u30a1\u3051\ufe00",
+      "words": [
+        "-\u3068\u304ba-\u309d-\u3041\u3051"
+      ]
+    },
+    {
+      "text": "\u3094\u3094\u202f\u2015\uff71\u4e2d\ufe0f1\u3095\u1680",
+      "words": [
+        "\u3094\u3094",
+        "-\u3042\u4e2d1\u304b"
+      ]
+    },
+    {
+      "text": "\uff0d\u3000",
+      "words": [
+        "-"
+      ]
+    },
+    {
+      "text": "\u5e02\u2011\u304c\u9928\u2015",
+      "words": [
+        "\u5e02-\u304c\u9928-"
+      ]
+    },
+    {
+      "text": "\uff21\u200b",
+      "words": [
+        "a\u200b"
+      ]
+    },
+    {
+      "text": "\ufeff\u2010\u200b\ufeff\u30b1",
+      "words": [
+        "\ufeff-\u200b\ufeff\u3051"
       ]
     },
     {
@@ -8856,194 +7575,621 @@
       ]
     },
     {
-      "text": "\u2010\uff9e\u30f6\u5ddd\u30fc",
+      "text": "\u30fc\uff70",
       "words": [
-        "-\u3099\u3051\u5ddd-"
+        "--"
       ]
     },
     {
-      "text": "\u66f8\u0085\uff9e",
+      "text": "\u00a0\ufeff\u304c\u30f7 \u3068\ufe00\u2015\u30fc\uff71",
       "words": [
-        "\u66f8",
+        "\ufeff\u304c\u30f7",
+        "\u3068--\u3042"
+      ]
+    },
+    {
+      "text": "\u30fd\u2028\u3094\u30a1\u3068\u4e2d\uff0d",
+      "words": [
+        "\u309d",
+        "\u3094\u3041\u3068\u4e2d-"
+      ]
+    },
+    {
+      "text": "\uff11\u2028\u30fd\u56f3\u30f7\u66f8\uff71\u30c8",
+      "words": [
+        "1",
+        "\u309d\u56f3\u30f7\u66f8\u3042\u3068"
+      ]
+    },
+    {
+      "text": "\u5ddd\t",
+      "words": [
+        "\u5ddd"
+      ]
+    },
+    {
+      "text": "\u3068\u2011\u309d\u30fe\u3094\u3095\u309d\u3000",
+      "words": [
+        "\u3068-\u309d\u309e\u3094\u304b\u309d"
+      ]
+    },
+    {
+      "text": "\uff9e\u2212\u309d\u3096",
+      "words": [
+        "\u3099-\u309d\u3051"
+      ]
+    },
+    {
+      "text": "\uff9e\u30c8\uff21\u30c8\ufe0f\uff71",
+      "words": [
+        "\u3099\u3068a\u3068\u3042"
+      ]
+    },
+    {
+      "text": "\ufe0f\u2028\ufeff\uff70\u3000\u592e\u304b\udb40\udd00\u9928\t\uff9e\u3099",
+      "words": [
+        "\ufeff-",
+        "\u592e\u304b\u9928",
+        "\u3099\u3099"
+      ]
+    },
+    {
+      "text": "\u30a2\u30fc\u30a1\u3000\u00851\u2015\u3096\u3099\u2011\u3000",
+      "words": [
+        "\u3042-\u3041",
+        "1-\u3052-"
+      ]
+    },
+    {
+      "text": "\u30f5\u2028\u592e\uff11\u2011\u205f\ufe63a\u3094\u202f",
+      "words": [
+        "\u304b",
+        "\u592e1-",
+        "-a\u3094"
+      ]
+    },
+    {
+      "text": "\u2010\uff70\uff71A\ufe0f\u30a2\u30f7",
+      "words": [
+        "--\u3042a\u3042\u30f7"
+      ]
+    },
+    {
+      "text": "\u30a2\u30f7\u30fe\uff70 \u3095\u2013A\uff41",
+      "words": [
+        "\u3042\u30f7\u309e-",
+        "\u304b-aa"
+      ]
+    },
+    {
+      "text": "\u30f6\n\u56f3\u5ddd\ufe63\u202f\uff11\uff9e",
+      "words": [
+        "\u3051",
+        "\u56f3\u5ddd-",
+        "1\u3099"
+      ]
+    },
+    {
+      "text": "\u2011\u2014\u30f4\ufeff\u2014",
+      "words": [
+        "--\u3094\ufeff-"
+      ]
+    },
+    {
+      "text": "\u3000\u309d\u5e02",
+      "words": [
+        "\u309d\u5e02"
+      ]
+    },
+    {
+      "text": "\u3000\ufe0f\u30fc\u1680\u3094\u309d\udb40\udd00",
+      "words": [
+        "-",
+        "\u3094\u309d"
+      ]
+    },
+    {
+      "text": " \u30c8\u309b\uff41",
+      "words": [
+        "\u3068",
+        "\u3099a"
+      ]
+    },
+    {
+      "text": "\ufeff\u200ba",
+      "words": [
+        "\ufeff\u200ba"
+      ]
+    },
+    {
+      "text": "\u30b1\u2012\u00a0\uff71\u30a1\uff0d\u30f5",
+      "words": [
+        "\u3051-",
+        "\u3042\u3041-\u304b"
+      ]
+    },
+    {
+      "text": "\u5e02\u4e2d\u9928\u202f\uff0d\u66f8\u30fd\u9928\udb40\udd00\uff11\u30ac\uff11",
+      "words": [
+        "\u5e02\u4e2d\u9928",
+        "-\u66f8\u309d\u99281\u304c1"
+      ]
+    },
+    {
+      "text": "\u2000",
+      "words": []
+    },
+    {
+      "text": "\u30ab\u30a1\u00a0a\u5e02\u4e2d\u30fe\u00a0\t\u304b\u309d",
+      "words": [
+        "\u304b\u3041",
+        "a\u5e02\u4e2d\u309e",
+        "\u304b\u309d"
+      ]
+    },
+    {
+      "text": "\u309e\u30a2\u30ab\u2010\u30a1\u4e2d\u304c\u56f3\ufeff\u30ac\u2015\t",
+      "words": [
+        "\u309e\u3042\u304b-\u3041\u4e2d\u304c\u56f3\ufeff\u304c-"
+      ]
+    },
+    {
+      "text": "\u30fc\u56f3\u309e\u3094\uff41\u3096\u2014",
+      "words": [
+        "-\u56f3\u309e\u3094a\u3051-"
+      ]
+    },
+    {
+      "text": "\u30ac\u30fe\ufe63\u2011\u30fe\u202f",
+      "words": [
+        "\u304c\u309e--\u309e"
+      ]
+    },
+    {
+      "text": "\u30c8",
+      "words": [
+        "\u3068"
+      ]
+    },
+    {
+      "text": "\u2013\u3096\u3068\u1680\uff21\u30a2\uff71\u3095\n\u30a2\ufe00",
+      "words": [
+        "-\u3051\u3068",
+        "a\u3042\u3042\u304b",
+        "\u3042"
+      ]
+    },
+    {
+      "text": "\uff9e\ufeff\u309e\n\u0085\u30f5\u30f6\uff71\u2015",
+      "words": [
+        "\u3099\ufeff\u309e",
+        "\u304b\u3051\u3042-"
+      ]
+    },
+    {
+      "text": "\ufe0f\u2000\uff41\u30f5\u2015\u9928\ufe00",
+      "words": [
+        "a\u304b-\u9928"
+      ]
+    },
+    {
+      "text": "\n\u5e02\ufe63\u3051\uff0d\u30ab",
+      "words": [
+        "\u5e02-\u3051-\u304b"
+      ]
+    },
+    {
+      "text": "\u3099\u2000\u2010a\u30b1",
+      "words": [
+        "\u3099",
+        "-a\u3051"
+      ]
+    },
+    {
+      "text": "\u0085\u30a2",
+      "words": [
+        "\u3042"
+      ]
+    },
+    {
+      "text": "\t\t\uff0d\u5e02 \u309ea\u2212",
+      "words": [
+        "-\u5e02",
+        "\u309ea-"
+      ]
+    },
+    {
+      "text": "\u30fd-",
+      "words": [
+        "\u309d-"
+      ]
+    },
+    {
+      "text": "\u2000\ufe00\u309e\u30f5\u30f7\u30ab\u5ddd\u30fe\t\u30a2\u30f6\u2013",
+      "words": [
+        "\u309e\u304b\u30f7\u304b\u5ddd\u309e",
+        "\u3042\u3051-"
+      ]
+    },
+    {
+      "text": "\u5e02\u30fe\u2012\u309d\u309d\ufe00\u3096\u2013",
+      "words": [
+        "\u5e02\u309e-\u309d\u309d\u3051-"
+      ]
+    },
+    {
+      "text": "\u2015\t\u309e\u304b\u30f4\u309b\udb40\udd00\uff41\u5e02\u66f8",
+      "words": [
+        "-",
+        "\u309e\u304b\u3094",
+        "\u3099a\u5e02\u66f8"
+      ]
+    },
+    {
+      "text": "\u30b1\uff41\u30a1\u3000\u30ac\uff11\u309b-\u30f4\u4e2d\u66f8",
+      "words": [
+        "\u3051a\u3041",
+        "\u304c1",
+        "\u3099-\u3094\u4e2d\u66f8"
+      ]
+    },
+    {
+      "text": "\u30a2\u30ab\u2011\u3051",
+      "words": [
+        "\u3042\u304b-\u3051"
+      ]
+    },
+    {
+      "text": "\uff76",
+      "words": [
+        "\u304b"
+      ]
+    },
+    {
+      "text": "\u2028\u30f6\u30ab\u56f3\u30b1\u3068\u5ddd\u205fa\uff76",
+      "words": [
+        "\u3051\u304b\u56f3\u3051\u3068\u5ddd",
+        "a\u304b"
+      ]
+    },
+    {
+      "text": "\uff21",
+      "words": [
+        "a"
+      ]
+    },
+    {
+      "text": "\uff71\u205f",
+      "words": [
+        "\u3042"
+      ]
+    },
+    {
+      "text": "\uff0d\u2000\u4e2d\ufe63\uff11\ufeff\u3051\u592e\ufe63",
+      "words": [
+        "-",
+        "\u4e2d-1\ufeff\u3051\u592e-"
+      ]
+    },
+    {
+      "text": "\u30f7",
+      "words": [
+        "\u30f7"
+      ]
+    },
+    {
+      "text": "\udb40\udd00\u30fd\u3096\u2028a\u309e- \uff21",
+      "words": [
+        "\u309d\u3051",
+        "a\u309e-",
+        "a"
+      ]
+    },
+    {
+      "text": "\uff76\u56f3\u30c8\u30a2A\uff71\u0085\u0085\u304bA",
+      "words": [
+        "\u304b\u56f3\u3068\u3042a\u3042",
+        "\u304ba"
+      ]
+    },
+    {
+      "text": "\u20151\u3000\u3096",
+      "words": [
+        "-1",
+        "\u3051"
+      ]
+    },
+    {
+      "text": "\n\u5e02\u30fc",
+      "words": [
+        "\u5e02-"
+      ]
+    },
+    {
+      "text": "\ufe00\u2012\u2014\u2010\u2212\u30a1\u202f\u3000\u2212\u2013\u0085\u4e2d",
+      "words": [
+        "----\u3041",
+        "--",
+        "\u4e2d"
+      ]
+    },
+    {
+      "text": "\u00a0\uff701\u30ab\u2028\uff71\u3094\u1680\u2011\uff70\u30f7\u30ac",
+      "words": [
+        "-1\u304b",
+        "\u3042\u3094",
+        "--\u30f7\u304c"
+      ]
+    },
+    {
+      "text": "\t\u30ac\u309d\u30fe",
+      "words": [
+        "\u304c\u309d\u309e"
+      ]
+    },
+    {
+      "text": "\u2015\uff41\u2212\udb40\udd00\u592e\u3068\u3095\u592e",
+      "words": [
+        "-a-\u592e\u3068\u304b\u592e"
+      ]
+    },
+    {
+      "text": "\u5e02",
+      "words": [
+        "\u5e02"
+      ]
+    },
+    {
+      "text": "\u5e02\u1680\u30f7 \u309d\uff70\u4e2d \ufeffa\u30fe\ufe63",
+      "words": [
+        "\u5e02",
+        "\u30f7",
+        "\u309d-\u4e2d",
+        "\ufeffa\u309e-"
+      ]
+    },
+    {
+      "text": "\u2013\uff11\u205f\uff76",
+      "words": [
+        "-1",
+        "\u304b"
+      ]
+    },
+    {
+      "text": "\u30a2\u304c\u30f7\ufeff\u309d\uff70\u30fd\u304c\u66f8\u3095\u309e",
+      "words": [
+        "\u3042\u304c\u30f7\ufeff\u309d-\u309d\u304c\u66f8\u304b\u309e"
+      ]
+    },
+    {
+      "text": "\u304b\n\u20001\u2000\uff70\u30f4 \u0085-\u56f3\u30a1",
+      "words": [
+        "\u304b",
+        "1",
+        "-\u3094",
+        "-\u56f3\u3041"
+      ]
+    },
+    {
+      "text": "1",
+      "words": [
+        "1"
+      ]
+    },
+    {
+      "text": "\u30fd \u3099\udb40\udd00",
+      "words": [
+        "\u309d",
         "\u3099"
       ]
     },
     {
-      "text": "\u592e\u5ddd\u309e \u30511\u66f8\uff9ea",
+      "text": "\u2015\ufe63\uff41\u2012A",
       "words": [
-        "\u592e\u5ddd\u309e",
-        "\u30511\u66f8\u3099a"
+        "--a-a"
       ]
     },
     {
-      "text": "\ufe63\u9928",
+      "text": "\u309d\u592e\u2013\u2212",
       "words": [
-        "-\u9928"
+        "\u309d\u592e--"
       ]
     },
     {
-      "text": "\t",
-      "words": []
-    },
-    {
-      "text": "\u30a1\u2212\u2013\uff0d\u5e02\u30fd\u9928\uff0d\u30f5\u0085\u592e\u2028",
+      "text": "\n\udb40\udd00\u30fe\u5ddd\uff71\u30fc\u2015\u30f5\u309b\u2000",
       "words": [
-        "\u3041---\u5e02\u309d\u9928-\u304b",
-        "\u592e"
+        "\u309e\u5ddd\u3042--\u304b",
+        "\u3099"
       ]
     },
     {
-      "text": "a\u3094\u30fd\u30c8\uff70\u30fe\u30f5\u30ab\u3094\u9928",
+      "text": "\u2013",
       "words": [
-        "a\u3094\u309d\u3068-\u309e\u304b\u304b\u3094\u9928"
-      ]
-    },
-    {
-      "text": "\u30f5-\u3000",
-      "words": [
-        "\u304b-"
-      ]
-    },
-    {
-      "text": "\u3095\u30fe\u200b\u0085\u2000\u9928\u304b\u3000\u2013",
-      "words": [
-        "\u304b\u309e\u200b",
-        "\u9928\u304b",
         "-"
       ]
     },
     {
-      "text": "\u30f6\u2014\u30f4\u2012\u3095",
+      "text": "-\u205fA\u3068\u5e02\u30a2\uff70 \u2000\uff76\u1680\u3000",
       "words": [
-        "\u3051-\u3094-\u304b"
+        "-",
+        "a\u3068\u5e02\u3042-",
+        "\u304b"
       ]
     },
     {
-      "text": "\uff41\u3000\uff9e\u5ddd\u2000\u30a1\u2028-\t",
+      "text": "\uff0d\u30fe\u30ab\u3000\u30f7\u3099\u309b",
+      "words": [
+        "-\u309e\u304b",
+        "\u30f7\u3099",
+        "\u3099"
+      ]
+    },
+    {
+      "text": "\u30f5\u0085\uff70\u2212\u30fd\u309e\u30a2\u30991",
+      "words": [
+        "\u304b",
+        "--\u309d\u309e\u3042\u30991"
+      ]
+    },
+    {
+      "text": "\u2014\ufeff\u30a1\u205f\u30ac\u2212\u30f6",
+      "words": [
+        "-\ufeff\u3041",
+        "\u304c-\u3051"
+      ]
+    },
+    {
+      "text": "a\uff11\uff21\u30f5\u205f \u0085\u2015\u3094a\ufe00",
+      "words": [
+        "a1a\u304b",
+        "-\u3094a"
+      ]
+    },
+    {
+      "text": "\uff70\u2012\ufe0f\udb40\udd00\u3051",
+      "words": [
+        "--\u3051"
+      ]
+    },
+    {
+      "text": "\u205f\u30fd",
+      "words": [
+        "\u309d"
+      ]
+    },
+    {
+      "text": "\u309e\ufe63\u30fe\u2012\u2014",
+      "words": [
+        "\u309e-\u309e--"
+      ]
+    },
+    {
+      "text": "\u30ab \u30ab\u30ac\u9928\u0085\uff0d",
+      "words": [
+        "\u304b",
+        "\u304b\u304c\u9928",
+        "-"
+      ]
+    },
+    {
+      "text": "\u9928\u30ab\u309e",
+      "words": [
+        "\u9928\u304b\u309e"
+      ]
+    },
+    {
+      "text": "\uff9e\u3095\u3094\u304c\u66f8\u3000\u2212\u30fc",
+      "words": [
+        "\u3099\u304b\u3094\u304c\u66f8",
+        "--"
+      ]
+    },
+    {
+      "text": "a\uff76\n\u2012",
+      "words": [
+        "a\u304b",
+        "-"
+      ]
+    },
+    {
+      "text": "\uff21\u2028\u3051\n\uff9e\u304c",
       "words": [
         "a",
-        "\u3099\u5ddd",
-        "\u3041",
-        "-"
+        "\u3051",
+        "\u3099\u304c"
       ]
     },
     {
-      "text": "\u3094\u00a0\u309b\u202f\uff76\ufe63\ufe63\u2028\u309d\u30f7",
+      "text": "\u5ddd\uff71\uff0d\u304b\u309d\uff21\u304c",
       "words": [
-        "\u3094",
-        "\u3099",
-        "\u304b--",
-        "\u309d\u30f7"
+        "\u5ddd\u3042-\u304b\u309da\u304c"
       ]
     },
     {
-      "text": "\u3051\u9928\ufe63\uff71\u2015",
+      "text": "\ufe0f\uff76\u2011\u309b\uff71-\u2012-\u4e2d\u00a0",
       "words": [
-        "\u3051\u9928-\u3042-"
+        "\u304b-",
+        "\u3099\u3042---\u4e2d"
       ]
     },
     {
-      "text": "\ufeff\u309e\t\u30f6\u3051\u30ac\u30f6\u309d\u309e\u205f",
+      "text": "\u200b\u2212\u30a2\u2028\u3096\u66f8\u3068\u2011\u30fda\t",
       "words": [
-        "\ufeff\u309e",
-        "\u3051\u3051\u304c\u3051\u309d\u309e"
+        "\u200b-\u3042",
+        "\u3051\u66f8\u3068-\u309da"
       ]
     },
     {
-      "text": "A\u30f7\u30ab\u30ab\u592e\u2028\u1680\n\u2010A",
+      "text": "\u200b",
       "words": [
-        "a\u30f7\u304b\u304b\u592e",
-        "-a"
+        "\u200b"
       ]
     },
     {
-      "text": "\u4e2d\uff21\u205f\u30a2\uff70\uff0d\ufeff\u3099\u304c\u30f7A",
+      "text": "\u309d\ufeff\u30c8 \ufeff\u0085\u309e\ufe0f\ufe63\u3051\u1680\u309b",
       "words": [
-        "\u4e2da",
-        "\u3042--\ufeff\u3099\u304c\u30f7a"
-      ]
-    },
-    {
-      "text": "\u309e\u3099\u200b\u0085\u30a2\u309b",
-      "words": [
-        "\u309e\u3099\u200b",
-        "\u3042",
+        "\u309d\ufeff\u3068",
+        "\ufeff",
+        "\u309e-\u3051",
         "\u3099"
       ]
     },
     {
-      "text": "-\u2015\u00a0\u30ac\u30f5\n\u2013\u2000",
+      "text": "\u309b\u30fe\u304b\u309b\u30f4\uff11\u592e",
       "words": [
-        "--",
-        "\u304c\u304b",
-        "-"
+        "\u3099\u309e\u304b",
+        "\u3099\u30941\u592e"
       ]
     },
     {
-      "text": "\u3094\u30fc\u3000\u2012\u30a2",
+      "text": "\u3000\u66f8-\u2014\uff71",
       "words": [
-        "\u3094-",
-        "-\u3042"
+        "\u66f8--\u3042"
       ]
     },
     {
-      "text": "\u1680\u30a1 \u30f5\uff71\u309b\u205f\t",
+      "text": "-\u5e02\u30fe\uff41\u200b\uff9e\u30fc\uff41\u2212\u2012\uff41\ufe00",
       "words": [
-        "\u3041",
-        "\u304b\u3042",
-        "\u3099"
+        "-\u5e02\u309ea\u200b\u3099-a--a"
       ]
     },
     {
-      "text": " \u30fe\u2014\t\u1680\u3099\u2015\u202f\u1680\u592e\u3095\u30ac",
+      "text": "\u30b1\u2011\u309b\ufeff\uff71\u5ddd\u2010\uff9e\u30fd",
       "words": [
-        "\u309e-",
-        "\u3099-",
-        "\u592e\u304b\u304c"
+        "\u3051-",
+        "\u3099\ufeff\u3042\u5ddd-\u3099\u309d"
       ]
     },
     {
-      "text": "\ufe63",
+      "text": "\u30ab\u30f6\u200b\u56f3\u3000\u5e02\ufe00\u30ab\u2012\u30c8",
       "words": [
-        "-"
+        "\u304b\u3051\u200b\u56f3",
+        "\u5e02\u304b-\u3068"
       ]
     },
     {
-      "text": "\u200b\u2012\n\u309d\u30fd\u56f3",
+      "text": "\u309e\u3051\u30b1\u2011\ufe00\uff41\u309d\u30f7\u66f8\u304b\u309e",
       "words": [
-        "\u200b-",
-        "\u309d\u309d\u56f3"
+        "\u309e\u3051\u3051-a\u309d\u30f7\u66f8\u304b\u309e"
       ]
     },
     {
-      "text": "\u309e",
+      "text": "\uff11\u30ab\u30ab\u592e1-\uff76\u3099\ufe00\u30f4\u30ab\u30b1",
       "words": [
-        "\u309e"
+        "1\u304b\u304b\u592e1-\u304c\u3094\u304b\u3051"
       ]
     },
     {
-      "text": "\u2015\ufeff\uff71",
+      "text": "\u30ab\u30fc\u30f6\uff21\uff70",
       "words": [
-        "-\ufeff\u3042"
+        "\u304b-\u3051a-"
       ]
     },
     {
-      "text": "\u205f",
-      "words": []
-    },
-    {
-      "text": "\uff71\u205f1\u3000\u00a0\u2015\u30f7",
+      "text": "1\u2000\u30ab",
       "words": [
-        "\u3042",
         "1",
-        "-\u30f7"
-      ]
-    },
-    {
-      "text": "\u3051\u30f5\u00a0\u2028\u3051\u66f8\uff11\u30b1",
-      "words": [
-        "\u3051\u304b",
-        "\u3051\u66f81\u3051"
+        "\u304b"
       ]
     },
     {
@@ -9053,28 +8199,860 @@
       ]
     },
     {
-      "text": "\u30fd\u30f4\u30ac\uff41\u0085\u5e02\u56f3\uff76\u5ddd",
+      "text": "\u1680\u30fc",
       "words": [
-        "\u309d\u3094\u304ca",
-        "\u5e02\u56f3\u304b\u5ddd"
+        "-"
       ]
     },
     {
-      "text": "\u309e\u2010\u56f3\u3095\u30c8\u2010\u309b",
+      "text": "\u309e\u56f3\u2014\u00a0\u2014\t ",
       "words": [
-        "\u309e-\u56f3\u304b\u3068-",
+        "\u309e\u56f3-",
+        "-"
+      ]
+    },
+    {
+      "text": "\u00a0",
+      "words": []
+    },
+    {
+      "text": "\u30f5\n\u30c81\u30fe",
+      "words": [
+        "\u304b",
+        "\u30681\u309e"
+      ]
+    },
+    {
+      "text": "\uff71\u3000\u30ac\u309e\u2012",
+      "words": [
+        "\u3042",
+        "\u304c\u309e-"
+      ]
+    },
+    {
+      "text": "\u3095\u3068",
+      "words": [
+        "\u304b\u3068"
+      ]
+    },
+    {
+      "text": "\u30a1\t\t\u309b\u2014\u3051\u30f4\u200b\uff71\u30f4",
+      "words": [
+        "\u3041",
+        "\u3099-\u3051\u3094\u200b\u3042\u3094"
+      ]
+    },
+    {
+      "text": "\u5ddd\u4e2d\u2011\u30f4\u9928\ufe0f",
+      "words": [
+        "\u5ddd\u4e2d-\u3094\u9928"
+      ]
+    },
+    {
+      "text": "\u5ddd",
+      "words": [
+        "\u5ddd"
+      ]
+    },
+    {
+      "text": "\u30f51\u30c8\u2014 \u3095\u2212\u30fca\ufe63\u30ac\u2000",
+      "words": [
+        "\u304b1\u3068-",
+        "\u304b--a-\u304c"
+      ]
+    },
+    {
+      "text": "\u304c\u30fc",
+      "words": [
+        "\u304c-"
+      ]
+    },
+    {
+      "text": "\u3051\u56f3\ufe00",
+      "words": [
+        "\u3051\u56f3"
+      ]
+    },
+    {
+      "text": "\u2012\u2011\u304b\u309e\u30f7\u30ab\u2010\u304b\uff70",
+      "words": [
+        "--\u304b\u309e\u30f7\u304b-\u304b-"
+      ]
+    },
+    {
+      "text": "\u30c8\u30ac\u30f4\uff701\uff71",
+      "words": [
+        "\u3068\u304c\u3094-1\u3042"
+      ]
+    },
+    {
+      "text": "\u3095",
+      "words": [
+        "\u304b"
+      ]
+    },
+    {
+      "text": "A\u5e02\u5ddd\ufe00\u2013",
+      "words": [
+        "a\u5e02\u5ddd-"
+      ]
+    },
+    {
+      "text": "\u3095\u4e2d\u30fc\u30f4\uff70\u304b",
+      "words": [
+        "\u304b\u4e2d-\u3094-\u304b"
+      ]
+    },
+    {
+      "text": "\u30fe\uff9e\n\u30fd\n\u2011\u30ac",
+      "words": [
+        "\u309e\u3099",
+        "\u309d",
+        "-\u304c"
+      ]
+    },
+    {
+      "text": "\u304c\u56f3",
+      "words": [
+        "\u304c\u56f3"
+      ]
+    },
+    {
+      "text": "\u66f8\u2212\t\u2013\u0085\u3095\u309d\u30a1",
+      "words": [
+        "\u66f8-",
+        "-",
+        "\u304b\u309d\u3041"
+      ]
+    },
+    {
+      "text": "\n\u2013\u4e2d\t\ufeffA\u2000\u2000\u2028",
+      "words": [
+        "-\u4e2d",
+        "\ufeffa"
+      ]
+    },
+    {
+      "text": "a\u200b",
+      "words": [
+        "a\u200b"
+      ]
+    },
+    {
+      "text": "\udb40\udd00\u3096\u200b\uff70\u3068 \u0085\u9928-",
+      "words": [
+        "\u3051\u200b-\u3068",
+        "\u9928-"
+      ]
+    },
+    {
+      "text": "\u2212\u30f6\u2014",
+      "words": [
+        "-\u3051-"
+      ]
+    },
+    {
+      "text": "\u2010\u1680\u2010\u202f\uff76\ufe00",
+      "words": [
+        "-",
+        "-",
+        "\u304b"
+      ]
+    },
+    {
+      "text": "\u2212\u2011A\u200bA\u304b\u30fd\u4e2d",
+      "words": [
+        "--a\u200ba\u304b\u309d\u4e2d"
+      ]
+    },
+    {
+      "text": "\u4e2d\uff21\u592e\t\u304b\u3051\u30a2\uff76\u30ac\u9928\uff71",
+      "words": [
+        "\u4e2da\u592e",
+        "\u304b\u3051\u3042\u304b\u304c\u9928\u3042"
+      ]
+    },
+    {
+      "text": "\u30fe\ufe0f\u200bA\u309b\u30f7\u4e2d\uff70\u2011",
+      "words": [
+        "\u309e\u200ba",
+        "\u3099\u30f7\u4e2d--"
+      ]
+    },
+    {
+      "text": "\u2000\u66f8\u309e\u3068\u9928\uff70\u30f5\u200b",
+      "words": [
+        "\u66f8\u309e\u3068\u9928-\u304b\u200b"
+      ]
+    },
+    {
+      "text": "\uff21\uff11\uff76A\u30a2\u200b\u202f\u202f\u2014",
+      "words": [
+        "a1\u304ba\u3042\u200b",
+        "-"
+      ]
+    },
+    {
+      "text": "\u30fe\u5e021\uff76\u30a1\uff0d\ta\u3095\u30ac\u4e2d\u3094",
+      "words": [
+        "\u309e\u5e021\u304b\u3041-",
+        "a\u304b\u304c\u4e2d\u3094"
+      ]
+    },
+    {
+      "text": "\uff76\u309b\u2011",
+      "words": [
+        "\u304b",
+        "\u3099-"
+      ]
+    },
+    {
+      "text": "A\u202f\u30fe\uff41\u1680\uff21\u1680\na",
+      "words": [
+        "a",
+        "\u309ea",
+        "a",
+        "a"
+      ]
+    },
+    {
+      "text": "\u3096\u592e1\u3095\uff76",
+      "words": [
+        "\u3051\u592e1\u304b\u304b"
+      ]
+    },
+    {
+      "text": "\uff71\u304c\ufeff\u2010\u30f5\u205f\u30fe\u2013\u9928\u5e02\t",
+      "words": [
+        "\u3042\u304c\ufeff-\u304b",
+        "\u309e-\u9928\u5e02"
+      ]
+    },
+    {
+      "text": "\u0085\uff211\u3068\u3000\u2015\uff11\uff11",
+      "words": [
+        "a1\u3068",
+        "-11"
+      ]
+    },
+    {
+      "text": "\u1680\u2000\uff11\u9928\uff76A\u0085\u3099\u30f4\u202f",
+      "words": [
+        "1\u9928\u304ba",
+        "\u3099\u3094"
+      ]
+    },
+    {
+      "text": "\u30f61\u30fd\udb40\udd00\u30c8\uff9e\uff21\u304b\u30f4",
+      "words": [
+        "\u30511\u309d\u3069a\u304b\u3094"
+      ]
+    },
+    {
+      "text": "\u3096\u30fe\u30a1\u3094\u30fc\u9928\u5ddd\udb40\udd00\u4e2d",
+      "words": [
+        "\u3051\u309e\u3041\u3094-\u9928\u5ddd\u4e2d"
+      ]
+    },
+    {
+      "text": "\u3095\n\u3096\u4e2d\u5ddd\u2212\uff76\u3068\ufe00",
+      "words": [
+        "\u304b",
+        "\u3051\u4e2d\u5ddd-\u304b\u3068"
+      ]
+    },
+    {
+      "text": "\ufe63\u66f8",
+      "words": [
+        "-\u66f8"
+      ]
+    },
+    {
+      "text": "\u0085\u2012\u5ddd\u5e02\u3051\u30a11\u30b1\u30f6\u30a1",
+      "words": [
+        "-\u5ddd\u5e02\u3051\u30411\u3051\u3051\u3041"
+      ]
+    },
+    {
+      "text": "1\u2212\u30f7\uff9e\u00a0",
+      "words": [
+        "1-\u30f7\u3099"
+      ]
+    },
+    {
+      "text": "\u202f\u2012\u30ab\u3099\u3094\u2212\udb40\udd00 ",
+      "words": [
+        "-\u304c\u3094-"
+      ]
+    },
+    {
+      "text": " \u30ab",
+      "words": [
+        "\u304b"
+      ]
+    },
+    {
+      "text": "\u3068\u30f7\u30c8\u0085\u205f\uff71\udb40\udd00",
+      "words": [
+        "\u3068\u30f7\u3068",
+        "\u3042"
+      ]
+    },
+    {
+      "text": "\u2012\u30f5\udb40\udd00\ufe63\uff70\u2012\u56f3\u2000",
+      "words": [
+        "-\u304b---\u56f3"
+      ]
+    },
+    {
+      "text": "\u30a1\u30f7\uff0d\u2212\u3051\u30f7\u30fe\u200b\u2015\u592e",
+      "words": [
+        "\u3041\u30f7--\u3051\u30f7\u309e\u200b-\u592e"
+      ]
+    },
+    {
+      "text": "\u30f6\u2014\u30f5\t\u3068\u2028Aa",
+      "words": [
+        "\u3051-\u304b",
+        "\u3068",
+        "aa"
+      ]
+    },
+    {
+      "text": "\u2212",
+      "words": [
+        "-"
+      ]
+    },
+    {
+      "text": "\u30f4\u30f7\u309e\u9928\ufe00\uff71\u66f8\u30a1",
+      "words": [
+        "\u3094\u30f7\u309e\u9928\u3042\u66f8\u3041"
+      ]
+    },
+    {
+      "text": "\ufe0f\u30fd\u56f3\uff76\u30f4\u3051",
+      "words": [
+        "\u309d\u56f3\u304b\u3094\u3051"
+      ]
+    },
+    {
+      "text": "\u3096\u5e02\u00a0\u2013\u1680\u3094\uff21\u2012\u2014\u30f5\u66f8",
+      "words": [
+        "\u3051\u5e02",
+        "-",
+        "\u3094a--\u304b\u66f8"
+      ]
+    },
+    {
+      "text": "\u30ac\u2011\u0085",
+      "words": [
+        "\u304c-"
+      ]
+    },
+    {
+      "text": "1\u309b\u2212\u0085\uff41",
+      "words": [
+        "1",
+        "\u3099-",
+        "a"
+      ]
+    },
+    {
+      "text": "\u9928\n\u30a1\u2014\n\ufe00\u30fc\u309b\u2000\u202f",
+      "words": [
+        "\u9928",
+        "\u3041-",
+        "-",
         "\u3099"
       ]
     },
     {
-      "text": "\n\u304b\u1680\u3096\u30a1\u3094",
+      "text": "\u00a0\u2013\u2014\u2028\u2011\u2010\u309e\u30a1\ufeff",
       "words": [
-        "\u304b",
-        "\u3051\u3041\u3094"
+        "--",
+        "--\u309e\u3041\ufeff"
       ]
     },
     {
-      "text": "\t\u30c8\u2000",
+      "text": "\u30fc\uff0d\u9928\u205f\u00a0A\u3068",
+      "words": [
+        "--\u9928",
+        "a\u3068"
+      ]
+    },
+    {
+      "text": "\u200b",
+      "words": [
+        "\u200b"
+      ]
+    },
+    {
+      "text": "\u30c8a\n\u2015\u3068\u2000\u1680",
+      "words": [
+        "\u3068a",
+        "-\u3068"
+      ]
+    },
+    {
+      "text": "\ufe0f-\u3099",
+      "words": [
+        "-\u3099"
+      ]
+    },
+    {
+      "text": "1\u30ab\u66f8\u200b\u30b1",
+      "words": [
+        "1\u304b\u66f8\u200b\u3051"
+      ]
+    },
+    {
+      "text": "\u30f7\u1680\u309b\u2014\uff21\u2212\uff0d\u30fd\u2028\u30b1",
+      "words": [
+        "\u30f7",
+        "\u3099-a--\u309d",
+        "\u3051"
+      ]
+    },
+    {
+      "text": "\u304c\u00a0\u30ac\u30f4\u0085\u592e\u202f",
+      "words": [
+        "\u304c",
+        "\u304c\u3094",
+        "\u592e"
+      ]
+    },
+    {
+      "text": "\u2010\n\u5e02\uff71",
+      "words": [
+        "-",
+        "\u5e02\u3042"
+      ]
+    },
+    {
+      "text": "\u0085\u30b1\u0085\u30ac\u3096\u30f7\u1680\u2014\uff21\uff41a",
+      "words": [
+        "\u3051",
+        "\u304c\u3051\u30f7",
+        "-aaa"
+      ]
+    },
+    {
+      "text": "\ufeff\u3095\u0085\u66f8",
+      "words": [
+        "\ufeff\u304b",
+        "\u66f8"
+      ]
+    },
+    {
+      "text": "\u3068\u30ac\n\u66f8",
+      "words": [
+        "\u3068\u304c",
+        "\u66f8"
+      ]
+    },
+    {
+      "text": "\u30fd\u30ab\u3094\u56f3\uff70\ufeff\u2013\uff70\u30c8\u200b\u30c8",
+      "words": [
+        "\u309d\u304b\u3094\u56f3-\ufeff--\u3068\u200b\u3068"
+      ]
+    },
+    {
+      "text": "\u3096\u4e2d\u205f\u2028A\ufe0f\u30f5\uff9e",
+      "words": [
+        "\u3051\u4e2d",
+        "a\u304c"
+      ]
+    },
+    {
+      "text": "\u200b\u00a0\u202f\u30a2\ufe0f\u3095",
+      "words": [
+        "\u200b",
+        "\u3042\u304b"
+      ]
+    },
+    {
+      "text": "\n-\uff9e\u5e02\u2212\uff41\uff76a\u30f5\u3051\u3095\ufe00",
+      "words": [
+        "-\u3099\u5e02-a\u304ba\u304b\u3051\u304b"
+      ]
+    },
+    {
+      "text": "\u304c\u304b\u2010\u30a2\u9928\u2014",
+      "words": [
+        "\u304c\u304b-\u3042\u9928-"
+      ]
+    },
+    {
+      "text": "\u309b\u304b\ufeff\ufeff\ufe63\u3095\n\u200b\u30f4\u30ab\u30fd\udb40\udd00",
+      "words": [
+        "\u3099\u304b\ufeff\ufeff-\u304b",
+        "\u200b\u3094\u304b\u309d"
+      ]
+    },
+    {
+      "text": "\u30fc\ufeff\u0085\u1680",
+      "words": [
+        "-\ufeff"
+      ]
+    },
+    {
+      "text": "\u3051\u3096\u200b\n\u30fe",
+      "words": [
+        "\u3051\u3051\u200b",
+        "\u309e"
+      ]
+    },
+    {
+      "text": "\u66f8\u30ab\u309b\u3051\uff9e1\u309d\u2012",
+      "words": [
+        "\u66f8\u304b",
+        "\u3099\u30521\u309d-"
+      ]
+    },
+    {
+      "text": "\u30a1\u2010\ufeff\u304b\u3068\u304b\u1680\uff0d\u3095\t",
+      "words": [
+        "\u3041-\ufeff\u304b\u3068\u304b",
+        "-\u304b"
+      ]
+    },
+    {
+      "text": "\udb40\udd00\u30f5\ufe00\u3096\ufeff\u30f6\uff71\ufe00\u3099\n\u304c",
+      "words": [
+        "\u304b\u3051\ufeff\u3051\u3042\u3099",
+        "\u304c"
+      ]
+    },
+    {
+      "text": "\u2010\u2013",
+      "words": [
+        "--"
+      ]
+    },
+    {
+      "text": "\u9928\u30f7\u3099A\u30f6a\u205f",
+      "words": [
+        "\u9928\u30f7\u3099a\u3051a"
+      ]
+    },
+    {
+      "text": "\u30f7\u56f3\u30fc\u2028\u3096\u0085\u30f7\u2013\ufeff",
+      "words": [
+        "\u30f7\u56f3-",
+        "\u3051",
+        "\u30f7-\ufeff"
+      ]
+    },
+    {
+      "text": "\u2028\u309b\u202f\uff41",
+      "words": [
+        "\u3099",
+        "a"
+      ]
+    },
+    {
+      "text": "\t\u30fe\u5e02\u30fc\u2012\ufe63\n1\uff0d\u30ab\u30a1",
+      "words": [
+        "\u309e\u5e02---",
+        "1-\u304b\u3041"
+      ]
+    },
+    {
+      "text": "\ufe0f\u309e-\u3068\u2014-",
+      "words": [
+        "\u309e-\u3068--"
+      ]
+    },
+    {
+      "text": "\u4e2d\u3096\u30ac",
+      "words": [
+        "\u4e2d\u3051\u304c"
+      ]
+    },
+    {
+      "text": "\n\u3068\u30a2\u5e02\uff0d\u3051\u2015\u309d-",
+      "words": [
+        "\u3068\u3042\u5e02-\u3051-\u309d-"
+      ]
+    },
+    {
+      "text": "\u2013\u2010\ufe63\u200b\u2212\uff76",
+      "words": [
+        "---\u200b-\u304b"
+      ]
+    },
+    {
+      "text": "\u30f7\t\u30a2\u30f4\u3094",
+      "words": [
+        "\u30f7",
+        "\u3042\u3094\u3094"
+      ]
+    },
+    {
+      "text": "\u30ac\u30a2",
+      "words": [
+        "\u304c\u3042"
+      ]
+    },
+    {
+      "text": "\ufe63\u30ac\u309ea\u16801\u30fe\u205f\u3068\u30f6\u2014",
+      "words": [
+        "-\u304c\u309ea",
+        "1\u309e",
+        "\u3068\u3051-"
+      ]
+    },
+    {
+      "text": "\u202f",
+      "words": []
+    },
+    {
+      "text": "\uff71\u20151\u304b\u3068\u30b1\uff11",
+      "words": [
+        "\u3042-1\u304b\u3068\u30511"
+      ]
+    },
+    {
+      "text": "\u30b1\u00a0\u30a2\u30a1\u30f7\n\u304c",
+      "words": [
+        "\u3051",
+        "\u3042\u3041\u30f7",
+        "\u304c"
+      ]
+    },
+    {
+      "text": "\uff11\uff76\u30b1",
+      "words": [
+        "1\u304b\u3051"
+      ]
+    },
+    {
+      "text": "\uff41",
+      "words": [
+        "a"
+      ]
+    },
+    {
+      "text": "\n",
+      "words": []
+    },
+    {
+      "text": "\u2011\u304c\u30b1\u4e2d\u30fc",
+      "words": [
+        "-\u304c\u3051\u4e2d-"
+      ]
+    },
+    {
+      "text": "\u66f8\u1680\u304c",
+      "words": [
+        "\u66f8",
+        "\u304c"
+      ]
+    },
+    {
+      "text": "\u592e\u5ddda \u3095\uff76\u9928\u304c\uff41",
+      "words": [
+        "\u592e\u5ddda",
+        "\u304b\u304b\u9928\u304ca"
+      ]
+    },
+    {
+      "text": "\u30f7\u9928",
+      "words": [
+        "\u30f7\u9928"
+      ]
+    },
+    {
+      "text": "\u0085",
+      "words": []
+    },
+    {
+      "text": "\u30f5\uff0d\u2014\u30f4\u5e02\u309d\u9928\u30f4\u30f5\u1680\u592e\u3000",
+      "words": [
+        "\u304b--\u3094\u5e02\u309d\u9928\u3094\u304b",
+        "\u592e"
+      ]
+    },
+    {
+      "text": "\uff41\u30fe\u30fe\u3068-\u309e\u30f6\u30ab\u30fd\u9928",
+      "words": [
+        "a\u309e\u309e\u3068-\u309e\u3051\u304b\u309d\u9928"
+      ]
+    },
+    {
+      "text": "\u30f5\u2010\ufe00",
+      "words": [
+        "\u304b-"
+      ]
+    },
+    {
+      "text": "\u3095\u309e\ufe0f\u2000\u205f\u9928\u3051\ufeff\u2015",
+      "words": [
+        "\u304b\u309e",
+        "\u9928\u3051\ufeff-"
+      ]
+    },
+    {
+      "text": "\u30b1\u2015\u30fd\u2014\u3096",
+      "words": [
+        "\u3051-\u309d-\u3051"
+      ]
+    },
+    {
+      "text": "\uff11\ufeff\u304c\u5ddd\u205f\u30a1\u3000\u2010\u0085",
+      "words": [
+        "1\ufeff\u304c\u5ddd",
+        "\u3041",
+        "-"
+      ]
+    },
+    {
+      "text": "\u30fe\u2028\n\u3000\u30ac\u30f7\uff0d\u3000\u309e\u30f4",
+      "words": [
+        "\u309e",
+        "\u304c\u30f7-",
+        "\u309e\u3094"
+      ]
+    },
+    {
+      "text": "\u3095\u9928\u30f7\uff71\u2212",
+      "words": [
+        "\u304b\u9928\u30f7\u3042-"
+      ]
+    },
+    {
+      "text": "\udb40\udd00A\u0085\u30f6\u3095\u3099\u30f6Aa\u200b",
+      "words": [
+        "a",
+        "\u3051\u304c\u3051aa\u200b"
+      ]
+    },
+    {
+      "text": "\uff21\u3094\u30ab\u304b\u30a2\u3000\u2028\u1680\u2012\uff21",
+      "words": [
+        "a\u3094\u304b\u304b\u3042",
+        "-a"
+      ]
+    },
+    {
+      "text": "\u4e2d1\ufeff\u30a2-\u30f4\udb40\udd00\n\t\u3094\uff21",
+      "words": [
+        "\u4e2d1\ufeff\u3042-\u3094",
+        "\u3094a"
+      ]
+    },
+    {
+      "text": "a\n\ufe0f\u1680\u30a2\n",
+      "words": [
+        "a",
+        "\u3042"
+      ]
+    },
+    {
+      "text": "\u2010\u2212\u2000\u3099\u30f5\u1680\u2015\u205f",
+      "words": [
+        "--",
+        "\u3099\u304b",
+        "-"
+      ]
+    },
+    {
+      "text": "\u30fe\uff70\ufeff\u2013 ",
+      "words": [
+        "\u309e-\ufeff-"
+      ]
+    },
+    {
+      "text": "\u2028\u30a1 \u30f5\u30a1\u0085\ufeff\u0085",
+      "words": [
+        "\u3041",
+        "\u304b\u3041",
+        "\ufeff"
+      ]
+    },
+    {
+      "text": " \u309e\u2015\u00a0\u202f\t\u2212\u200b\u202f\u592e\u3096\u3099",
+      "words": [
+        "\u309e-",
+        "-\u200b",
+        "\u592e\u3052"
+      ]
+    },
+    {
+      "text": "\u30f7",
+      "words": [
+        "\u30f7"
+      ]
+    },
+    {
+      "text": "\ufe0f\u2013\u1680A\u309d\u56f3",
+      "words": [
+        "-",
+        "a\u309d\u56f3"
+      ]
+    },
+    {
+      "text": "a",
+      "words": [
+        "a"
+      ]
+    },
+    {
+      "text": "\u2212\udb40\udd00\uff71",
+      "words": [
+        "-\u3042"
+      ]
+    },
+    {
+      "text": "\ufeff",
+      "words": [
+        "\ufeff"
+      ]
+    },
+    {
+      "text": "\uff71\u200b\uff76\ufeff\u2000\u2212\u3094",
+      "words": [
+        "\u3042\u200b\u304b\ufeff",
+        "-\u3094"
+      ]
+    },
+    {
+      "text": "\u3095\u30f6\u2000\u3000\u3095\u66f8\uff9e\u30ab",
+      "words": [
+        "\u304b\u3051",
+        "\u304b\u66f8\u3099\u304b"
+      ]
+    },
+    {
+      "text": "\u3099",
+      "words": [
+        "\u3099"
+      ]
+    },
+    {
+      "text": "\u309d\u3094\u309b\uff11\u1680\u5e02\u56f3\u30ac\u5ddd",
+      "words": [
+        "\u309d\u3094",
+        "\u30991",
+        "\u5e02\u56f3\u304c\u5ddd"
+      ]
+    },
+    {
+      "text": "a\u2012\u56f3\u3096\u3068\u2011\n",
+      "words": [
+        "a-\u56f3\u3051\u3068-"
+      ]
+    },
+    {
+      "text": "\u00a0\u304b\u2028\u30c8\u30f5\u30fe",
+      "words": [
+        "\u304b",
+        "\u3068\u304b\u309e"
+      ]
+    },
+    {
+      "text": "\u0085\u3068\u205f",
       "words": [
         "\u3068"
       ]
@@ -9092,74 +9070,51 @@
       ]
     },
     {
-      "text": "\u66f8\u30c8\uff21\u3096\u9928\u0085",
+      "text": "\u66f8\u30681\u30c8\u9928\u1680",
       "words": [
-        "\u66f8\u3068a\u3051\u9928"
+        "\u66f8\u30681\u3068\u9928"
       ]
     },
     {
-      "text": "\u200b",
+      "text": "\ufe0f",
+      "words": []
+    },
+    {
+      "text": "\u2028\uff9e\ufe0f\u30f7",
       "words": [
-        "\u200b"
+        "\u3099\u30f7"
       ]
     },
     {
-      "text": "\u1680\uff11\u200b\uff0d",
+      "text": "\u30f5\u56f3\uff41\ufeff\u00a0\u592e\udb40\udd00",
       "words": [
-        "1\u200b-"
+        "\u304b\u56f3a\ufeff",
+        "\u592e"
       ]
     },
     {
-      "text": "\u30f5\u56f3a\u205f\n\u4e2d\ufeff",
-      "words": [
-        "\u304b\u56f3a",
-        "\u4e2d\ufeff"
-      ]
-    },
-    {
-      "text": "\u2010",
+      "text": "\u2011",
       "words": [
         "-"
       ]
     },
     {
-      "text": "\u3096\uff71\u30fd\u3095\u3068\uff70\u30b1",
+      "text": "\u3096\uff71\u309d\u3096\u30fc-\u30ab",
       "words": [
-        "\u3051\u3042\u309d\u304b\u3068-\u3051"
+        "\u3051\u3042\u309d\u3051--\u304b"
       ]
     },
     {
-      "text": "A\uff76\n",
+      "text": "a\u30ac\u00a0",
       "words": [
-        "a\u304b"
+        "a\u304c"
       ]
     },
     {
-      "text": "\t\u66f8\u30a1\u2212\uff9e\u3000\u3068\u0085\u3095",
+      "text": "\u00a0\u66f8\u30f5\uff0d\u304c\ufe00\u30fc\u1680\u3096",
       "words": [
-        "\u66f8\u3041-\u3099",
-        "\u3068",
-        "\u304b"
-      ]
-    },
-    {
-      "text": "\u2013",
-      "words": [
-        "-"
-      ]
-    },
-    {
-      "text": "\u2012\u3096\u3068\n\u309e\u202fA\u2015",
-      "words": [
-        "-\u3051\u3068",
-        "\u309e",
-        "a-"
-      ]
-    },
-    {
-      "text": "A-\u200b\u30b1a\u30fd\u30a2\uff70",
-      "words": [
-        "a-\u200b\u3051a\u309d\u3042-"
+        "\u66f8\u304b-\u304c-",
+        "\u3051"
       ]
     },
     {
@@ -9169,82 +9124,104 @@
       ]
     },
     {
-      "text": "\u304c\u2015\uff76\u2011\u4e2d\u30a2\u30ac\u2010\u30fe\u30fd\u2000\u2000",
+      "text": "\u2013\u3096\u30fc\u1680a\u200b\uff21\ufe63",
       "words": [
-        "\u304c-\u304b-\u4e2d\u3042\u304c-\u309e\u309d"
+        "-\u3051-",
+        "a\u200ba-"
       ]
     },
     {
-      "text": "\u1680\u30fc\uff70\u1680\u3096\u2000\u2014\u2028\u30c8\u30fc\u309e",
+      "text": "\uff21\u2010\ufe00\u30b1\uff41\u30fe -",
       "words": [
-        "--",
-        "\u3051",
-        "-",
-        "\u3068-\u309e"
+        "a-\u3051a\u309e",
+        "-"
       ]
     },
     {
-      "text": "\u00a0\u2010\u30f4-\ufeff\uff21",
-      "words": [
-        "-\u3094-\ufeffa"
-      ]
-    },
-    {
-      "text": "\u2012\u30b1\u2000\u2015\u30ac\u3099\u3051",
-      "words": [
-        "-\u3051",
-        "-\u304c\u3099\u3051"
-      ]
-    },
-    {
-      "text": "\u2012\uff0d",
-      "words": [
-        "--"
-      ]
-    },
-    {
-      "text": "\u30c8\u205f\n\u2013a",
-      "words": [
-        "\u3068",
-        "-a"
-      ]
-    },
-    {
-      "text": "\ufe63",
+      "text": "\u2212",
       "words": [
         "-"
       ]
     },
     {
-      "text": "\u309b \u0085\u0085\u3051",
+      "text": "\u309b\u2212\u30ac\u2012\u4e2d \u309b\u2011\u309d\u30fe\u205f\u202f",
       "words": [
-        "\u3099",
+        "\u3099-\u304c-\u4e2d",
+        "\u3099-\u309d\u309e"
+      ]
+    },
+    {
+      "text": "\u2028\uff70-\u202f\u30c8\u202f\u2015\u3000\u3068\uff70a",
+      "words": [
+        "--",
+        "\u3068",
+        "-",
+        "\u3068-a"
+      ]
+    },
+    {
+      "text": "\u2000\u2012\u30fd\u2010\udb40\udd001",
+      "words": [
+        "-\u309d-1"
+      ]
+    },
+    {
+      "text": "\u2013\u30ab\u205f\u2212\u3099\t\u3051",
+      "words": [
+        "-\u304b",
+        "-\u3099",
         "\u3051"
       ]
     },
     {
-      "text": "\u205f\u2012\u1680\u309e\u3099\u4e2d\u304b\u30ac\u3000\u202f",
+      "text": "\u2013\u30f7",
       "words": [
-        "-",
-        "\u309e\u3099\u4e2d\u304b\u304c"
+        "-\u30f7"
       ]
     },
     {
-      "text": "\u5ddd\u30c8\u1680",
+      "text": "\u3068\ufeff\u1680\u2014\uff41",
+      "words": [
+        "\u3068\ufeff",
+        "-a"
+      ]
+    },
+    {
+      "text": "\uff0d",
+      "words": [
+        "-"
+      ]
+    },
+    {
+      "text": "\n \u1680\u2000\u3051",
+      "words": [
+        "\u3051"
+      ]
+    },
+    {
+      "text": "\ufeff\u2013\u202fa\n\u4e2d\u3051\u3099\ufe00\u200b",
+      "words": [
+        "\ufeff-",
+        "a",
+        "\u4e2d\u3052\u200b"
+      ]
+    },
+    {
+      "text": "\u5ddd\u3068\u202f",
       "words": [
         "\u5ddd\u3068"
       ]
     },
     {
-      "text": "\u3000\uff21\u309e\u5ddd\u200b\uff70\uff11",
+      "text": "\ufe001A\u5ddd\ufe0f-\uff9e",
       "words": [
-        "a\u309e\u5ddd\u200b-1"
+        "1a\u5ddd-\u3099"
       ]
     },
     {
-      "text": "\u30f7\uff9e",
+      "text": "\u3094\u304c",
       "words": [
-        "\u30f7\u3099"
+        "\u3094\u304c"
       ]
     },
     {
@@ -9254,243 +9231,247 @@
       ]
     },
     {
-      "text": "\u30fe\u3051",
+      "text": "\u309e\u3051",
       "words": [
         "\u309e\u3051"
       ]
     },
     {
-      "text": "\u2212a\u2015\u30fd\u205f1\u2011\t\u3051",
+      "text": "\uff0d\uff41\u2212\u30fe\ufeff\uff76\u2012\u0085\u3095",
       "words": [
-        "-a-\u309d",
-        "1-",
-        "\u3051"
+        "-a-\u309e\ufeff\u304b-",
+        "\u304b"
       ]
     },
     {
-      "text": "1\uff9e\u00a0\u3095\uff21",
+      "text": "\uff76\u304c\u2028\u30951",
       "words": [
-        "1\u3099",
-        "\u304ba"
+        "\u304b\u304c",
+        "\u304b1"
       ]
     },
     {
-      "text": "\u205f\u3099\u2011 \u30f5\u2015\u5ddd\u5e02\u3068\u30a2",
+      "text": "\ufeff\t\u2012 \u30f6\u2212\u4e2d\u5e02\u30fc ",
       "words": [
-        "\u3099-",
-        "\u304b-\u5ddd\u5e02\u3068\u3042"
+        "\ufeff",
+        "-",
+        "\u3051-\u4e2d\u5e02-"
       ]
     },
     {
-      "text": "\uff41\u2014\u3096\u200b",
+      "text": "\uff11\u2015\u30c8\ufe0f",
       "words": [
-        "a-\u3051\u200b"
+        "1-\u3068"
       ]
     },
     {
-      "text": "\u30f4\u309bA\u30b1",
+      "text": "\u30fd\n\uff21\u30b1",
       "words": [
-        "\u3094",
-        "\u3099a\u3051"
+        "\u309d",
+        "a\u3051"
       ]
     },
     {
-      "text": "a\n\na\uff0d\uff11\u304c\u309e",
+      "text": "\uff41\u1680\u00a0\uff41\u30f4\uff9e\u309ba",
       "words": [
         "a",
-        "a-1\u304c\u309e"
+        "a\u3094\u3099",
+        "\u3099a"
       ]
     },
     {
-      "text": "\u30f6\u2013\u30b1\u4e2d\u3095\n\u3099\u2013\u592e\u309e\u3096",
+      "text": "\u30b1\u2014\u30b1\u592e\u3096\u1680\n\u2014\u30a2a\u30c8",
       "words": [
-        "\u3051-\u3051\u4e2d\u304b",
-        "\u3099-\u592e\u309e\u3051"
+        "\u3051-\u3051\u592e\u3051",
+        "-\u3042a\u3068"
       ]
     },
     {
-      "text": "\u2011\u205f\n\uff21\u30c8\u304c\uff21\u2013",
+      "text": "\u2012\ufeff\u16801\u3068\t1\u2014",
       "words": [
-        "-",
-        "a\u3068\u304ca-"
+        "-\ufeff",
+        "1\u3068",
+        "1-"
       ]
     },
     {
-      "text": "\u9928\u30ac\uff71\u3095\u30fd\ufe63 \u309e\u1680\uff21",
+      "text": "\u9928\u309b\uff71\u3096\u309d\u30f7 a\u20281",
       "words": [
-        "\u9928\u304c\u3042\u304b\u309d-",
-        "\u309e",
-        "a"
+        "\u9928",
+        "\u3099\u3042\u3051\u309d\u30f7",
+        "a",
+        "1"
       ]
     },
     {
-      "text": "\u66f8\u30f5\uff70\u4e2d\u592e",
+      "text": "\u66f8\u30f5-\u592e\u30a2",
       "words": [
-        "\u66f8\u304b-\u4e2d\u592e"
+        "\u66f8\u304b-\u592e\u3042"
       ]
     },
     {
-      "text": "\uff9e\u30c8\u205f\u30ab \u202f\uff71\u3000\u2212\u592e",
+      "text": "\u304c\u3068\ufeff\u304b \u200b\uff71\ufe00\ufe63\u30a2",
       "words": [
-        "\u3099\u3068",
-        "\u304b",
+        "\u304c\u3068\ufeff\u304b",
+        "\u200b\u3042-\u3042"
+      ]
+    },
+    {
+      "text": "\uff71\uff21\uff76",
+      "words": [
+        "\u3042a\u304b"
+      ]
+    },
+    {
+      "text": "\u30b1-1\u30b1\u2000\u30ab\u2010\u30fd",
+      "words": [
+        "\u3051-1\u3051",
+        "\u304b-\u309d"
+      ]
+    },
+    {
+      "text": "\u2000\uff71\t\u9928\u304c\uff41\u30f6\u00a0\u2010",
+      "words": [
         "\u3042",
-        "-\u592e"
-      ]
-    },
-    {
-      "text": "\uff71A1",
-      "words": [
-        "\u3042a1"
-      ]
-    },
-    {
-      "text": "\u30f6\uff70\uff21\u30b1\u0085\u30b1-\u30f4",
-      "words": [
-        "\u3051-a\u3051",
-        "\u3051-\u3094"
-      ]
-    },
-    {
-      "text": "\u00a0\uff71\u304c\u66f8\uff9ea\u30f5\t-",
-      "words": [
-        "\u3042\u304c\u66f8\u3099a\u304b",
+        "\u9928\u304ca\u3051",
         "-"
       ]
     },
     {
-      "text": "\u0085\u00a0\u30f6",
+      "text": "\u2000\u2000\u30b1",
       "words": [
         "\u3051"
       ]
     },
     {
-      "text": "\u30f4\uff21\n\u3094\u3095 ",
+      "text": "\u30941\u1680\u30fe\u3096 ",
       "words": [
-        "\u3094a",
-        "\u3094\u304b"
+        "\u30941",
+        "\u309e\u3051"
       ]
     },
     {
-      "text": "\u3099 \u200b\u2010\u2014\u2013",
+      "text": "\n \ufe0f\u2011\u2212\u2015",
       "words": [
-        "\u3099",
-        "\u200b---"
+        "---"
       ]
     },
     {
-      "text": "\u66f8\uff21\u30fc\u2011\u2010\u304b\u30f6\uff21\uff9e\u3051\u304b\uff70",
+      "text": "\u66f81\uff70\u2012\u2011\u3051\u30b11\u304c\u3051\u304b-",
       "words": [
-        "\u66f8a---\u304b\u3051a\u3099\u3051\u304b-"
+        "\u66f81---\u3051\u30511\u304c\u3051\u304b-"
       ]
     },
     {
-      "text": "\u9928\u309d\u4e2d\u30ac",
+      "text": "\u9928\u309e\u4e2d\u309b",
       "words": [
-        "\u9928\u309d\u4e2d\u304c"
+        "\u9928\u309e\u4e2d",
+        "\u3099"
       ]
     },
     {
-      "text": "\u5e02 \uff11\u00a0\u3000\u5e02a\u56f3\u30c8\u2014",
+      "text": "\u5e02\uff71\uff9e\u2028\ufe00\u5e02\uff21\u56f3\u3068\u2015",
       "words": [
-        "\u5e02",
-        "1",
+        "\u5e02\u3042\u3099",
         "\u5e02a\u56f3\u3068-"
       ]
     },
     {
-      "text": "A\u30aba\n\u30f6",
+      "text": "\uff21\u304b\uff41\u1680\u30f6",
       "words": [
         "a\u304ba",
         "\u3051"
       ]
     },
     {
-      "text": "\ufeff\u9928A\u304c\u5ddd",
+      "text": "\udb40\udd00\u9928\uff21\u309b\u5ddd",
       "words": [
-        "\ufeff\u9928a\u304c\u5ddd"
+        "\u9928a",
+        "\u3099\u5ddd"
       ]
     },
     {
-      "text": "\u202f\u4e2d\u2212\u2028a\u30f6\u2011\u592e",
+      "text": "\u200b\u592e\ufe63\u3000\uff41\u30b1\u2012\u592e",
       "words": [
-        "\u4e2d-",
+        "\u200b\u592e-",
         "a\u3051-\u592e"
       ]
     },
     {
-      "text": "\u3095\uff0d\u56f3\u66f8\u56f31\u2212-\u3096 ",
+      "text": "\u3096\u30f7\u56f3\u66f8\u56f3\uff76\uff0d\u2011\u3096\uff71",
       "words": [
-        "\u304b-\u56f3\u66f8\u56f31--\u3051"
+        "\u3051\u30f7\u56f3\u66f8\u56f3\u304b--\u3051\u3042"
       ]
     },
     {
-      "text": "\u2015\u30f4\u2012\u304c\n\u304b\u202f\uff41\u2010\t",
+      "text": "\u2212\u30fd\u2013\u309b\u1680\u3051\u200b\uff11\u2011\u0085",
       "words": [
-        "-\u3094-\u304c",
-        "\u304b",
-        "a-"
+        "-\u309d-",
+        "\u3099",
+        "\u3051\u200b1-"
       ]
     },
     {
-      "text": "\u30f71\u3096\u00a0\ufe63\u9928\u3096\u30ab\u3068",
+      "text": "\u3094\uff76\u30c8\u2028\u30f7\u9928\u30c8\u304b\u30fc",
       "words": [
-        "\u30f71\u3051",
-        "-\u9928\u3051\u304b\u3068"
+        "\u3094\u304b\u3068",
+        "\u30f7\u9928\u3068\u304b-"
       ]
     },
     {
-      "text": "\u309d\u30fe1\u30f7A\u2000",
+      "text": "A\u309e\uff9e\u3094a\u205f",
       "words": [
-        "\u309d\u309e1\u30f7a"
+        "a\u309e\u3099\u3094a"
       ]
     },
     {
-      "text": "\u304b\u2011\u30f6\uff41\u00a0\uff41-\ufe63",
+      "text": "\u3051\u2012\u30b1\uff11\u2028\uff11\u2010\u30f7",
       "words": [
-        "\u304b-\u3051a",
-        "a--"
+        "\u3051-\u30511",
+        "1-\u30f7"
       ]
     },
     {
-      "text": " \uff21\u3095\uff41\u2010\u30f6\u304c",
+      "text": " 1\u3096\uff11\u2011\u30f6\u309b",
       "words": [
-        "a\u304ba-\u3051\u304c"
+        "1\u30511-\u3051",
+        "\u3099"
       ]
     },
     {
-      "text": "\uff41\u00a0\uff9e\u2013A",
+      "text": "\uff11\u2028\u304c\u2014\uff21",
       "words": [
-        "a",
-        "\u3099-a"
+        "1",
+        "\u304c-a"
       ]
     },
     {
-      "text": "\u30f7\uff0d\u2015\u3068\u2212\u00a0\u30fe",
+      "text": "\u3094\u30f7\u2212\u30fc\ufe63\u2028\u309e",
       "words": [
-        "\u30f7--\u3068-",
+        "\u3094\u30f7---",
         "\u309e"
       ]
     },
     {
-      "text": "\u4e2d\u30fc\u2028\u202f\u0085-\u30f7\u3094\u2212\u30f7",
+      "text": "\u4e2d\uff70\u3000\u200b\u1680\u2010\u3094\u30fe\ufe63\u3094",
       "words": [
         "\u4e2d-",
-        "-\u30f7\u3094-\u30f7"
+        "\u200b",
+        "-\u3094\u309e-\u3094"
       ]
     },
     {
-      "text": "\u1680\u2010\u3094\u30f4\u309b\u3095",
+      "text": "\u2028\u2012\u30fd\u30fd\u0085\u3096",
       "words": [
-        "-\u3094\u3094",
-        "\u3099\u304b"
+        "-\u309d\u309d",
+        "\u3051"
       ]
     },
     {
-      "text": "\u3094\u0085A1\uff70",
+      "text": "\u30fe\u1680\uff21\uff76-",
       "words": [
-        "\u3094",
-        "a1-"
+        "\u309e",
+        "a\u304b-"
       ]
     },
     {
@@ -9500,21 +9481,22 @@
       ]
     },
     {
-      "text": "\u202f1\uff0d\u66f8\uff9eA\uff11\uff9e\u309e\u5ddd\uff41\u4e2d",
+      "text": "\u3000\uff76\u30f4\u66f8\u304c\uff21\uff9e\u304ca\u5ddd\uff11\u4e2d",
       "words": [
-        "1-\u66f8\u3099a1\u3099\u309e\u5ddda\u4e2d"
+        "\u304b\u3094\u66f8\u304ca\u3099\u304ca\u5ddd1\u4e2d"
       ]
     },
     {
-      "text": "\uff0d-\u304c",
+      "text": "\u30f4\u2010\u309b",
       "words": [
-        "--\u304c"
+        "\u3094-",
+        "\u3099"
       ]
     },
     {
-      "text": "\u30f4\uff71\u30f4\u3000",
+      "text": "\u30fd\uff71\u30fd\ufe00",
       "words": [
-        "\u3094\u3042\u3094"
+        "\u309d\u3042\u309d"
       ]
     },
     {
@@ -9524,11 +9506,12 @@
       ]
     },
     {
-      "text": "\u30f4\t\u202f\u3095\uff11\u2000\u2014\u30f4\u30a2\u2012\u30f7",
+      "text": "\u3094\u00a0\u200b\u3096\u30ac\u205f\u2212\u30fd \u2013\u3094",
       "words": [
         "\u3094",
-        "\u304b1",
-        "-\u3094\u3042-\u30f7"
+        "\u200b\u3051\u304c",
+        "-\u309d",
+        "-\u3094"
       ]
     }
   ],

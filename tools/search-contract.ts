@@ -38,7 +38,7 @@ const voicedMark = String.fromCodePoint(0x3099);
 const unseen = /[^\n\x20-\x7e]/gu;
 /** The hexadecimal code points of voiced marks, whitespace, and invisible characters at the edges of the White_Space set. */
 const unseenAlphabet =
-  "3099 309b 9 a 85 a0 1680 2000 2028 202f 205f 3000 200b feff";
+  "3099 309b 9 a 85 a0 1680 2000 2028 202f 205f 3000 200b feff fe00 fe0f e0100";
 const alphabet = [
   ...Array.from(
     "図書館市川中央ア ｱァヵヶケカかけゕゖトとーｰ-‐‑‒–—―−﹣－ヷヴゔヽヾゝゞAaＡａ1１ｶﾞガが",
