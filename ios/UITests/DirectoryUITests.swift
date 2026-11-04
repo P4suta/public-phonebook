@@ -638,11 +638,13 @@ final class DirectoryUITests: XCTestCase {
     app.launchEnvironment.removeValue(forKey: "PHONEBOOK_API_ORIGIN")
     app.launch()
     onboard(app, timeout: 300)
-    search("図書館", in: app)
+    search("市立図書館", in: app)
     let detail = app.buttons["contact-detail"].firstMatch
     XCTAssertTrue(detail.waitForExistence(timeout: 30))
     capture(app, name: "live-public-directory-search")
     detail.tap()
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    capture(app, name: "live-public-directory-contact")
     let source = app.buttons["source-link"]
     reveal(source, in: app)
     source.tap()
