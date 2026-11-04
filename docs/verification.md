@@ -371,6 +371,8 @@ Each query compares the total, the category order, each category's count, and ea
 For the first category of 4 to 100 rows, it also compares the complete ordered category.
 It checks 100 row positions with the row locator, the lookup that opens a device result's details.
 The run fails on any difference.
+Each D1 statement opens a loopback connection from Node to workerd, and macOS keeps a closed one for 30 seconds within 16,384 ephemeral ports.
+A read that fails with `EADDRNOTAVAIL` therefore waits a second and runs again, up to 60 times, while any other error fails the run at once.
 It also requires two controls to differ: previews with their first two rows swapped, and an index whose adjacent same-name rows with different details are swapped.
 It writes `.local/search-parity.json`.
 

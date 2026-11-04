@@ -58,6 +58,97 @@ export const parityCounts: ParityCounts = {
 };
 const deepLimit = 100;
 const previewSize = 3;
+
+export interface PortRetry {
+  readonly attempts: number;
+  readonly waitMs: number;
+  readonly sleep: (milliseconds: number) => Promise<void>;
+}
+
+/** macOS keeps a closed loopback socket for 30 seconds, so 60 one-second waits outlast one full TIME_WAIT period. */
+const portRetryAttempts = 60;
+const portRetryWaitMs = 1000;
+
+export const portRetry: PortRetry = {
+  attempts: portRetryAttempts,
+  waitMs: portRetryWaitMs,
+  sleep: async (milliseconds) => {
+    await new Promise((done) => setTimeout(done, milliseconds));
+  },
+};
+
+/** Whether an error, or one of its causes, reports that no ephemeral port was free for Miniflare's loopback connection. */
+export function isPortExhaustion(error: unknown): boolean {
+  for (
+    let current: unknown = error;
+    current instanceof Error;
+    current = current.cause
+  ) {
+    if ("code" in current && current.code === "EADDRNOTAVAIL") return true;
+    if (current.message.includes("EADDRNOTAVAIL")) return true;
+  }
+  return false;
+}
+
+/** Repeats an idempotent read after port exhaustion, and lets every other error through at once. */
+export async function retryPortExhaustion<T>(
+  read: () => Promise<T>,
+  retry: PortRetry = portRetry,
+): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await read();
+    } catch (error) {
+      if (!isPortExhaustion(error) || attempt >= retry.attempts) throw error;
+      await retry.sleep(retry.waitMs);
+    }
+  }
+}
+
+function statementObject(value: unknown): object {
+  if (typeof value !== "object" || value === null)
+    throw new Error("The D1 binding returned no statement");
+  return value;
+}
+
+/** Wraps a D1 binding so that each statement's reads and each batch repeat after port exhaustion. */
+export function retryingDatabase<T extends object>(
+  database: T,
+  retry: PortRetry = portRetry,
+): T {
+  const statement = (value: object): object =>
+    new Proxy(value, {
+      get(target, property): unknown {
+        const member: unknown = Reflect.get(target, property, target);
+        if (typeof member !== "function") return member;
+        if (property === "bind")
+          return (...args: unknown[]): object =>
+            statement(statementObject(Reflect.apply(member, target, args)));
+        return async (...args: unknown[]): Promise<unknown> =>
+          retryPortExhaustion(async (): Promise<unknown> => {
+            const result: unknown = Reflect.apply(member, target, args);
+            return result;
+          }, retry);
+      },
+    });
+  return new Proxy(database, {
+    get(target, property): unknown {
+      const member: unknown = Reflect.get(target, property, target);
+      if (typeof member !== "function") return member;
+      if (property === "prepare")
+        return (...args: unknown[]): object =>
+          statement(statementObject(Reflect.apply(member, target, args)));
+      if (property === "batch")
+        return async (...args: unknown[]): Promise<unknown> =>
+          retryPortExhaustion(async (): Promise<unknown> => {
+            const result: unknown = Reflect.apply(member, target, args);
+            return result;
+          }, retry);
+      return (...args: unknown[]): unknown =>
+        Reflect.apply(member, target, args);
+    },
+  });
+}
 const exampleLimit = 20;
 const swappedPairs = 50;
 const placeKinds = 3;
@@ -578,7 +669,7 @@ async function main(): Promise<void> {
   const runtime = localDataRuntime(values.state ?? defaultState);
   try {
     const server = new ServerSearch({
-      DB: await runtime.getD1Database("DB"),
+      DB: retryingDatabase(await runtime.getD1Database("DB")),
       DATASETS: {
         get: async (): Promise<null> => null,
         head: async (): Promise<null> => null,
