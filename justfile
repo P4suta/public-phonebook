@@ -120,8 +120,8 @@ publish environment dataset bundle="":
 publish-admission environment dataset bundle="":
     doppler run --project public-phonebook --config prd --no-fallback -- npm run publish -- {{ quote(environment) }} --check-admission --dataset {{ quote(dataset) }} {{ if bundle == "" { "" } else { "--bundle " + quote(bundle) } }}
 
-release dataset:
-    node tools/release.ts {{ quote(dataset) }}
+release dataset bundle="":
+    node tools/release.ts {{ quote(dataset) }} {{ if bundle == "" { "" } else { "--bundle " + quote(bundle) } }}
 
 release-verify tag directory:
     node tools/release-record.ts verify-published {{ quote(tag) }} {{ quote(directory) }}

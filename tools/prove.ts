@@ -38,8 +38,8 @@ import { countWork, StepTimer } from "./step-timing.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 54;
-const declaredPostconditionCount = 106;
+const verifiedUnitCount = 55;
+const declaredPostconditionCount = 111;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -75,6 +75,7 @@ const expected = [
   "leaseAdmission",
   "probeHold",
   "evidenceAdmission",
+  "releasePreflight",
   "canRetireResource",
   "retainsCoverage",
   "snapshotAdmission",
@@ -431,6 +432,18 @@ const negativeControls: readonly NegativeControl[] = [
     name: "evidence-inputs",
     source: publicationPolicy,
     from: '  if (inputs !== expectedInputs) return "stale-inputs";\n',
+    to: "",
+  },
+  {
+    name: "preflight-release-head",
+    source: publicationPolicy,
+    from: '  if (head !== releaseHead) return "not-release-head";\n',
+    to: "",
+  },
+  {
+    name: "preflight-missing-stages",
+    source: publicationPolicy,
+    from: '  if (missingStages > 0) return "run-stages";\n',
     to: "",
   },
   {
