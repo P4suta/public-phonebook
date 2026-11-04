@@ -83,8 +83,10 @@ The report lists plans, conflicts, failures, and coverage in a fixed order, whic
 It also records the digest and size of the other three files, so its own digest identifies the complete output.
 `mise x -- node tools/collection-store.ts compare .local/collection/current .local/collection/replayed` requires a replay to match its collection byte for byte.
 
-Source artifacts have SHA-256 identities, byte limits, timeouts, conditional requests, and per-origin request spacing.
-A rate-limited origin stops receiving new requests during its cooldown.
+Source artifacts have SHA-256 identities, byte limits, timeouts, and conditional requests.
+The collector keeps one request in flight per origin and waits five seconds between requests to it.
+An origin that answers HTTP 403 or HTTP 429 receives no further request during the run, and each remaining source of that origin fails with a message that names the refusal.
+`mise x -- node tools/collect.ts run sources/public-facilities.json --output .local/collection/current --reuse-cache` later keeps the retrieved files and requests only the missing ones.
 Each accepted school has a unique compatible active MEXT code, a matching name, and either a matching postal code, address, or exact qualified identity.
 Telephone numbers come from explicit voice fields; fax fields and incomplete local numbers without a published area code are excluded.
 Conflicting numbers in the selected source-date cohort are excluded and reported.

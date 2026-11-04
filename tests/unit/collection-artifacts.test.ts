@@ -93,34 +93,69 @@ describe("source artifact integrity", () => {
       ),
     ).rejects.toThrow("not cached");
   });
-  it("stops requests to a rate-limited host and preserves other hosts", async () => {
+  it("waits five seconds between requests to one origin and never across origins", async () => {
     const root = await cache();
-    const request = vi.fn<typeof fetch>(
-      async (url): Promise<Response> =>
-        (typeof url === "string"
-          ? url
-          : url instanceof URL
-            ? url.href
-            : url.url
-        ).includes("limited.go.jp")
-          ? new Response("retry later", {
-              status: 429,
-              headers: { "retry-after": "120" },
-            })
-          : new Response("data"),
-    );
-    const store = new ArtifactStore(root, { request, minimumIntervalMs: 0 });
-    await expect(store.get("https://limited.go.jp/a.csv")).rejects.toThrow(
-      "HTTP 429",
-    );
-    await expect(store.get("https://limited.go.jp/b.csv")).rejects.toThrow(
-      "rate limit persists",
-    );
-    await expect(
-      store.get("https://other.go.jp/data.csv"),
-    ).resolves.toMatchObject({ bytes: 4 });
-    expect(request).toHaveBeenCalledTimes(2);
+    let now = 0;
+    const waits: number[] = [];
+    const store = new ArtifactStore(root, {
+      request: async (): Promise<Response> => new Response("data"),
+      now: (): number => now,
+      sleep: async (milliseconds): Promise<void> => {
+        waits.push(milliseconds);
+        now += milliseconds;
+      },
+    });
+    await store.get("https://example.go.jp/a.csv");
+    now += 1000;
+    await store.get("https://example.go.jp/b.csv");
+    await store.get("https://other.go.jp/c.csv");
+    await store.get("https://example.go.jp/d.csv");
+    expect(waits).toEqual([4000, 5000]);
   });
+  it.each([403, 429])(
+    "stops requesting an origin for the run after HTTP %i, even while a request waits, and keeps other origins",
+    async (status) => {
+      const root = await cache();
+      const request = vi.fn<typeof fetch>(
+        async (url): Promise<Response> =>
+          (typeof url === "string"
+            ? url
+            : url instanceof URL
+              ? url.href
+              : url.url
+          ).includes("refusing.go.jp")
+            ? new Response("refused", {
+                status,
+                headers: { "retry-after": "0" },
+              })
+            : new Response("data"),
+      );
+      const store = new ArtifactStore(root, { request, minimumIntervalMs: 0 });
+      // Either concurrent request may reach the origin first; the other must wait for the answer and never be sent.
+      const settled = await Promise.allSettled([
+        store.get("https://refusing.go.jp/a.csv"),
+        store.get("https://refusing.go.jp/b.csv"),
+      ]);
+      const messages = settled
+        .map((result) =>
+          result.status === "rejected" && result.reason instanceof Error
+            ? result.reason.message.replace(/: https:.*$/u, "")
+            : result.status,
+        )
+        .sort();
+      expect(messages).toEqual([
+        `Source origin refused an earlier request with HTTP ${status}`,
+        `Source returned HTTP ${status}`,
+      ]);
+      await expect(store.get("https://refusing.go.jp/c.csv")).rejects.toThrow(
+        "refused an earlier request",
+      );
+      await expect(
+        store.get("https://other.go.jp/data.csv"),
+      ).resolves.toMatchObject({ bytes: 4 });
+      expect(request).toHaveBeenCalledTimes(2);
+    },
+  );
   it("lists every retrieved artifact once in URL order and leaves out failed retrievals", async () => {
     const root = await cache();
     const store = new ArtifactStore(root, {
