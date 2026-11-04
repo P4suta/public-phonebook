@@ -306,10 +306,18 @@ fn without_secrets(command: &mut Command) -> &mut Command {
 }
 
 fn logged(root: &Path, name: &str, command: &mut Command) -> Result<Output> {
+    logged_work(root, name, command, &[])
+}
+
+/// Runs a logged step and adds `work` to its deterministic counters.
+fn logged_work(
+    root: &Path,
+    name: &str,
+    command: &mut Command,
+    work: &[(&str, u64)],
+) -> Result<Output> {
     println!("iOS check: {name}");
-    let output = without_secrets(command)
-        .output()
-        .with_context(|| format!("Start {name}"))?;
+    let output = super::steps::measured_output(name, without_secrets(command), work)?;
     let directory = root.join("target/ios");
     fs::create_dir_all(&directory)?;
     let log = directory.join(format!("{name}.log"));

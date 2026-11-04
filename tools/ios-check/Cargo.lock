@@ -307,6 +307,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "step-meter",
  "tempfile",
 ]
 

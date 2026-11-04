@@ -18,3 +18,4 @@ png = "=0.18.1"
 roxmltree = "=0.21.2"
 serde = { version = "1", features = ["derive"] }
 base64 = { version = "0.23.1", default-features = false, features = ["std"] }
+step-meter = { path = "step-meter" }

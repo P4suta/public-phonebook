@@ -2,8 +2,9 @@
 //!
 //! A count covers one process and the programs it execs, never the processes it forks.
 
-use std::io;
-use std::process::{Child, ExitStatus};
+use std::io::{self, Read};
+use std::process::{Child, Command, ExitStatus, Output, Stdio};
+use std::thread;
 
 /// What the kernel counted for one exited child before it was reaped.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -86,10 +87,45 @@ pub fn wait_measured(child: &mut Child) -> io::Result<Measured> {
     Ok(Measured { status, usage })
 }
 
+fn drain(stream: Option<impl Read + Send + 'static>) -> thread::JoinHandle<io::Result<Vec<u8>>> {
+    thread::spawn(move || {
+        let mut bytes = Vec::new();
+        if let Some(mut stream) = stream {
+            stream.read_to_end(&mut bytes)?;
+        }
+        Ok(bytes)
+    })
+}
+
+fn joined(reader: thread::JoinHandle<io::Result<Vec<u8>>>) -> io::Result<Vec<u8>> {
+    reader
+        .join()
+        .map_err(|_| io::Error::other("an output reader panicked"))?
+}
+
+/// Runs `command` like `Command::output`, and reads the child's counts before reaping it.
+pub fn output_measured(command: &mut Command) -> io::Result<(Output, io::Result<ChildUsage>)> {
+    let mut child = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    let stdout = drain(child.stdout.take());
+    let stderr = drain(child.stderr.take());
+    let measured = wait_measured(&mut child)?;
+    Ok((
+        Output {
+            status: measured.status,
+            stdout: joined(stdout)?,
+            stderr: joined(stderr)?,
+        },
+        measured.usage,
+    ))
+}
+
 #[cfg(all(test, target_os = "macos"))]
 mod tests {
     use super::*;
-    use std::process::Command;
 
     const SHELL: &str = "/bin/sh";
 
@@ -120,6 +156,17 @@ mod tests {
         let direct = measured(loop_script)?;
         let forked = measured(&format!("{SHELL} -c '{loop_script}'; true"))?;
         assert!(forked.instructions < direct.instructions / 2);
+        Ok(())
+    }
+
+    #[test]
+    fn captured_output_keeps_both_streams_the_status_and_the_count() -> io::Result<()> {
+        let (output, usage) =
+            output_measured(Command::new(SHELL).args(["-c", "echo out; echo err >&2; exit 3"]))?;
+        assert_eq!(output.stdout, b"out\n");
+        assert_eq!(output.stderr, b"err\n");
+        assert_eq!(output.status.code(), Some(3));
+        assert!(usage?.instructions > 0);
         Ok(())
     }
 
