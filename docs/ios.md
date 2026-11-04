@@ -148,6 +148,8 @@ No commit, push, or pull request starts the Assurance workflow.
 The manual TestFlight workflow runs all four campaigns for one `main` commit before it signs and uploads that commit.
 
 The full UI harness creates and erases its own simulator and reinstalls the app for every scenario.
+Each scenario runs with a 600-second execution time allowance, a hang guard that exceeds the longest sum of one scenario's own waits.
+A scenario that reaches the allowance counts as inconclusive rather than failed, and the gate still stops on it.
 Its proxy forwards Range requests and can drip or stall a reply, so the scenarios reach the receiving steps, a weak signal, and a resumed transfer.
 It turns off slide-to-type and its introduction, because that introduction can cover the screen under test.
 The UI and screenshot commands shut that simulator down when they return, including after a failed scenario.
