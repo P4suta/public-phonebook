@@ -3,7 +3,7 @@
 The iPhone app's name is Public Phonebook, identifier 6828899028, with Japanese as the primary language.
 Its production bundle identifier is page.dial.publicphonebook and its `SKU` is public-phonebook-ios.
 The version record is 1.0 in Prepare for Submission.
-The draft uses manual release and requires no sign-in.
+App Review approval releases the version automatically, and the app requires no sign-in.
 Store metadata lives in `ios/AppStore/metadata.json`.
 Japanese customer-facing text is intentional.
 Review instructions are English.
@@ -98,7 +98,7 @@ The commands refuse an empty value, an unresolved Doppler reference, and a value
 ### What stays manual
 
 - Adding the processed build to TestFlight testing groups.
-- App Store submission, review details, and release.
+- App Store submission and review details.
 - Renewing the certificate, profiles, and API key before they expire, and updating the Doppler values.
 
 The package uses local PhonebookCore and PhonebookKit targets with no remote Swift package dependencies.
@@ -128,7 +128,7 @@ The owner supplies those private fields and any legally binding trader or tax de
 Before upload, preserve an owner-approved source revision and fresh candidate checks, and bind the package and screenshots to it.
 Complete age-rating, availability, accessibility, privacy, encryption, and review-contact fields from verified behavior.
 Don't claim physical carrier identification, iOS 18 execution, or natural background delivery from simulator or debugger evidence.
-Submission and public release require their own owner authorization.
+Submission requires its own owner authorization, and the owner authorized the automatic release after approval.
 
 ## Preparation evidence
 
