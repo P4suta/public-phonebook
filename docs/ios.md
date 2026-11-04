@@ -139,6 +139,8 @@ Steps in a container, Xcode's build service, or CoreSimulator report that work a
 `just ios-check` reads the build settings of its six configurations at once and checks them in a fixed order.
 Every iOS command except `ios-prove` and `ios-unit-test` holds the machine lease, a `flock` on `/tmp/public-phonebook-ios-gate.flock`.
 It's the same lock that `lockf -k` takes, so the two exclude each other, and the kernel releases it when its holder exits.
+After locking, a command checks that the path still names the locked file, because `lockf` without `-k` deletes the file and a later opener would lock a new one.
+When the path names another file, the command locks again on that file.
 A second command waits, polling every 30 s for at most 90 minutes, and a wait that runs out fails as inconclusive.
 Don't wrap these commands in `lockf` on the same file, because they would then wait for their own wrapper.
 Pull requests run none of these native or proof checks.
@@ -148,6 +150,9 @@ No commit, push, or pull request starts the Assurance workflow.
 The manual TestFlight workflow runs all four campaigns for one `main` commit before it signs and uploads that commit.
 
 The full UI harness creates and erases its own simulator and reinstalls the app for every scenario.
+Each checkout gets its own simulator, named `Public Phonebook Checks` with the first eight hexadecimal digits of the SHA-256 of its path.
+The harness starts the fixture on a loopback port that the kernel reports free and passes it as `PHONEBOOK_FIXTURE_PORT` to the fixture and to the UI test runner.
+Another process on port 3100 therefore can't stop the gate, and `node tools/native-fixture.ts --serve` alone still uses 3100.
 Each scenario runs with a 600-second execution time allowance, a hang guard that exceeds the longest sum of one scenario's own waits.
 A scenario that reaches the allowance counts as inconclusive rather than failed, and the gate still stops on it.
 Its proxy forwards Range requests and can drip or stall a reply, so the scenarios reach the receiving steps, a weak signal, and a resumed transfer.
