@@ -124,6 +124,10 @@ Run `mise x -- just ios-prove`, `mise x -- just ios-sanitize`, and `mise x -- ju
 `PublicationModel` and `WaitDisplay` both declare `Phonebook.step`, so one root can't import every module.
 Each iOS command prints a final JSON line with the step record that [verification](verification.md#required-fast-gate) describes, and `ownInstructions` for the checker's own work.
 Steps in a container, Xcode's build service, or CoreSimulator report that work as outside the measured processes.
+`just ios-check` reads the build settings of its six configurations at once and checks them in a fixed order.
+Every iOS command except `ios-prove` and `ios-unit-test` holds the machine lease `/tmp/public-phonebook-ios-gate.lock`, a directory with the holder's process ID inside.
+A second command waits for a live holder, polling every 30 s for at most 90 minutes, and removes a lease whose holder no longer runs.
+A wait that runs out fails as inconclusive.
 Pull requests run none of these native or proof checks.
 The manual Assurance workflow runs `just ios-check` on the hosted `xcode-27` runner, and `just prove` and `just ios-prove` on Linux.
 Its `campaigns` input adds the sanitizer and mutation campaigns.
