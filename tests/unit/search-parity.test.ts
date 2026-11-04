@@ -4,11 +4,119 @@ import { decodeSearchIndex } from "../../src/core/search-index.ts";
 import {
   type ComparedResults,
   compareResults,
+  isPortExhaustion,
+  type PortRetry,
   parityQueries,
   reorderPreviews,
+  retryingDatabase,
+  retryPortExhaustion,
   seededRandom,
   swapSameNameRows,
 } from "../../tools/search-parity.ts";
+
+function exhausted(): Error {
+  return new TypeError("fetch failed", {
+    cause: Object.assign(
+      new Error("connect EADDRNOTAVAIL 127.0.0.1:53725 - Local (0.0.0.0:0)"),
+      { code: "EADDRNOTAVAIL" },
+    ),
+  });
+}
+
+function recordedRetry(attempts = 3): PortRetry & { readonly waits: number[] } {
+  const waits: number[] = [];
+  return {
+    attempts,
+    waitMs: 7,
+    waits,
+    sleep: async (milliseconds): Promise<void> => {
+      waits.push(milliseconds);
+    },
+  };
+}
+
+describe("port exhaustion retry", () => {
+  it("recognizes EADDRNOTAVAIL in an error's cause chain and nothing else", () => {
+    expect(isPortExhaustion(exhausted())).toBe(true);
+    expect(isPortExhaustion(new Error("connect ECONNREFUSED"))).toBe(false);
+    expect(isPortExhaustion("EADDRNOTAVAIL")).toBe(false);
+  });
+
+  it("repeats a read after port exhaustion until it succeeds", async () => {
+    const retry = recordedRetry();
+    let calls = 0;
+    const value = await retryPortExhaustion(async () => {
+      calls += 1;
+      if (calls < 3) throw exhausted();
+      return "rows";
+    }, retry);
+    expect(value).toBe("rows");
+    expect(calls).toBe(3);
+    expect(retry.waits).toEqual([7, 7]);
+  });
+
+  it("lets any other error through without a retry", async () => {
+    const retry = recordedRetry();
+    let calls = 0;
+    await expect(
+      retryPortExhaustion(async () => {
+        calls += 1;
+        throw new Error("no such table: contacts");
+      }, retry),
+    ).rejects.toThrow("no such table");
+    expect(calls).toBe(1);
+    expect(retry.waits).toEqual([]);
+  });
+
+  it("gives up after the configured attempts", async () => {
+    const retry = recordedRetry(2);
+    let calls = 0;
+    await expect(
+      retryPortExhaustion(async () => {
+        calls += 1;
+        throw exhausted();
+      }, retry),
+    ).rejects.toThrow("fetch failed");
+    expect(calls).toBe(2);
+  });
+
+  it("wraps prepared, bound, and batched reads of a D1 binding", async () => {
+    const retry = recordedRetry();
+    let reads = 0;
+    let batches = 0;
+    interface FakeStatement {
+      readonly bind: (...values: unknown[]) => FakeStatement;
+      readonly all: () => Promise<{ results: string[] }>;
+    }
+    const statement: FakeStatement = {
+      bind: (): FakeStatement => statement,
+      all: async (): Promise<{ results: string[] }> => {
+        reads += 1;
+        if (reads === 1) throw exhausted();
+        return { results: ["row"] };
+      },
+    };
+    const database = retryingDatabase(
+      {
+        prepare: (_sql: string) => statement,
+        batch: async (statements: readonly unknown[]): Promise<number> => {
+          batches += 1;
+          if (batches === 1) throw exhausted();
+          return statements.length;
+        },
+        dump: () => "dump",
+      },
+      retry,
+    );
+    await expect(database.prepare("SELECT 1").bind(1).all()).resolves.toEqual({
+      results: ["row"],
+    });
+    await expect(database.batch([1, 2])).resolves.toBe(2);
+    expect(database.dump()).toBe("dump");
+    expect(retry.waits).toEqual([7, 7]);
+  });
+});
+
 import { type ModelContact, modelDirectory } from "./local-search-fixture.ts";
 
 const snapshot = "f".repeat(64);
