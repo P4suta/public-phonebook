@@ -139,6 +139,8 @@ Steps in a container, Xcode's build service, or CoreSimulator report that work a
 `just ios-check` reads the build settings of its six configurations at once and checks them in a fixed order.
 Every iOS command except `ios-prove` and `ios-unit-test` holds the machine lease, a `flock` on `/tmp/public-phonebook-ios-gate.flock`.
 It's the same lock that `lockf -k` takes, so the two exclude each other, and the kernel releases it when its holder exits.
+After locking, a command checks that the path still names the locked file, because `lockf` without `-k` deletes the file and a later opener would lock a new one.
+When the path names another file, the command locks again on that file.
 A second command waits, polling every 30 s for at most 90 minutes, and a wait that runs out fails as inconclusive.
 Don't wrap these commands in `lockf` on the same file, because they would then wait for their own wrapper.
 Pull requests run none of these native or proof checks.
