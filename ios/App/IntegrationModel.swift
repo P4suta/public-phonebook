@@ -228,9 +228,13 @@ final class IntegrationModel {
     operation = Task { [weak self, sync] in
       guard let self else { return }
       do {
-        let result = try await sync.synchronize(paths: first ? .every : .inexpensive) {
-          [weak self] report in
-          await MainActor.run { self?.receive(report, first: first) }
+        // iOS terminates an app that it suspends while the transfer or the import holds its locks.
+        let result = try await BackgroundTimeRunner.run(
+          ApplicationBackgroundTime(), name: "synchronize"
+        ) { [weak self] in
+          try await sync.synchronize(paths: first ? .every : .inexpensive) { [weak self] report in
+            await MainActor.run { self?.receive(report, first: first) }
+          }
         }
         manifest = result
         busy = false
