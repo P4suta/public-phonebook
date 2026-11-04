@@ -95,7 +95,9 @@ A stopped first download names its automatic retry, which follows `DownloadSched
 The app transfers in the foreground, so it shows no background transfer line, and a suspended transfer resumes when the reader returns.
 The transfer holds a file lock and the import holds an exclusive SQLite transaction, and iOS terminates an app that it suspends while it holds either one.
 A first download or update that the open app starts runs under background execution time from `beginBackgroundTask(withName:expirationHandler:)`.
-When that time expires, the app cancels the synchronization, which releases both locks, and ends the background task once the synchronization has unwound.
+When that time expires, the handler cancels the synchronization and releases both locks before it returns, and the app ends the background task once the synchronization has unwound.
+The handler unlocks the transfer lock and rolls back and closes the `writer.sqlite` lease connection, which shares no statement with the import, so it never waits for the store actor.
+After that release the cancelled work takes no new lock, and a staging generation opens through SQLite's `unix-none` file system, so its writes hold no file lock either.
 `PhonebookCore.BackgroundTime` decides when to cancel and when to end, and the background processing task keeps its own expiry handler.
 The directory trace reports the milliseconds of decompression, parsing, row insertion, the number table, the caller file, COMMIT, and fsync for every import.
 Parsing and row insertion overlap, so their durations add up to more than the time between the start of staging and the end of decoding.

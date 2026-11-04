@@ -116,7 +116,7 @@ const UI_TESTS: [&str; 17] = [
     "testLandscapeLargeTextSettings",
     "testAboutStaysInTheAppAndLicenseIsReadable",
 ];
-const REQUIRED_TESTS: [&str; 81] = [
+const REQUIRED_TESTS: [&str; 82] = [
     "currentProviderArchiveImportsTheNationalDirectory",
     "providerArchiveSavesTheExpectedGenerationContent",
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
@@ -198,6 +198,7 @@ const REQUIRED_TESTS: [&str; 81] = [
     "automaticTransfersWaitForAnInexpensivePath",
     "aTransferThePersonStartsUsesAnExpensivePath",
     "refreshCountsTheMonthFromTheSnapshotsGeneratedDate",
+    "expiryDuringTheActivationReleasesTheLeaseBeforeTheHandlerReturns",
 ];
 const SCOPE: [&str; 19] = [
     "ios",

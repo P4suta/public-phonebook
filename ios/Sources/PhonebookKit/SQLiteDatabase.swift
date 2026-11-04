@@ -14,9 +14,11 @@ enum SQLValue {
 final class SQLiteDatabase {
   fileprivate var handle: OpaquePointer?
 
-  init(url: URL, readOnly: Bool) throws {
+  /// Without `fileLocking`, the connection uses SQLite's `unix-none` file system, which takes no POSIX advisory lock.
+  init(url: URL, readOnly: Bool, fileLocking: Bool = true) throws {
     let flags = readOnly ? SQLITE_OPEN_READONLY : SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE
-    let status = sqlite3_open_v2(url.path, &handle, flags | SQLITE_OPEN_NOMUTEX, nil)
+    let status = sqlite3_open_v2(
+      url.path, &handle, flags | SQLITE_OPEN_NOMUTEX, fileLocking ? nil : "unix-none")
     guard status == SQLITE_OK else { throw failure(status) }
     sqlite3_busy_timeout(handle, 5_000)
   }

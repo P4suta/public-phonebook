@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import PhonebookCore
+import Synchronization
 
 public enum ServiceError: Error, Equatable, Sendable {
   case invalidURL, invalidResponse, notFound, snapshotChanged
@@ -324,7 +325,11 @@ public struct APIClient: Sendable {
         ?? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
       try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
       let lock = try TransferLock(url: directory.appendingPathComponent(TransferLock.name))
-      defer { lock.release() }
+      try HeldLocks.current?.hold(lock)
+      defer {
+        lock.release()
+        HeldLocks.current?.forget(lock)
+      }
       let partial = directory.appendingPathComponent(
         "\(archive.snapshot.rawValue)-\(archive.sha256.rawValue).partial")
       // A changed snapshot or digest names a different file, so the bytes of every other file go.
@@ -384,9 +389,10 @@ public struct APIClient: Sendable {
 }
 
 /// Holds an exclusive advisory lock on one transfer directory, so two downloads never write the same partial file.
-private final class TransferLock: Sendable {
+/// The expiry handler may release it from the main thread, so the descriptor closes once under a lock.
+private final class TransferLock: ReleasableLock {
   static let name = "transfer.lock"
-  private let descriptor: Int32
+  private let descriptor: Mutex<Int32?>
 
   init(url: URL) throws {
     let descriptor = open(url.path, O_CREAT | O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR)
@@ -395,12 +401,16 @@ private final class TransferLock: Sendable {
       close(descriptor)
       throw ImportError.alreadyUpdating
     }
-    self.descriptor = descriptor
+    self.descriptor = Mutex(descriptor)
   }
 
   func release() {
-    flock(descriptor, LOCK_UN)
-    close(descriptor)
+    descriptor.withLock { descriptor in
+      guard let open = descriptor else { return }
+      flock(open, LOCK_UN)
+      close(open)
+      descriptor = nil
+    }
   }
 }
 

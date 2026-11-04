@@ -23,7 +23,7 @@ private final class SnapshotDraft {
   let generation: UUID
   let header: ArchiveHeader
   let database: SQLiteDatabase
-  let lease: SQLiteDatabase
+  let lease: WriterLease
   let names: FileHandle
   let origin: String?
   var insertContact: SQLiteStatement?
@@ -34,7 +34,7 @@ private final class SnapshotDraft {
   var phase: PublicationPhase = .staging
 
   init(
-    generation: UUID, header: ArchiveHeader, database: SQLiteDatabase, lease: SQLiteDatabase,
+    generation: UUID, header: ArchiveHeader, database: SQLiteDatabase, lease: WriterLease,
     names: FileHandle, origin: String?
   ) throws {
     self.generation = generation
@@ -163,10 +163,8 @@ public actor SnapshotStore {
 
   public func begin(header: ArchiveHeader, origin: URL? = nil) throws {
     guard draft == nil else { throw ImportError.alreadyUpdating }
-    let lease = try SQLiteDatabase(
-      url: root.appendingPathComponent("writer.sqlite"), readOnly: false)
-    try lease.execute("PRAGMA busy_timeout = 0")
-    try lease.execute("BEGIN EXCLUSIVE")
+    let lease = try WriterLease(url: root.appendingPathComponent("writer.sqlite"))
+    try HeldLocks.current?.hold(lease)
     let active = try manifest()
     do {
       try cleanup(retaining: Set([active?.generation, active?.previous].compactMap { $0 }))
@@ -176,7 +174,9 @@ public actor SnapshotStore {
     try Data().write(to: url(generation, "sqlite"), options: .withoutOverwriting)
     try Data().write(to: url(generation, "names"), options: .withoutOverwriting)
     do {
-      let database = try SQLiteDatabase(url: url(generation, "sqlite"), readOnly: false)
+      // Nothing else opens a staging generation, so its connection takes no file lock that iOS could find held at suspension.
+      let database = try SQLiteDatabase(
+        url: url(generation, "sqlite"), readOnly: false, fileLocking: false)
       try database.execute("PRAGMA journal_mode = OFF")
       try database.execute("PRAGMA synchronous = OFF")
       for statement in [
@@ -331,14 +331,18 @@ public actor SnapshotStore {
       cleanupPending = true
       trace.record(TraceEvent(phase: .cleanup, outcome: .deferred, snapshot: snapshot))
     }
-    do { try draft.lease.close() } catch { cleanupPending = true }
+    draft.lease.release()
+    HeldLocks.current?.forget(draft.lease)
     return manifest
   }
 
   public func abort() throws {
     guard let draft else { return }
     self.draft = nil
-    defer { try? draft.lease.close() }
+    defer {
+      draft.lease.release()
+      HeldLocks.current?.forget(draft.lease)
+    }
     draft.finalizeStatements()
     try? draft.names.close()
     try draft.database.close()

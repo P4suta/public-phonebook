@@ -11,13 +11,15 @@ public protocol BackgroundTimePort {
 
 @MainActor
 public enum BackgroundTimeRunner {
-  /// Runs `operation` under a background task, cancels it when the task expires, and ends the task once it returns or throws.
+  /// Runs `operation` under a background task, and ends the task once it returns or throws.
+  /// An expiry cancels the operation and releases the locks it holds before the handler returns, so iOS never suspends the app with them held.
   public static func run<Port: BackgroundTimePort, Value: Sendable>(
-    _ port: Port, name: String, operation: @escaping @Sendable () async throws -> Value
+    _ port: Port, name: String, locks: HeldLocks = HeldLocks(),
+    operation: @escaping @Sendable () async throws -> Value
   ) async throws -> Value {
-    let task = ProtectedTask(port: port)
+    let task = ProtectedTask(port: port, locks: locks)
     task.assertion = port.begin(name: name) { [task] in task.apply(.expire) }
-    let work = Task { try await operation() }
+    let work = Task { try await HeldLocks.$current.withValue(locks) { try await operation() } }
     task.cancelWork = { work.cancel() }
     // An expiry that arrived before the work existed still cancels it.
     if task.state == .expiring { work.cancel() }
@@ -35,16 +37,21 @@ public enum BackgroundTimeRunner {
 @MainActor
 private final class ProtectedTask<Port: BackgroundTimePort> {
   let port: Port
+  let locks: HeldLocks
   var assertion: Port.Assertion?
   var cancelWork: (@Sendable () -> Void)?
   private(set) var state = BackgroundTime.running
 
-  init(port: Port) { self.port = port }
+  init(port: Port, locks: HeldLocks) {
+    self.port = port
+    self.locks = locks
+  }
 
   func apply(_ event: BackgroundTimeEvent) {
     let step = state.applying(event)
     state = step.next
     if step.cancel { cancelWork?() }
+    if step.release { locks.releaseAll() }
     if step.end, let assertion {
       self.assertion = nil
       port.end(assertion)

@@ -10,6 +10,7 @@ import Testing
       let step = state.applying(event)
       #expect(step.end == (event == .finish && state != .ended), "\(state) \(event)")
       #expect(step.cancel == (event == .expire && state == .running), "\(state) \(event)")
+      #expect(step.release == (event == .expire && state != .ended), "\(state) \(event)")
       #expect((step.next == .ended) == (state == .ended || event == .finish), "\(state) \(event)")
     }
   }
@@ -22,15 +23,24 @@ import Testing
       var state = BackgroundTime.running
       var ends: [Int] = []
       var cancels: [Int] = []
+      var releases: [Int] = []
       for (index, event) in events.enumerated() {
         let step = state.applying(event)
         if step.end { ends.append(index) }
         if step.cancel { cancels.append(index) }
+        if step.release { releases.append(index) }
         state = step.next
         reached.insert(state)
       }
       let finish = events.firstIndex(of: .finish)
       let expiry = events.firstIndex(of: .expire)
+      // Every expiry handler that runs while the task lasts releases the locks before it returns, in one step.
+      #expect(
+        releases
+          == events.indices.filter { index in
+            events[index] == .expire && finish.map { index < $0 } ?? true
+          },
+        "\(events)")
       // The task ends once, at the operation's first end, and never without it.
       #expect(ends == (finish.map { [$0] } ?? []), "\(events)")
       // The first expiry before the operation ends cancels it once, and nothing else cancels it.

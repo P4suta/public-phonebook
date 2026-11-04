@@ -17,18 +17,23 @@ public enum BackgroundTime: String, CaseIterable, Sendable {
 
   public struct Step: Equatable, Sendable {
     public let next: BackgroundTime
-    /// Cancel the operation, so it unwinds and releases its locks.
+    /// Cancel the operation, so it unwinds.
     public let cancel: Bool
+    /// Release the operation's file and SQLite locks and refuse new ones before the expiry handler returns.
+    public let release: Bool
     /// End the background task.
     public let end: Bool
   }
 
-  /// Ends the task once the operation finishes, so iOS suspends the app only after its locks are released.
+  /// Releases the locks inside every expiry handler before the task ends, so the handler may return at once.
+  /// The task ends once the operation finishes.
   public func applying(_ event: BackgroundTimeEvent) -> Step {
     switch (self, event) {
-    case (.running, .expire): Step(next: .expiring, cancel: true, end: false)
-    case (.running, .finish), (.expiring, .finish): Step(next: .ended, cancel: false, end: true)
-    case (.expiring, .expire), (.ended, _): Step(next: self, cancel: false, end: false)
+    case (.running, .expire): Step(next: .expiring, cancel: true, release: true, end: false)
+    case (.expiring, .expire): Step(next: .expiring, cancel: false, release: true, end: false)
+    case (.running, .finish), (.expiring, .finish):
+      Step(next: .ended, cancel: false, release: false, end: true)
+    case (.ended, _): Step(next: .ended, cancel: false, release: false, end: false)
     }
   }
 }
