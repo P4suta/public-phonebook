@@ -7,10 +7,11 @@ import PhonebookCore
 /// Streams the caller file into CallKit within the extension's 12 MB memory limit.
 ///
 /// The request runs synchronously with only Foundation, CallKit, and the caller file reader, so no database, actor, or task stays in memory.
-final class CallDirectoryHandler: CXCallDirectoryProvider {
+final class CallDirectoryHandler: CXCallDirectoryProvider, CXCallDirectoryExtensionContextDelegate {
   private let logger = Logger(subsystem: "page.dial.publicphonebook", category: "caller")
 
   override func beginRequest(with context: CXCallDirectoryExtensionContext) {
+    context.delegate = self
     do {
       if context.isIncremental { context.removeAllIdentificationEntries() }
       let directory = try Self.directory()
@@ -22,8 +23,7 @@ final class CallDirectoryHandler: CXCallDirectoryProvider {
       #endif
       guard active != nil || extra != nil else {
         // Turning the extension on before the first save succeeds with no entries.
-        logger.notice("caller.load entries=0 reason=unsaved")
-        context.completeRequest()
+        complete(context, entries: 0, peak: Self.footprint(), generation: nil, in: directory)
         return
       }
       let reader = try CallerFile.Merged(
@@ -40,24 +40,46 @@ final class CallDirectoryHandler: CXCallDirectoryProvider {
         entries += read
         if entries % 50_000 < read {
           peak = max(peak, Self.footprint())
-          logger.notice(
+          logger.debug(
             "caller.load entries=\(entries, privacy: .public) footprintKB=\(peak / 1024, privacy: .public)"
           )
         }
       }
-      logger.notice(
-        "caller.load entries=\(entries, privacy: .public) peakFootprintKB=\(max(peak, Self.footprint()) / 1024, privacy: .public) result=complete"
-      )
-      let generation = active?.generation
-      context.completeRequest { expired in
-        // The app reads this record and skips asking iOS to load the same generation again.
-        guard !expired, let generation else { return }
-        try? CallerFile.recordLoaded(generation, in: directory)
-      }
+      complete(
+        context, entries: entries, peak: max(peak, Self.footprint()),
+        generation: active?.generation, in: directory)
     } catch {
-      logger.error("caller.load result=failed error=\(String(describing: error), privacy: .public)")
+      let failure = error as NSError
+      logger.error(
+        "caller.load result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public) description=\(failure.localizedDescription, privacy: .private)"
+      )
       context.cancelRequest(withError: error)
     }
+  }
+
+  /// Logs one summary when iOS has taken the entries, because an expired request adds none of them.
+  private func complete(
+    _ context: CXCallDirectoryExtensionContext, entries: Int, peak: UInt64, generation: UUID?,
+    in directory: URL
+  ) {
+    let logger = logger
+    context.completeRequest { expired in
+      logger.notice(
+        "caller.load entries=\(entries, privacy: .public) peakFootprintKB=\(peak / 1024, privacy: .public) expired=\(expired, privacy: .public)"
+      )
+      // The app reads this record and skips asking iOS to load the same generation again.
+      guard !expired, let generation else { return }
+      try? CallerFile.recordLoaded(generation, in: directory)
+    }
+  }
+
+  func requestFailed(
+    for extensionContext: CXCallDirectoryExtensionContext, withError error: any Error
+  ) {
+    let failure = error as NSError
+    logger.error(
+      "caller.request result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public) description=\(failure.localizedDescription, privacy: .private)"
+    )
   }
 
   private static func directory() throws -> URL {

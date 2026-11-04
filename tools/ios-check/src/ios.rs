@@ -16,6 +16,7 @@ mod build_number;
 mod distribution;
 mod failure;
 mod lease;
+mod log_privacy;
 mod mutation;
 mod proof;
 mod receipts;
@@ -1177,6 +1178,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                 fs::remove_file(&unit_receipt)?;
             }
             let sources = source_hashes(root)?;
+            log_privacy::check(root)?;
             logged(
                 root,
                 "swiftlint",
