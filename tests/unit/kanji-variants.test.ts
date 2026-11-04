@@ -6,6 +6,7 @@ import {
 } from "../../src/core/search-text.ts";
 import { rankWords } from "../../src/core/word-match.ts";
 import {
+  checkKanjiVariantProvenance,
   kanjiVariantTable,
   swiftSource,
   typeScriptSource,
@@ -55,6 +56,10 @@ describe("kanji variants", () => {
       // Compatibility composition turns U+F900 into 豈 before it joins.
       豈: "一",
     });
+  });
+
+  it("finds the same committed pairs under the pinned provenance without the network", async () => {
+    await expect(checkKanjiVariantProvenance()).resolves.toBeUndefined();
   });
 
   it("writes the same table for TypeScript and Swift", () => {

@@ -46,7 +46,9 @@ It then joins the kSemanticVariant entries that a source marks as z-variants, an
 No join puts two 常用漢字 or 人名用漢字 standard forms in one group, so `崎` and `埼` stay apart.
 The representative is the group's standard form, or else its lowest code point, so a representative never folds again.
 The semantic variants are part of the rule because the list pointers and z-variants alone join neither `﨑` with `崎` nor `髙` with `高`, and the owner requires both.
-The tool writes the same pairs into `src/core/kanji-variants.ts` and `ios/Sources/PhonebookCore/KanjiVariants.swift`, and `just check` regenerates both and requires the committed bytes.
+The tool writes the same pairs into `src/core/kanji-variants.ts` and `ios/Sources/PhonebookCore/KanjiVariants.swift`.
+`just check` stays offline and requires both files to carry the same pairs under the pinned provenance.
+`just check-build` fetches the pinned archive, verifies its digest, regenerates both files, and requires the committed bytes.
 
 Define the comparison form once per platform and pin the two definitions together.
 `src/core/search-text.ts` defines it for the website, and `SearchInput` defines it for the app.

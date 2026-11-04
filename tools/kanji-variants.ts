@@ -303,6 +303,40 @@ export async function checkKanjiVariants(): Promise<void> {
   );
 }
 
+const committedPairs =
+  /^export const kanjiVariantPairs =\n {2}"([0-9a-f: ]*)";$/mu;
+
+/**
+ * Requires, without the network, that both committed tables carry the same pairs under the pinned Unihan provenance.
+ * The fast gate runs this, and the build gate regenerates the tables from the archive with `checkKanjiVariants`.
+ */
+export async function checkKanjiVariantProvenance(): Promise<void> {
+  const typeScript = await readFile(generatedTypeScript, "utf8");
+  const pairs = committedPairs.exec(typeScript)?.[1];
+  if (pairs === undefined)
+    throw new Error(`${generatedTypeScript} has no variant pairs`);
+  const table = new Map(
+    pairs.split(" ").map((pair): [number, number] => {
+      const [from = "", to = ""] = pair.split(":");
+      return [
+        Number.parseInt(from, hexadecimalRadix),
+        Number.parseInt(to, hexadecimalRadix),
+      ];
+    }),
+  );
+  if (typeScript !== typeScriptSource(table))
+    throw new Error(`${generatedTypeScript} lacks the pinned provenance`);
+  if ((await readFile(generatedSwift, "utf8")) !== swiftSource(table))
+    throw new Error(`${generatedSwift} differs from ${generatedTypeScript}`);
+  console.info(
+    JSON.stringify({
+      operation: "kanji-variant-provenance",
+      unihan: unihan.version,
+      pairs: table.size,
+    }),
+  );
+}
+
 if (import.meta.main) {
   if (process.argv.includes("write")) {
     const fresh = await generatedSources();
