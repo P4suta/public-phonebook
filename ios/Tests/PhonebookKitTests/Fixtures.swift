@@ -7,7 +7,22 @@ import Testing
 
 @testable import PhonebookKit
 
+/// The largest file a kit test process may write, the same cap that the core tests carry.
+/// A runaway writer then fails with File too large instead of filling the disk, and the mutation gate counts that as a resource stop.
+let testFileLimit: UInt64 = 256 * 1024 * 1024
+
+/// Caps this test process once and turns a write past the cap into an error instead of a signal.
+private let capped: Bool = {
+  var limit = rlimit()
+  guard getrlimit(RLIMIT_FSIZE, &limit) == 0 else { return false }
+  limit.rlim_cur = min(limit.rlim_max, testFileLimit)
+  var ignore = sigaction()
+  ignore.__sigaction_u.__sa_handler = SIG_IGN
+  return setrlimit(RLIMIT_FSIZE, &limit) == 0 && sigaction(SIGXFSZ, &ignore, nil) == 0
+}()
+
 func temporaryDirectory() throws -> URL {
+  precondition(capped, "The test process couldn't cap its file size")
   let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
   try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
   return root
