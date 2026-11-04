@@ -119,16 +119,45 @@ private func footprint() -> UInt64 {
   return result == KERN_SUCCESS ? info.phys_footprint : 0
 }
 
-/// The national directory has 561,495 numbers, and the extension may use only 12 MB in total.
-@Test func readerMemoryStaysFlatOverMoreEntriesThanTheNationalDirectory() throws {
-  let url = temporaryFile()
-  defer { try? FileManager.default.removeItem(at: url) }
+/// Writes more caller entries than the national directory's 561,495 numbers.
+private func writeLargeCallerFile(to url: URL) throws {
   let writer = try CallerFile.Writer(url: url)
   for index in 1...600_000 {
     try writer.append(
       number: 81_100_000_000 + Int64(index) * 7, label: "高知県高知市立図書館分室\(index)（図書館）")
   }
   try writer.finish()
+}
+
+/// The reader's buffer stays under one chunk plus the largest record, whatever other tests run alongside.
+@Test func readerBufferStaysBoundedOverMoreEntriesThanTheNationalDirectory() throws {
+  let url = temporaryFile()
+  defer { try? FileManager.default.removeItem(at: url) }
+  try writeLargeCallerFile(to: url)
+  let size = try #require(try url.resourceValues(forKeys: [.fileSizeKey]).fileSize)
+  for chunk in [CallerFile.maximumRecordBytes, 65_536] {
+    let reader = try CallerFile.Reader(url: url, chunk: chunk)
+    var entries = 0
+    var last: Int64 = 0
+    while true {
+      let read = try reader.read(upTo: 1000) { number, _ in last = number }
+      guard read > 0 else { break }
+      entries += read
+    }
+    #expect(entries == 600_000)
+    #expect(last == 81_100_000_000 + 600_000 * 7)
+    #expect(reader.peakBufferedBytes < reader.bufferLimit)
+    #expect(reader.bufferLimit * 100 < size)
+  }
+}
+
+/// The national directory has 561,495 numbers, and the extension may use only 12 MB in total.
+/// Concurrent tests would add their own allocations to the footprint, so the iOS gate runs this test alone with the variable set.
+@Test(.enabled(if: ProcessInfo.processInfo.environment["PHONEBOOK_ISOLATED_FOOTPRINT"] == "1"))
+func readerFootprintStaysFlatWhenRunAlone() throws {
+  let url = temporaryFile()
+  defer { try? FileManager.default.removeItem(at: url) }
+  try writeLargeCallerFile(to: url)
   // The baseline precedes the reader, so a reader that loads the file up front also exceeds the bound.
   let base = footprint()
   let reader = try CallerFile.Reader(url: url)
