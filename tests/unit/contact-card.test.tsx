@@ -250,27 +250,30 @@ it("draws the back and reload actions with their own masters", () => {
 });
 
 it("links a device result through its index row and keeps the national number's digits", () => {
-  const card = localCard(
-    {
-      row: 41,
+  for (const hasAddress of [true, false]) {
+    const card = localCard(
+      {
+        row: 41,
+        name: "市立図書館",
+        category: "library",
+        region: "26",
+        phones: ["0774981200"],
+        hasAddress,
+      },
+      "a".repeat(64),
+      regions,
+      "/?q=図書館",
+    );
+    expect(card).toEqual({
+      key: "row-41",
       name: "市立図書館",
-      category: "library",
-      region: "26",
-      phones: ["0774981200"],
-    },
-    "a".repeat(64),
-    regions,
-    "/?q=図書館",
-  );
-  expect(card).toEqual({
-    key: "row-41",
-    name: "市立図書館",
-    region: "京都府",
-    phones: ["+81774981200"],
-    hasAddress: true,
-    href: `/contacts/row/${"a".repeat(64)}/41?from=%2F%3Fq%3D%E5%9B%B3%E6%9B%B8%E9%A4%A8`,
-    row: { snapshot: "a".repeat(64), row: 41 },
-  });
+      region: "京都府",
+      phones: ["+81774981200"],
+      hasAddress,
+      href: `/contacts/row/${"a".repeat(64)}/41?from=%2F%3Fq%3D%E5%9B%B3%E6%9B%B8%E9%A4%A8`,
+      row: { snapshot: "a".repeat(64), row: 41 },
+    });
+  }
   expect(regionLabel("13999", regions)).toBe("東京都");
   expect(regionLabel("99", regions)).toBe("");
 });

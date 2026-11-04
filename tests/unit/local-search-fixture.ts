@@ -68,7 +68,7 @@ export function modelDirectory(
   return {
     contacts: ordered,
     bytes: encodeSearchIndex(
-      ordered.map((contact) => searchIndexRow(contact)),
+      ordered.map((contact) => searchIndexRow({ ...contact, hasAddress: true })),
       indexInput(snapshot),
     ),
   };

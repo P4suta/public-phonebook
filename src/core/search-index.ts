@@ -37,6 +37,7 @@ export const searchIndexLimits = {
   categories: 256,
   municipalities: 8192,
   regions: 65_536,
+  rowsWithoutAddress: 65_536,
   compressedBytes: compressedMebibytes * bytesPerMebibyte,
 } as const;
 
@@ -70,6 +71,13 @@ export const SearchIndexHeaderSchema = v.strictObject({
     v.array(RegionCodeSchema),
     v.maxLength(searchIndexLimits.regions),
   ),
+  /** The ascending positions of rows whose details show no address; an older header without it marks every row as having one. */
+  rowsWithoutAddress: v.optional(
+    v.pipe(
+      v.array(CountSchema),
+      v.maxLength(searchIndexLimits.rowsWithoutAddress),
+    ),
+  ),
   parts: v.strictObject({
     names: CountSchema,
     categories: CountSchema,
@@ -85,6 +93,7 @@ export interface SearchIndexRow {
   readonly category: string;
   readonly region: string;
   readonly phones: readonly string[];
+  readonly hasAddress: boolean;
 }
 
 export interface SearchIndexContact {
@@ -93,6 +102,7 @@ export interface SearchIndexContact {
   readonly prefectureCode: string;
   readonly municipalityCode: string | null;
   readonly phones: readonly { readonly e164: string }[];
+  readonly hasAddress: boolean;
 }
 
 export interface SearchIndexInput {
@@ -138,6 +148,7 @@ export function searchIndexRow(
         ? `${trunkPrefix}${phone.e164.slice(countryPrefix.length)}`
         : fail("A search index telephone isn't a Japanese number"),
     ),
+    hasAddress: contact.hasAddress,
   };
 }
 
@@ -197,6 +208,17 @@ function checkHeader(header: SearchIndexHeader): void {
     "municipalities",
   );
   checkAscending(header.regions, "regions");
+  const withoutAddress = header.rowsWithoutAddress ?? [];
+  for (const [index, position] of withoutAddress.entries()) {
+    const previous = withoutAddress[index - 1];
+    if (
+      position >= header.contacts ||
+      (previous !== undefined && previous >= position)
+    )
+      fail(
+        "Search index rows without an address must be unique, ascending row positions",
+      );
+  }
 }
 
 function lines(items: readonly string[]): string {
@@ -214,10 +236,12 @@ export function encodeSearchIndex(
   const phones: string[] = [];
   const categories: number[] = [];
   const regions: string[] = [];
+  const rowsWithoutAddress: number[] = [];
   let previous: string | undefined;
   for (const row of rows) {
     checkName(row.normalizedName, row.name, previous);
     previous = row.normalizedName;
+    if (!row.hasAddress) rowsWithoutAddress.push(names.length);
     if (!v.is(RegionCodeSchema, row.region))
       fail("A search index region isn't a region code");
     checkPhones(row.phones);
@@ -266,6 +290,7 @@ export function encodeSearchIndex(
       name: municipality.name,
     })),
     regions: regionList,
+    rowsWithoutAddress,
     parts: {
       names: namePart.byteLength,
       categories: categoryPart.byteLength,
@@ -361,6 +386,7 @@ export function decodeSearchIndex(bytes: Uint8Array): SearchIndex {
     regionPart.byteLength,
   );
   const usedRegions = new Set<number>();
+  const rowsWithoutAddress = new Set(header.rowsWithoutAddress);
   let previous: string | undefined;
   const rows = nameLines.map((line, index): SearchIndexRow => {
     const fields = line.split(nameSeparator);
@@ -388,7 +414,14 @@ export function decodeSearchIndex(bytes: Uint8Array): SearchIndex {
     usedRegions.add(regionIndex);
     const phones = (phoneLines[index] ?? "").split(phoneSeparator);
     checkPhones(phones);
-    return { normalizedName, name, category: category.id, region, phones };
+    return {
+      normalizedName,
+      name,
+      category: category.id,
+      region,
+      phones,
+      hasAddress: !rowsWithoutAddress.has(index),
+    };
   });
   if (usedRegions.size !== header.regions.length)
     fail("Every search index region must be referenced");

@@ -129,6 +129,11 @@ export function cleanAddress(address: string): string {
   return normalizeAddress(address);
 }
 
+/** Whether a contact's detail page shows an address, which names its result card's detail action. */
+export function showsAddress(address: string): boolean {
+  return cleanAddress(address) !== "";
+}
+
 export async function searchKey(search: Search): Promise<string> {
   const phone = normalizePhone(search.q);
   const canonical = JSON.stringify([

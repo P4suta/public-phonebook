@@ -161,7 +161,8 @@ Its accessible name starts with the facility name and keeps the visible label, s
 On wide screens, the detail link sits in the left column below the region.
 Result cards leave the address and its map action to the detail page.
 A result that the device found opens its details through its index row, and a changed snapshot reloads the index and searches again.
-The search index carries no addresses, so a result that the device found uses the address label.
+The search index header lists the rows whose details show no address, so a result that the device found takes the same label as the server's.
+An index without that list gives every device result the address label.
 Navigation links have a visible underline or outline, an icon, and a target of at least 44 pixels.
 This follows the distinction between [native links](https://www.w3.org/WAI/ARIA/apg/patterns/link/) and [action buttons](https://www.w3.org/WAI/ARIA/apg/patterns/button/).
 No page renders a copy control or copy feedback.
