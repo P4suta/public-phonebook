@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import * as v from "valibot";
+import { localPreviewSize } from "../../src/core/local-search.ts";
 import { GroupedSearchResponseSchema } from "../../src/core/models.ts";
 import { foundation } from "../../src/ui/foundations.ts";
 import { expect, test } from "./fixtures.ts";
@@ -139,7 +140,12 @@ test("a broad search previews each kind and expands only the requested category"
     .evaluateAll((nodes) =>
       nodes.map((node) => node.getAttribute("aria-labelledby")),
     );
-  const before = await library.locator("article").count();
+  const libraryGroup = expected.groups.find(
+    (group) => group.category === "library",
+  );
+  const preview = libraryGroup?.results.data.length ?? 0;
+  expect(preview).toBeGreaterThan(0);
+  await expect(library.locator("article")).toHaveCount(preview);
   const more = library.getByRole("link", {
     name: "図書館をもっと見る",
     exact: true,
@@ -147,7 +153,7 @@ test("a broad search previews each kind and expands only the requested category"
   await more.scrollIntoViewIfNeeded();
   expect(continuations).toBe(0);
   await more.click();
-  await expect(library.locator("article")).toHaveCount(before + 30);
+  await expect(library.locator("article")).toHaveCount(preview + 30);
   expect(continuations).toBe(1);
   expect(
     await page
@@ -172,12 +178,12 @@ test("on the device, a continuation adds 30 cards without a request and focuses 
   ).toHaveAttribute("href", /^\/contacts\/row\//u);
   const requests: string[] = [];
   page.on("request", (request) => requests.push(request.url()));
-  const before = await library.locator("article").count();
+  await expect(library.locator("article")).toHaveCount(localPreviewSize);
   await library
     .getByRole("link", { name: "図書館をもっと見る", exact: true })
     .click();
-  await expect(library.locator("article")).toHaveCount(before + 30);
-  const first = library.locator("article").nth(before);
+  await expect(library.locator("article")).toHaveCount(localPreviewSize + 30);
+  const first = library.locator("article").nth(localPreviewSize);
   const heading = first.getByRole("heading");
   await expect(heading).toBeFocused();
   await expect(heading).toHaveAttribute("tabindex", "-1");

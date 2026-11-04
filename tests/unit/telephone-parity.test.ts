@@ -247,6 +247,7 @@ describe("telephone parity across the downloadable archives", () => {
       process.off("unhandledRejection", recordEscape);
     });
 
+    /** Every archive stage has closed once the check settles, so only Node's rejection tracking, which reports before the next macrotask, can still record an escape. */
     async function expectOnlyRejection(message: string): Promise<void> {
       await expect(
         checkTelephoneParity(directory, "canonical"),

@@ -50,7 +50,7 @@ export default defineConfig({
     command: "npm run preview",
     url: `${testOrigin}/api/datasets`,
     ignoreHTTPSErrors: true,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: serverTimeoutMs,
   },
 });
