@@ -105,6 +105,12 @@ private func moving(_ display: WaitDisplay, at now: Int, stableSince: Int = -1) 
   #expect(short.line == .countdown && short.seconds == 60)
   #expect(
     WaitDisplay.choose(start, moving(start, at: 1_000), 1_000, 60_001, 0, false).line == .longer)
+  let ending = moving(start, at: 1_000)
+  #expect(
+    WaitDisplay.choose(start, ending, 1_000, WaitDisplay.almostMs, 0, false).line == .almostDone)
+  #expect(
+    WaitDisplay.choose(start, ending, 1_000, WaitDisplay.almostMs + 1, 0, false).line
+      != .almostDone)
 }
 
 /// A display that reached each line, so the waiting decision meets every line that the screen can show.
