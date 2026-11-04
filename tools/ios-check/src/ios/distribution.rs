@@ -173,37 +173,59 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
             "Invalid App Store text: {field}"
         );
     }
-    for (config, environment, debug) in [
+    let configurations = [
         ("Debug", Environment::Development, true),
         ("DevRelease", Environment::Development, false),
         ("VerificationDebug", Environment::Verification, true),
         ("VerificationRelease", Environment::Verification, false),
         ("ProductionDebug", Environment::Production, true),
         ("Release", Environment::Production, false),
-    ] {
+    ];
+    for (config, _, debug) in &configurations {
         ensure!(
-            packages_build_debug(config) == debug,
+            packages_build_debug(config) == *debug,
             "{config}: Swift Build would compile its Swift packages with their {} configuration",
-            if debug { "Release" } else { "Debug" }
+            if *debug { "Release" } else { "Debug" }
         );
-        let output = logged(
-            root,
-            &format!("configuration-{config}"),
-            Command::new("xcodebuild").current_dir(root).args([
-                "-quiet",
-                "-toolchain",
-                "com.apple.dt.toolchain.XcodeDefault",
-                "-project",
-                "ios/PublicPhonebook.xcodeproj",
-                "-alltargets",
-                "-configuration",
-                config,
-                "-destination",
-                "generic/platform=iOS",
-                "-showBuildSettings",
-                "-json",
-            ]),
-        )?;
+    }
+    // The six reads don't depend on each other, so they run at once; validation keeps the table order.
+    let outputs = std::thread::scope(|scope| {
+        let readers = configurations
+            .iter()
+            .map(|(config, _, _)| {
+                scope.spawn(move || {
+                    logged(
+                        root,
+                        &format!("configuration-{config}"),
+                        Command::new("xcodebuild").current_dir(root).args([
+                            "-quiet",
+                            "-toolchain",
+                            "com.apple.dt.toolchain.XcodeDefault",
+                            "-project",
+                            "ios/PublicPhonebook.xcodeproj",
+                            "-alltargets",
+                            "-configuration",
+                            config,
+                            "-destination",
+                            "generic/platform=iOS",
+                            "-showBuildSettings",
+                            "-json",
+                        ]),
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        readers
+            .into_iter()
+            .map(|reader| {
+                reader
+                    .join()
+                    .map_err(|_| anyhow::anyhow!("A build settings reader panicked"))?
+            })
+            .collect::<Vec<_>>()
+    });
+    for ((_, environment, debug), output) in configurations.into_iter().zip(outputs) {
+        let output = output?;
         let mut targets: Vec<TargetSettings> = serde_json::from_slice(&output.stdout)?;
         targets.retain(|target| {
             ["PublicPhonebook", "CallDirectory"].contains(&target.target.as_str())

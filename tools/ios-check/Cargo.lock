@@ -307,6 +307,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "step-meter",
  "tempfile",
 ]
 
@@ -577,6 +578,13 @@ name = "smallvec"
 version = "1.16.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0d5d4b1981b8bbbb7aed204cae5726d683d5d6ac7e74ec54122ea28f315e7c8"
+
+[[package]]
+name = "step-meter"
+version = "0.1.0"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "strict-num"

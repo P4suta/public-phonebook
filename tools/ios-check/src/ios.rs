@@ -15,6 +15,7 @@ use std::{
 mod build_number;
 mod distribution;
 mod failure;
+mod lease;
 mod mutation;
 mod proof;
 mod receipts;
@@ -306,10 +307,18 @@ fn without_secrets(command: &mut Command) -> &mut Command {
 }
 
 fn logged(root: &Path, name: &str, command: &mut Command) -> Result<Output> {
+    logged_work(root, name, command, &[])
+}
+
+/// Runs a logged step and adds `work` to its deterministic counters.
+fn logged_work(
+    root: &Path,
+    name: &str,
+    command: &mut Command,
+    work: &[(&str, u64)],
+) -> Result<Output> {
     println!("iOS check: {name}");
-    let output = without_secrets(command)
-        .output()
-        .with_context(|| format!("Start {name}"))?;
+    let output = super::steps::measured_output(name, without_secrets(command), work)?;
     let directory = root.join("target/ios");
     fs::create_dir_all(&directory)?;
     let log = directory.join(format!("{name}.log"));
@@ -1057,14 +1066,19 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
             build_number.map(BuildNumber::new).transpose()?,
         )?;
     }
-    let lock = match &action {
-        Action::Prove => root.join("target/ios/proof.lock"),
-        Action::Sanitize => root.join("target/ios/sanitizer.lock"),
-        Action::Mutate => root.join("target/ios/mutation.lock"),
-        Action::UnitTest => root.join("target/ios/unit-command.lock"),
-        _ => std::env::temp_dir().join("public-phonebook-native-gate.lock"),
+    let _machine_lease = (!matches!(action, Action::Prove | Action::UnitTest))
+        .then(lease::MachineLease::acquire)
+        .transpose()?;
+    let checkout_lock = match &action {
+        Action::Prove => Some("target/ios/proof.lock"),
+        Action::Sanitize => Some("target/ios/sanitizer.lock"),
+        Action::Mutate => Some("target/ios/mutation.lock"),
+        Action::UnitTest => Some("target/ios/unit-command.lock"),
+        _ => None,
     };
-    let _lease = GateLease::acquire(&lock)?;
+    let _checkout_lease = checkout_lock
+        .map(|lock| GateLease::acquire(&root.join(lock)))
+        .transpose()?;
     if matches!(action, Action::Prove) {
         return proof::run(root);
     }
