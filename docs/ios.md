@@ -60,6 +60,10 @@ The percentage stays in the accessibility value and out of sight.
 VoiceOver hears the start, a weak signal, a stop, and the end, and nothing for each step or second.
 A stopped first download names its automatic retry, which follows `DownloadSchedule.retryDelays`.
 The app transfers in the foreground, so it shows no background transfer line, and a suspended transfer resumes when the reader returns.
+The transfer holds a file lock and the import holds an exclusive SQLite transaction, and iOS terminates an app that it suspends while it holds either one.
+A first download or update that the open app starts runs under background execution time from `beginBackgroundTask(withName:expirationHandler:)`.
+When that time expires, the app cancels the synchronization, which releases both locks, and ends the background task once the synchronization has unwound.
+`PhonebookCore.BackgroundTime` decides when to cancel and when to end, and the background processing task keeps its own expiry handler.
 The directory trace reports the milliseconds of decompression, parsing, row insertion, the number table, the caller file, COMMIT, and fsync for every import.
 Parsing and row insertion overlap, so their durations add up to more than the time between the start of staging and the end of decoding.
 

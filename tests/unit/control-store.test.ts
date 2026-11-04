@@ -18,6 +18,7 @@ import {
 
 const digest = "a".repeat(64);
 const tree = "b".repeat(40);
+const databaseId = "0f6a8c1e-2b3d-4e5f-8a9b-1c2d3e4f5a6b";
 const serverDate = "Sun, 01 Nov 2026 12:00:00 GMT";
 const bytes = (text: string): Uint8Array => new TextEncoder().encode(text);
 
@@ -44,6 +45,9 @@ describe("control keys", () => {
     expect(controlKeys.journalHistory("production", 7)).toBe(
       "journals/production/history/000000000007.json",
     );
+    expect(controlKeys.databaseEvidence(digest, databaseId)).toBe(
+      `evidence/databases/${digest}/${databaseId}.json`,
+    );
     const policies = {
       [controlKeys.blob(digest)]: "write-once",
       [controlKeys.dataset(digest, "manifest.ready.json")]: "write-once",
@@ -56,6 +60,7 @@ describe("control keys", () => {
       [controlKeys.lease("production")]: "conditional",
       [controlKeys.journalHistory("production", 1)]: "append-only",
       [controlKeys.evidence("imported", digest)]: "append-only",
+      [controlKeys.databaseEvidence(digest, databaseId)]: "append-only",
     };
     for (const [key, policy] of Object.entries(policies))
       expect(writePolicy(key), key).toBe(policy);
@@ -70,6 +75,10 @@ describe("control keys", () => {
     expect(() => controlKeys.blob("short")).toThrow();
     expect(() => controlKeys.candidate(tree, "e2e")).toThrow();
     expect(() => controlKeys.journalHistory("production", 0)).toThrow();
+    expect(() => controlKeys.databaseEvidence(digest, "../outside")).toThrow();
+    expect(() =>
+      controlKeys.databaseEvidence(digest, databaseId.toUpperCase()),
+    ).toThrow();
   });
 });
 
