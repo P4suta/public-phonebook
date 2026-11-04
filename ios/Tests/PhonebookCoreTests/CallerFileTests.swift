@@ -196,7 +196,7 @@ func readerFootprintStaysFlatWhenRunAlone() throws {
   #expect(
     try CallerFile.active(in: directory) == CallerFile.Active(generation: generation, file: file))
 
-  try CallerFile.recordLoaded(generation, in: directory)
+  try CallerFile.recordLoaded(CallerFile.Loaded(generation: generation, extra: nil), in: directory)
   #expect(CallerFile.loadedGeneration(in: directory) == generation)
   try Data("not a generation".utf8).write(to: directory.appendingPathComponent("callers-loaded"))
   #expect(CallerFile.loadedGeneration(in: directory) == nil)

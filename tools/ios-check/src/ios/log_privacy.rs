@@ -9,7 +9,7 @@ use std::{
 };
 
 /// The directories whose Swift code ships in the app, the extension, or the packages.
-const ROOTS: [&str; 4] = ["ios/App", "ios/Native", "ios/CallDirectory", "ios/Sources"];
+pub(super) const ROOTS: [&str; 4] = ["ios/App", "ios/Native", "ios/CallDirectory", "ios/Sources"];
 /// Functions that write to standard output or the console instead of the unified logging system.
 const CONSOLE_CALLS: [&str; 4] = ["print", "debugPrint", "dump", "NSLog"];
 const PUBLIC: &str = "privacy: .public)";
@@ -25,8 +25,9 @@ enum Kind {
 
 /// Every expression that a log line may mark `.public`, with its kind.
 /// A new public field needs an entry here, so its review names what kind of value it is.
-const PUBLIC_VALUES: [(&str, Kind); 11] = [
+const PUBLIC_VALUES: [(&str, Kind); 12] = [
     ("entries", Kind::Count),
+    ("removed", Kind::Count),
     ("peak / 1024", Kind::Count),
     ("expired", Kind::Code),
     ("failure.domain", Kind::Code),
@@ -43,7 +44,7 @@ const PUBLIC_VALUES: [(&str, Kind); 11] = [
 ];
 
 /// The code of a Swift file with comments removed and string contents blanked, so console calls inside text don't count.
-fn code_only(source: &str) -> String {
+pub(super) fn code_only(source: &str) -> String {
     let mut code = String::with_capacity(source.len());
     let mut characters = source.chars().peekable();
     while let Some(character) = characters.next() {
@@ -173,7 +174,7 @@ fn findings(source: &str, file: &str) -> Vec<String> {
     found
 }
 
-fn swift_files(directory: &Path, found: &mut Vec<PathBuf>) -> Result<()> {
+pub(super) fn swift_files(directory: &Path, found: &mut Vec<PathBuf>) -> Result<()> {
     for entry in fs::read_dir(directory).with_context(|| format!("Read {}", directory.display()))? {
         let path = entry?.path();
         if path.is_dir() {

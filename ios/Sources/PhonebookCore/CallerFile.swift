@@ -141,9 +141,15 @@ public enum CallerFile {
   /// The extra label replaces the national label of the same number, because CallKit takes each number once.
   public final class Merged {
     private let national: Reader?
-    private var extra: CallerEntry?
+    private var extra: Loaded.Extra?
 
     public init(national: Reader?, extra: CallerEntry?) {
+      self.national = national
+      self.extra = extra.map { Loaded.Extra(number: $0.phone.number, label: $0.label) }
+    }
+
+    /// Merges the extra entry of a loaded record, which already holds the number and the label.
+    public init(national: Reader?, loaded extra: Loaded.Extra?) {
       self.national = national
       self.extra = extra
     }
@@ -158,24 +164,24 @@ public enum CallerFile {
             passed += 1
             return
           }
-          switch CallerMerge.decide(extra: pending.phone.number, national: number) {
+          switch CallerMerge.decide(extra: pending.number, national: number) {
           case .national:
             body(number, label)
             passed += 1
           case .extraFirst:
-            body(pending.phone.number, pending.label)
+            body(pending.number, pending.label)
             body(number, label)
             passed += 2
             extra = nil
           case .extraReplaces:
-            body(pending.phone.number, pending.label)
+            body(pending.number, pending.label)
             passed += 1
             extra = nil
           }
         } ?? 0
       if read == 0, let pending = extra {
         extra = nil
-        body(pending.phone.number, pending.label)
+        body(pending.number, pending.label)
         return 1
       }
       return passed
@@ -208,15 +214,134 @@ public enum CallerFile {
     directory.appendingPathComponent("callers-loaded")
   }
 
-  /// Records the generation that iOS accepted from the extension, so the app doesn't ask iOS to load it again.
-  public static func recordLoaded(_ generation: UUID, in directory: URL) throws {
-    try Data(generation.uuidString.utf8).write(to: loadedRecord(in: directory), options: .atomic)
+  /// What iOS holds after the extension's last accepted load: one generation's caller file and the extra entry.
+  public struct Loaded: Codable, Equatable, Sendable {
+    public struct Extra: Codable, Equatable, Sendable {
+      public let number: Int64
+      public let label: String
+
+      public init(number: Int64, label: String) {
+        self.number = number
+        self.label = label
+      }
+    }
+
+    public let generation: UUID?
+    public let extra: Extra?
+
+    public init(generation: UUID?, extra: Extra?) {
+      self.generation = generation
+      self.extra = extra
+    }
+  }
+
+  /// Records what iOS accepted from the extension, so the app doesn't ask iOS to load the same generation again and the next load can send the difference.
+  public static func recordLoaded(_ loaded: Loaded, in directory: URL) throws {
+    try JSONEncoder().encode(loaded).write(to: loadedRecord(in: directory), options: .atomic)
+  }
+
+  /// What iOS last accepted, or nil when it never accepted a load or an earlier app wrote the record without the extra entry.
+  public static func loaded(in directory: URL) -> Loaded? {
+    (try? Data(contentsOf: loadedRecord(in: directory))).flatMap {
+      try? JSONDecoder().decode(Loaded.self, from: $0)
+    }
   }
 
   /// The generation that iOS last accepted from the extension, or nil when it never accepted one.
+  /// An earlier app wrote the generation alone as text, and that record still names it.
   public static func loadedGeneration(in directory: URL) -> UUID? {
-    (try? String(contentsOf: loadedRecord(in: directory), encoding: .utf8)).flatMap(
+    if let loaded = loaded(in: directory) { return loaded.generation }
+    return (try? String(contentsOf: loadedRecord(in: directory), encoding: .utf8)).flatMap(
       UUID.init(uuidString:))
+  }
+
+  /// The national entries that a loaded record names.
+  public enum Held: Equatable, Sendable {
+    /// The record names no generation, so iOS holds the extra entry alone.
+    case none
+    case file(URL)
+    /// The store no longer keeps the named generation's caller file.
+    case missing
+  }
+
+  public static func held(_ loaded: Loaded, in directory: URL) -> Held {
+    guard let generation = loaded.generation else { return .none }
+    let file = directory.appendingPathComponent(generation.uuidString + ".callers")
+    return FileManager.default.fileExists(atPath: file.path) ? .file(file) : .missing
+  }
+
+  /// Passes the entries of a merged reader one at a time through one batch, so two walks stay within a fixed amount of memory.
+  final class Cursor {
+    private let merged: Merged
+    private var batch: [(Int64, String)] = []
+    private var index = 0
+
+    private let size: Int
+
+    init(_ merged: Merged, batch: Int) {
+      self.merged = merged
+      size = max(batch, 1)
+    }
+
+    func peek() throws -> (Int64, String)? {
+      if index == batch.count {
+        batch.removeAll(keepingCapacity: true)
+        index = 0
+        _ = try merged.read(upTo: size) { batch.append(($0, $1)) }
+      }
+      return index < batch.count ? batch[index] : nil
+    }
+
+    func advance() { index += 1 }
+  }
+
+  /// Walks two ascending merged readers as `diffCallers` in `verification/ios/CallerDelta.lean` does, and reports each removal or addition.
+  static func walk(
+    held: Merged, wanted: Merged, batch: Int, remove: (Int64) -> Void,
+    add: (Int64, String) -> Void
+  ) throws {
+    let held = Cursor(held, batch: batch)
+    let wanted = Cursor(wanted, batch: batch)
+    while true {
+      switch (try held.peek(), try wanted.peek()) {
+      case (nil, nil): return
+      case (let entry?, nil):
+        remove(entry.0)
+        held.advance()
+      case (nil, let entry?):
+        add(entry.0, entry.1)
+        wanted.advance()
+      case (let old?, let new?):
+        switch CallerChange.decide(held: old.0, heldLabel: old.1, wanted: new.0, wantedLabel: new.1)
+        {
+        case .remove:
+          remove(old.0)
+          held.advance()
+        case .add:
+          add(new.0, new.1)
+          wanted.advance()
+        case .keep:
+          held.advance()
+          wanted.advance()
+        case .replace:
+          remove(old.0)
+          add(new.0, new.1)
+          held.advance()
+          wanted.advance()
+        }
+      }
+    }
+  }
+
+  /// Passes every number to remove and then every entry to add, which turn the entries that iOS holds into the wanted ones.
+  /// Each pass opens its own readers from the factories, so both passes read the two lists from the start.
+  public static func changes(
+    held: () throws -> Merged, wanted: () throws -> Merged, batch: Int = 1000,
+    remove: (Int64) -> Void,
+    add: (Int64, String) -> Void
+  ) throws {
+    try walk(held: held(), wanted: wanted(), batch: batch, remove: remove, add: { _, _ in })
+    try walk(held: held(), wanted: wanted(), batch: batch, remove: { _ in }, add: add)
   }
 
   static func appendVarint(_ value: UInt64, to bytes: inout [UInt8]) {

@@ -113,6 +113,11 @@ The app writes neither value to a log or a request.
 A search that matches the label or the complete number shows the entry under a `QA用` heading with the standard call button.
 That button opens the iOS call confirmation, so the owner can check calling with their own number instead of a facility's.
 The Call Directory extension reads the file and merges the entry into the national caller numbers in ascending order while it loads them.
+After iOS accepts a load, the extension records the generation and the test entry that iOS holds in `callers-loaded`.
+When iOS asks for an [incremental](https://developer.apple.com/documentation/callkit/cxcalldirectoryextensioncontext/isincremental) load and the record names a caller file that the store still keeps, the extension streams that file and the active one together.
+It removes every number that left or changed its label, and then adds every new or changed entry, each in ascending order.
+`PhonebookCore.CallerChange` holds the step decision, and `verification/ios/CallerDelta.lean` proves that the changes turn the held entries into the wanted ones.
+Any other record, a record from an earlier app version, or a full request loads every entry as before.
 When the national data lists the same number, the test label replaces the national label, because CallKit takes each number once.
 `PhonebookCore.CallerMerge` holds that decision, and `verification/ios/CallerMerge.lean` proves the merge.
 Saving or clearing the entry reloads the extension, and the screen reports the state that iOS gave with the Call Directory code of a refusal.

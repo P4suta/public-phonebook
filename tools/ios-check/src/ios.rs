@@ -112,7 +112,7 @@ const UI_TESTS: [&str; 17] = [
     "testLandscapeLargeTextSettings",
     "testAboutStaysInTheAppAndLicenseIsReadable",
 ];
-const REQUIRED_TESTS: [&str; 59] = [
+const REQUIRED_TESTS: [&str; 65] = [
     "currentProviderArchiveImportsTheNationalDirectory",
     "providerArchiveSavesTheExpectedGenerationContent",
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
@@ -172,6 +172,12 @@ const REQUIRED_TESTS: [&str; 59] = [
     "everyBackgroundTimeTransitionEndsTheTaskOnce",
     "expiryCancelsATransferAndReleasesItsLock",
     "expiryCancelsAnImportAndReleasesTheDatabase",
+    "everyReloadReplyLeadsToItsState",
+    "aRefusedReloadKeepsItsCallDirectoryCodeAndRecordsNoGeneration",
+    "callerChangeDecisionFollowsTheNumbersAndTheLabelBytes",
+    "streamedChangesMatchTheLeanModelOnSeededInputs",
+    "aChangedTestEntryAloneCostsAtMostTwoRemovalsAndTwoAdditions",
+    "theLoadedRecordNamesWhatIOSHoldsAndReadsTheEarlierText",
 ];
 const SCOPE: [&str; 19] = [
     "ios",

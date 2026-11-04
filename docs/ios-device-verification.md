@@ -58,6 +58,21 @@ Check the enabled Call Directory extension and actual incoming system UI without
 A receiver alone can't originate that controlled call.
 A successful extension reload doesn't establish carrier caller identification.
 
+## Incremental caller names
+
+The extension sends removals and then additions when iOS asks for an incremental load and its loaded record names a kept caller file.
+Stream the extension's log with `log stream --level debug --predicate 'subsystem == "page.dial.publicphonebook" AND category == "caller"'` on the connected Mac.
+Each load ends with one `caller.load entries=… removed=… peakFootprintKB=… expired=…` line.
+Record these observations with the QA build, each with that line:
+
+- Save a test number, then change only its label, which removes the number and adds it again in one request; check the new label on an incoming call.
+- Save a test number below every national number and then one above them, which sends a removal and an addition out of number order between the two lists.
+- Publish or install a generation one step newer than the loaded one, and compare the load's time with a full load of 561,495 entries.
+- Turn the extension off and on in the iPhone settings, and check that the next load has `removed=0` and the full entry count.
+- Leave the app while a load runs, and check that the next load after an `expired=true` line sends the same difference again.
+
+A refused request logs `caller.request result=failed` with its domain and code, which the record needs as well.
+
 Run iOS 18 on a compatible device or simulator runtime and record its actual OS build.
 The connected iPhone Air runs its installed newer OS and can't substitute for an iOS 18 runtime.
 Keep runtime-download failures and unavailable local runtimes as environmental observations, not universal claims about iOS testing.
