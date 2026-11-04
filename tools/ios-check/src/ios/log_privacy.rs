@@ -25,7 +25,13 @@ enum Kind {
 
 /// Every expression that a log line may mark `.public`, with its kind.
 /// A new public field needs an entry here, so its review names what kind of value it is.
-const PUBLIC_VALUES: [(&str, Kind); 12] = [
+const PUBLIC_VALUES: [(&str, Kind); 15] = [
+    ("key.phase.rawValue", Kind::RawValue),
+    ("point.phase.rawValue", Kind::RawValue),
+    (
+        "point.milliseconds.map(String.init) ?? \"none\"",
+        Kind::Count,
+    ),
     ("entries", Kind::Count),
     ("removed", Kind::Count),
     ("peak / 1024", Kind::Count),

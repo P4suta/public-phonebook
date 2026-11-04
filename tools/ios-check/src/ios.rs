@@ -113,7 +113,7 @@ const UI_TESTS: [&str; 17] = [
     "testLandscapeLargeTextSettings",
     "testAboutStaysInTheAppAndLicenseIsReadable",
 ];
-const REQUIRED_TESTS: [&str; 65] = [
+const REQUIRED_TESTS: [&str; 67] = [
     "currentProviderArchiveImportsTheNationalDirectory",
     "providerArchiveSavesTheExpectedGenerationContent",
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
@@ -179,6 +179,8 @@ const REQUIRED_TESTS: [&str; 65] = [
     "streamedChangesMatchTheLeanModelOnSeededInputs",
     "aChangedTestEntryAloneCostsAtMostTwoRemovalsAndTwoAdditions",
     "theLoadedRecordNamesWhatIOSHoldsAndReadsTheEarlierText",
+    "everySynchronizationIntervalEndsOnceAfterSuccessFailureAndCancellation",
+    "aRepeatedStartEndsTheEarlierIntervalAndADecodeEndsTheStaging",
 ];
 const SCOPE: [&str; 19] = [
     "ios",

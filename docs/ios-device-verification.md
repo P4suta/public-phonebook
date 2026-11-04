@@ -58,6 +58,13 @@ Check the enabled Call Directory extension and actual incoming system UI without
 A receiver alone can't originate that controlled call.
 A successful extension reload doesn't establish carrier caller identification.
 
+## Signposted intervals
+
+The app marks each synchronization phase as a signposted interval and each import phase's duration as a point, in the `directory` category of the `page.dial.publicphonebook` subsystem.
+The Call Directory extension marks each load as an interval with a point every 50,000 entries, in the `caller` category.
+Choose Product > Profile in Xcode, add the `os_signpost` instrument to a blank template, record a first run, and keep the trace beside the measurements of #231.
+Apple's guide to [recording performance data](https://developer.apple.com/documentation/os/recording-performance-data) describes the instrument.
+
 ## Incremental caller names
 
 The extension sends removals and then additions when iOS asks for an incremental load and its loaded record names a kept caller file.

@@ -9,9 +9,13 @@ import PhonebookCore
 /// The request runs synchronously with only Foundation, CallKit, and the caller file reader, so no database, actor, or task stays in memory.
 final class CallDirectoryHandler: CXCallDirectoryProvider, CXCallDirectoryExtensionContextDelegate {
   private let logger = Logger(subsystem: "page.dial.publicphonebook", category: "caller")
+  private let signposter = OSSignposter(subsystem: "page.dial.publicphonebook", category: "caller")
 
   override func beginRequest(with context: CXCallDirectoryExtensionContext) {
     context.delegate = self
+    let signpost = signposter.makeSignpostID()
+    let interval = signposter.beginInterval("load", id: signpost)
+    defer { signposter.endInterval("load", interval) }
     do {
       let directory = try Self.directory()
       let active = try CallerFile.active(in: directory)
@@ -56,6 +60,7 @@ final class CallDirectoryHandler: CXCallDirectoryProvider, CXCallDirectoryExtens
           guard read > 0 else { break }
           entries += read
           if entries % 50_000 < read {
+            signposter.emitEvent("batch", id: signpost)
             peak = max(peak, Self.footprint())
             logger.debug(
               "caller.load entries=\(entries, privacy: .public) footprintKB=\(peak / 1024, privacy: .public)"
