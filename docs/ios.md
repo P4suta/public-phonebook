@@ -24,9 +24,9 @@ The generator inspects all six actual Xcode configurations and rejects missing o
 
 The app's property list declares a [launch screen](https://developer.apple.com/documentation/xcode/specifying-your-apps-launch-screen) with the `LaunchBackground` color from `ios/Config/Launch.xcassets`.
 That color matches the first screen's surface, white in the light appearance and black in the dark one, as the [launching guidelines](https://developer.apple.com/design/human-interface-guidelines/launching) ask, and the launch screen shows no text or logo.
-The app follows the system appearance, as the [Dark Mode guidelines](https://developer.apple.com/design/human-interface-guidelines/dark-mode) ask, by swapping the black and white of [the visual rules](design.md#visual-rules).
+The app follows the system appearance by swapping the black and white of [the visual rules](design.md#visual-rules), as the [Dark Mode guidelines](https://developer.apple.com/design/human-interface-guidelines/dark-mode) ask.
 Icons scale with the text size through `@ScaledMetric` from their sizes at the default text size, and controls keep their 44-point targets.
-Every alert titles its cancel button `キャンセル`, as the [Alerts guidelines](https://developer.apple.com/design/human-interface-guidelines/alerts) ask.
+Every confirmation dialog titles its cancel button `キャンセル`, as the [Alerts guidelines](https://developer.apple.com/design/human-interface-guidelines/alerts) ask.
 The app ships without a String Catalog, because it supports Japanese alone and SwiftUI already treats each literal text as a localization key.
 XcodeGen writes `ios/Config/App-Info.plist` from `ios/project.yml`, and Release and VerificationRelease take that list.
 The generator writes `ios/Config/App-Info-LocalNetworking.plist` from it with `NSAllowsLocalNetworking` added, and the generator rejects any other difference.
