@@ -167,6 +167,25 @@ private func rank(name: String, places: [String], query: String) -> NameRank? {
   #expect(SearchInput.normalizedPhone("03 3581 2331") == "+81335812331")
 }
 
+/// Compares every national name with the website's comparison form, which `tools/search-form-parity.ts` writes from the bundled archive.
+@Test(.enabled(if: ProcessInfo.processInfo.environment["PHONEBOOK_SEARCH_FORMS"] != nil))
+func everyNationalNameFoldsLikeTheWebsite() throws {
+  let path = try #require(ProcessInfo.processInfo.environment["PHONEBOOK_SEARCH_FORMS"])
+  let text = try String(contentsOf: URL(fileURLWithPath: path), encoding: .utf8)
+  var compared = 0
+  var differing: [String] = []
+  for line in text.split(separator: "\n") {
+    let fields = line.split(separator: "\t", omittingEmptySubsequences: false)
+    try #require(fields.count == 2)
+    compared += 1
+    if SearchInput.searchForm(String(fields[0])) != String(fields[1]) {
+      differing.append(String(fields[0]))
+    }
+  }
+  #expect(compared > 0)
+  #expect(differing.isEmpty, "\(differing.count) names differ, such as \(differing.prefix(10))")
+}
+
 @Test func findsEitherFormOfAKanjiVariantFromTheOther() {
   let tokyo = ["東京都", "千代田区", "図書館"]
   #expect(rank(name: "山崎図書館", places: tokyo, query: "山\u{FA11}") == .prefix)

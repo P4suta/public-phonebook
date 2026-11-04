@@ -181,6 +181,9 @@ The word rank decision proves that a row matches exactly when every word occurs 
 Its control ranks a region or category match with the name matches and must fail verification.
 Fixed-seed property tests compare the word splitting, the folding, and the match-and-rank decision with a plain reference on both platforms.
 `mise x -- just check` regenerates the kanji variant tables from the pinned Unihan archive and requires the committed bytes, and both platforms' tests fold every table entry to a representative that folding keeps.
+`node tools/search-form-parity.ts ARCHIVE FORMS` writes the website's comparison form of every name in a directory archive.
+The app's `everyNationalNameFoldsLikeTheWebsite` test then runs with `PHONEBOOK_SEARCH_FORMS=FORMS` and requires the same form for every name, which held for all 667,696 names of the bundled release v2026.1104.7.
+D1 and the browser index derive their forms from the same TypeScript function, and the data check requires each D1 row's `folded_name` to equal it.
 A conflicting import identity also has a source-mutating negative control that must fail verification.
 The database verification decision scans a database in full only when it has no evidence and no Worker version binds it.
 Its controls let a bound database reach the full verification and accept evidence for another digest.
