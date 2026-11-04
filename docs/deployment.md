@@ -54,17 +54,21 @@ No Container is needed.
 ### Snapshot deltas
 
 Name the retained earlier bundles when you prepare a new snapshot, and preparation writes a delta from each of them to the new archive.
+`just data-prepare` takes a directory whose subdirectories are the bases as its fourth argument.
 
 ```sh
+mise x -- just data-prepare /path/to/public-snapshot.sqlite .local/next "" .local/delta-bases
 mise x -- npm run data -- prepare /path/to/public-snapshot.sqlite .local/next --delta-base .local/phonebook --delta-base .local/previous
 ```
 
 A delta base is a prepared bundle, such as one that `just data-fetch` restored for the active or the rollback dataset.
+A base needs only its ready manifest and `directory.tsv.br`.
+A base at the new snapshot gets no delta, and preparation logs it.
 Preparation checks each base archive with its own manifest before it starts, so a wrong base fails at once and leaves no output.
 It decodes one base at a time, applies each delta to its base, and requires the exact new archive before it records the delta.
 It skips a delta whose Brotli bytes exceed half of the complete archive, and it logs the sizes of every delta it considers.
 The ready manifest lists the published deltas, so the dataset digest covers them, and `just data-remote` uploads them with the other archives.
-The `just data-prepare` recipe doesn't take delta bases yet, so use the `npm run data` form for them.
+The `Collect` workflow chooses its bases itself, as [data sources](data-sources.md#delta-bases) describes.
 The `Release` workflow publishes a stored dataset as it is, so a delta exists only when the preparation that stored the dataset wrote it.
 
 ## Environment boundaries

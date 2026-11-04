@@ -424,10 +424,20 @@ export async function prepareSnapshot(
       bytes: archiveBytes,
       url: `/api/datasets/${snapshot}/${archiveSha256}/${directoryArchiveFile}`,
     });
+    for (const base of deltaSources)
+      if (base.snapshot === snapshot)
+        console.info(
+          JSON.stringify({
+            phase: "directory-delta",
+            base: base.snapshot,
+            published: false,
+            reason: "base-is-target",
+          }),
+        );
     const deltas = await writeDirectoryDeltas(
       destination,
       { snapshot, archiveSha256, archiveBytes, text: directoryText },
-      deltaSources,
+      deltaSources.filter((base) => base.snapshot !== snapshot),
       compressDirectoryArchive,
     );
     const compressedIndex = compressSearchIndex(searchIndex);
