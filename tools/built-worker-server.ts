@@ -3,6 +3,7 @@ import { extname, join, relative, resolve, sep } from "node:path";
 import { parseArgs } from "node:util";
 import { Miniflare } from "miniflare";
 import * as v from "valibot";
+import { requireBuildBudget } from "./build-budget.ts";
 import { developmentHost, developmentPort } from "./local-data.ts";
 
 const buildOutput = ".cloudflare/output/v0/workers/default";
@@ -133,11 +134,25 @@ export async function serveBuiltWorker(options: {
 if (import.meta.main) {
   const { values } = parseArgs({
     args: process.argv.slice(commandArgumentOffset),
-    options: { port: { type: "string" } },
+    options: {
+      port: { type: "string" },
+      "local-forgiving-search": { type: "boolean", default: false },
+    },
     strict: true,
   });
   const port = v.parse(PortSchema, values.port ?? String(developmentPort));
   const state = process.env.DIAL_LOCAL_STATE ?? defaultState;
+  if (values["local-forgiving-search"]) {
+    const worker = v.parse(
+      BuiltWorkerSchema,
+      JSON.parse(
+        await readFile(join(buildOutput, "worker.config.json"), "utf8"),
+      ),
+    );
+    const environment = worker.env.APP_ENV;
+    if (environment?.type !== "text" || environment.value !== "development")
+      throw new Error("Local forgiving search requires development mode");
+  } else await requireBuildBudget();
   const runtime = await serveBuiltWorker({ port, state });
   console.info(
     JSON.stringify({

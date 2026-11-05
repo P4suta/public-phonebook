@@ -4,6 +4,10 @@ default:
 dev:
     npm run dev
 
+dev-forgiving port="8787":
+    node tools/build.ts development --local-forgiving-search
+    node tools/built-worker-server.ts --local-forgiving-search --port {{ quote(port) }}
+
 build environment="development":
     npm run build -- {{ quote(environment) }}
 

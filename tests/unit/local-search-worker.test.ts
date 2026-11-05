@@ -9,6 +9,7 @@ import {
 } from "../../src/core/local-search-protocol.ts";
 import { decodeSearchIndex } from "../../src/core/search-index.ts";
 import { encodeRankingArtifact } from "../../src/core/search-ranking-artifact.ts";
+import { createRanking } from "../../src/ui/forgiving-search-loader.ts";
 import { localSearchService } from "../../src/ui/local-search-service.ts";
 import { buildRankingArtifact } from "../../tools/search-ranking.ts";
 import { type ModelContact, modelDirectory } from "./local-search-fixture.ts";
@@ -28,7 +29,7 @@ const contacts: ModelContact[] = [
   phones: [{ e164 }],
 }));
 
-type Load = Extract<LocalSearchRequest, { type: "load" }>;
+type Load = Extract<LocalSearchRequest, { type: "load-forgiving" }>;
 type Location = Load["index"];
 
 function sha256(bytes: Uint8Array): string {
@@ -69,7 +70,7 @@ function fixture(rows = contacts): {
     index,
     ranking,
     load: {
-      type: "load",
+      type: "load-forgiving",
       index: location("search-index", index),
       ranking: {
         ...location("search-ranking", ranking),
@@ -103,22 +104,59 @@ function harness(
   return {
     replies,
     requested,
-    handle: localSearchService({
-      fetch: async (url) => {
-        requested.push(url);
-        if (fetcher) return fetcher(url);
-        return url === source.load.index.url
-          ? response(source.index, source.load.index)
-          : response(source.ranking, source.load.ranking);
+    handle: localSearchService(
+      {
+        fetch: async (url) => {
+          requested.push(url);
+          if (fetcher) return fetcher(url);
+          return url === source.load.index.url
+            ? response(source.index, source.load.index)
+            : response(source.ranking, source.load.ranking);
+        },
+        post: (reply) => {
+          replies.push(v.parse(LocalSearchReplySchema, reply));
+        },
       },
-      post: (reply) => {
-        replies.push(v.parse(LocalSearchReplySchema, reply));
-      },
-    }),
+      createRanking,
+    ),
   };
 }
 
 describe("local search worker", () => {
+  it("defaults to literal matching with only the name index and keeps one global order", async () => {
+    const source = fixture();
+    const replies: LocalSearchReply[] = [];
+    const fetcher = vi.fn(async () =>
+      response(source.index, source.load.index),
+    );
+    const handle = localSearchService({
+      fetch: fetcher,
+      post: (reply) => replies.push(reply),
+    });
+    await handle({ type: "load", index: source.load.index });
+    expect(replies.at(-1)).toMatchObject({ type: "ready" });
+    for (const [query, total] of [
+      ["図書館", 3],
+      ["としょかん", 0],
+      ["東京 図書館", 3],
+      ["03-3581-2331", 2],
+    ] as const) {
+      await handle({ type: "search", id: 1, query });
+      expect(replies.at(-1)).toMatchObject({ type: "results", total });
+      if (query === "図書館")
+        expect(replies.at(-1)).toMatchObject({
+          rows: [
+            { name: "図書館" },
+            { name: "図書館" },
+            { name: "市立図書館" },
+          ],
+        });
+    }
+    await handle(source.load);
+    expect(replies.at(-1)).toMatchObject({ type: "unavailable" });
+    expect(fetcher.mock.calls).toHaveLength(1);
+  });
+
   it("continues one rank order across category boundaries", async () => {
     const source = fixture(
       Array.from({ length: 90 }, (_, position) => ({

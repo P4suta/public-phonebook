@@ -9,6 +9,7 @@ import {
   localPreviewSize,
   localQuery,
   matchIndex,
+  orderedIndexRows,
   previewGroups,
   searchLocalIndex,
 } from "../../src/core/local-search.ts";
@@ -318,6 +319,25 @@ describe("local search", () => {
             if (!parsed.ok || !searched.ok)
               throw new Error(`The query must be valid: ${query}`);
             const matches = matchIndex(index, parsed.value);
+            const referenceTier = (row: number): number => {
+              const contact = directory.contacts[row];
+              if (!contact) throw new Error("A reference contact is missing");
+              return parsed.value.kind === "words"
+                ? referenceRank(
+                    contact.name,
+                    modelPlaces(contact),
+                    referenceWords(query.trim()),
+                  )
+                : 0;
+            };
+            expect(orderedIndexRows(index, parsed.value)).toEqual(
+              expected
+                .flatMap((group) => group.rows)
+                .sort(
+                  (left, right) =>
+                    referenceTier(left) - referenceTier(right) || left - right,
+                ),
+            );
             if (matches.total > 0) seen.add(parsed.value.kind);
             if (expected.length > 1) seen.add("groups");
             if (

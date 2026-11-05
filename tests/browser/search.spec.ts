@@ -302,7 +302,7 @@ test("a category continuation ends with a new term, and clearing the term return
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
   await waitForLocalSearch(page);
   await expect(page).toHaveURL(/category=library/);
-  await expect(page.locator("[data-result-category]")).toHaveCount(1);
+  await expect(page.locator("[data-result-category]")).toHaveCount(3);
   const input = page.getByRole("searchbox");
   await input.fill("国立国会図書館関西館");
   await expect(page).toHaveURL(
