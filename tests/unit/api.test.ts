@@ -1325,6 +1325,7 @@ describe("website search index and row locator", () => {
 
   async function prepared(
     searchIndex: Record<string, unknown>,
+    searchRanking?: Record<string, unknown>,
   ): Promise<string> {
     const manifest = JSON.stringify({
       snapshot,
@@ -1346,6 +1347,7 @@ describe("website search index and row locator", () => {
         url: `/api/datasets/${snapshot}/${"3".repeat(64)}/${file}`,
       })),
       searchIndex: { file: "search-index.br", ...searchIndex },
+      ...(searchRanking ? { searchRanking } : {}),
     });
     const digest = await sha256(manifest);
     const bucket = await runtime.getR2Bucket("DATASETS");
@@ -1418,6 +1420,77 @@ describe("website search index and row locator", () => {
     expect(unbound.status).toBe(503);
     expect((await serve("/api/search-index?snapshot=x")).status).toBe(400);
     expect((await serve("/api/v1/search-index")).status).toBe(404);
+  });
+
+  it("serves an optional snapshot-bound ranking artifact with the index HTTP contract", async () => {
+    const artifact = {
+      file: "search-ranking.br",
+      format: "public-phonebook-search-ranking/1",
+      sha256: indexSha256,
+      bytes: indexBytes.length,
+      uncompressedSha256: createHash("sha256").update(indexText).digest("hex"),
+      uncompressedBytes: new TextEncoder().encode(indexText).length,
+    };
+    const environment = {
+      ...production,
+      DATASET_MANIFEST_SHA256: await prepared(
+        {
+          sha256: indexSha256,
+          bytes: indexBytes.length,
+          uncompressedSha256: artifact.uncompressedSha256,
+          uncompressedBytes: artifact.uncompressedBytes,
+        },
+        artifact,
+      ),
+    };
+    const bucket = await runtime.getR2Bucket("DATASETS");
+    await bucket.put(
+      `${snapshot}/${indexSha256}/search-ranking.br`,
+      indexBytes,
+    );
+    const location = await serve("/api/search-ranking", undefined, environment);
+    expect(location.status).toBe(200);
+    expect(await location.json()).toMatchObject({
+      snapshot,
+      format: artifact.format,
+      url: `/api/search-ranking/${snapshot}/${indexSha256}`,
+    });
+    const url = `/api/search-ranking/${snapshot}/${indexSha256}`;
+    expect((await serve(url, undefined, environment)).status).toBe(406);
+    const response = await serve(
+      url,
+      { headers: { "Accept-Encoding": "br" } },
+      environment,
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Encoding")).toBe("br");
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+      new Uint8Array(indexBytes),
+    );
+    expect(
+      (
+        await serve(
+          url,
+          {
+            headers: {
+              "Accept-Encoding": "br",
+              "If-None-Match": `"${indexSha256}"`,
+            },
+          },
+          environment,
+        )
+      ).status,
+    ).toBe(304);
+    expect(
+      (
+        await serve(
+          `/api/search-ranking/${otherSnapshot}/${indexSha256}`,
+          undefined,
+          environment,
+        )
+      ).status,
+    ).toBe(404);
+    expect((await serve("/api/search-ranking")).status).toBe(503);
   });
 
   it("returns the stored Brotli bytes with immutable validators", async () => {

@@ -34,6 +34,7 @@ const deltaFile = `directory-delta-${"2".repeat(64)}.tsv.br`;
 const files = {
   "contacts.csv.gz": "csv archive",
   "search-index.br": "index bytes",
+  "search-ranking.br": "ranking bytes",
   "directory.sqlite": "database bytes",
   [deltaFile]: "delta bytes",
 };
@@ -51,6 +52,11 @@ const manifest = JSON.stringify({
     file: "search-index.br",
     sha256: digest(files["search-index.br"]),
     bytes: files["search-index.br"].length,
+  },
+  searchRanking: {
+    file: "search-ranking.br",
+    sha256: digest(files["search-ranking.br"]),
+    bytes: files["search-ranking.br"].length,
   },
   deltas: [
     {
@@ -169,6 +175,7 @@ describe("dataset archive writer", () => {
     expect(await writeArchives(bucket, bundle, held)).toEqual([
       `${snapshot}/${digest(files["contacts.csv.gz"])}/contacts.csv.gz`,
       `${snapshot}/${digest(files["search-index.br"])}/search-index.br`,
+      `${snapshot}/${digest(files["search-ranking.br"])}/search-ranking.br`,
       `${snapshot}/${digest(files[deltaFile] ?? "")}/${deltaFile}`,
       `${snapshot}/${manifestSha256}/manifest.json`,
     ]);

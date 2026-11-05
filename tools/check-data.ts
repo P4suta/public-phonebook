@@ -26,11 +26,21 @@ import {
   type Source,
   SourceSchema,
 } from "../src/core/models.ts";
+import { decodeSearchIndex } from "../src/core/search-index.ts";
+import {
+  decodeRankingArtifact,
+  encodeRankingArtifact,
+} from "../src/core/search-ranking-artifact.ts";
 import { searchForm } from "../src/core/search-text.ts";
 import { readGzipArchive } from "./archive-stream.ts";
 import { decodeUtf8, requireDirectoryText } from "./directory-delta.ts";
 import { command } from "./process.ts";
 import { checkRowOrder, readSearchIndex } from "./search-index.ts";
+import {
+  buildRankingArtifact,
+  generateRankingReadings,
+  rankingAliases,
+} from "./search-ranking.ts";
 import { fileDigest } from "./snapshot.ts";
 import {
   stageInputDigest,
@@ -111,6 +121,7 @@ export async function checkDataBundle(
   for (const file of [
     ...manifest.files,
     manifest.searchIndex,
+    ...(manifest.searchRanking ? [manifest.searchRanking] : []),
     ...manifest.deltas,
   ])
     if (
@@ -301,6 +312,32 @@ export async function checkDataBundle(
       manifest.searchIndex.uncompressedSha256 !== sha256Hex(expectedIndex)
     )
       throw new Error("Search index differs from its directory");
+    if (manifest.searchRanking) {
+      const artifact = manifest.searchRanking;
+      const actual = brotliDecompressSync(
+        await readFile(join(directory, artifact.file)),
+        {
+          maxOutputLength: artifact.uncompressedBytes,
+        },
+      );
+      decodeRankingArtifact(actual, manifest.snapshot, manifest.contacts);
+      const index = decodeSearchIndex(expectedIndex);
+      const readings = await generateRankingReadings(
+        index.rows.map((row) => row.name),
+      );
+      const expected = encodeRankingArtifact(
+        buildRankingArtifact(index, readings, await rankingAliases(db)),
+      );
+      if (
+        actual.byteLength !== artifact.uncompressedBytes ||
+        sha256Hex(actual) !== artifact.uncompressedSha256 ||
+        expected.byteLength !== actual.byteLength ||
+        sha256Hex(expected) !== sha256Hex(actual)
+      )
+        throw new Error(
+          "Search ranking differs from its directory and pinned readings",
+        );
+    }
     const integrity = v.parse(
       v.object({ integrity_check: v.literal("ok") }),
       db.prepare("PRAGMA integrity_check").get(),
@@ -313,6 +350,7 @@ export async function checkDataBundle(
         sources: sources.size,
         snapshot: manifest.snapshot,
         searchIndexBytes: manifest.searchIndex.bytes,
+        searchRankingBytes: manifest.searchRanking?.bytes ?? null,
         integrity: integrity.integrity_check,
         forms,
       }),
@@ -347,6 +385,7 @@ export function checkedFileNames(
     "directory.sqlite",
     ...manifest.files.map((file) => file.file),
     manifest.searchIndex.file,
+    ...(manifest.searchRanking ? [manifest.searchRanking.file] : []),
     ...manifest.deltas.map((delta) => delta.file),
   ].sort();
 }

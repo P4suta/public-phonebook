@@ -79,6 +79,7 @@ if (import.meta.main) {
         options.output,
         options.collection,
         [...options.deltaBases, ...rooted],
+        true,
       ),
     ),
   );

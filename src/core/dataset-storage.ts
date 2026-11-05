@@ -16,6 +16,11 @@ import {
   DigestSchema,
 } from "./models.ts";
 import { searchIndexFile, searchIndexLimits } from "./search-index.ts";
+import {
+  rankingArtifactFile,
+  rankingArtifactFormat,
+  rankingArtifactLimits,
+} from "./search-ranking-artifact.ts";
 
 // A year of monthly snapshots; a client further behind downloads the complete archive.
 export const maximumPublishedDeltaBases = 12;
@@ -30,6 +35,18 @@ export const SearchIndexArtifactSchema = v.strictObject({
   bytes: v.pipe(CountSchema, v.maxValue(searchIndexLimits.compressedBytes)),
   uncompressedSha256: DigestSchema,
   uncompressedBytes: CountSchema,
+});
+
+export const SearchRankingArtifactSchema = v.strictObject({
+  file: v.literal(rankingArtifactFile),
+  format: v.literal(rankingArtifactFormat),
+  sha256: DigestSchema,
+  bytes: v.pipe(CountSchema, v.maxValue(rankingArtifactLimits.compressedBytes)),
+  uncompressedSha256: DigestSchema,
+  uncompressedBytes: v.pipe(
+    CountSchema,
+    v.maxValue(rankingArtifactLimits.uncompressedBytes),
+  ),
 });
 
 const DirectoryDeltaEntries = {
@@ -59,6 +76,7 @@ export const PreparedDatasetManifestSchema = v.pipe(
   v.strictObject({
     ...DatasetListingSchema.entries,
     searchIndex: SearchIndexArtifactSchema,
+    searchRanking: v.optional(SearchRankingArtifactSchema),
     deltas: v.optional(
       v.pipe(
         v.array(DirectoryDeltaArtifactSchema),
@@ -197,6 +215,40 @@ export function searchIndexLocation(
     bytes,
     uncompressedSha256,
     uncompressedBytes,
+  });
+}
+
+export const SearchRankingLocationSchema = v.pipe(
+  v.strictObject({
+    snapshot: DigestSchema,
+    format: v.literal(rankingArtifactFormat),
+    url: v.string(),
+    sha256: DigestSchema,
+    bytes: SearchRankingArtifactSchema.entries.bytes,
+    uncompressedSha256: DigestSchema,
+    uncompressedBytes: SearchRankingArtifactSchema.entries.uncompressedBytes,
+  }),
+  v.check(
+    (location) =>
+      location.url ===
+      `/api/search-ranking/${location.snapshot}/${location.sha256}`,
+    "A ranking URL must name its snapshot and digest",
+  ),
+);
+export type SearchRankingLocation = v.InferOutput<
+  typeof SearchRankingLocationSchema
+>;
+
+export function searchRankingLocation(
+  manifest: PreparedDatasetManifest,
+): SearchRankingLocation | undefined {
+  const artifact = manifest.searchRanking;
+  if (!artifact) return undefined;
+  const { file: _file, ...fields } = artifact;
+  return v.parse(SearchRankingLocationSchema, {
+    ...fields,
+    snapshot: manifest.snapshot,
+    url: `/api/search-ranking/${manifest.snapshot}/${artifact.sha256}`,
   });
 }
 

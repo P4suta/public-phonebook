@@ -99,6 +99,7 @@ export async function seedLocalData(
     for (const file of [
       ...manifest.files,
       manifest.searchIndex,
+      ...(manifest.searchRanking ? [manifest.searchRanking] : []),
       ...manifest.deltas,
     ]) {
       await bucket.put(

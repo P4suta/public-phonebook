@@ -175,6 +175,16 @@ The response carries the digest as a strong ETag, answers a matching `If-None-Ma
 Its `Content-Type` is `application/octet-stream`, because the decoded index mixes UTF-8 lines with binary category and region parts.
 Check the decoded length, the decoded SHA-256, the format line, and the header snapshot before using the index.
 
+### Device ranking artifact
+
+`GET /api/search-ranking` discovers the optional `public-phonebook-search-ranking/1` artifact.
+Its response declares `format`, `snapshot`, the immutable `url`, and compressed and decoded byte sizes and SHA-256 digests.
+`GET /api/search-ranking/{snapshot}/{sha256}` follows the search index's Brotli, validator, same-origin, and current-snapshot rules.
+A snapshot without the companion returns 503 from discovery.
+The artifact supplements `search-index.br` and uses the same 0-based row positions.
+Consumers must verify both decoded digests and admit only a matching snapshot and contact count.
+The [artifact decision](adr/publish-snapshot-bound-forgiving-search-artifacts.md) defines its byte format and generator.
+
 ### Locate a contact by index row
 
 `GET /api/contacts/row/{snapshot}/{row}` returns `{ "id": "…" }` for a 0-based row of that snapshot's search index.
