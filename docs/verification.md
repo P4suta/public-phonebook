@@ -396,6 +396,13 @@ A read that fails with `EADDRNOTAVAIL` therefore waits a second and runs again, 
 It also requires two controls to differ: previews with their first two rows swapped, and an index whose adjacent same-name rows with different details are swapped.
 It writes `.local/search-parity.json`.
 
+The candidate `parity` stage also runs the [national ranking-quality gate](search-ranking.md#search-quality-at-the-release-gate).
+Run `mise x -- node tools/search-ranking-contract.ts quality BUNDLE .local/search-quality.json` to evaluate the eight committed populations without seeding local D1 or building the client.
+Every population must preserve its declared size and meet the frozen top-1, top-3, and top-10 counts.
+The report binds its verdict to the corpus manifest, candidate snapshot, and both decoded artifact digests.
+The candidate workflow retains the report with the parity and performance evidence.
+Small deterministic fixtures and a source-translated threshold proof check the gate without putting national data or morphology in the fast pull-request checks.
+
 Run `mise x -- node tools/search-performance.ts BUNDLE` with the build and the seeded state to record the device search's performance in `.local/search-performance.json`.
 It serves the build like the browser campaign, and runs Chromium with 4x CPU throttling, desktop WebKit, and the iPhone 13 profile.
 It records the transferred index bytes, the time until the index is ready, and the p50 and p95 of the Worker's search round trip for 40 queries.

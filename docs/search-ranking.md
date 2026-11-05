@@ -65,3 +65,46 @@ The proof gate binds actual policy sources, their generated Dafny models, expect
 Independent BigInt checks cover every integer preference score and seeded Dice boundaries.
 Unicode normalization, object traversal, candidate retrieval, and sorting have native checks rather than an unbounded theorem over all JavaScript strings.
 The arithmetic proofs don't certify benchmark target labels or a person's intended reading.
+
+## Search quality at the release gate
+
+`tests/fixtures/search-quality/manifest.json` fixes eight evaluation populations and their top-1, top-3, and top-10 thresholds.
+The corpus retains 11,174 query records from the curated sets, both blind sets, and the original synthetic test splits.
+The corpus excludes training records.
+The committed JSON Lines files preserve the research records and audit fields in their original order.
+The manifest records source and filtered-file digests, the frozen scorer and report digests, and the original national name-table identity.
+`targets.json` binds the research rowids to 10,067 stable contact IDs.
+Evaluation resolves those identities in the candidate database and verifies that its row order matches the candidate search index.
+A missing target fails the campaign instead of reducing its denominator.
+Changing an evaluation population or target requires reviewed corpus maintenance.
+
+```sh
+mise x -- node tools/search-ranking-contract.ts quality BUNDLE .local/search-quality.json
+```
+
+The command verifies the corpus and both snapshot artifacts before evaluating the production scorer.
+A query succeeds at a cutoff when any declared acceptable target appears within that cutoff.
+Every query contributes to the denominator, including queries with no hits.
+Each population must keep its declared size and meet all three thresholds.
+Improvements in one population or cutoff can't offset a regression elsewhere.
+The JSON report binds the corpus, candidate snapshot, and decoded artifact digests to the measured counts and verdict.
+
+The existing candidate `parity` stage runs the quality command after device/server parity and before recording a passing receipt.
+The candidate workflow retains the quality report with its other search reports.
+The fast gate runs small metric, corruption, target-resolution, split-admission, and regression-control fixtures without loading the national corpus or analyzer.
+The source-translated `qualityPasses` proof establishes the threshold decision over its declared integer domain, and a relaxed top-1 threshold must fail verification.
+The native tests keep an empty ranker as a regression control.
+
+The independent blind population retains minima of 443, 489, and 520 successes among 564 queries.
+Those counts correspond to 78.55% top-1, 86.70% top-3, and 92.20% top-10.
+The first blind set is development evidence because its results informed the place policy.
+The retained sets measure regression on fixed labels.
+They don't estimate production traffic or establish a person's intended result.
+Corpus maintenance must preserve that distinction and must not derive lower minima from a regressed implementation.
+
+The one-time import command verifies the frozen research inputs and reports before copying their evaluation splits and baseline counts.
+It requires a fresh output directory and leaves existing files intact.
+
+```sh
+mise x -- node tools/search-ranking-contract.ts import-quality BUNDLE OUTPUT LABORATORY
+```

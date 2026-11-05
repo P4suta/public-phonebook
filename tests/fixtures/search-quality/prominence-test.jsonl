@@ -1,0 +1,1346 @@
+{"query":"五輪橋店 のるでん薬局","targets":[258891],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"あかね苑 特別養護老人ほ-む","targets":[543926],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"立図書館","targets":[436709],"kind":"region_drop","source":"synthetic","split":"test"}
+{"query":"株式大会社えはららいふめでぃかる","targets":[518599],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"菅病院 医療法人社団","targets":[386431,386432,386433,393482],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"井野せんた-託児室 古河やくると販売株式会社","targets":[402914],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"新世薬局田店井","targets":[488900],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"相談支援事業所かひみこうき","targets":[570267],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"認知症対応型共ほ-むまつおか","targets":[635075],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"医療法人社橋内科医院","targets":[391307],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"ともはらでた-永犬丸","targets":[93286],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"後京薬局楠町店","targets":[474186],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"訪問看護すて福しょんすまいるけあ","targets":[626029,626030],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"重症心身障がい児特化型でlino(はぴねすりの)","targets":[644356],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"短期入所生活介護 志木の里","targets":[475646],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"あ-みご","targets":[154043,154044,154045,154046],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"さに-すぽ阪っと山鼻共同生活援助事業所","targets":[210342],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"わ-くさ大-と","targets":[306236],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"たけばや歯し科医院","targets":[83896],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"大月警察署道東警察官駐在所","targets":[423771],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"医療法人島胃腸科","targets":[361918],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"あかかべ薬局大崎参道店","targets":[149824],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"西町歯科くりにくっ","targets":[613470],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"はろ-わ-焼く津","targets":[261408],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"障がい者ぐる-ぷほ-むheartpl京ce新今里","targets":[652601],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"祉いん薬局朝霞青葉台店","targets":[148689],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"くお-る東局湯河原店","targets":[172196],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"相談さぽ-と","targets":[565182],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"えすか-る在宅介護支阪援せんた-","targets":[162710],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"けあ名駅","targets":[204091,204092],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"飯岡成形外科ひふ科","targets":[659388],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"しぇり訪館問介護すて-しょん","targets":[214506],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ts","targets":[17727],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"児童発達支事業所まりん","targets":[345930],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"医院 藤谷","targets":[610021],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"大崎中央へるぱ-すて-しょん 大崎市社会福祉協議会","targets":[423165,423166,423167],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"でいさ-び園せんた-旭け丘","targets":[245286],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"くりにっく 光が丘眼科","targets":[341949],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"特別お養護老人ほ-む眺峰園","targets":[551970],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"若葉会 つづき病院 医療法人社団","targets":[386340],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"葵け丘こど東園","targets":[606433],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"笛荘吹短期入所生活介護事業所","targets":[591004],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"佐世保市福黒島小中学校","targets":[337198],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"ふじみ野市福岡河岸記念館","targets":[115273],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"社会福祉法人山の内町社会福祉協議会就労継続支京援事業所ももの木","targets":[581647],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ゆめの園りあん若葉特別養祉老人ほ-む","targets":[139926],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"福みやこ町役場","targets":[129434],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"医療法人茜会でいさ-びす白大台","targets":[395284],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"けあ館ぷらんせんた-戎","targets":[201876],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"一心苑 特別養護老人ほ-む","targets":[545805],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"喜多方警察署熱塩加京駐在所","targets":[409446],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"りはめいとoberegain","targets":[301528],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"えすか-る在宅介護支阪せんた-","targets":[162710],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"宅粋庵でさ-びすせんた-","targets":[431843],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"公済会問訪看護すて-しょんやまびこ","targets":[347755],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"株式社えはららいふめでぃかる","targets":[518599],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"あ宅介護支援事業所ある・そ-れ","targets":[453834],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"あかすが苑身体障害者ほ-むへるぱ-事業部","targets":[47085],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"わかば薬局打店田","targets":[145288],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"大ぐる-ぷほ-むれがろ西岡","targets":[188276],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"工芸高等学校 名古屋市立","targets":[406310],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"こんふぉ-たぶる・ぷらす南中丸 でいさ-びすせんた-","targets":[240523],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"かがく都訪問看護すて-しょん荒川","targets":[167725],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"児院童発達支援・放課後等でいさ-びすあい・きっず志真志","targets":[345499],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"東院","targets":[509798],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"医療法人社団歯科矯正歯科","targets":[386128],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"りはびり特化型てぃぶすたじお","targets":[301164],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"自立生活せんた-松山 特定非営利活動法人","targets":[553693,553694,553695,554387],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"へるぱ事-業所えい","targets":[283033],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"さん・らいふ訪問看福護すて-しょん","targets":[213855],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ふじのく護医療院","targets":[115116,115117],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"歯科くりにっく 江俣ささはら","targets":[531420],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"特別養護老町いずみ苑","targets":[546375],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"共生型さ園-びするりちゃん家","targets":[350036,350037],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"うとう大野店","targets":[38823],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"you愛障がい者相福談支援せんた-","targets":[19444],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"小学校 大津町立室","targets":[424876],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"ぐらんす ぐる-ぷほ-む","targets":[177665],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"松歯会 松本歯科医院 医療法人","targets":[363253],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"ふれあいの桜 介護老人保健施設","targets":[329855,332236],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"人ほ-むちえろ 介護付有料老","targets":[327958],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"北大東祉村消防団(北大東村役場総務課)","targets":[355266],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"出雲市立窪所田保育所","targets":[351495],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"桑く名りにっく","targets":[522033],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"蘇生会合総病院","targets":[610119,610120,610121],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"すまいるきっずいじ園の","targets":[78321,78322],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"病院 新居浜協立","targets":[489572,489573],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"療法人社団仁風会比企病院","targets":[389262,389263],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"医療法人団朝日歯科診療所","targets":[383123],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"西宮北名次店 うえるしあ薬局","targets":[160748],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"le在宅・施設訪問看護りはびりすて館しょん平尾本店","targets":[9990],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"ぐる-ぷほ-むしろうね","targets":[183812],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"けい21河内松原","targets":[192722,192723],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"居宅介護支援業所なな","targets":[456110],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"よごうにっく","targets":[140852],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"sore","targets":[16835],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"就労継続支援b事型業所心のとも作業所","targets":[450239],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"薬局鹿島台店 仙台調剤","targets":[334564],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"けありっつ石神井市公園","targets":[204340,204341],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"妻沼つく作し業所","targets":[430422],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"整形外科 内田宙司","targets":[350749],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"星川育園","targets":[495593],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"橋本会橋本歯科医院","targets":[383845],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"ゔぃれおぢたんぽぽ","targets":[307446],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"はんがい歯医院","targets":[106702],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"b型就労支援事業juju","targets":[3053],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"にほいず","targets":[119388],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"大阪心療内科うっく大阪梅田院","targets":[427456],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"小竹立町病院","targets":[442032],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"-む大空ii ぐる-ぷほ","targets":[189135],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"合同会社雅久十すまいるあけ","targets":[403697],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"西東京祉市医師会訪問看護すて-しょん","targets":[613011],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"一般社団人せかんどくりにっくぷらす本八幡","targets":[308480],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ひびきけあらぷん","targets":[110468],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"にしま調ち剤薬局","targets":[99752],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"litalicoわお-くす那覇","targets":[10854],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"泉寿の里へるぱ-すて-しょ所ん","targets":[534252],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"多機能型事業所祉た-と","targets":[419354],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"株式会社けあてっく青森営業所","targets":[519023],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"のなみにっく","targets":[102231],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"小竹町病院","targets":[442032],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"介護医療院和藤枝病院","targets":[328555],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"くりにっく・大ぱ-く久米川","targets":[174264],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"横須賀立野比小学校","targets":[527521],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"医療法人社団あんざい整形外科りくにっく","targets":[376253],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"らいとはうす朱雀 介護老人福祉施設","targets":[333742],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"長浜病院","targets":[649123,649124],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"糸満てぃんさぐの家","targets":[521220,521221],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"科くりにっく あい訪問歯","targets":[22001],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"はろ-わ-く飯田支援せんた-内)","targets":[261851],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"ぐる-ana","targets":[181330,181331,181332,181333],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"医院 及川","targets":[402026,402027,402042],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"しょ-とすていえく","targets":[216267],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"空知お中央病院保育所","targets":[589609],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"恒春の郷指定短期所生活介護事業","targets":[475999],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"福祉用具貸与事業所くおりてぃ-いらいず","targets":[587785],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"護老人保健施設東海","targets":[331081],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"千早はにっく","targets":[397859],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"久駅前くりにっく","targets":[319998],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"医法療人社団林悟会りんごくりにっく","targets":[383508],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"学居宅介護支援せんた-紫雲","targets":[452248],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"樽川でいさ-びすせんた都四季彩館","targets":[527732],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"えすけあすて居宅介護支援","targets":[162738],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"阪神調剤局泉大津店","targets":[650922],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"未来ふぃる-ど","targets":[504295],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"らいぶらり東大宮二番区館","targets":[297013],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"介護支援事業所 さんさん居宅","targets":[72064],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"npo法人らいふけあ王寺奈祉良事務所","targets":[12958],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"りあ区んめぞん","targets":[298266],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"とい阪ろ保育園?熊之庄園?","targets":[91593],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ぐり祉んふぃ-るど居宅介護支援事業所","targets":[176601],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"辻本くりにっく 医療法人","targets":[366027],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"どぐんり学園河南校","targets":[94292],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"木の実歯科くりにっく 医療法人社団","targets":[383131],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"軽費老人ほ-けむあはうす忠和","targets":[639991],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"和田小児科医","targets":[408587,408588],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"そが薬局都町店","targets":[81051],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"医療法人喜心会丸都山くりにっく","targets":[360830],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"医療法人社団いとうわんぱくくりっく","targets":[388142],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"くらじわ-くせん区た-","targets":[55448],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"介護付有料老しき仲間たち","targets":[327298],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"奈良幼稚園","targets":[429688],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"市男女共同参画せんた-図書情報室","targets":[323772],"kind":"region_drop","source":"synthetic","split":"test"}
+{"query":"おぐにさてらいと療診所","targets":[43288],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"ぐる-ぷほ-む学るじ渋川たやの家","targets":[188068],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"こ館ぶ学園","targets":[58823],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"休日夜間急病診療所","targets":[433128],"kind":"region_drop","source":"synthetic","split":"test"}
+{"query":"aliv区io","targets":[1537,1538],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"さぶりくりにくっ","targets":[70958],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"きぬた耳鼻咽喉科・あれぎる-科","targets":[52171],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"株式会社糸満てんぃさぐの家","targets":[521220,521221],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"児童発達支祉援事業所まりん","targets":[345930],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"医療法人清心るくりにっく","targets":[364123],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"小学校 総社市立清音","targets":[595451],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"暁明館訪問看護すて-しょ","targets":[496983],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"りあぞん","targets":[298266],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"療医法人社団仁風会比企病院","targets":[389262,389263],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"介護福いろいろ相談処福よか","targets":[325093],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"浜赤十字病院","targets":[649123,649124],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"介護すて-しょん すみれ","targets":[78866,78867],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"花物語ま館いた","targets":[602460],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"たなかこ市もくりにっく","targets":[84592],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"おりん式会社","targets":[166090],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"逗子福-く・ゔぃら","targets":[640890],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"多機能型業所すまいるりは・文京","targets":[419129],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"放課後等でいさ-びすaika","targets":[486101],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"川崎宮前平とくえ内科循環器内科くりにく","targets":[465788],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"藤井記い小西くりにっく","targets":[608975],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"株式会社す館れしんしあべる調剤薬局","targets":[518000],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"童相談所 富士児","targets":[436875],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"有限社くろ-ば-薬局","targets":[498626],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"大浦薬局","targets":[424957],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"特別養護福老人ほ-む宗玉園","targets":[546317],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"大宝か保育園","targets":[422573],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"きぬた耳鼻れるぎ-科","targets":[52171],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"瑠璃光薬局見氷店","targets":[556368],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"就労継続支援b院事業所心のとも作業所","targets":[450239],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"福島市子どもの夢を育む施設こむ園む館","targets":[585996],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"jn門真","targets":[8557,8558,8559],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"特別養護老人が-でん越谷","targets":[549749],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"健や俣店","targets":[340735],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"南草津だいき歯阪・矯正歯科","targets":[400522],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"ょんくりにっく 博多すて-し","targets":[401038],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"訪問す-しょん秋桜","targets":[614738],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"田坂歯にっく","targets":[559752],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"介護支援事業所 はまなす苑氷見居宅","targets":[105522],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"中学校 佐世保市立黒島小","targets":[337198],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"別養護老人ほ-む錦織荘","targets":[547696],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"健老ふらの訪問看護すて-しょん","targets":[598561],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"けあぷらふるさと","targets":[200915,200916],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"けあぷらんせんた-こかこら王寺町","targets":[200394],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"お別養護老人ほ-む和楽苑","targets":[546121],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"大村市んた-","targets":[423880,423881],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"とまと 薬局","targets":[607630],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"alivoi","targets":[1537,1538],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"でいさ-びすせんた-東ばんぶ-","targets":[244482],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"socialsquare秋田前駅","targets":[15690],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"う療法人社団喜友会喜久井町歯科","targets":[380169],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"消費生活せんた-","targets":[401231],"kind":"region_drop","source":"synthetic","split":"test"}
+{"query":"指定障害者支施援設はまなす荘","targets":[482726],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"りはびりすたじおあさかわ湯村すたじ所お","targets":[299584],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"働基準監督署福島","targets":[354077],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"安来市立安来保育い","targets":[433432],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"さんこ-調剤薬局","targets":[608657],"kind":"region_drop","source":"synthetic","split":"test"}
+{"query":"純輝会酒井医院","targets":[394655,394656],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"さおくら薬局森店","targets":[68918],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"湯郷","targets":[540796],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"横須賀立市野比小学校","targets":[527521],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"かすが化教室","targets":[167828],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"児童でいさ-びすみか院ち","targets":[342963],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"医療法人茜会でいさ-びす白台","targets":[395284],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"陽だまりの区診療所","targets":[651807],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"宅粋庵でせんた-","targets":[431843],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"三河安城 yくま-ず未来","targets":[19525],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"かさぶらんか定期巡回館訪問介護すて-しょん","targets":[167773],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ぐる-ぷほ-むか-はもにか","targets":[187415],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"え-る調山羽黒店","targets":[165222],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"pcicolopasso","targets":[13965],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"りにっく ひらきく","targets":[112423,112424],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"いんべ杉児科医院","targets":[37599],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"りはぷれすいgen.","targets":[301518],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"医法療人なかの歯科くりにっく","targets":[358336],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"神奈川県立平塚お等教育学校","targets":[583546],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"熊眼科","targets":[475768],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"友石医院","targets":[402300],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"ふない所り脳くりにっく","targets":[115918],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ぷ所れじゃ-","targets":[273703,273704,273705],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"赤司館歯科医院","targets":[638893],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"介護支援事業所 合同会社一二三ぶらいと居宅","targets":[404097],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"りにっく 岡の内く","targets":[461740],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"院しまる皮ふ科","targets":[33808],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"でいさ-びすせんた-るぱ","targets":[242991],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"恒春の郷指活介護事業","targets":[475999],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"介護ふわり 生活","targets":[557277],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"久駅保前くりにっく","targets":[319998],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"とよはし-まし-","targets":[93598],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"たかし調剤薬院局","targets":[227774],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"高森寮一い相談支援事業所","targets":[662318],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"阿部眼科診療所","targets":[393954],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"すい-と歯科りくにっく","targets":[219642],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"さ-る・な-とかたのでい区-びすせんた-","targets":[214272],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"村松けあぷらんせんた","targets":[507004],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"盛岡東警察署乙駐在所","targets":[564327],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"宮島所整形外科くりにっく","targets":[435688],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"居宅介護支援こえんぱす","targets":[452072],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"もあな歯科くりにっく竹のい医院","targets":[292397],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"救世軍恵みの福家","targets":[488000],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"機能訓練でいさ-びすばつさ","targets":[528110],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"三郷(訪問介護) どっと365","targets":[251515,251536],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"さ-びすせんた- 和合愛光園でい","targets":[408012,408013,408014,408015],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"小竹立病院","targets":[442032],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"南橋本歯科第二くりにっく 医療法人大館会","targets":[371256],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"障がい者ぐる-ぷほ-むheartplcae新今里","targets":[652601],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"稲津も園","targets":[589261],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"ひらきくりっく","targets":[112423,112424],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ね内科 ながみ","targets":[96107],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"訪問介護すて-しょんけあり市岩手一関","targets":[619944],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"都学療法士のでいさ-びすpep","targets":[556076],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"安曇野高橋郎記念美術館","targets":[433402],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"な東みね内科","targets":[96107],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"福岡あ警察本部","targets":[585848],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"avant-gared","targets":[2343],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"こころびす優","targets":[59702],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"梅医田院","targets":[523213,523214,523215],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"泉寿の里へるぱ-すて-しょ所","targets":[534252],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"せんとうまざ-産婦人科医院","targets":[226263],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"認定こども園ひがし幼稚園ひがし保育お園","targets":[633359],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"けあぷらんせんた所-みはら","targets":[201035,201036],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"あくたがわは祉-とふるほ-む加島","targets":[150444],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"井土け谷科眼","targets":[322714],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"わ所わくほ-む","targets":[145689,145690,145691,145692,145693],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"医療法人社団ぷれぜんす渋谷はぷす歯科","targets":[388824],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"栗原肛門科お院","targets":[515685],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"吉祥寺むらかみ歯科くりにっ","targets":[405493],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"へぱ-すて-しょんみ-る","targets":[279732],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"大崎市社会福祉協議会大崎中央へ区ぱ-すて-しょん","targets":[423165,423166,423167],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"oa「のあ」6","targets":[12472],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"図書館駅前分室こども絵本の森 弘前市立弘前","targets":[473484],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"くまの内くりにっく","targets":[55129],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"roselleclubr(祉-ぜるくらぶあ-る)","targets":[14807,14808],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"名古屋市立工芸高等校学","targets":[406310],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"宅粋庵でさい-びすせんた-","targets":[431843],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"すてっぷぱ園-とな-東村山","targets":[222114],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"村松けあぷらんせんた阪-","targets":[507004],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"薬局 藍住さんこ-調剤","targets":[608657],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"科くりにっく 石川内科胃腸","targets":[576822],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"picnic pal","targets":[13788],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"調剤祉薬局きたおか宮後店","targets":[635665],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"各務原市蘇原こみゅにてぃ大せんた-","targets":[403512],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"各務原市立稲羽西学小校","targets":[403497],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"にちいけあせんた-当京知","targets":[256167,256168],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"蘇生会合病院","targets":[610119,610120,610121],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"館ちょっく","targets":[169253],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"い-けあす阪まいる","targets":[158339],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ぐる京ぷほ-むそよかぜ館あねっくす","targets":[184038],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"でいさ-びす しんしあ港","targets":[218414],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"か福おか作業所","targets":[49103],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"医療法人社団あんず会いしい内科くりっにく","targets":[376255],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"喜多方警察署熱塩加京納駐在所","targets":[409446],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"新宮も園","targets":[489283],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"おぐらえ薬局新北島店","targets":[43340],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"なるみやは-とくりにくっ","targets":[98682],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"npo法人らいふけあ王寺奈事務所","targets":[12958],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"あざ歯科","targets":[26750],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"保育園 みどりご","targets":[127075],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"医療法人吉田科内くりにっく","targets":[360649],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"介護医療院あ和藤枝病院","targets":[328555],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"藤剛熙美術館","targets":[642694],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"そ局","targets":[81194],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"署須田尾交番 佐世保警察","targets":[337223],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"le在宅・施設訪-しょん平尾本店","targets":[9990],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"宇宿医","targets":[432231],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"南東北日和田ほ-む区へるぱ-すて-しょん","targets":[399973],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"くりにっく久米川","targets":[174264],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"ほず","targets":[119388],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"あ-すさぽ-と函館亀港町","targets":[156051],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"放課後等でいさ-所すきっずわんは-と","targets":[485261],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"ここからふぁいん薬局西新中央学店","targets":[206028],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"山う手保育所","targets":[459643,459644],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"業所さくら共同作業所 就労継続支援b型事","targets":[449801],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"紫雲 居宅介護支援せんた-","targets":[452248],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"さんき・うえあびぃ介護せんた-三次","targets":[212095,212096],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"ありがとうえん こんにちは・","targets":[64614],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"森けさあ-びす","targets":[523700,523701],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"でいさ-びすび-ふ都ぃっと袋井","targets":[234709],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"日出谷保育所","targets":[522971],"kind":"region_drop","source":"synthetic","split":"test"}
+{"query":"ぐる-暘谷苑","targets":[189867],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"い成内科くりにっく","targets":[467449],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"社会福祉法人斜里社会福祉協議会ほ-むへるぱ-すて-しょん","targets":[580000,582010],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"こすもす区日市","targets":[206615],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"訪問看護すて-しうょんちゃ-む","targets":[630082],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"sieonskogomi","targets":[15381],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"su市.さん保育園","targets":[17233],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"う療法人社団仁風会比企病院","targets":[389262,389263],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"座間市座立間小学校","targets":[473060],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"座間市座間小学校","targets":[473060],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"祉藤剛熙美術館","targets":[642694],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"医療法人社団ぷらす高円寺","targets":[376163],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"でいさ-丹原の郷","targets":[244550],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"こども園 たかはら","targets":[83001],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"川中幼稚園 下関市立","targets":[314774],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"うぇる京すあしすと神松寺","targets":[159260],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"しょんふたばの里 へる-ぱ-すて-","targets":[118013],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"【企業主導型保育事業】うめはなきっ祉ずypc保育園阪神西宮駅前","targets":[19833],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"医療法人(社団)有恵会香里け丘有恵病会院香里け丘有恵会保育所","targets":[366672],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"すくるどえんじぇる保育園殿御場西田中園","targets":[221501],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"栗原肛門科院医","targets":[515685],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"放課後等でいさ-びす市ewlife","targets":[483869],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"せんた-西新 にちいけあ","targets":[257472,257473],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"志都も園","targets":[475851],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"星川もえぎ保育","targets":[495593],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"くりにっく 富士見歯科","targets":[437200],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"大阪外国人雇い用さ-びすせんた-","targets":[426897],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ぐるぷほ-むこうなん","targets":[183275],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"青葉会い-りすうぃめんずくりにっくありす","targets":[366386],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"なごみう明保育園","targets":[96713],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"医療法人社団弘整会松岡整形外科くりに区く","targets":[381583],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"あっぷるきっず葉台","targets":[29089],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"茅野市消防団(茅阪市消防課)","targets":[603971],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"あい薬局座間あ前本店","targets":[21938],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"居介宅護支援事業所はっぴ-らいふ","targets":[457067],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"りはびりでいさ-びすり・はかわい","targets":[300096],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"やまがた新福応援はろ-わ-く","targets":[136524],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"いけだなおき科医院","targets":[33130],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"在宅医療ろ-たす名古屋院","targets":[412381],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"居宅介んぱす","targets":[452072],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"たまがわいんた-なしょあるぷりすく-る","targets":[228252],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"医療法人う団誠徳会わたらせ在宅診療所","targets":[393688],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"森けおあさ-びす","targets":[523700,523701],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ちから阪局","targets":[229005],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"ふるり所る甲府みんなのくりにっく","targets":[271160],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"伊平屋資料館","targets":[335469],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"孝明豊科館 短期入所生活介護","targets":[575522],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"けあぷらんせんた-て東るてる","targets":[199575],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"な-すすて-福ょんいきいきけあ","targets":[253565],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"らどっぐせいむす神田小川町薬局","targets":[251832],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"いけだなおき区科医院","targets":[33130],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"で市さ-びす智温苑","targets":[247909],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"株式会社する調剤薬局","targets":[518000],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"恒春の郷指定短期福入所生活介護事業","targets":[475999],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"生活支援たぼうし","targets":[558463,558469],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"すぐ調剤局","targets":[76499],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"あおぞら園陽明保育園","targets":[23392],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"銀河の詩でいさ-びせすんた-","targets":[647390],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"粉河本京薬局","targets":[593605],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"む西之川原の郷 小規模特養ほ-","targets":[445682],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"末沢館院","targets":[504462],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"第一いず","targets":[591798],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"みらいふるほ-むな-すさ市-びす八戸","targets":[290745],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"医療法人清樹会知多さざんく学にっく","targets":[375038],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"特別養護老人ほ-む藤苑","targets":[547585,552431],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"児童発達支援事業所ぶ都んぐ音更","targets":[345922],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"ぐる-ぷほむたのうらそう","targets":[178032],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"あまぎども園","targets":[29841],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"してぃでんたおふぃす","targets":[214732],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"医療法人幸愛すくりにっく","targets":[362051],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"悠風の野々市","targets":[476537],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"さいたま市福費生活総合せんた-","targets":[65253],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"あやくると金沢西保育所","targets":[292993],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"薬局 株式会社おおぞら","targets":[517839],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"よしか市眼科","targets":[140952],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"つくい野中央","targets":[230643],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"上矢部育保園","targets":[313515],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"けあほ-む「でぃあ・れすと東三次」","targets":[202963],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"たかし調剤局薬","targets":[227774],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"訪問りはびりて-しょんとまち","targets":[614906],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ぐる-ぷほ-えふび-前橋下小出","targets":[187324],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"やよい生活4寮","targets":[137777],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"診療所 まきの越川","targets":[121605],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"けあせんた-つどい足入立谷","targets":[196504],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"調剤薬局つる大はどらっぐ大館中道店","targets":[635895],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"医療法人大館会南橋本歯科第二くりにっ福","targets":[371256],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"あ大村市療育支援せんた-","targets":[423880,423881],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"訪問看護すてしょんすまいるけあ","targets":[626029,626030],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"東条院医","targets":[509798],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"じゃ- ぷれ","targets":[273703,273704,273705],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"袖け浦でんた大くりにっく","targets":[610943],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"名古屋市工芸高等学校","targets":[406310],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"医療法人社団徳誠会自由が丘み-ゅずすくえあ徳誠会歯科・矯正歯科","targets":[390973],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"塩野い歯科医院","targets":[417431,417432,417433],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"しょ-とすていさ-びすすて","targets":[217082],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ghぷりん","targets":[6039],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"まざ-けあて-しょん","targets":[288297],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"roselleclubr(-ぜるくらぶあ-る)","targets":[14807,14808],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"訪問看護すわっしょい","targets":[629746],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"特別養護老人ほ-東むおきなの杜","targets":[544121,544122],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"み局","targets":[129079,129080],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"ころん調剤薬局屋島西店","targets":[206300],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"富士美会東日暮里歯科医院","targets":[380812],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"大お宝かなりや保育園","targets":[422573],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"けあせんた-つどい足都入谷","targets":[196504],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"はろ-わ-く飯田地方就職支援こ-な-交通会館分室","targets":[261852],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"渡辺病院通所りはびりて-しょん","targets":[364798],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"静岡市梅け島高齢者生活京祉せんた-","targets":[657909],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"仙台立芦口小学校","targets":[334439],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"指定特定相談支援事業所 嶺岡園","targets":[464949],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"そまの局薬","targets":[81194],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"あすとろいのべ-しょん淀屋橋くあとろあ-るくりにっく","targets":[358870],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"滋賀琵琶湖環境科学研究せんた-環境情報室","targets":[541290],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ども園 稲津こ","targets":[589261],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"茅野市消防団(茅市消防課)","targets":[603971],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ふぃすか-む けあぷらんお","targets":[199190],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"おうじ訪問看護すて-し大ょん","targets":[40758],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"水前こ寺ころのくりにっく","targets":[530134],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"けあ・てっく青森営業所","targets":[519023],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"くお-る東薬局湯河原店","targets":[172196],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"護老人保健施設わさだけあせんた-","targets":[332405],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ぐる-ぷ-ほむ共生の里小城","targets":[188684],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"馬群北保育園","targets":[597045],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"ささえるあ訪問看護すて-しょん","targets":[69544],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"稲津こもど園","targets":[589261],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"小規模多機能ほむどり-む","targets":[443120,443121],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"医療人法桂信会羽原病院","targets":[374292],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"う居宅介護支援事業所新得やすらぎ荘","targets":[454591],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"すい-と歯科所りにっく","targets":[219642],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"晄風でいさ-びすみのり","targets":[496769],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"らいふ","targets":[93657],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"相談支援せんた東-sai","targets":[566188],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"特別養護老人-ほむ五訓の森","targets":[550304],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"医東法人なかの歯科くりにっく","targets":[358336],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"診療所 京丹後市国民健康保険直営宇川","targets":[323077,323078,323079],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"thed","targets":[17727],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"志木の里生活介護","targets":[475646],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"とい保ろ育園?熊之庄園?","targets":[91593],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"祉遠藤剛熙美術館","targets":[642694],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"古平町社京居宅介護支援事業所","targets":[402800],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"うえしるあ薬局西宮北名次店","targets":[160748],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"社会福祉法人京都市社らけあぷらんせんた-","targets":[579528],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"みつわ相談室","targets":[126894],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"清院","targets":[538022,538023,538024],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"重症心身障がい児特化型でい-さびすhappinesslino(はぴねすりの)","targets":[644356],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"国民健康保険直営宇川診療所","targets":[323077,323078,323079],"kind":"region_drop","source":"synthetic","split":"test"}
+{"query":"瑠璃光薬局大氷見店","targets":[556368],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"三島察署中郷交番","targets":[310556],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"訪問介護事業館え-る富山黒崎","targets":[623450],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"らいふ望の家","targets":[296420],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"わんらいと 有限会社","targets":[499122],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"医療法人外科医院","targets":[364229],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"及東医院","targets":[402026,402027,402042],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"けあぷらんせんたみ-はら","targets":[201035,201036],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"なんば薬品株式会社柏林支店","targets":[253228],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"真珠けあぷらんせんた","targets":[573415],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"薬局くすりの福太郎らぽら-とtokyo-bay店","targets":[607143],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"かぬま泌尿科くりにっく","targets":[48301],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"けあさ-すびおりづる","targets":[194194,194340],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"ぐる-東ぷほ-む保戸野","targets":[188613],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"likepot山基","targets":[10257,10258],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"へるぱ-すてし-ょん福宝","targets":[276345],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"護すて-しょん 暁明館訪問看","targets":[496983],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"さん豊浦せんた-","targets":[214086],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"きらっと保育園","targets":[432886],"kind":"region_drop","source":"synthetic","split":"test"}
+{"query":"吉樹でんたるくにりっく","targets":[404984],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"富士見にっく","targets":[437200],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"成市内科くりにっく","targets":[467449],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"くわは区小児科","targets":[56518],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"特別養護老人ほ-む東かな都ち桜園","targets":[551395],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"こやの皮ふ科 医療法人社団創健会","targets":[389714],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"暁明館訪問看護すて-しょ館","targets":[496983],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"医療法大人吉永歯科医院","targets":[360642,360643],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"静岡市梅け祉せんた-","targets":[657909],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"ぐる-ぷ-む共生の里小城","targets":[188684],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"おおなり歯科くにりっく","targets":[41899],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"社会福祉法福祉協議会","targets":[581363],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"りはびりでいさ-びすかたるぐま","targets":[300299],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"はうでぃあ-","targets":[259217],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"介護支援事業所 藤沢市保健医療せんた-居宅","targets":[609664],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"もあな歯科竹の塚医院","targets":[292397],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"交野市立青年の家都書室","targets":[323033],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"佐賀県京育支援せんた-春日園","targets":[338498],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"南山城村区化会館","targets":[399646],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"はろ-けあ居宅介護京て-しょん","targets":[260982],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"そんぽの家横浜福港南台","targets":[81854],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"なる作業所","targets":[98685,98686],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"横院市立元街小学校","targets":[526602],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"琵琶湖環境科学研究せんた-環境情報室","targets":[541290],"kind":"region_drop","source":"synthetic","split":"test"}
+{"query":"はろ-わ-く飯田東地方就職支援こ-な-交通会館分室","targets":[261852],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"にこ古り市","targets":[253819],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"はてぃ薬局北品川店","targets":[262158],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"西橋新皮ふ科","targets":[612628],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"古河やくると販売株式会社井野んた-託児室","targets":[402914],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"訪問看護すて京-しょんおはな","targets":[625853,625854,625855,625856,627848,627849,627850,629858,629859,629860,629861],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"りはぷれすgen.","targets":[301518],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"保育園御殿場西田中園 すくるどえんじぇる","targets":[221501],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"所らいふ","targets":[93657],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"avarde","targets":[2343],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"医療法人白洋会都貴志くりにっく","targets":[364523],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"か-さはもにか ぐる-ぷほ-む","targets":[187415],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"株式会社おお京ぞら薬局","targets":[517839],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"せい所んどう薬局","targets":[79448],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"にちいけあんせた-玉島","targets":[256977,256978],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"彩虹lab大","targets":[473971],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"旭川も園","targets":[494359],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"り古市 にこ","targets":[253819],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"-守谷 う-り","targets":[162145],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"ようご歯科くりにっく","targets":[140852],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"介護付大料老人ほ-むすばらしき仲間たち","targets":[327298],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"あいのきの里","targets":[20891],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"内田宙司形整外科","targets":[350749],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"援はろ-わ-く やまがた新卒応","targets":[136524],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"印西市んた-","targets":[401231],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"株式会社おおら薬局","targets":[517839],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"医療法人社団やま整形外科でいけあせんた-","targets":[377190],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"居宅介護支援院業所なな","targets":[456110],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"北見事業所 湧くわく園","targets":[540707],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"ぷじれゃ-","targets":[273703,273704,273705],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"ひびらん","targets":[110468],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"中森かいの里薬局","targets":[317878],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"しょんめぐり愛 訪問看護すて-","targets":[629436],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"じあい 株式会社","targets":[516001],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"一般社団法人小春日学和","targets":[308650],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"社会福祉法人能勢むへるぷさ-びす","targets":[582683,582685],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"なん京こども医院","targets":[98806],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"能生国民え康保険診療所","targets":[599689],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"放あ後等でいさ-びすにこにこsmile","targets":[485495],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"でぃ- はう","targets":[259217],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"通所介護美花・菜の花","targets":[641379],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"けあぷらおおぞら","targets":[199283],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"短期入所生介護事業所穂の国荘","targets":[576065],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"相館支援せんた-岳都","targets":[567525],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"ぐれ-すが-でん越谷 特別養護老人ほ-む","targets":[549749],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"診療所 能生国民健康保険","targets":[599689],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"奈良あ屋幼稚園","targets":[429688],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"p所ccolopasso","targets":[13965],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"屋島でいさ-びすせ市んた-","targets":[458077],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"湊幼園稚","targets":[540236,540237],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"-うり-守谷","targets":[162145],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"尚美会なおみ皮ふ科くりにっく","targets":[371785],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"名古屋市立工芸高等学お校","targets":[406310],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"有隣た-","targets":[502419],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"ぐる-ぷほ-むまつおか 認知症対応型共同生活介護","targets":[635075],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"じおれん","targets":[43571],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"科医院 奈良内","targets":[429649],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"株式会社糸満てんさぐの家","targets":[521220,521221],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"医療法人科診療所","targets":[393954],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"赤司館科医院","targets":[638893],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"すまいるけあ 訪問看護すて-しょん","targets":[626029,626030],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"しょ-すらぎ","targets":[215238],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"悠悠泉本町でい区-びす","targets":[476620],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"各務原市立稲羽西学校","targets":[403497],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"訪問看護すて-しあょんふぁみ-る","targets":[626270],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"特別養護老人いほ-むかみのくに荘","targets":[544169],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"特別養護老人-ほむま-やの里上野芝","targets":[545638,545639],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"り-んり-ぶす郡山","targets":[176729],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"下関市立川中幼園","targets":[314774],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"有限会社すすせんた-","targets":[501132,501133],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"護老人保健施設徳富医院","targets":[330953],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"指相談支援事業所あおば","targets":[481849,481850],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"医療法人輝生会るみえす松が丘しょ-あとすてい","targets":[396284],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"西巣鴨歯院科くりにっく","targets":[612481],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ま-やの里 上野芝 特別養護老人ほ-む","targets":[545638,545639],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"-むhana ぐる-ぷほ","targets":[181330,181331,181332,181333],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"大津町室立小学校","targets":[424876],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"whm くりにっくぷらす高円寺 医療法人社団","targets":[376163],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"寺本整形外科・内科liaisonclnic","targets":[438398],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"湯け岡の祉郷","targets":[540796],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"放課後等でいさ-所びすきっずわんは-と","targets":[485261],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ひるいむ","targets":[266115],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"おこsun 児童訪問支援","targets":[346088,346089],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"座間市座間小学校","targets":[473060],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"就労定着支援事浜第2せんた-","targets":[446642],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"介護支援事業所かるが 老人居宅","targets":[598414],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"小規模多機能ほ祉むどり-む","targets":[443120,443121],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"かめ祉調剤薬局松島店","targets":[168343],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"ども園のぎ つわぶきこ","targets":[90522],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"あっぷるきっず葉青台","targets":[29089],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"あいらんどい局八山田店","targets":[147917],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"一迫内科くりっく","targets":[309198],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"聖母ほ-む居宅介い支援事業所","targets":[599167],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"は-とくりにっく田上","targets":[262241],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"aic国際学院広祉島初等部","targets":[1336],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"特別養護老人ほ-む藤都苑","targets":[547585,552431],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"くりにっく","targets":[522033],"kind":"region_drop","source":"synthetic","split":"test"}
+{"query":"訪問看護す-てしょん川崎らしくる","targets":[630850],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"高森寮一い般相談支援事業所","targets":[662318],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"すきっぷんらど町屋","targets":[219835],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"小規模多機能型居宅介つきだ","targets":[444110],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"selfころ長野","targets":[15217],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"なごやえ鼻咽喉科くりにっく","targets":[96795],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"矢本は幼稚園","targets":[573842],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"no」6","targets":[12472],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"le-lianaq東a","targets":[9792],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"三河島店 いおっくす薬局","targets":[156939],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"sompoけ居宅介護支援","targets":[16329],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"警察署中郷交番","targets":[310556],"kind":"region_drop","source":"synthetic","split":"test"}
+{"query":"介護事業所 ご長寿くらぶ東石川訪問","targets":[65066],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"大竹市所","targets":[425765],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"居宅介護支ぴ-らいふ","targets":[457067],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"腎泌尿器科だんおくりにっく","targets":[599918],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"千駄木こどもくりにっあ","targets":[398556],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"うだて調剤薬局","targets":[162070],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"薬局 広島通りほうゆう","targets":[472372],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"妻沼つく作業所","targets":[430422],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"小学校 紀美野町立下神野","targets":[594092],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"彩のひがしうらわ訪問看護すて園しょん","targets":[473869],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"訪問看護す院-しょん川崎らしくる","targets":[630850],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"医法人なかの歯科くりにっく","targets":[358336],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"特別養護学人ほ-むすないの家桂","targets":[544427],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"ばんのくりにくっ","targets":[107017],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"oわ-くす那覇 litalic","targets":[10854],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"ぷ所じゃ-","targets":[273703,273704,273705],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"あ-すさぽ-と大泉園学","targets":[156110],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"mamはaぁと","targets":[11186],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"へる-ぱすていしょん向日葵","targets":[274256],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"福の木 社会福祉法人共友会","targets":[581253],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"聖母ほ-む居宅介支護援事業所","targets":[599167],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"めぞん りあん","targets":[298266],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"社会福法人南相木村社会福祉協議会","targets":[581363],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"よとはししおたふぁ-まし-","targets":[93598],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"そふぃあめでぃ訪問看護すて-しょん三福鷹","targets":[226601],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"みんなのけあまねすて-しょ槇ん島","targets":[131405],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"特別養老護人ほ-むあかね苑","targets":[543926],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"竹田園市介護保険けあぷらんせんた-","targets":[590641],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"沢医会沢井診療所","targets":[384192],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"へ阪ぱ-すて-しょんみ-る","targets":[279732],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"翔設会太宰府吉富眼科医院","targets":[365243],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"相支談援せんた-岳都","targets":[567525],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"ぐらんあべ山原","targets":[176090],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"腎泌尿器りにっく","targets":[599918],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"富市山市生活介護事業所第1あすなろ","targets":[437431],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"六町もやい歯科口館外科","targets":[348833],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"富士見科くりにっく","targets":[437200],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"薬局 幕張ぺんぎん","targets":[468641],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"社会福祉法人能勢町社会福祉協議会ほ-むへる都ぷさ-びす","targets":[582683,582685],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"北九州福祉さ-びす株式会社けあぷらんさ-びすせんた-小南倉","targets":[354946],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"就労継続支援b事業所心のとも作業所","targets":[450239],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"桶え川市日出谷保育所","targets":[522971],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"野崎参道店 あかかべ薬局","targets":[149824],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"名古屋西総合労働相談-な-","targets":[406634],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"津亀保育園","targets":[321114],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"よ福う歯科くりにっく","targets":[140852],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"あるも福局原島店","targets":[31534],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"なごや鼻耳咽喉科くりにっく","targets":[96795],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"訪問看護やまのて","targets":[629495],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"相談支援事業所あふたば","targets":[568581,568582,570907,570908,570909,570910],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"うえるしあ市訪問薬局春日部店","targets":[161745],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"医療人法社団祥里会大島内科くりにっく","targets":[385404],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"にこにこsmile 放課後等でいさ-びす","targets":[485495],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"なおみ皮ふ科くりにっく 医療法人尚美会","targets":[371785],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"特別養護む錦織荘","targets":[547696],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"光が丘にっく","targets":[341949],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"清水の里へるぱ-て-しょん穴水","targets":[538195],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"やまし歯ろ科くりにっく","targets":[136838,136839,136840],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"介護支援事業所 ぴ-すけあ居宅","targets":[267509],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"ぐる-ぷほあねっくす","targets":[184038],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"やまが整形外科 でいけあせんた- 医療法人社団","targets":[377190],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"みつわこま所介護相談室","targets":[126894],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"歯科くりにっく 医療法人うえの","targets":[367061],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"株式会社せり具貸与事業所","targets":[519302],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"診療所 西銀座","targets":[613996],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"熊野院御堂耳鼻咽喉科","targets":[542573],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"安芸柏の所事業所","targets":[433694],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"藍住さ剤薬局","targets":[608657],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"すずら西滝店","targets":[77623],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"りはびりすたじおあさかわ湯村すたおじ","targets":[299584],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"都つるかわこどもくりにっく","targets":[90329],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ぐる-東ほ-む保戸野","targets":[188613],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"田中町温泉けあ園んた-","targets":[559327],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"大崎市社会福祉協ぱ-すて-しょん","targets":[423165,423166,423167],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"すみれしんしあべる調剤薬局","targets":[518000],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"あざみ野所正歯科","targets":[26750],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"訪問看護すて-しょんい院さき","targets":[627691],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"南郷内科・消化内科","targets":[400782],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ぐる-ぷほ-むおおさき東の杜","targets":[182651],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"坂井市幼稚園","targets":[414982],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"ぴあほ-祉むkobe","targets":[113272],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"え山薬局","targets":[656757,656758,656759,656760],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"び-ふぃっと袋井 でいさ-びす","targets":[234709],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"豊岡病院","targets":[637488],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"介護予防)特定施設入居者生活介護 ぐれいてすとらいふ浅草(","targets":[191636],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"美並未み来なみこども園","targets":[596276],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"こども園 屯田南","targets":[458102],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"すぎ薬局北朝東店","targets":[220243],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"医療法人社団はぷらす歯科","targets":[388824],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"能生国民え健康保険診療所","targets":[599689],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"んた-ぷらねっと でいさ-びすせ","targets":[244301],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"-びすかたぐるま りはびりでいさ","targets":[300299],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"ふれあい共同作業所ちくわ","targets":[116948],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"有限会社たかねこ-せ-館薬局八街店","targets":[500384],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"医療法立石医院","targets":[365024],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"訪問りはびんさとまち","targets":[614906],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"くろぶ鳳","targets":[174816,174817],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"会社福祉法人共友会福の木","targets":[581253],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"吉田方くにっく","targets":[405245],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"保育園 亀岡あゆみ","targets":[320989],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"共生活援助ゆずりは","targets":[349600],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"株式会社けあ京てっく青森営業所","targets":[519023],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"介護支援ぶれすと 居宅","targets":[452698,452699,452700],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"富士児童相談","targets":[436875],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ghぷりすん","targets":[6039],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"なごや鼻咽喉科くりにっく","targets":[96795],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ひびきけあおぷらん","targets":[110468],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"羽柴くりにっ福く","targets":[597366],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"わかたに薬局","targets":[50379],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"静和園でせんた-","targets":[657788],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"富士児童相所談","targets":[436875],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"医療法人堀内くりにく","targets":[371064,371065],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"き科","targets":[169530,169531],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"べすとらいふ多せんた-","targets":[283492],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"藤沢富士白苑こあら東る-む","targets":[609660],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"すこまる東訪問看護すて-しょん","targets":[76528],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"happy works 宮崎校 放課後等でいさ-びす","targets":[483808],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"千曲会 瀬川医院 医療法人社団","targets":[379532],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"らふいさぽ-と希望の家","targets":[296420],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"あさひ井町店","targets":[26541],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"ぶさ幼稚園 矢本はな","targets":[573842],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"きっず わんは-と 放課後等でいさ-びす","targets":[485261],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"ふれあいほ-むゔしょ-とすてい1","targets":[116883],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"大竹市所役","targets":[425765],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"ぐる-福ぷほ-むせれす","targets":[187729],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"株式会社.m.k.しすてむ","targets":[517531],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"はい歯科","targets":[259049],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"紀美野町下神野小学校","targets":[594092],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"でさ-びす智温苑","targets":[247909],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"寄居町立書館","targets":[436709],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ひるくらい","targets":[266115],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"福すみれの杜","targets":[78789],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"安来市立安来保育","targets":[433432],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"よしかね環器内科","targets":[140922],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ぽぷら 介護付有料老人ほ-む","targets":[327335],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"あい訪にっく","targets":[22001],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"compass-.みやべ岩国","targets":[4268],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"るくりにっく 袖け浦でんた","targets":[610943],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"紅葉苑でいさ-びすせんた絆-","targets":[594141],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"しるば-たんう大野台けあせんた-","targets":[218138,218139],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"未来ふぃるど","targets":[504295],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"eastshonansportsmedicineservices東湘医院","targets":[308191],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"けあぷら-みはら","targets":[201035,201036],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"はうでぃ","targets":[259217],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"援せんた-よしはら","targets":[483272],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"あに音更","targets":[153081],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"こども園 志都呂","targets":[475851],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"東京府中ときくりっにく","targets":[507965],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"ゆめの園りあん若葉特別養祉護老人ほ-む","targets":[139926],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"歯科・矯正歯科 南草津だいき","targets":[400522],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"いた-ぐる-ぷほ-む","targets":[158174],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"よ福ごう歯科くりにっく","targets":[140852],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"みもちとれでぃ-すくりにっく","targets":[126474],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"すgen. りはぷれい","targets":[301518],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"高妙診療所","targets":[430391],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"-ご あみ","targets":[154043,154044,154045,154046],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"るぐ-ぷほ-むれがろ西岡","targets":[188276],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"sun保育園","targets":[17233],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"児科医院 和田小","targets":[408587,408588],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"久住高原うほ-むへるぷせんた-","targets":[319819],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"就労継続援支b型事業所ふらっとべ-す","targets":[450143],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"けあぷらんせんた所みはら","targets":[201035,201036],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"ぐる-ぷほ東む大空ii","targets":[189135],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"薬局つるはどらっぐ中小田井店 調剤","targets":[635768],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"看護すて-しょん さん・らいふ訪問","targets":[213855],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"ふるり所-る甲府みんなのくりにっく","targets":[271160],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"園こより佐織","targets":[64450],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"けやきの里 あいの里","targets":[20891],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"南山城村化会館","targets":[399646],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"薬局小杉2号店 やまぐち","targets":[293364],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"あ-ねすと訪問看護所すて-しょん","targets":[156705],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"あい里のけやきの里","targets":[20891],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"立黒島小中学校","targets":[337198],"kind":"region_drop","source":"synthetic","split":"test"}
+{"query":"志木里の短期入所生活介護","targets":[475646],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"you愛障がい者相支援せんた-","targets":[19444],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"laki manoa","targets":[11275],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"高松整形科外","targets":[664139],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"有限会社貫堂薬局","targets":[499031],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"-とすてい輝き むべの里しょ","targets":[132324],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"介護老人健施設けあほ-む・くろ-ば-","targets":[330162],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"へる-すていしょん向日葵","targets":[274256],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ふるりる-甲府みんなのくりにっく","targets":[271160],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"広野町協議会","targets":[472590],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"cocoaskidsinternationaあschool覚王山校","targets":[3698],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"社会福祉法人新潟市社会福祉協議会蒲区介護支援せんた-","targets":[582033],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ふない脳くりにっく","targets":[115918],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"しんまるくりにっ","targets":[75347],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"茅野市消防課) 茅野市消防団(","targets":[603971],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"和田医院","targets":[408587,408588],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"桶え市日出谷保育所","targets":[522971],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"向日葵所こころ","targets":[407086],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"あくたがわは祉とふるほ-む加島","targets":[150444],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"社会福祉法人仁福祉会特別養護老人ほ-むあいさんほ-む","targets":[581144],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ぴ-す・と-く障害者相談さぽ-せんた-","targets":[113516],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"安来市立安来保育い所","targets":[433432],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"図書館 恵那市中央","targets":[476408],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"志都呂所こども園","targets":[475851],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"へるぱ-ょん福宝","targets":[276345],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"大津学校","targets":[424876],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"は-と薬局赤石阪","targets":[263260],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"就労継続支京b型事業所さくら共同作業所","targets":[449801],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"訪問看護すて-しんちゃ-む","targets":[630082],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"下関市幼稚園","targets":[314774],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"訪問介護は-とらん倉ど敷","targets":[620901],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"就労支援らてす","targets":[446944],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"なかち泌尿器科くりにっうく","targets":[94936],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"にちいけ水中之郷","targets":[256889],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"あくせすじぶ四つ橋","targets":[150397],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ちょっく","targets":[169253],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"滋賀りり-すさぽ-とせんた- 特定非営利活動法人","targets":[553645],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"出雲市立窪保田育所","targets":[351495],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"病院保育所 空知中央","targets":[589609],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"開寿園短期所入生活介護事業所","targets":[650011],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"の家やわらぎ まるごとけあ","targets":[124484],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"学いじあ歯科","targets":[259049],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"森店 さくら薬局","targets":[68918],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"後藤町店","targets":[474186],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"八王子 (はちおうじ)(おふぃす) 街角の年金相談せんた-","targets":[610732],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"八幡ちゃいど保育園","targets":[346864],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ゔぇり市歯科くりにっく","targets":[307505],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"相談支援せんた-うそそう","targets":[567032],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"未来るど","targets":[504295],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"相談支援事業所たふば","targets":[568581,568582,570907,570908,570909,570910],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"年杉歯科医院","targets":[506152],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"三宝荘短期入所生活介え","targets":[310419],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"けあはうす忠和 軽費老人ほ-む","targets":[639991],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"たむら薬","targets":[85445,85446,85447,228316,228317,228318],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"は-と調剤局薬宮町店","targets":[263291],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"社会福祉法人ふじ会診療所","targets":[579445],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"さろせや","targets":[211686],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"薬局 みさと調剤","targets":[125581,125582],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"介護支援せんた-船学尾株式会社","targets":[328882,328883,328884],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ぐるぷ-ほ-むやまと椿館","targets":[178967],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"東条祉医院","targets":[509798],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"福宝 へるぱ-すて-しょん","targets":[276345],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"awひま福わり","targets":[2359,2360,2361],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"福岡あ県警察本部","targets":[585848],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ろってぃひちたなか","targets":[305144],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"くまの内く科りにっく","targets":[55129],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"きっずがれ-じ 重心型放課後等でいさ-びす","targets":[644156],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"街角の年金相談せんうじ)(おふぃす)","targets":[610732],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"弓耳崎鼻咽喉科・気管食道科","targets":[473399],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"介護支援せんた-みいり","targets":[328809,328810],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"けあふり-介護相談館室指定居宅介護支援事業所","targets":[198032],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"あざみ野正歯科","targets":[26750],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"子市生活安全部防災課) 八王子市消防団(八王","targets":[347447],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"みあへるびき曳舟","targets":[289763],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"癒しのさい-ぷほ-む","targets":[561874],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"ふじみ野岸記念館","targets":[115273],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"けあさ-びすはるか福ぜ","targets":[194216,194426],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"放課後等でいさ-びす大aika","targets":[486101],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"金山こころとねむ館りのくりにっく","targets":[645701],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"み和","targets":[131471,131472],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"つばめこどもう","targets":[89827,89828],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"放課後等でいさ京-びすはぴねすきっず","targets":[485532],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"さぽわ-く 相談支援事業所","targets":[568955],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"清お村立緑中学校","targets":[538076],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"第一み園","targets":[591784],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"【企業主導型保育事業】うめはなきっyずpc保育園阪神西宮駅前","targets":[19833],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"ぐる-ほぷ-むあき","targets":[181969],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"医療法人社団渡びりて-しょん","targets":[364798],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"おうじ訪問看護すて-し大ん","targets":[40758],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"南風原町社協指定訪問介護事業区","targets":[400914],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"科医院 糸田歯","targets":[593904],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"沢医会 沢井診療所 医療法人社団","targets":[384192],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"大阪国んた-","targets":[426880],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"短期入所事業所なな東ろ","targets":[575093],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"特う定非営利活動法人滋賀りり-すさぽ-とせんた-","targets":[553645],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"岡の内くにりっく","targets":[461740],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"いり朝霞","targets":[157860],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"すまいる い-けあ","targets":[158339],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"なんば薬品株式会社柏林館台支店","targets":[253228],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"横浜市立上永都谷中学校","targets":[526546],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"訪問看護えすて-しょん孔雀","targets":[630805],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"九十九地区ぃせんた-","targets":[320617],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"くろすえょぶ鳳","targets":[174816,174817],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"あんじんの郷 特別養護老人ほ-む","targets":[544006],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"藤谷医う","targets":[610021],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"宇城病院","targets":[432198],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"後薬藤局楠町店","targets":[474186],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"あけりっつ名駅","targets":[204091,204092],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"曜会月田歯科医院 医療法人社団七","targets":[388962],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"まざ-けあへるぱ-すて-ょん","targets":[288297],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"和木町京商工会","targets":[408116],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"医療法人清心会清水でんたるく祉にっく","targets":[364123],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"古河やくると販売株式会社井野んせた-託児室","targets":[402914],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"でい区-びすなかまの里","targets":[233473],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"soerzore","targets":[16835],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"神田小川町薬局 どらっぐせいむす","targets":[251832],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"いふ狭山け丘 早稲田い-ら","targets":[494109],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"でいあせんた-まつぞの","targets":[232360],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"でいさ-びすせんた-いらねっと","targets":[244301],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"救世軍恵み家の","targets":[488000],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"くろ-ば-薬局 有限会社","targets":[498626],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"南風原町社介護事業所","targets":[400914],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"おはな・でんたるくにりっく","targets":[165780],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"医療人社団将森会さくらでんたるくりにっく","targets":[380869],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"-bee shu","targets":[15367],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"伊平屋村史歴民俗資料館","targets":[335469],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"ぱ-く久米川 くりにっく・","targets":[174264],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"医療法人社団大やわらぎ","targets":[388552],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ぱる・院りえぞん","targets":[264854],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"医療法人あすとろいのべ-し園ょん淀屋橋くあとろあ-るくりにっく","targets":[358870],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"就労定着支援事業所うぇるび-新横浜第2んせた-","targets":[446642],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"医療法人社団園の実歯科くりにっく","targets":[383131],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"すずらん調剤薬局西滝","targets":[77623],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"医療法人社団健信会に歯科くりにっく","targets":[389397],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"まとっく","targets":[123566,123567],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"佳医会福田歯科大医院","targets":[338923],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"きぬた耳鼻咽喉科・あれ学ぎ-科","targets":[52171],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"ささえる-しょん","targets":[69544],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"介護事業所穂の国荘 短期入所生活","targets":[576065],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"(す-ぺすきっず)spacekids沖縄","targets":[99,100],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"けあらぷんせんた-戎","targets":[201876],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"病院記念研究所附属診療所 太田総合","targets":[429040],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"短期入所事業所ななろい","targets":[575093],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"ど祉んぐり学園河南校","targets":[94292],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"豊第一病院","targets":[637488],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ろってぃひいちなか","targets":[305144],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"双和局薬","targets":[402341],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"くまの内京くりにっく","targets":[55129],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"合同会社一二三ぶらいと居宅介護支援お事業所","targets":[404097],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"在宅支援せんた-つたのこ","targets":[412436],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"はまゆうけあぷらせんんた-","targets":[105607],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"医療法人社団lnoahりっ園ぷでんたる","targets":[375987],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"あいん葉台店","targets":[148689],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"訪問看護す-しょん川崎らしくる","targets":[630850],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"二反田局薬","targets":[321330],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"ほ福とみるく立川昭和記念公園","targets":[119111],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"いしうらい科医院","targets":[33510],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"せんた-当知 にちいけあ","targets":[256167,256168],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"安区芸柏の実苑短期入所事業所","targets":[433694],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"ゆ-ふぁ-むきのこのこのおこ","targets":[295068],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"在宅看護せんた-佳","targets":[412548],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"やまがた-わ-く","targets":[136524],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"広阪渡れでぃすくりにっく","targets":[472445],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"っつ名駅 けあり","targets":[204091,204092],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"しすと神松寺 うぇるねすあ","targets":[159260],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"共生型さびするりちゃん家","targets":[350036,350037],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ありっつ名駅","targets":[204091,204092],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"大阪国際がんせんた","targets":[426880],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"なる市み作業所","targets":[98685,98686],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"あくたがわほ-む加島","targets":[150444],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"木保育園","targets":[503581,503582,503583],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"さいしょ糖尿病くりに区く","targets":[65164],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"花物いた","targets":[602460],"kind":"middle_drop","source":"synthetic","split":"test"}
+{"query":"ぐる-ぷほ-暘谷苑","targets":[189867],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"大崎市社会福祉協議会大崎中央へぱ-すて-しょん","targets":[423165,423166,423167],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"彩のひがしうらわ訪問看護すて園-しょん","targets":[473869],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"介護は-とらんど倉敷 訪問","targets":[620901],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"すまいらるいふ南仙台","targets":[78410],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"かよはね","targets":[167782],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":".k.しすてむ 株式会社a.m","targets":[517531],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"特定非営利活動法祉自立生活せんた-松山","targets":[553693,553694,553695,554387],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"株式会社かくいっくすうぃんぐ南学つまおふぃす","targets":[518693,518694],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"へるぱ-すて-しょん「ういず","targets":[276882],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"児童訪問支おこsun","targets":[346088,346089],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"介護付有料老人-むはぴね神戸魚崎","targets":[327319],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"医療人法社団将森会さくらでんたるくりにっく","targets":[380869],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"各務原市蘇原こみゅにてぃ大んた-","targets":[403512],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"せんとらる歯科診所療","targets":[226330],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"社会福祉法人斜里大町社会福祉協議会ほ-むへるぱ-すて-しょん","targets":[580000,582010],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"株式会社じあ園","targets":[516001],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"sai 相談支援せんた-","targets":[566188],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"南相木村社会福祉協議会","targets":[581363],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"相談支援事業所か所ひこうき","targets":[570267],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"sagan歯科・ども歯科","targets":[14951],"kind":"deletion","source":"synthetic","split":"test"}
+{"query":"ぐるぷ-ほ-むこうなん","targets":[183275],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"立病院","targets":[442032],"kind":"region_drop","source":"synthetic","split":"test"}
+{"query":"-船尾株式会社 介護支援せんた","targets":[328882,328883,328884],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"心美の医療","targets":[475267],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"けあぷらんせんた-こ園から王寺町","targets":[200394],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"やまし区ろ歯科くりにっく","targets":[136838,136839,136840],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"公民館 東八田","targets":[508609,508610],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"田坂歯科くにりっく","targets":[559752],"kind":"transposition","source":"synthetic","split":"test"}
+{"query":"居宅介護支援ぶれす都と","targets":[452698,452699,452700],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"高山市日枝中学校","targets":[661361],"kind":"organization_drop","source":"synthetic","split":"test"}
+{"query":"総合労働相談こ-な- 名古屋西","targets":[406634],"kind":"word_swap","source":"synthetic","split":"test"}
+{"query":"医療法人社団尚仁う会福山診療所","targets":[390570],"kind":"insertion","source":"synthetic","split":"test"}
+{"query":"どらっぐせい福す町田中町薬局","targets":[251830],"kind":"substitution","source":"synthetic","split":"test"}
+{"query":"タカラ薬局荒江","targets":[227934],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"かもい訪問歯科","targets":[49222],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"白十字会ケアプランセンターひうみ","targets":[562666],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"マザーケアヘルパーステーション","targets":[288297],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"みんなのいえチャオ","targets":[131260,131261],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"放課後等デイサービス　マイ・ノート","targets":[485681],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"三橋整形外科リハビリテーションクリニック","targets":[311087],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"甲府市直営上九一色診療所","targets":[560931,560932],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"特別養護老人ホームほしの郷・長南（ユニット型）","targets":[549161],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"宗像医院","targets":[434049,434050],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"くすのき園訪問介護事業所","targets":[54310],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"スバル医院","targets":[222479],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"訪問介護事業所江美の郷","targets":[624013,624014],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人ふなびきクリニック","targets":[367736,367737,367738],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"こくわの里","targets":[58860],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"太陽の家公郷","targets":[429325],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"百笑","targets":[563926,563927],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ポピンズナーサリースクール広尾","targets":[287298],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"岐阜市華陽公民館","targets":[461587],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ルフラン介護の泉","targets":[303287,303288,303289],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人　己斐杉本クリニック","targets":[361948],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"石川歯科クリニック","targets":[576892,576893,576894,576895,576896,576897,576898,576899,576900,576901],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"花音","targets":[602702,602703,602704,602705],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"デイサービスセンター心の花","targets":[245164],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"いく歩デイサービス大楽寺","targets":[33078],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人　麗峰会　伊豆韮山温泉病院　通所リハビリテーション事業所","targets":[366609],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"彩芽薬局","targets":[473958],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ミアヘルサケアプラン流山運河","targets":[289729],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"特別養護老人ホーム万葉園","targets":[550198,550199],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"コストコホールセール浜松倉庫店薬局","targets":[206426],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"デイサービスセンターはくじゅ","targets":[242900],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"就労継続支援Ｂ型事業オープンビズ","targets":[448924],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ここから薬局　緑井店","targets":[59109],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ホープステーション","targets":[285005,285006,285007],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"みなと訪問介護事業所","targets":[128100],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"荒川区医師会ケアプランセンター","targets":[604736],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"訪問看護ステーション　ちゃいむ","targets":[625358,625359],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"すずらんもりもと薬局","targets":[77296],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"あずみ苑　ラ・テラス小絹","targets":[28342],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"鈴薬局　光が丘店","targets":[647066],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"障がい者相談支援センターしらゆり王子","targets":[653393],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ホワイト歯科","targets":[120242,120243,284855,284856,284857,284858,284859,284860,284861,284862,284863,284864,284865,284866,284867,284868,284869,284870,284871,284872,284873,284874,284875],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"藤村病院指定　通所リハビリテーション事業所","targets":[609473],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"訪問看護ステーションみらい","targets":[625637,625638,625639,625640,625641,625642,626375,629386,629387,629388,629389,629390,629391,629392,629393,629394,629395],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"福祉用具貸与事業所ジェイケア","targets":[587819],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"居宅介護支援事業所お茶屋の里","targets":[455527],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"介護サービス友乃家白金事業所","targets":[325874,325875],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ケアマネ本舗いちはら","targets":[203709],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"一般社団法人nico","targets":[308394],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ハッピーエブリ銚子2号店","targets":[259526],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"訪問ステーションてとてと大岡山","targets":[614743],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"志比南幼児園","targets":[475730],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"特定非営利活動法人在宅福祉サービス袖ケ浦ふれあい","targets":[554269,554270],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"居宅介護支援事業所ミスト","targets":[457213],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"鈴木歯科医院","targets":[646753,646754,646755,646756,646757,646758,646759,646760,646761,646762,646763,646764,646765,646766,646767,646768,646769,646770,646771,646772,646773,646774,646775,646776,646777,646778,646779,646780,646781,646782,646783,646784,646785,646786,646787,646788,646789,646790,646791,646792,646793,646794,646795,646796,646797,646798,646799,646800,646801,646802,646803,646804,646805,646806,646807,646808,646809,646810,646811,646812,646813,646814,646815,646816,646817,646818,646819,646820,646821,646822,646823,646824,646825,646826,646827,646828,646829,646830,646831,646832,646833,646834,646835,646836,646837,646838,646839,646840,646841,646842,646843,646844,646845,646846,646847,646848,646849,646850,646851,646852,646853,646854,646855,646856,646857,646858,646859,646860,646861,646862,646863,646864,646865,646866,646867,646868,646869,646870,646871,646872,646873,646874,646875,646876,646877,646878,646879,646880,646881,646882,646883,646884,646885,646886,646887,646888,646889,646890,646891,646892,646893,646894,646895,646896,646897,646898,646899,646900,646901,646902,646903,646904,646905,646906,646907,646908,646909,646910,646911,646912,646913,646914,646915,646916,646917,646918,646919,646920,646921,646922,646923,646924,646925],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人社団　桜輝会　山の手デンタルオフィス田町三田","targets":[383713],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"しろくま薬局","targets":[74932,74933,74934,74935,74936,74937,74938,74939,74940,74941,74942,74943,74944,74945,74946],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"相談支援事業所せつな","targets":[570504],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"(株)介護福祉サービスセンターひまわり","targets":[460],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"きとう歯科クリニック","targets":[52103,52104,52105],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ココカラファイン薬局　用賀東口店","targets":[205900],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ショートステイ　クレヨン　レッド館","targets":[215683],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"南生協よってって横丁　ヘルパーステーションよってって","targets":[400221,400222],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"指定通所介護事業所　すずらんの里","targets":[482463],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ろうけん隅田秋光園","targets":[144275,144276],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"かみのやま耳鼻咽喉科クリニック","targets":[48952],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人貴優会　まりこ歯科クリニック","targets":[396204],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"村橋歯科医院","targets":[507035,507036],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"アトラクションホーム各務原那加桐野町","targets":[152812],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"野﨑クリニックヘルパーステーション","targets":[644796,645379,645380],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"砂原医院","targets":[577649],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人宏徳会　安藤病院介護医療院","targets":[371505],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"夜間対応型訪問介護事業所つばさ","targets":[420150],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"城北レディースクリニック","targets":[415643],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"療養通所介護センターしらかば","targets":[561862,561863],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"おおるり薬局","targets":[42419,42420,42421,165490],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"グループホーム　千手荘","targets":[180335],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"松川町上片桐診療所","targets":[512166],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"COMPASS発達支援センター唐津","targets":[4288,4289],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"相談支援事業者　ゆうき相談所","targets":[572129],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"鳩友園介護保険サービスセンター","targets":[665153],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"いとたがわ歯科","targets":[35611],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"新谷歯科医院","targets":[491029,491030,491031,491032,491033,491034,491035,491036,491037,491038],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"京都労働局 需給調整事業課","targets":[323523],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"アイセイハート薬局　南草津三丁目店","targets":[147083],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"くらしサポート中谷","targets":[55420],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"武内歯科医院","targets":[528701,528702,528703,528704,528705,528706,528707,528708,528709,528710,528711],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"大阪市城東区保健福祉センター","targets":[426946],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"わおん浜松和合町","targets":[144504,144505],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"相談支援事業所クオリア","targets":[571447],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ヒューマンヘリテージ安源寺","targets":[265857],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"有限会社　いちょうヘルプ","targets":[498183],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"デイサービスセンター福寿はだの平沢","targets":[245841],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"あびこ歯科医院","targets":[29599],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"中延デンタルクリニック","targets":[317236],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"きぬせん福祉用具研究会","targets":[52164,52165],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人財団今井会足立病院　第二足立病院","targets":[396050],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"認定こども園鹿児島三育幼稚園","targets":[634818],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"あんずの木居宅介護支援事業所","targets":[31934],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ショートステイあしすと万能倉","targets":[216192],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"株式会社福祉の里　定期巡回・随時対応型訪問介護看護　明日香","targets":[521153],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"やまだ歯科","targets":[136931,136932,136933,136934,136935,136936,136937,136938,136939,136940,136941,136942,136943,293445],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"なかがわ在宅クリニック","targets":[94624],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ハビリテーションセンター夢んぼ","targets":[260341],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"訪問看護ステーション彩","targets":[626607,630881,630882,630883,630884,630885,630886,630887],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"サンキ・ウエルビィデイサービスセンター緑井","targets":[212089],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ウーリー上尾","targets":[162115],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"セントケア看護小規模ゆりがおか","targets":[225986],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"短期入所ベガ","targets":[575017],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"みなみつくば会居宅介護支援事業所","targets":[128204],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"訪問介護ゆりかご","targets":[615505,615506,615507,617538,617539,617540,617541],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ヘルパーステーション　さわやか愛知","targets":[274735,274736],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"西山台保育園","targets":[612190],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ミック健康の森茨木","targets":[290062],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ニックス東訪問介護事業所","targets":[258113,258114],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"こうのとり保育園","targets":[58488,58489],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"小平花小金井雲母保育園","targets":[440308],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"社会福祉法人けやきの村指定居宅介護支援事業所","targets":[580641],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"アプローズ・ケア石神井店","targets":[153703,153704],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"きたごうこども園","targets":[51630],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"セントラル歯科・口腔外科","targets":[226323],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"片岡歯科医院","targets":[543323,543324,543325,543326,543327,543328,543329,543330,543331,543332,543333,543334,543335,543336,543337,543338,543339,543340,543341,543342],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"中京みぎわ園（分園）ななほし","targets":[315500],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"豊中市立庄内図書館","targets":[637215],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"共栄堂薬局さくらだ西店","targets":[349933],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"夢くらぶ２４介護福祉サービス","targets":[420195,420196,420197],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"さとうこどもクリニック","targets":[70359,70360,70361],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"宮崎保育園","targets":[435729,435730],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"北越谷そめやクリニック","targets":[356593],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"林歯科医院","targets":[513770,513771,513944,513945,513946,513947,513948,513949,513950,513951,513952,513953,513954,513955,513956,513957,513958,513959,513960,513961,513962,513963,513964,513965,513966,513967,513968,513969,513970,513971,513972,513973,513974,513975,513976,513977,513978,513979,513980,513981,513982,513983,513984,513985,513986,513987,513988,513989,513990,513991,513992,513993,513994,513995,513996,513997,513998,513999,514000,514001,514002,514003,514004,514005,514006,514007,514008,514009,514010,514011,514012,514013,514014,514015,514016,514017,514018,514019,514020,514021,514022,514023,514024,514025,514026,514027,514028,514029,514030,514031,514032,514033,514034,514035,514036,514037],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"相談支援事業所　ワンダーギルド沖縄","targets":[569212],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"きずな","targets":[51331,51332,51333,51334,51335,51336,51337,51338,51339,51340,51341,51342,51343,51344,51345,51346,51347,51348,51349,51350,51351,51352,51353,51354,51355,51356,51357,51358,51359,51360,51361,51362,169457,169458],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"在宅介護サービス　えすぷり","targets":[412004,412012],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ライム調剤薬局","targets":[297137,297138],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人　武重医院","targets":[363759],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"合同会社みさき","targets":[403902],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"伏見幼児園","targets":[336330],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"あいcareはなはな","targets":[19981,19982,19983],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"木下の保育園　海老名","targets":[503311],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"まなび野薬局","targets":[123934],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ニチイケアセンター京都駅前","targets":[255032,255033],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"訪問介護事業所　ラ・サンテふよう","targets":[622120],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ハピネスケア株式会社　大宮ヘルパーステーション","targets":[260526],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"放課後等デイサービス　ウィズ・ユー中野島","targets":[484894],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"コノミチテラス","targets":[207468],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人社団　千晶会　落合駅前クリニック","targets":[379531],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"デイケアたかさき","targets":[232266],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"南九州市立勝目小学校","targets":[399125],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"勤医協伏古１０条クリニック","targets":[354545],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"大勝病院通所リハビリテーション","targets":[421510],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"あさひかわ福祉生協　東川こまくさ保育園","targets":[26099],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"放課後等デイサービスウィズ・ユー入間","targets":[487325],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"高松整形外科脳神経外科医院","targets":[662119],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"いけだ社協特定相談支援事業所","targets":[33188],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"グループホームもみじ","targets":[175407,178901,178902,186465,186466,186467,186468,186469,186470,186471],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"らそうむ発達支援ルームらいく嘉麻店","targets":[142703],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"斜里町立図書館","targets":[488734],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"福祉サービス　かじくり","targets":[586860],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"神戸鹿の子ＫＩＴＡ","targets":[584268],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ハート・ケア・ひろはし","targets":[263030],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"スマイルせわ","targets":[222912,222962],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"東京調剤葛西薬局","targets":[508273],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"特別養護老人ホーム　中野けんせいえん","targets":[545867,545868,545869],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"熊本調剤薬局　大津店","targets":[542833],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"グループホーム　みつば","targets":[178776,186125,186126,186127],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"就労継続支援B型福禄寿","targets":[450321],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"大門市民センター","targets":[426669],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"光悠指定訪問介護事業所","targets":[342216,342217,342218],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"マザーシップ浅野本町","targets":[288310,288311,288312,288313],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"高梁市社会福祉協議会　備中デイサービスセンター","targets":[662269],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"深谷市デイサービスセンター清風苑","targets":[537842],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"市原整形外科居宅介護支援事業所","targets":[467174],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"古河社協介護ステーション指定居宅事業所","targets":[402945,402946,402947],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"鳥栖市立図書館","targets":[665021],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"いろは介護サービス","targets":[36973],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"川崎市立中原図書館","targets":[465883],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"放課後等デイサービス　樹のん","targets":[485868],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"米山歯科","targets":[593403,593404],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"Cocorport College＆Work 千葉","targets":[3815,3816],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"細木病院　通所リハビリテーション　ゆうゆう","targets":[594433],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ニチイキッズつしま新野保育園","targets":[253932],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"揖斐川町消費生活相談窓口","targets":[482972],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ツクイ名古屋瑞穂（居宅）","targets":[230234],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"訪問看護ステーションすずたけ","targets":[628343],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"第４かわせみ・わくわく","targets":[591716],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"シャローム若葉第2居宅介護支援事業所","targets":[215145],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"もみの木歯科クリニック","targets":[134074,134075,134076,134077,292510],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"柳沢歯科医院","targets":[514837,514838,514839,514840,514841,514867,514868,514869,514870,514871,514872,514873,515242],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"合資会社いわしや薬局","targets":[404379],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"グループホーム柳緑の里","targets":[190030],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"山村薬局","targets":[460167],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"セントケア看護小規模東金","targets":[226010],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"子ども発達支援　やまびこ学苑佐々校","targets":[430983],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"北九州市立自然史・歴史博物館（いのちのたび博物館）","targets":[354911],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"あさり整形外科クリニック","targets":[26684],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"泉西公民館","targets":[534363],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"相談支援事業所ヤマックス","targets":[571855,571856],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"雲南市消費生活センター","targets":[656262],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"就労継続支援B型事業所　OneHeart","targets":[449007],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"就労支援事業所リガーレ","targets":[447605],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"きただ矯正歯科","targets":[51696],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"特定施設老人ホーム　豊田介護センタースミレ","targets":[553076],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"株式会社ノーブル","targets":[519582],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"せいこう胃腸科・外科医院","targets":[79437],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ウェルパーク薬局　南葛西店","targets":[159411],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"雪入歯科","targets":[656188],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"樋口クリニック","targets":[525497,525498,525499,525500],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ソーシャルインクルーホーム八王子宇津木","targets":[227133],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"コープあいち福祉用具・岡崎","targets":[208954],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人東城歯科クリニック","targets":[374085],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"まま薬局","targets":[124162],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"通所介護事業デイサービスセンター　吉兆苑","targets":[641551],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"清原診療所","targets":[537979],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"さつき訪問介護事業所","targets":[70304,70305,210038,210039],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"デイサービスセンター江美の郷","targets":[245621],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"佐藤クリニック","targets":[337877,337878,337879,337880,337881,337882,337883,337884,337885,337886,337887,337888,337889,337890,337891,337892,337893],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"短期入所　千葉あすみが丘東","targets":[574457,574458],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ファイン調剤薬局　茂森新町店","targets":[267899],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"居宅生活支援事業所マザーズ","targets":[458002],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ウエルシア薬局　深井駅前店","targets":[160588],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人　妻鹿整形外科","targets":[361232,361233],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ホームヘルプステーション　さくらんぼ","targets":[286489,286524],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ミモザ上石神井","targets":[290385,290386],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"特別養護老人ホーム都苑","targets":[552563],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"訪問介護ステーションぶらうんらっと","targets":[619637,619638,619639],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ヨウコーキャッスル三鷹","targets":[295122],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"LITALICOジュニア新大阪教室","targets":[10501,10502,10503],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"労働基準監督署 天満","targets":[353931],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"神谷デイサービス","targets":[584622],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"みなべ町立図書館中央館／ゆめよみ館","targets":[128134],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ライフリッチ在宅サポートセンター","targets":[296741,296742],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"訪問介護　市原","targets":[615848,615849],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"赤坂ステラクリニック","targets":[638915],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"北愛歯科クリニック","targets":[355554],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"川村耳鼻咽喉科医院","targets":[466275],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"訪問看護しんあい","targets":[624706],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"レッツ倶楽部　伊達","targets":[304410],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"溝上薬局　油山店","targets":[541167],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ベルーフ　Integra","targets":[284175],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"訪問介護こころ","targets":[615228,615229,615230,615231,616700,616701,616702,616703,616704,616705,616706,616707,616708,616709,616710],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ショートステイ　タムスさくらの杜　練馬アネックス","targets":[215771],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"目黒レディースクリニック","targets":[564448],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"やさしい手荻窪訪問介護事業所","targets":[135163,135470,135471],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"デイサービスセンターふくろうの森","targets":[240144,243176],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ヘルパーステーション江古田の森","targets":[282096,282097],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"光風園相談支援事業所","targets":[342511,342512,342513],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"阿部歯科医院","targets":[651534,651535,651536,651537,651538,651539,651540,651541,651542,651543,651544,651545,651546,651547,651548,651549,651550,651551,651552,651553,651554,651555,651556,651557,651558,651559,651560,651561,651562,651563,651564,651565,651566,651567,651568,651569,651570,651571,651572,651573,651574,651575,651576,651577,651578,651579],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"かめやま内科医院","targets":[49179],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"株式会社　ヒューマン・ケア","targets":[516591],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"訪問介護しゅあ","targets":[616780],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"一丁目薬局","targets":[307604,307605],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人社団　川本歯科クリニック","targets":[381218],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"愛の家グループホーム伊那山寺","targets":[476917],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"福祉用具青空","targets":[587842],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ツクイ札幌屯田","targets":[230544,230545],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"オリーブ薬局西尾店","targets":[166491],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"津和野共存病院","targets":[534987,534988],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"クスリのイトウ薬局","targets":[173049],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"竜王歯科","targets":[590053],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"岡田歯科医院","targets":[462816,462817,462818,462819,462820,462821,462822,462823,462824,462825,462826,462827,462828,462829,462830,462831,462832,462833,462834,462835,462836,462837,462838,462839,462840,462841,462842,462843,462844,462845,462846,462847,462848,462849,462850,462851,462852,462853,462854,462855,462856,462857,462858,462859,462860,462861,462862,462863,462864,462865,462866,462867,462868,462869,462870,462871,462872,462873,462874,462875,462876,462877,462878],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"江戸堀サンテクリニック","targets":[531734],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"桃寿荘指定短期入所生活介護事業所","targets":[521740],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"介護老人保健施設エコトープ","targets":[332485],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"桐生園ショートスティ","targets":[521899],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"未来ほしの子保育園","targets":[504258],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"江差町消防団（檜山広域行政組合江差消防署管理係）","targets":[531705],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ケアサポートともしあ","targets":[193209,193613],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"えぼし学園","targets":[40255,40256],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"居宅介護支援事業所　よろこび","targets":[453757,456596,456597],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人若葉会　あくた歯科医院","targets":[395225],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"生活協同組合パルシステム東京　グループホーム「府中陽だまり」","targets":[558232],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"森田歯科医院","targets":[524343,524344,524345,524346,524347,524348,524349,524350,524351,524352,524353,524354,524355,524356,524357,524358,524359,524360,524361,524362,524363,524364,524365,524366,524367,524368,524369,524370,524371,524372,524373,524374,524375,524376,524377,524378,524379,524380,524381,524382,524383,524384,524385,524386,524387,524388,524389],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"訪問介護ステーション　ココレ","targets":[618568,619951],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"小諸 （こもろ） 年金事務所","targets":[445695],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"庄原警察署高駐在所","targets":[472740],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ケア21　三郷","targets":[192278,192279,192445],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"大阪府立近つ飛鳥博物館","targets":[427441],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"横浜市立山元小学校","targets":[526697],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ヤックスドラッグ本千葉薬局","targets":[293168],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"グループホームうららびより関ケ原","targets":[182569,182570],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"キラメキテラス歯科","targets":[171118],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"わーくほーむ江南","targets":[146667],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人　岡本クリニック","targets":[361763,361764],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"セキ薬局　花田店","targets":[224863],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"黒住歯科クリニック","targets":[666838],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"橋本医院","targets":[527823,527824,527825,527826,527827,527828,527829,527830,527831,527832,527833,527834,527835,527836,527837,527838,527839,527840,527841,527842],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"もりおか障害者自立支援プラザ","targets":[134370],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人社団　上原医院","targets":[378093],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ちあふるガーデン","targets":[86761],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ユニットケアにながわ","targets":[294273],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"サンライズキッズ名古屋港園","targets":[213421],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人　前原整形外科リハビリクリニック　通所ﾘﾊﾋﾞﾘﾃｰｼｮﾝ　せたか","targets":[360153],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"石引歯科医院","targets":[577168],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"医療法人社団　湘仁会　学芸大こだま眼科","targets":[384604],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"訪問介護　ミント","targets":[615691,621172,621173,621174,621175],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"羽尾歯科医院春日山","targets":[597197],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"リハビリデイサービス　クララ　都筑ふれあいの丘","targets":[300041,300042],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ＮＰＯ法人せかんどデイサービス高石","targets":[12835],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"そらにとどくき認定こども園ののの","targets":[81539],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"ロペキッズ","targets":[305180,305181],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"東京大学","targets":[507864],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"京都府立大学","targets":[323898],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"名古屋市立大学","targets":[406247],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"横浜市立大学","targets":[526655],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"福岡県立大学","targets":[585756],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"東京工科大学","targets":[507959],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"東京工芸大学","targets":[507962],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"東京都立大学","targets":[508401],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"東京科学大学","targets":[508203],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"名古屋大学","targets":[406017],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"京都大学","targets":[323557],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"横浜国立大学","targets":[526098],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"東洋大学","targets":[509898],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"東邦大学","targets":[510612],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"東京都立中央図書館","targets":[508388],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"横浜市中央図書館","targets":[526153],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"京都市中央図書館","targets":[323633],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"国立国会図書館","targets":[410821],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"独立行政法人国立文化財機構　東京国立博物館","targets":[554711],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"独立行政法人国立文化財機構　京都国立博物館","targets":[554709],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"東京都美術館","targets":[508426],"kind":"exact_control","source":"synthetic","split":"test"}
+{"query":"東京国立近代美術館","targets":[507834],"kind":"exact_control","source":"synthetic","split":"test"}
