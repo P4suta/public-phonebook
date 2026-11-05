@@ -1,9 +1,14 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import * as v from "valibot";
-import { CategorySchema } from "../core/catalog.ts";
 import type { RankedSearch } from "../core/forgiving-search.ts";
-import { localQuery, orderedIndexRows } from "../core/local-search.ts";
-import { indexAdmission, nextVisible } from "../core/local-search-policy.ts";
+import {
+  continueCategory,
+  type LocalMatches,
+  localQuery,
+  matchIndex,
+  previewGroups,
+} from "../core/local-search.ts";
+import { indexAdmission } from "../core/local-search-policy.ts";
 import {
   type IndexUnavailable,
   indexProgressSteps,
@@ -21,17 +26,11 @@ import {
 
 const hexadecimalRadix = 16;
 const hexadecimalByteWidth = 2;
-const exactTelephoneScore = 1_000_000;
 
 export type RankingFactory = (
   index: SearchIndex,
   bytes: Uint8Array,
 ) => RankedSearch;
-
-interface LocalHit {
-  readonly row: number;
-  readonly score?: number;
-}
 
 export interface LocalSearchPorts {
   readonly fetch: (url: string) => Promise<Response>;
@@ -138,13 +137,39 @@ function decode(bytes: Uint8Array, lazy: boolean): Result<SearchIndex, string> {
   }
 }
 
+/** The category groups of one query, with the forgiving score of each ranked row. */
+interface Matched {
+  readonly matches: LocalMatches;
+  readonly scores: ReadonlyMap<number, number>;
+}
+
+/** Groups rows in their given order by category, placing each category where its first row appears. */
+function groupRows(
+  index: SearchIndex,
+  positions: readonly number[],
+): LocalMatches {
+  const categories = new Map<string, number[]>();
+  for (const position of positions) {
+    const category = index.rows[position]?.category;
+    if (category === undefined)
+      throw new Error("A matched row is out of range");
+    const rows = categories.get(category) ?? [];
+    rows.push(position);
+    categories.set(category, rows);
+  }
+  return {
+    total: positions.length,
+    categories: [...categories].map(([category, rows]) => ({ category, rows })),
+  };
+}
+
 export function localRow(index: SearchIndex, position: number): LocalRow {
   const row = index.rows[position];
   if (!row) throw new Error("A local search row is out of range");
   return {
     row: position,
     name: row.name,
-    category: v.parse(CategorySchema, row.category),
+    category: row.category,
     region: row.region,
     phones: [...row.phones],
     hasAddress: row.hasAddress,
@@ -158,10 +183,7 @@ export function localSearchService(
   let loads = 0;
   let index: SearchIndex | null = null;
   let ranked: RankedSearch | null = null;
-  let cached: {
-    readonly query: string;
-    readonly matches: readonly LocalHit[];
-  } | null = null;
+  let cached: ({ readonly query: string } & Matched) | null = null;
 
   /** Keeps answering from the current index until a replacement is admitted, and drops it when the replacement fails. */
   async function load(
@@ -274,28 +296,43 @@ export function localSearchService(
   function matchesFor(
     current: SearchIndex,
     query: string,
-  ): Result<readonly LocalHit[], "invalid_query"> {
-    if (cached?.query === query) return { ok: true, value: cached.matches };
+  ): Result<Matched, "invalid_query"> {
+    if (cached?.query === query) return { ok: true, value: cached };
     const parsed = localQuery(query);
     if (!parsed.ok) return parsed;
-    let matches: readonly LocalHit[];
+    let matched: Matched;
     if (parsed.value.kind === "words" && ranked) {
-      matches = ranked.search(query);
-    } else if (parsed.value.kind === "telephone") {
-      const { number } = parsed.value;
-      matches = current.telephoneRows
-        ? current
-            .telephoneRows(number)
-            .map((row) => ({ row, score: exactTelephoneScore }))
-        : current.rows.flatMap((row, position) =>
-            row.phones.includes(number)
-              ? [{ row: position, score: exactTelephoneScore }]
-              : [],
-          );
-    } else
-      matches = orderedIndexRows(current, parsed.value).map((row) => ({ row }));
-    cached = { query, matches };
-    return { ok: true, value: matches };
+      const hits = ranked.search(query);
+      matched = {
+        matches: groupRows(
+          current,
+          hits.map((hit) => hit.row),
+        ),
+        scores: new Map(hits.map((hit) => [hit.row, hit.score])),
+      };
+    } else if (parsed.value.kind === "telephone" && current.telephoneRows)
+      matched = {
+        matches: groupRows(current, current.telephoneRows(parsed.value.number)),
+        scores: new Map(),
+      };
+    else
+      matched = {
+        matches: matchIndex(current, parsed.value),
+        scores: new Map(),
+      };
+    cached = { query, ...matched };
+    return { ok: true, value: matched };
+  }
+
+  function row(
+    current: SearchIndex,
+    matched: Matched,
+    position: number,
+  ): LocalRow {
+    const score = matched.scores.get(position);
+    return score === undefined
+      ? localRow(current, position)
+      : { ...localRow(current, position), score };
   }
 
   return async (message: unknown): Promise<void> => {
@@ -314,40 +351,37 @@ export function localSearchService(
       ports.post({ type: "failed", id: request.id, error: matches.error });
       return;
     }
-    const ordered = request.category
-      ? matches.value.filter(
-          (hit) => current.rows[hit.row]?.category === request.category,
-        )
-      : matches.value;
-    const visible = request.type === "search" ? 0 : request.visible;
-    if (visible > ordered.length) {
-      ports.post({
-        type: "failed",
-        id: request.id,
-        error: "invalid_continuation",
-      });
-      return;
-    }
-    const next = nextVisible(visible, ordered.length);
-    const rows = ordered.slice(visible, next).map((hit) => ({
-      ...localRow(current, hit.row),
-      ...(hit.score === undefined ? {} : { score: hit.score }),
-    }));
+    const matched = matches.value;
     if (request.type === "search") {
+      const results = previewGroups(matched.matches);
       ports.post({
         type: "results",
         id: request.id,
-        total: ordered.length,
-        rows,
+        total: results.total,
+        groups: results.groups.map((group) => ({
+          category: group.category,
+          total: group.total,
+          rows: group.rows.map((position) => row(current, matched, position)),
+        })),
       });
+      return;
+    }
+    const page = continueCategory(
+      matched.matches,
+      request.category,
+      request.visible,
+    );
+    if (!page.ok) {
+      ports.post({ type: "failed", id: request.id, error: page.error });
       return;
     }
     ports.post({
       type: "page",
       id: request.id,
-      total: ordered.length,
-      visible: next,
-      rows,
+      category: page.value.category,
+      total: page.value.total,
+      visible: page.value.visible,
+      rows: page.value.rows.map((position) => row(current, matched, position)),
     });
   };
 }

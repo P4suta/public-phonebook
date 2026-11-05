@@ -393,7 +393,7 @@ Each query compares the total, the category order, each category's count, and ea
 For the first category of 4 to 100 rows, it also compares the complete ordered category.
 It checks 100 row positions with the row locator, the lookup that opens a device result's details.
 The run fails on any difference between the server and its literal reference.
-The shipped device worker uses the same literal matching contract in one ordered list.
+The shipped device worker uses the same literal matching contract and the same category previews.
 The QA scorer follows its separate shared ranking fixture and quality gate, because forgiving ranking intentionally differs from server matching.
 Each D1 statement opens a loopback connection from Node to workerd, and macOS keeps a closed one for 30 seconds within 16,384 ephemeral ports.
 A read that fails with `EADDRNOTAVAIL` therefore waits a second and runs again, up to 60 times, while any other error fails the run at once.
@@ -414,9 +414,10 @@ It records both artifacts' transfer bytes, navigation-to-ready time, worker admi
 It also records input events of 16 ms or longer while typing, long tasks in Chromium, and the main-thread heap in Chromium.
 The separate Node heap estimate covers only the decoded name index.
 The literal-reference work counters describe the server matching reference, while the browser timings measure the production device worker.
-The optional `--contract FILE` compares complete row-and-score rankings through the actual worker and every continuation after 32 warm-up queries.
+The optional `--contract FILE` retrieves every category of each query through the actual worker and its category continuations after 32 warm-up queries.
 The contract must match the snapshot, contact count, and both decoded digests.
-Its timing field covers retrieval of the complete returned ranking, and its equality check compares SHA-256 digests of ordered pairs.
+It groups the fixture's ranked row-and-score pairs by category in rank order and requires the worker's categories, their order, and their rows to match.
+Its timing field covers retrieval of every category of the returned ranking.
 The report counts inputs that the website's query parser rejects.
 The optional `--process-tools DIRECTORY` samples resident memory across the owned browser process tree every 250 milliseconds.
 The directory supplies the macOS browser launcher and process-responsibility inspector from the search-engine experiment.
@@ -428,13 +429,13 @@ Safari on a physical iPhone and an isolated worker-heap measurement remain unrun
 Each profile also counts search messages and returned JSON bytes during the UI sample.
 The record holds measurements, not thresholds.
 
-On 2026-11-05, all four profiles matched the 2,200 national contract queries with zero divergences and no parser rejections.
+On 2026-11-05, before the category previews returned, all four profiles matched the 2,200 national contract queries in one list with zero divergences and no parser rejections.
 Chromium worker admission took 7,820.9 milliseconds, with a 9.4-millisecond p95 across 57 UI search round trips.
 Desktop WebKit admission took 7,664 milliseconds, with a 17-millisecond UI p95.
 The measured artifact transfers totaled 25,989,318 bytes, and their decoded bodies totaled 123,288,026 bytes.
 Peak process resident memory reached 2,364,686,336 bytes in Chromium, 6,453,870,592 bytes in desktop WebKit, and 6,850,248,704 bytes in mobile WebKit.
 The process sampler covers admission and the full query campaign, so those peaks don't establish an isolated worker heap or physical-device memory use.
-The final ranked-list worker script measured 54,667 bytes under the 72-KiB limit introduced for the frozen scorer and decoder.
+The worker script measured 54,667 bytes under the 72-KiB limit introduced for the frozen scorer and decoder.
 The 1-MiB compressed server bundle and the page-script budgets remain unchanged.
 
 Run `mise x -- just test` for the fast gate, national data reconciliation and phone profile, complete proof inventory, and national browser campaign.

@@ -123,7 +123,7 @@ function harness(
 }
 
 describe("local search worker", () => {
-  it("defaults to literal matching with only the name index and keeps one global order", async () => {
+  it("defaults to literal matching with only the name index", async () => {
     const source = fixture();
     const replies: LocalSearchReply[] = [];
     const fetcher = vi.fn(async () =>
@@ -142,55 +142,20 @@ describe("local search worker", () => {
       ["03-3581-2331", 2],
     ] as const) {
       await handle({ type: "search", id: 1, query });
-      expect(replies.at(-1)).toMatchObject({ type: "results", total });
+      const reply = replies.at(-1);
+      expect(reply).toMatchObject({ type: "results", total });
       if (query === "図書館")
-        expect(replies.at(-1)).toMatchObject({
-          rows: [
-            { name: "図書館" },
-            { name: "図書館" },
-            { name: "市立図書館" },
-          ],
-        });
+        expect(
+          reply?.type === "results"
+            ? reply.groups.flatMap((group) => group.rows.map((row) => row.name))
+            : [],
+        ).toEqual(["図書館", "市立図書館", "図書館"]);
     }
     await handle(source.load);
     expect(replies.at(-1)).toMatchObject({ type: "unavailable" });
     expect(fetcher.mock.calls).toHaveLength(1);
   });
 
-  it("continues one rank order across category boundaries", async () => {
-    const source = fixture(
-      Array.from({ length: 90 }, (_, position) => ({
-        id: `rank:${position}`,
-        name: `図書館${String(position).padStart(3, "0")}`,
-        category: position % 2 === 0 ? "library" : "medical",
-        prefectureCode: "13",
-        municipalityCode: "13101",
-        phones: [{ e164: "+81335812331" }],
-      })),
-    );
-    const worker = harness(source);
-    await worker.handle(source.load);
-    await worker.handle({ type: "search", id: 1, query: "図書" });
-    expect(worker.replies.at(-1)).toMatchObject({
-      type: "results",
-      total: 90,
-      rows: Array.from({ length: 30 }, (_, row) => ({ row })),
-    });
-    for (const visible of [30, 60]) {
-      await worker.handle({
-        type: "continue",
-        id: visible,
-        query: "図書",
-        visible,
-      });
-      expect(worker.replies.at(-1)).toMatchObject({
-        type: "page",
-        total: 90,
-        visible: visible + 30,
-        rows: Array.from({ length: 30 }, (_, row) => ({ row: visible + row })),
-      });
-    }
-  });
   it("admits both artifacts and searches kana and complete numbers offline", async () => {
     const source = fixture();
     const worker = harness(source);
@@ -243,9 +208,9 @@ describe("local search worker", () => {
     await worker.handle(source.load);
     await worker.handle({ type: "search", id: 1, query: "國立図書館" });
     const reply = worker.replies.at(-1);
-    expect(reply?.type === "results" ? reply.rows[0]?.name : null).toBe(
-      "國立図書館",
-    );
+    expect(
+      reply?.type === "results" ? reply.groups[0]?.rows[0]?.name : null,
+    ).toBe("國立図書館");
   });
 
   it("answers invalid queries and continuations without throwing", async () => {

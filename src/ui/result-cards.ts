@@ -1,4 +1,3 @@
-import type { Category } from "../core/catalog.ts";
 import type { LocalRow } from "../core/local-search-protocol.ts";
 import type { Contact } from "../core/models.ts";
 import { showsAddress } from "../core/search.ts";
@@ -19,7 +18,6 @@ export interface RegionNames {
 export interface ResultCardView {
   readonly key: string;
   readonly name: string;
-  readonly category: Category;
   readonly region: string;
   readonly phones: readonly string[];
   /** Whether the detail page shows an address, which names the card's detail action. */
@@ -78,7 +76,6 @@ export function serverCard(
   return {
     key: contact.id,
     name: contact.name,
-    category: contact.category,
     region: regionLabel(
       contact.municipalityCode ?? contact.prefectureCode,
       names,
@@ -99,7 +96,6 @@ export function localCard(
   return {
     key: `row-${row.row}`,
     name: row.name,
-    category: row.category,
     region: regionLabel(row.region, names),
     phones: row.phones.map(
       (national) => `${countryPrefix}${national.slice(trunkPrefixLength)}`,
@@ -108,14 +104,4 @@ export function localCard(
     href: `/contacts/row/${snapshot}/${row.row}?from=${encodeURIComponent(returnTo)}`,
     row: { snapshot, row: row.row },
   };
-}
-
-export function resultIdentity(card: ResultCardView): string {
-  return JSON.stringify([
-    card.name,
-    card.category,
-    card.region,
-    card.phones,
-    card.hasAddress,
-  ]);
 }

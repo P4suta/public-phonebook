@@ -118,14 +118,18 @@ test("search and cursor continuation work without JavaScript", async ({
     await page.getByRole("searchbox").fill("図書館");
     await page.getByRole("button", { name: "電話番号をさがす" }).click();
     await expect(page.locator("[data-result-category]").first()).toBeVisible();
-    await page.getByRole("link", { name: "検索結果をもっと見る" }).click();
+    await page
+      .locator('[data-result-category="library"]')
+      .getByRole("link", { name: "図書館をもっと見る" })
+      .click();
+    await expect(page).toHaveURL(/category=library/);
     await expect(page.locator("article")).toHaveCount(30);
     const firstIds = await page
       .locator("article")
       .evaluateAll((items) =>
         items.map((item) => item.getAttribute("aria-labelledby")),
       );
-    await page.getByRole("link", { name: "検索結果をもっと見る" }).click();
+    await page.getByRole("link", { name: "図書館をもっと見る" }).click();
     await expect(page).toHaveURL(/cursor=/);
     await expect(page.locator("article")).toHaveCount(30);
     const nextIds = await page
@@ -172,7 +176,7 @@ for (const [order, commit] of compositionCommits)
     page,
   }) => {
     const queries: string[] = [];
-    await page.route("**/api/contacts?**", async (route) => {
+    await page.route("**/api/contact-groups?**", async (route) => {
       queries.push(new URL(route.request().url()).searchParams.get("q") ?? "");
       await route.continue();
     });
@@ -223,7 +227,9 @@ test("failed continuation preserves rows and can be retried", async ({
   await page.goto("/?q=図書館&category=library");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
   await expect(page.locator("article")).toHaveCount(30);
-  await page.getByRole("link", { name: "検索結果をもっと見る" }).click();
+  await page
+    .getByRole("link", { name: "図書館をもっと見る" })
+    .scrollIntoViewIfNeeded();
   await expect(page.getByRole("alert")).toBeVisible();
   await expect(page.locator("article")).toHaveCount(30);
   fail = false;
@@ -257,7 +263,9 @@ test("mixed-snapshot continuation offers a clean restart", async ({
   await saveData(page);
   await page.goto("/?q=図書館&category=library");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
-  await page.getByRole("link", { name: "検索結果をもっと見る" }).click();
+  await page
+    .getByRole("link", { name: "図書館をもっと見る" })
+    .scrollIntoViewIfNeeded();
   const restart = page.getByRole("link", {
     name: "検索結果をはじめから読みこむ",
   });
@@ -277,13 +285,21 @@ test("untrusted result text is rendered as text", async ({ page, request }) => {
   if (!first) throw new Error("Missing security fixture");
   const name = '<img src=x onerror="alert(1)">';
   await saveData(page);
-  await page.route("**/api/contacts?**", async (route) => {
+  await page.route("**/api/contact-groups?**", async (route) => {
     await route.fulfill({
       json: {
-        ...result,
-        data: [{ ...first, name }],
-        meta: { ...result.meta, total: 1, nextCursor: null },
-        links: { ...result.links, next: null },
+        groups: [
+          {
+            category: first.category,
+            results: {
+              ...result,
+              data: [{ ...first, name }],
+              meta: { ...result.meta, total: 1, nextCursor: null },
+              links: { ...result.links, next: null },
+            },
+          },
+        ],
+        meta: { snapshot: result.meta.snapshot, total: 1 },
       },
     });
   });
