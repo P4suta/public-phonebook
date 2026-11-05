@@ -33,10 +33,12 @@ import {
 } from "../src/core/models.ts";
 import { nameTokens, normalizeName, showsAddress } from "../src/core/search.ts";
 import {
+  decodeSearchIndex,
   encodeSearchIndex,
   searchIndexFile,
   searchIndexRow,
 } from "../src/core/search-index.ts";
+import { encodeRankingArtifact } from "../src/core/search-ranking-artifact.ts";
 import { searchForm } from "../src/core/search-text.ts";
 import { contactVCard } from "../src/core/vcard.ts";
 import { api, type DirectoryApiBindings } from "../src/server/api.ts";
@@ -44,6 +46,7 @@ import { databaseSchema } from "./database-schema.ts";
 import { requireDirectoryText, sha256Digest } from "./directory-delta.ts";
 import { insertStatements, type SqlStatement } from "./remote-statements.ts";
 import { compressSearchIndex } from "./search-index.ts";
+import { buildRankingArtifact } from "./search-ranking.ts";
 import { compressDirectoryArchive, contactRowNumbers } from "./snapshot.ts";
 
 export const contractOrigin = "https://contract.example";
@@ -472,6 +475,36 @@ export async function directoryFixture(
       { snapshot, catalog },
     );
     const compressedIndex = compressSearchIndex(searchIndex);
+    const decodedIndex = decodeSearchIndex(searchIndex);
+    const fixtureLexicon: [string, string, number][] = [
+      ["公開", "コウカイ", 1],
+      ["図書館", "トショカン", 1],
+    ];
+    const fixtureRanking = buildRankingArtifact(
+      decodedIndex,
+      {
+        readings: decodedIndex.rows.map((row) =>
+          row.name
+            .replaceAll("公開", "コウカイ")
+            .replaceAll("図書館", "トショカン"),
+        ),
+        lexicon: fixtureLexicon,
+      },
+      [],
+    );
+    const rankingBytes = encodeRankingArtifact({
+      ...fixtureRanking,
+      analyzer: {
+        engine: "synthetic-fixture",
+        dictionary: sha256Hex(JSON.stringify(fixtureLexicon)),
+      },
+    });
+    const compressedRanking = compressSearchIndex(rankingBytes);
+    const rankingSha256 = sha256Hex(compressedRanking);
+    await bucket.put(
+      `${snapshot}/${rankingSha256}/search-ranking.br`,
+      compressedRanking,
+    );
     const searchIndexSha256 = createHash("sha256")
       .update(compressedIndex)
       .digest("hex");
@@ -496,6 +529,14 @@ export async function directoryFixture(
           .update(searchIndex)
           .digest("hex"),
         uncompressedBytes: searchIndex.byteLength,
+      },
+      searchRanking: {
+        file: "search-ranking.br",
+        format: "public-phonebook-search-ranking/1",
+        sha256: rankingSha256,
+        bytes: compressedRanking.length,
+        uncompressedSha256: sha256Hex(rankingBytes),
+        uncompressedBytes: rankingBytes.length,
       },
       deltas,
     });

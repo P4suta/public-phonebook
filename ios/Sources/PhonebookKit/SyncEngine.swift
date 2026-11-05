@@ -44,6 +44,7 @@ public actor SyncEngine {
   private let store: SnapshotStore
   private let now: @Sendable () -> Date
   private let trace: any TraceSink
+  private let searchArtifacts: (any SearchArtifactSource)?
   /// Holds the decoded base and the rebuilt archive of a delta, which leave with their run.
   private let temporaryDirectory: URL
   private var updating = false
@@ -51,13 +52,15 @@ public actor SyncEngine {
   public init(
     api: APIClient, store: SnapshotStore, now: @escaping @Sendable () -> Date = Date.init,
     trace: any TraceSink = DiscardingTraceSink(),
-    temporaryDirectory: URL = FileManager.default.temporaryDirectory
+    temporaryDirectory: URL = FileManager.default.temporaryDirectory,
+    searchArtifacts: (any SearchArtifactSource)? = nil
   ) {
     self.api = api
     self.store = store
     self.now = now
     self.trace = trace
     self.temporaryDirectory = temporaryDirectory
+    self.searchArtifacts = searchArtifacts
   }
 
   /// Reads the listing and plans a first run from `bundle`, so the welcome notice names what the run receives.
@@ -68,8 +71,11 @@ public actor SyncEngine {
     guard let bundle else {
       do {
         let archive = try await api.datasets(paths: paths).archive
+        let extra =
+          try await searchArtifacts?.transferBytes(
+            snapshot: archive.snapshot, contacts: archive.contacts, paths: paths) ?? 0
         return FirstRunPlan.decide(
-          bundle: .missing, listing: .noDeltaFromBundled(archiveBytes: archive.bytes))
+          bundle: .missing, listing: .noDeltaFromBundled(archiveBytes: archive.bytes + extra))
       } catch {
         if Task.isCancelled || error is CancellationError { throw CancellationError() }
         return FirstRunPlan.decide(bundle: .missing, listing: .unreachable)
@@ -153,6 +159,9 @@ public actor SyncEngine {
           plan: .decide(bundle: .readable, listing: .namesBundled(archiveBytes: archive.bytes)),
           archive: archive, delta: nil)
       }
+      let extra =
+        try await searchArtifacts?.transferBytes(
+          snapshot: archive.snapshot, contacts: archive.contacts, paths: paths) ?? 0
       if let link = listing.deltas,
         let delta = try await api.directoryDeltas(link: link, paths: paths).first(where: {
           $0.base == bundled && $0.snapshot == archive.snapshot
@@ -162,11 +171,13 @@ public actor SyncEngine {
         return FirstRunListing(
           plan: .decide(
             bundle: .readable,
-            listing: .deltaFromBundled(deltaBytes: delta.bytes, archiveBytes: archive.bytes)),
+            listing: .deltaFromBundled(
+              deltaBytes: delta.bytes + extra, archiveBytes: archive.bytes + extra)),
           archive: archive, delta: delta)
       }
       return FirstRunListing(
-        plan: .decide(bundle: .readable, listing: .noDeltaFromBundled(archiveBytes: archive.bytes)),
+        plan: .decide(
+          bundle: .readable, listing: .noDeltaFromBundled(archiveBytes: archive.bytes + extra)),
         archive: archive, delta: nil)
     } catch {
       if Task.isCancelled || error is CancellationError { throw CancellationError() }
@@ -214,7 +225,7 @@ public actor SyncEngine {
       guard admission == .apply else { throw DeltaRejection(admission: admission) }
       try await stage(
         DirectoryArchiveReader(url: rebuilt, encoding: .plain, trace: trace), archive: archive,
-        progress: progress)
+        paths: paths, progress: progress)
       trace.record(TraceEvent(phase: .delta, outcome: .completed, snapshot: archive.snapshot))
     } catch {
       trace.record(
@@ -243,7 +254,8 @@ public actor SyncEngine {
     }
     defer { try? FileManager.default.removeItem(at: file) }
     try await stage(
-      DirectoryArchiveReader(url: file, trace: trace), archive: archive, progress: progress)
+      DirectoryArchiveReader(url: file, trace: trace), archive: archive, paths: paths,
+      progress: progress)
   }
 
   /// Stages and activates the bundled archive, and reports rows that fail their checks as an unreadable bundle.
@@ -324,7 +336,8 @@ public actor SyncEngine {
       }
     }
     try await stage(
-      DirectoryArchiveReader(url: file, trace: trace), archive: archive, progress: progress)
+      DirectoryArchiveReader(url: file, trace: trace), archive: archive, paths: paths,
+      progress: progress)
     let manifest = try await activate(snapshot: snapshot, rows: rows, progress: progress)
     try? FileManager.default.removeItem(at: file)
     return manifest
@@ -380,7 +393,7 @@ public actor SyncEngine {
       guard admission == .apply else { throw DeltaRejection(admission: admission) }
       try await stage(
         DirectoryArchiveReader(url: rebuilt, encoding: .plain, trace: trace), archive: archive,
-        progress: progress)
+        paths: paths, progress: progress)
       trace.record(TraceEvent(phase: .delta, outcome: .completed, snapshot: archive.snapshot))
       return true
     } catch {
@@ -395,6 +408,7 @@ public actor SyncEngine {
   /// The saved share of the progress follows the rows saved out of the archive's contact count.
   private func stage(
     _ reader: DirectoryArchiveReader, archive: DatasetArchive,
+    paths: NetworkPaths = .every,
     progress: @escaping @Sendable (SyncProgress) async -> Void
   ) async throws {
     var saved = 0
@@ -408,6 +422,9 @@ public actor SyncEngine {
           fraction: Self.downloadShare + fraction * Self.saveShare))
     }
     do {
+      let artifacts = try await searchArtifacts?.files(
+        snapshot: archive.snapshot, contacts: archive.contacts, paths: paths,
+        partials: store.searchTransfers)
       await progress(
         SyncProgress(
           stage: SyncProgress.prepare, done: 0, total: rows, rows: rows,
@@ -418,7 +435,8 @@ public actor SyncEngine {
             guard header.snapshot == archive.snapshot, header.contacts == archive.contacts else {
               throw ImportError.invalidSnapshot
             }
-            try await store.begin(header: header, origin: api.origin)
+            try await store.begin(
+              header: header, origin: api.origin, requiresRankedSearch: artifacts != nil)
           },
           records: { records, _ in
             // Waiting for the batch in flight keeps the saves in order and holds two batches at most.
@@ -431,6 +449,7 @@ public actor SyncEngine {
           })
         while let batch = try await saving.next() { await report(batch) }
       }
+      if let artifacts { try await store.installSearch(artifacts) }
       trace.record(TraceEvent(phase: .decode, outcome: .completed, snapshot: archive.snapshot))
       await progress(
         SyncProgress(
@@ -447,11 +466,50 @@ public actor SyncEngine {
     do {
       try Task.checkCancellation()
       let manifest = try await store.publish(at: now())
+      await releaseSearch(snapshot: snapshot)
       await progress(
         SyncProgress(stage: SyncProgress.identify, done: 1, total: 1, rows: rows, fraction: 1))
       return manifest
     } catch {
       try await discard(after: error, snapshot: snapshot)
+    }
+  }
+
+  private func releaseSearch(snapshot: SnapshotID) async {
+    do {
+      try await searchArtifacts?.release(snapshot: snapshot, partials: store.searchTransfers)
+    } catch {
+      trace.record(TraceEvent(phase: .cleanup, outcome: .deferred, snapshot: snapshot))
+    }
+  }
+
+  public func upgradeSearch(paths: NetworkPaths = .inexpensive) async throws -> SnapshotManifest {
+    guard !updating else { throw ImportError.alreadyUpdating }
+    updating = true
+    defer { updating = false }
+    guard let saved = try await store.manifest() else { throw ImportError.unavailableStorage }
+    if saved.rankedSearch == true { return saved }
+    guard let searchArtifacts else { throw ImportError.invalidSnapshot }
+    let header = try await store.header(generation: saved.generation)
+    let artifacts = try await searchArtifacts.files(
+      snapshot: saved.snapshot, contacts: saved.records, paths: paths,
+      partials: store.searchTransfers)
+    do {
+      try await store.begin(
+        header: header, origin: saved.origin.flatMap(URL.init(string:)), requiresRankedSearch: true)
+      for start in stride(from: 0, to: saved.records, by: SnapshotStore.archiveRowBatch) {
+        try Task.checkCancellation()
+        let lines = try await store.archiveRows(
+          generation: saved.generation, from: start,
+          count: min(SnapshotStore.archiveRowBatch, saved.records - start))
+        try await store.append(lines.map { try ArchiveRecord(line: $0, header: header) })
+      }
+      try await store.installSearch(artifacts)
+      let manifest = try await store.publish(at: now())
+      await releaseSearch(snapshot: saved.snapshot)
+      return manifest
+    } catch {
+      try await discard(after: error, snapshot: saved.snapshot)
     }
   }
 

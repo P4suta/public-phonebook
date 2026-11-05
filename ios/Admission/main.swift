@@ -5,6 +5,24 @@ import PhonebookKit
 /// Admits the archive that the build bundles with the app's own checks, and writes the entry that the app reads beside it.
 /// Usage: BundledAdmission ARCHIVE EXPECTED_ENTRY OUTPUT_ENTRY
 let arguments = CommandLine.arguments.dropFirst()
+if arguments.first == "--search-bundle", arguments.count == 4 {
+  let values = Array(arguments)
+  do {
+    let files = try SearchArtifactFiles.open(directory: URL(fileURLWithPath: values[1]))
+    guard files.manifest.snapshot.rawValue == values[2], files.manifest.contacts == Int(values[3])
+    else {
+      throw RankingError.identityMismatch
+    }
+    _ = try files.admit()
+    print(
+      "PASS: search artifacts admit \(files.manifest.contacts) contacts from the declared snapshot")
+    exit(0)
+  } catch {
+    FileHandle.standardError.write(
+      Data("The bundled search artifacts failed admission: \(error)\n".utf8))
+    exit(1)
+  }
+}
 // With `--search-forms FORMS`, it requires the app's comparison form of every name in FORMS, which `tools/search-form-parity.ts` writes beside the website's form.
 if arguments.first == "--search-forms", arguments.count == 2, let path = arguments.last {
   var compared = 0

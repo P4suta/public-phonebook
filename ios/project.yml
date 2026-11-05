@@ -93,13 +93,22 @@ targets:
         inputFiles:
           - $(SRCROOT)/../target/ios/bundled-dataset/$(PHONEBOOK_BUNDLED_DATASET)/directory.tsv.br
           - $(SRCROOT)/../target/ios/bundled-dataset/$(PHONEBOOK_BUNDLED_DATASET)/directory.json
+          - $(SRCROOT)/../target/ios/bundled-dataset/$(PHONEBOOK_BUNDLED_DATASET)/search-index.br
+          - $(SRCROOT)/../target/ios/bundled-dataset/$(PHONEBOOK_BUNDLED_DATASET)/search-ranking.br
+          - $(SRCROOT)/../target/ios/bundled-dataset/$(PHONEBOOK_BUNDLED_DATASET)/search.json
         outputFiles:
           - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/directory.tsv.br
           - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/directory.json
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/search-index.br
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/search-ranking.br
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/search.json
         script: |
           set -eu
           cp "$SCRIPT_INPUT_FILE_0" "$SCRIPT_OUTPUT_FILE_0"
           cp "$SCRIPT_INPUT_FILE_1" "$SCRIPT_OUTPUT_FILE_1"
+          cp "$SCRIPT_INPUT_FILE_2" "$SCRIPT_OUTPUT_FILE_2"
+          cp "$SCRIPT_INPUT_FILE_3" "$SCRIPT_OUTPUT_FILE_3"
+          cp "$SCRIPT_INPUT_FILE_4" "$SCRIPT_OUTPUT_FILE_4"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_BUNDLE_ID)

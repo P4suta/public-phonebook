@@ -6,7 +6,9 @@ use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fmt::Write as _, fs, path::Path, process::Command};
 
-const THEOREMS: [&str; 69] = [
+const THEOREMS: [&str; 71] = [
+    "requiredSearchIsReady",
+    "unrequiredSearchKeepsReadableStorage",
     "rankingDiceBound",
     "rankingMixtureBound",
     "rankingReadingBands",
@@ -80,6 +82,9 @@ const THEOREMS: [&str; 69] = [
 const UPDATE_SOURCE: &str = include_str!("../../../../ios/Sources/PhonebookCore/UpdateCheck.swift");
 const RANKING_SOURCE: &str =
     include_str!("../../../../ios/Sources/PhonebookCore/RankingPolicy.swift");
+const SEARCH_ACTIVATION_SOURCE: &str =
+    include_str!("../../../../ios/Sources/PhonebookCore/SearchActivation.swift");
+const SEARCH_ACTIVATION_REFINEMENT: &str = "publicenumSearchActivation{publicstaticfuncpermits(required:Bool,ready:Bool)->Bool{!required||ready}}";
 const RANKING_REFINEMENT_SHA256: &str =
     "b2d210611c5341414f56000f649e02ce5c3eff96c80cdb02ddf6c06c7a176fb7";
 /// The SHA-256 of the whitespace-free Swift decision that `verification/ios/UpdateCheck.lean` models function for function.
@@ -198,7 +203,8 @@ const DELTA_DEFECTS: [(&str, &str, &str, &str, &[&str]); 7] = [
         &["choose_waiting"],
     ),
 ];
-const PROOF_MODULES: [&str; 8] = [
+const PROOF_MODULES: [&str; 9] = [
+    "SearchActivation",
     "RankingPolicy",
     "Publication",
     "ReceiveBudget",
@@ -217,6 +223,7 @@ const REPLAY_ROOTS: [(&str, &[&str]); 2] = [
     (
         "OmegaModels",
         &[
+            "SearchActivation",
             "RankingPolicy",
             "ReceiveBudget",
             "DeltaAdmission",
@@ -232,7 +239,12 @@ const REPLAY_ROOTS: [(&str, &[&str]); 2] = [
 const COMPILE_WORK: [(&str, u64); 2] = [("lean compiles", 1), ("container runs", 1)];
 const REPLAY_WORK: [(&str, u64); 2] = [("kernel replays", 1), ("container runs", 1)];
 /// Each false claim must fail at its proof on line 2, which shows that the kernel checks that model.
-const FALSE_CLAIMS: [(&str, &str, &str); 6] = [
+const FALSE_CLAIMS: [(&str, &str, &str); 7] = [
+    (
+        "FalseSearchActivation",
+        "import SearchActivation\nexample : Phonebook.admitsSearch true false = true := by rfl\n",
+        "false activation without mandatory search files",
+    ),
     (
         "FalseRankingGate",
         "import RankingPolicy\nexample : Phonebook.rankGate 1250 501 false false = true := by rfl\n",
@@ -670,6 +682,13 @@ pub fn run(root: &Path) -> Result<()> {
         fs::remove_file(&receipt)?;
     }
     let sources = source_hashes(root)?;
+    let search_activation =
+        fs::read_to_string(root.join("ios/Sources/PhonebookCore/SearchActivation.swift"))?;
+    ensure!(
+        whitespace_free(&search_activation) == whitespace_free(SEARCH_ACTIVATION_SOURCE)
+            && whitespace_free(&search_activation) == SEARCH_ACTIVATION_REFINEMENT,
+        "The search activation proof covers another Swift decision"
+    );
     let ranking = fs::read_to_string(root.join("ios/Sources/PhonebookCore/RankingPolicy.swift"))?;
     ensure!(
         ranking == RANKING_SOURCE && crate::sha256_hex(&ranking) == RANKING_REFINEMENT_SHA256,

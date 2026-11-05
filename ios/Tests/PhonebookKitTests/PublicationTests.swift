@@ -78,6 +78,60 @@ private func firstName(_ store: SnapshotStore, _ generation: UUID) async throws 
   try await store.contacts(generation: generation, ids: [1]).first?.name
 }
 
+@Test func failedRankedActivationKeepsThePreviousSearchAndCallerGeneration() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let files = FaultSnapshotFiles()
+  let directory = root.appendingPathComponent("store")
+  let store = try SnapshotStore(root: directory, files: files)
+  func stageRanked(_ name: String) async throws {
+    let header = try sampleHeader()
+    let lines = [ArchiveLine(name: name)]
+    let artifacts = try searchFixture(in: root, header: header, lines: lines)
+    try await store.begin(header: header, requiresRankedSearch: true)
+    try await store.append(records(lines, header: header))
+    try await store.installSearch(artifacts)
+  }
+  try await stageRanked("Saved")
+  let original = try await commit(store)
+  try await stageRanked("Rejected")
+  files.failNext(.beforeActivation)
+  await #expect(throws: FileFault.self) { try await commit(store) }
+  try await store.abort()
+  #expect(try await store.manifest()?.generation == original.generation)
+  #expect(try CallerFile.active(in: directory)?.generation == original.generation)
+  let search = try #require(try await store.rankedSearch(generation: original.generation))
+  #expect(try search.search("Saved").map(\.id) == [1])
+  let remaining = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+    .filter { $0.hasSuffix(".search.json") }
+  #expect(remaining == [original.generation.uuidString + ".search.json"])
+}
+
+@Test func cancelledSearchAdmissionKeepsTheActiveGenerationAndRemovesTheDraft() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let directory = root.appendingPathComponent("store")
+  let store = try SnapshotStore(root: directory)
+  let original = try await publish([ArchiveLine(name: "Saved")], to: store)
+  let header = try sampleHeader(snapshot: "b")
+  let lines = [ArchiveLine(name: "Staging")]
+  let artifacts = try searchFixture(in: root, header: header, lines: lines)
+  try await store.begin(header: header, requiresRankedSearch: true)
+  try await store.append(records(lines, header: header))
+  let operation = Task {
+    withUnsafeCurrentTask { $0?.cancel() }
+    try await store.installSearch(artifacts)
+  }
+  await #expect(throws: CancellationError.self) { try await operation.value }
+  try await store.abort()
+  #expect(try await store.manifest()?.generation == original.generation)
+  #expect(try await firstName(store, original.generation) == "Saved")
+  #expect(
+    try FileManager.default.contentsOfDirectory(atPath: directory.path).allSatisfy {
+      !$0.hasSuffix(".search.json")
+    })
+}
+
 @Test func failedActivationKeepsBothReadableGenerationsAndAllowsRecovery() async throws {
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }
