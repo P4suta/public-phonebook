@@ -12,7 +12,7 @@ An ordinary preview rejects a build that contains the local scorer.
 The local recipe uses workerd's HTTPS socket to preserve the Brotli bytes and response headers that the development HTTP proxy changes.
 The browser uses Miniflare's self-signed loopback certificate, and source changes require another recipe run.
 The production worker loads only the name index, and its build gate rejects packed scorer code and local scorer chunks.
-Vite's [build API](https://vite.dev/guide/api-javascript.html#createbuilder) accepts the local build configuration.
+Vite's [app build API](https://vite.dev/guide/api-environment-frameworks) accepts the local build configuration.
 The [worker constructor](https://vite.dev/guide/features.html#web-workers) uses module mode for the local scorer's dynamic import.
 
 `createRankedSearch` in `src/core/local-search.ts` exposes the frozen facility-name scorer.
