@@ -242,7 +242,7 @@ const boundFiles = [
   "src/server.ts",
   "vite.config.ts",
   "src/ui/components.tsx",
-  "src/ui/ranked-results.tsx",
+  "src/ui/group-results.tsx",
   "src/ui/search-page.tsx",
   "src/server/database.ts",
   "src/server/search-cache.ts",
