@@ -46,6 +46,7 @@ import {
   deltaSource as bundleDeltaSource,
   sha256Digest,
 } from "../../tools/directory-delta.ts";
+import { command } from "../../tools/process.ts";
 import { storeDataset } from "../../tools/remote-data.ts";
 import { compressSearchIndex } from "../../tools/search-index.ts";
 import {
@@ -139,6 +140,20 @@ it("prepares canonical native data with normalized addresses and complete archiv
     db.close();
     const output = join(root, "bundle");
     await prepareSnapshot(path, output);
+    const cliOutput = join(root, "command-line");
+    const preparedCommand = await command(
+      process.execPath,
+      ["tools/data.ts", "prepare", path, cliOutput],
+      true,
+    );
+    expect(preparedCommand.code, preparedCommand.stderr).toBe(0);
+    const cliManifest = v.parse(
+      PreparedDatasetManifestSchema,
+      JSON.parse(
+        await readFile(join(cliOutput, "manifest.ready.json"), "utf8"),
+      ),
+    );
+    expect(cliManifest.searchRanking).toBeUndefined();
     const prepared: unknown = JSON.parse(
       await readFile(join(output, "catalog.json"), "utf8"),
     );
@@ -822,6 +837,17 @@ it("writes a delta from every shipped and recently published base and reports an
   }
 });
 
+it("prepares literal search by default and requires an explicit forgiving-search flag", () => {
+  expect(parsePrepareArguments(["prepare", "source", "out"])).toMatchObject({
+    forgivingSearch: false,
+  });
+  expect(
+    parsePrepareArguments(["prepare", "source", "out", "--forgiving-search"]),
+  ).toMatchObject({
+    forgivingSearch: true,
+  });
+});
+
 it("parses delta bases after the positional preparation arguments", () => {
   expect(
     parsePrepareArguments([
@@ -840,6 +866,7 @@ it("parses delta bases after the positional preparation arguments", () => {
     collection: "collection",
     deltaBases: ["first", "second"],
     deltaBaseRoot: undefined,
+    forgivingSearch: false,
   });
   expect(parsePrepareArguments(["prepare", "source", "out", ""])).toEqual({
     source: "source",
@@ -847,6 +874,7 @@ it("parses delta bases after the positional preparation arguments", () => {
     collection: undefined,
     deltaBases: [],
     deltaBaseRoot: undefined,
+    forgivingSearch: false,
   });
   expect(
     parsePrepareArguments([
@@ -863,11 +891,14 @@ it("parses delta bases after the positional preparation arguments", () => {
     collection: undefined,
     deltaBases: [],
     deltaBaseRoot: "bases",
+    forgivingSearch: false,
   });
   for (const args of [
     ["prepare", "source"],
     ["prepare", "source", "out", "--delta-base"],
     ["prepare", "source", "out", "--delta-base-root"],
+    ["prepare", "source", "out", "--unknown"],
+    ["prepare", "source", "out", "--forgiving-search", "--forgiving-search"],
     [
       "prepare",
       "source",

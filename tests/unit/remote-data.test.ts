@@ -38,7 +38,12 @@ const files = {
   "directory.sqlite": "database bytes",
   [deltaFile]: "delta bytes",
 };
-const manifest = JSON.stringify({
+const rankingFile = {
+  file: "search-ranking.br",
+  sha256: digest(files["search-ranking.br"]),
+  bytes: files["search-ranking.br"].length,
+};
+const manifestFields = {
   snapshot,
   databaseSha256: digest(files["directory.sqlite"]),
   files: [
@@ -53,11 +58,6 @@ const manifest = JSON.stringify({
     sha256: digest(files["search-index.br"]),
     bytes: files["search-index.br"].length,
   },
-  searchRanking: {
-    file: "search-ranking.br",
-    sha256: digest(files["search-ranking.br"]),
-    bytes: files["search-ranking.br"].length,
-  },
   deltas: [
     {
       file: deltaFile,
@@ -65,7 +65,8 @@ const manifest = JSON.stringify({
       bytes: files[deltaFile]?.length ?? 0,
     },
   ],
-});
+};
+const manifest = JSON.stringify(manifestFields);
 const manifestSha256 = digest(manifest);
 const held = { assertHeld: (): void => undefined };
 
@@ -82,6 +83,26 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   await rm(root, { recursive: true, force: true });
+});
+
+it("refuses ranking companions before storing dataset bytes", async () => {
+  const store = fileControlStore(join(root, "store"));
+  const bucket = fileControlStore(join(root, "bucket"), { layout: "dataset" });
+  for (const invalid of [
+    { ...manifestFields, searchRanking: rankingFile },
+    { ...manifestFields, files: [...manifestFields.files, rankingFile] },
+  ]) {
+    await writeFile(
+      join(bundle, "manifest.ready.json"),
+      JSON.stringify(invalid),
+    );
+    await expect(storeDataset(store, bundle)).rejects.toThrow(
+      "omit ranking companions",
+    );
+    await expect(writeArchives(bucket, bundle, held)).rejects.toThrow(
+      "omit ranking companions",
+    );
+  }
 });
 
 describe("remote data arguments", () => {
@@ -135,11 +156,18 @@ describe("control-store datasets", () => {
     const store = fileControlStore(join(root, "store"));
     expect(await storeDataset(store, bundle)).toBe(manifestSha256);
     expect(await storeDataset(store, bundle)).toBe(manifestSha256);
-    for (const text of Object.values(files))
+    for (const [, text] of Object.entries(files).filter(
+      ([name]) => name !== "search-ranking.br",
+    ))
       expect(await store.head(controlKeys.blob(digest(text)))).not.toBeNull();
+    expect(
+      await store.head(controlKeys.blob(digest(files["search-ranking.br"]))),
+    ).toBeNull();
     const target = join(root, "fetched");
     await fetchDataset(store, manifestSha256, target);
-    for (const [name, text] of Object.entries(files))
+    for (const [name, text] of Object.entries(files).filter(
+      ([name]) => name !== "search-ranking.br",
+    ))
       expect(await readFile(join(target, name), "utf8")).toBe(text);
     expect(await readFile(join(target, "manifest.ready.json"), "utf8")).toBe(
       manifest,
@@ -175,7 +203,6 @@ describe("dataset archive writer", () => {
     expect(await writeArchives(bucket, bundle, held)).toEqual([
       `${snapshot}/${digest(files["contacts.csv.gz"])}/contacts.csv.gz`,
       `${snapshot}/${digest(files["search-index.br"])}/search-index.br`,
-      `${snapshot}/${digest(files["search-ranking.br"])}/search-ranking.br`,
       `${snapshot}/${digest(files[deltaFile] ?? "")}/${deltaFile}`,
       `${snapshot}/${manifestSha256}/manifest.json`,
     ]);

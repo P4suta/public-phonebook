@@ -393,17 +393,19 @@ Each query compares the total, the category order, each category's count, and ea
 For the first category of 4 to 100 rows, it also compares the complete ordered category.
 It checks 100 row positions with the row locator, the lookup that opens a device result's details.
 The run fails on any difference between the server and its literal reference.
-The device scorer follows its separate shared ranking fixture and quality gate, because forgiving device ranking intentionally differs from server matching.
+The shipped device worker uses the same literal matching contract in one ordered list.
+The QA scorer follows its separate shared ranking fixture and quality gate, because forgiving ranking intentionally differs from server matching.
 Each D1 statement opens a loopback connection from Node to workerd, and macOS keeps a closed one for 30 seconds within 16,384 ephemeral ports.
 A read that fails with `EADDRNOTAVAIL` therefore waits a second and runs again, up to 60 times, while any other error fails the run at once.
 It also requires two controls to differ: previews with their first two rows swapped, and an index whose adjacent same-name rows with different details are swapped.
 It writes `.local/search-parity.json`.
 
-The candidate `parity` stage also runs the [national ranking-quality gate](search-ranking.md#search-quality-at-the-release-gate).
-Run `mise x -- node tools/search-ranking-contract.ts quality BUNDLE .local/search-quality.json` to evaluate the eight committed populations without seeding local D1 or building the client.
+The candidate `parity` stage runs the literal comparison without the national forgiving-search quality campaign.
+Run `mise x -- just search-quality-forgiving BUNDLE .local/search-quality.json` for the explicit [local quality check](search-ranking.md#local-preparation-and-quality-checks).
+The command checks the eight committed populations without seeding local D1 or building the client.
 Every population must preserve its declared size and meet the frozen top-1, top-3, and top-10 counts.
 The report binds its verdict to the corpus manifest, candidate snapshot, and both decoded artifact digests.
-The candidate workflow retains the report with the parity and performance evidence.
+The quality report remains local and accompanies no release candidate.
 Small deterministic fixtures and a source-translated threshold proof check the gate without putting national data or morphology in the fast pull-request checks.
 
 Run `mise x -- node tools/search-performance.ts BUNDLE` with the build and the seeded state to record the device search's performance in `.local/search-performance.json`.

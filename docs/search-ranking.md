@@ -12,7 +12,7 @@ An ordinary preview rejects a build that contains the local scorer.
 The local recipe uses workerd's HTTPS socket to preserve the Brotli bytes and response headers that the development HTTP proxy changes.
 The browser uses Miniflare's self-signed loopback certificate, and source changes require another recipe run.
 The production worker loads only the name index, and its build gate rejects packed scorer code and local scorer chunks.
-Vite's [build API](https://vite.dev/guide/api-javascript.html#createbuilder) accepts the local build configuration.
+Vite's [app build API](https://vite.dev/guide/api-environment-frameworks) accepts the local build configuration.
 The [worker constructor](https://vite.dev/guide/features.html#web-workers) uses module mode for the local scorer's dynamic import.
 
 `createRankedSearch` in `src/core/local-search.ts` exposes the frozen facility-name scorer.
@@ -123,7 +123,19 @@ Independent BigInt checks cover every integer preference score and seeded Dice b
 Unicode normalization, object traversal, candidate retrieval, and sorting have native checks rather than an unbounded theorem over all JavaScript strings.
 The arithmetic proofs don't certify benchmark target labels or a person's intended reading.
 
-## Search quality at the release gate
+## Local preparation and quality checks
+
+`mise x -- just data-prepare SOURCE OUTPUT` prepares a production snapshot without the ranking companion or the Sudachi analyzer.
+The production manifest keeps the name index used by literal device search.
+Remote storage, candidate data admission, and publication reject manifests that declare a ranking companion.
+Remote archive upload also rejects a ranking file hidden among other declared files.
+The upload inventory excludes undeclared local ranking files.
+
+Prepare a separate QA bundle with `mise x -- just data-prepare-forgiving SOURCE OUTPUT` to generate the snapshot-bound ranking companion.
+Install the pinned analyzer with `mise install` in `tools/readings` before preparing a national QA bundle.
+The first analyzer run downloads the checksum-pinned full dictionary into `.local/search-readings/`.
+`mise x -- just data-check BUNDLE` still verifies a declared ranking companion by regenerating the readings and posting bytes, so checking a national QA bundle also needs the analyzer.
+Checking a production bundle needs no analyzer.
 
 `tests/fixtures/search-quality/manifest.json` fixes eight evaluation populations and their top-1, top-3, and top-10 thresholds.
 The corpus retains 11,174 query records from the curated sets, both blind sets, and the original synthetic test splits.
@@ -136,18 +148,18 @@ A missing target fails the campaign instead of reducing its denominator.
 Changing an evaluation population or target requires reviewed corpus maintenance.
 
 ```sh
-mise x -- node tools/search-ranking-contract.ts quality BUNDLE .local/search-quality.json
+mise x -- just search-quality-forgiving BUNDLE .local/search-quality.json
 ```
 
-The command verifies the corpus and both snapshot artifacts before evaluating the production scorer.
+The explicit local command verifies the corpus and both snapshot artifacts before evaluating the QA scorer.
 A query succeeds at a cutoff when any declared acceptable target appears within that cutoff.
 Every query contributes to the denominator, including queries with no hits.
 Each population must keep its declared size and meet all three thresholds.
 Improvements in one population or cutoff can't offset a regression elsewhere.
 The JSON report binds the corpus, candidate snapshot, and decoded artifact digests to the measured counts and verdict.
 
-The existing candidate `parity` stage runs the quality command after device/server parity and before recording a passing receipt.
-The candidate workflow retains the quality report with its other search reports.
+The candidate `parity` stage checks literal device/server parity without running the national forgiving-search quality campaign.
+Release CI neither loads the Sudachi analyzer nor retains a forgiving-search quality report.
 The fast gate runs small metric, corruption, target-resolution, split-admission, and regression-control fixtures without loading the national corpus or analyzer.
 The source-translated `qualityPasses` proof establishes the threshold decision over its declared integer domain, and a relaxed top-1 threshold must fail verification.
 The native tests keep an empty ranker as a regression control.

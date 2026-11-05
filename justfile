@@ -14,6 +14,12 @@ build environment="development":
 data-prepare source output collection="" delta_bases="":
     npm run data -- prepare {{ quote(source) }} {{ quote(output) }} {{ quote(collection) }} {{ if delta_bases == "" { "" } else { "--delta-base-root " + quote(delta_bases) } }}
 
+data-prepare-forgiving source output collection="":
+    npm run data -- prepare {{ quote(source) }} {{ quote(output) }} {{ quote(collection) }} --forgiving-search
+
+search-quality-forgiving bundle report=".local/search-quality.json":
+    node tools/search-ranking-contract.ts quality {{ quote(bundle) }} {{ quote(report) }}
+
 data-collect output:
     node tools/collect.ts run sources/public-facilities.json --output {{ quote(output) }}
 
