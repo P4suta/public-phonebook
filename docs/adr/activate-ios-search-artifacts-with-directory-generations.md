@@ -7,6 +7,7 @@ date: 2026-11-05
 ## Status
 
 Accepted in #308.
+The [mapped-generation decision](map-verified-search-files-from-saved-generations.md) partly supersedes compressed saved storage and scorer construction on launch.
 The implementation follows the accepted snapshot, ranking, and bundled-archive contracts.
 
 ## Context

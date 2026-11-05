@@ -62,6 +62,7 @@ public actor SearchArtifactRepository: SearchArtifactSource {
       guard location.snapshot == snapshot,
         location.url == "/api/\(kind)/\(snapshot.rawValue)/\(location.sha256.rawValue)",
         kind != "search-ranking" || location.format == "public-phonebook-search-ranking/1"
+          || location.format == "public-phonebook-search-ranking/2"
       else { throw RankingError.identityMismatch }
       return location
     }

@@ -166,6 +166,9 @@ public actor SnapshotStore {
   private static let searchExtensions = [
     "search-index.br", "search-ranking.br", "search.json", "search-rows",
   ]
+  private static let mappedSearchExtensions = [
+    "search-index", "search-ranking", "search-lines", "search.json", "search-rows",
+  ]
   /// A generation saved before the caller file existed still opens, so the file isn't one of the required extensions.
   private static let callerExtension = "callers"
   private var manifestURL: URL { root.appendingPathComponent("active.json") }
@@ -189,8 +192,10 @@ public actor SnapshotStore {
         FileManager.default.fileExists(atPath: url(manifest.generation, $0).path)
       }),
       manifest.rankedSearch != true
-        || Self.searchExtensions.allSatisfy({
-          FileManager.default.fileExists(atPath: url(manifest.generation, $0).path)
+        || [Self.searchExtensions, Self.mappedSearchExtensions].contains(where: { extensions in
+          extensions.allSatisfy {
+            FileManager.default.fileExists(atPath: url(manifest.generation, $0).path)
+          }
         })
     else { throw ImportError.invalidSnapshot }
     return manifest
@@ -407,7 +412,7 @@ public actor SnapshotStore {
   }
 
   private func removeGeneration(_ generation: UUID) throws {
-    for kind in Self.generationExtensions + Self.searchExtensions + [
+    for kind in Self.generationExtensions + Self.searchExtensions + Self.mappedSearchExtensions + [
       Self.callerExtension, Self.callerExtension + ".partial",
     ] {
       let target = url(generation, kind)
@@ -549,6 +554,7 @@ public actor SnapshotStore {
     let format: String
     let artifacts: SearchArtifactManifest
     let rowsSha256: SnapshotID
+    let linesSha256: SnapshotID?
   }
 
   private static func searchDigest(_ data: Data) throws -> SnapshotID {
@@ -600,19 +606,20 @@ public actor SnapshotStore {
       Swift.withUnsafeBytes(of: &littleEndian) { mapping.append(contentsOf: $0) }
     }
     guard available.isEmpty else { throw RankingError.identityMismatch }
-    try FileManager.default.copyItem(
-      at: artifacts.index, to: url(draft.generation, "search-index.br"))
-    try FileManager.default.copyItem(
-      at: artifacts.ranking, to: url(draft.generation, "search-ranking.br"))
-    try artifacts.manifest.index.verify(url(draft.generation, "search-index.br"))
-    try artifacts.manifest.ranking.verify(url(draft.generation, "search-ranking.br"))
+    let viewed = try SearchArtifacts.index(admitted.indexBytes, lazy: true)
+    guard let lines = viewed.lineOffsets else { throw RankingError.invalidArtifact }
+    try admitted.indexBytes.write(
+      to: url(draft.generation, "search-index"), options: .withoutOverwriting)
+    try admitted.rankingBytes.write(
+      to: url(draft.generation, "search-ranking"), options: .withoutOverwriting)
+    try lines.write(to: url(draft.generation, "search-lines"), options: .withoutOverwriting)
     let saved = try SavedSearchManifest(
-      format: "public-phonebook-saved-search/1", artifacts: artifacts.manifest,
-      rowsSha256: Self.searchDigest(mapping))
+      format: "public-phonebook-saved-search/2", artifacts: artifacts.manifest,
+      rowsSha256: Self.searchDigest(mapping), linesSha256: Self.searchDigest(lines))
     try JSONEncoder().encode(saved).write(
       to: url(draft.generation, "search.json"), options: .withoutOverwriting)
     try mapping.write(to: url(draft.generation, "search-rows"), options: .withoutOverwriting)
-    for kind in Self.searchExtensions {
+    for kind in Self.mappedSearchExtensions {
       let handle = try FileHandle(forUpdating: url(draft.generation, kind))
       try handle.synchronize()
       try handle.close()
@@ -627,18 +634,36 @@ public actor SnapshotStore {
     let bytes = try LocalSnapshotFiles().readManifest(at: manifestFile)
     guard bytes.count <= 65_536 else { throw RankingError.invalidArtifact }
     let saved = try JSONDecoder().decode(SavedSearchManifest.self, from: bytes)
-    guard saved.format == "public-phonebook-saved-search/1" else {
+    guard
+      ["public-phonebook-saved-search/1", "public-phonebook-saved-search/2"].contains(saved.format)
+    else {
       throw RankingError.invalidArtifact
     }
-    let files = try SearchArtifactFiles(
-      manifest: saved.artifacts,
-      index: url(generation, "search-index.br"), ranking: url(generation, "search-ranking.br"))
     let header = try index(database, generation).header
-    guard files.manifest.snapshot == header.snapshot, files.manifest.contacts == header.contacts
+    try saved.artifacts.validate()
+    guard saved.artifacts.snapshot == header.snapshot, saved.artifacts.contacts == header.contacts
     else {
       throw RankingError.identityMismatch
     }
-    let admitted = try files.admit()
+    let scorer: RankedSearch
+    if saved.format == "public-phonebook-saved-search/2" {
+      guard let linesSha256 = saved.linesSha256 else { throw RankingError.invalidArtifact }
+      let indexBytes = try saved.artifacts.index.mapped(url(generation, "search-index"))
+      let rankingBytes = try saved.artifacts.ranking.mapped(url(generation, "search-ranking"))
+      let lines = try SearchArtifactIdentity.mapped(
+        url(generation, "search-lines"), bytes: (header.contacts + 1) * 8, sha256: linesSha256)
+      let viewed = try SearchArtifacts.index(indexBytes, lazy: true, lineOffsets: lines)
+      let ranking = try SearchArtifacts.ranking(
+        rankingBytes, snapshot: header.snapshot.rawValue, contacts: header.contacts,
+        completeValidation: false)
+      scorer = try viewed.scorer(ranking)
+    } else {
+      let files = try SearchArtifactFiles(
+        manifest: saved.artifacts, index: url(generation, "search-index.br"),
+        ranking: url(generation, "search-ranking.br"))
+      let admitted = try files.admit()
+      scorer = try admitted.index.scorer(admitted.ranking)
+    }
     let handle = try FileHandle(forReadingFrom: url(generation, "search-rows"))
     defer { try? handle.close() }
     let data = try handle.read(upToCount: header.contacts * 4 + 1) ?? Data()
@@ -650,12 +675,20 @@ public actor SnapshotStore {
         UInt32(littleEndian: raw.loadUnaligned(fromByteOffset: $0 * 4, as: UInt32.self))
       }
     }
-    guard Set(ids).count == header.contacts,
-      ids.allSatisfy({ $0 > 0 && Int($0) <= header.contacts })
-    else {
-      throw RankingError.invalidArtifact
+    var seen = [UInt8](repeating: 0, count: header.contacts + 1)
+    for id in ids {
+      guard id > 0, Int(id) <= header.contacts, seen[Int(id)] == 0 else {
+        throw RankingError.invalidArtifact
+      }
+      seen[Int(id)] = 1
     }
-    return try SavedRankedSearch(scorer: admitted.index.scorer(admitted.ranking), ids: ids)
+    return SavedRankedSearch(scorer: scorer, ids: ids)
+  }
+
+  public func searchUsesMappedFiles(generation: UUID) -> Bool {
+    Self.mappedSearchExtensions.allSatisfy {
+      FileManager.default.fileExists(atPath: url(generation, $0).path)
+    }
   }
 
   /// The most saved rows that one call returns, which bounds the memory of copying a national base.

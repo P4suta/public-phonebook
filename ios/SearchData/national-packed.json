@@ -1,0 +1,17 @@
+{
+  "format": "public-phonebook-bundled-search/1",
+  "snapshot": "5bd74f209c80bf850edeced4031076ba3924713f6f7f5f3209503276bccc3814",
+  "contacts": 667696,
+  "index": {
+    "bytes": 7245685,
+    "sha256": "d19d9254070ecd6f2870fb55a5e214d297cf6b53de74d60807bc113e2aa97f35",
+    "uncompressedBytes": 41069149,
+    "uncompressedSha256": "002cb10ca8046157b1de082bb648569a55f2d2dba0685e90f153f4d80b80c751"
+  },
+  "ranking": {
+    "bytes": 47245966,
+    "sha256": "de7e31ca5db7d86dde4a97297da4584a8d4010c9d652fd8a2cbd965485d9976a",
+    "uncompressedBytes": 134984888,
+    "uncompressedSha256": "aa59cbd76811be2e867fc0927455d64053602ab3e08f5f459eaabe86e7ff0a6a"
+  }
+}

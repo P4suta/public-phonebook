@@ -692,7 +692,6 @@ final class DirectoryUITests: XCTestCase {
     onboard(app, timeout: 300)
     let hint = app.descendants(matching: .any)["search-hint"]
     XCTAssertTrue(hint.waitForExistence(timeout: 180))
-    let preparing = app.descendants(matching: .any)["search-preparing"]
     let options = XCTMeasureOptions()
     options.iterationCount = 3
     options.invocationOptions = [.manuallyStart, .manuallyStop]
@@ -706,13 +705,28 @@ final class DirectoryUITests: XCTestCase {
       app.terminate()
       startMeasuring()
       app.launch()
-      XCTAssertTrue(preparing.waitForExistence(timeout: 30))
       XCTAssertTrue(hint.waitForExistence(timeout: 180))
       stopMeasuring()
     }
     search("市立図書館", in: app, timeout: 180)
     XCTAssertTrue(app.staticTexts["contact-category"].firstMatch.exists)
     capture(app, name: "measured-national-ranked-results")
+  }
+
+  func testBundledSearchMemoryMeasurement() throws {
+    let app = application(bundled: .shipped)
+    app.launchEnvironment.removeValue(forKey: "PHONEBOOK_API_ORIGIN")
+    app.launch()
+    onboard(app, timeout: 300)
+    XCTAssertTrue(app.descendants(matching: .any)["search-hint"].waitForExistence(timeout: 180))
+    let options = XCTMeasureOptions()
+    options.iterationCount = 3
+    measure(metrics: [XCTMemoryMetric(application: app)], options: options) {
+      for query in ["国立国会図書館", "としょかん", "東京都大学", "市立図書館"] {
+        search(query, in: app, timeout: 180)
+        XCTAssertTrue(app.staticTexts["contact-category"].firstMatch.exists)
+      }
+    }
   }
 
   /// The archive that a scenario's app starts its first run from.

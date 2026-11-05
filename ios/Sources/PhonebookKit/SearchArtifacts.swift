@@ -47,12 +47,15 @@ public struct SearchArtifactIndex: Sendable {
   }
 
   public let snapshot: String
-  public let rows: [Row]
+  public let rows: RankingValues<Row>
   public let places: [RankingPlace]
+  let lineOffsets: Data?
+  let rankingRows: RankingValues<RankingRow>?
 
   public func scorer(_ artifact: RankingArtifact) throws -> RankedSearch {
     try RankedSearch(
-      snapshot: snapshot, rows: rows.map { RankingRow(name: $0.name, region: $0.region) },
+      snapshot: snapshot,
+      rows: rankingRows ?? rows.project { RankingRow(name: $0.name, region: $0.region) },
       places: places, artifact: artifact)
   }
 }
@@ -78,9 +81,17 @@ public enum SearchArtifacts {
     let phonetic: [ArtifactTriple<String, Int64, Int>]
   }
 
-  public static func ranking(_ data: Data, snapshot: String, contacts: Int) throws
+  public static func ranking(
+    _ data: Data, snapshot: String, contacts: Int, completeValidation: Bool = true
+  ) throws
     -> RankingArtifact
   {
+    if data.starts(with: Data("public-phonebook-search-ranking\t2\n".utf8)) {
+      return try RankingArtifact(
+        packed: PackedRanking(
+          data: data, snapshot: snapshot, contacts: contacts, completeValidation: completeValidation
+        ))
+    }
     var offset = 0
     guard data.count <= maximumDecodedBytes,
       try line(data, offset: &offset) == "public-phonebook-search-ranking\t1"
@@ -136,16 +147,16 @@ public enum SearchArtifacts {
       unknownWeight: metadata.unknownWeight, lexical: lexical, phonetic: phonetic)
   }
 
-  private struct IndexHeader: Decodable {
-    struct Category: Decodable {
+  private struct IndexHeader: Decodable, Sendable {
+    struct Category: Decodable, Sendable {
       let id: String
       let label: String
     }
-    struct Place: Decodable {
+    struct Place: Decodable, Sendable {
       let code: String
       let name: String
     }
-    struct Parts: Decodable {
+    struct Parts: Decodable, Sendable {
       let names: Int
       let categories: Int
       let regions: Int
@@ -160,7 +171,9 @@ public enum SearchArtifacts {
     let parts: Parts
   }
 
-  public static func index(_ data: Data) throws -> SearchArtifactIndex {
+  public static func index(_ data: Data, lazy: Bool = false, lineOffsets: Data? = nil) throws
+    -> SearchArtifactIndex
+  {
     var offset = 0
     guard data.count <= maximumDecodedBytes,
       try line(data, offset: &offset) == "public-phonebook-search-index\t1"
@@ -176,6 +189,9 @@ public enum SearchArtifacts {
       header.categories.count <= 256, header.prefectures.count == 47,
       header.municipalities.count <= 8192, header.regions.count <= 65_536
     else { throw SearchArtifactError.header }
+    if lazy {
+      return try viewedIndex(data, header: header, start: offset, lineOffsets: lineOffsets)
+    }
     let namesEnd = offset + parts.names
     let categoryStart = namesEnd
     let regionStart = categoryStart + parts.categories
@@ -228,13 +244,92 @@ public enum SearchArtifacts {
     }
     guard offset == namesEnd, phoneOffset == data.count else { throw SearchArtifactError.parts }
     return SearchArtifactIndex(
+      snapshot: header.snapshot, rows: RankingValues(rows),
+      places: header.prefectures.map {
+        RankingPlace(code: $0.code, name: $0.name, prefecture: true)
+      }
+        + header.municipalities.map {
+          RankingPlace(code: $0.code, name: $0.name, prefecture: false)
+        }, lineOffsets: nil, rankingRows: nil)
+  }
+
+  private static func viewedIndex(_ data: Data, header: IndexHeader, start: Int, lineOffsets: Data?)
+    throws -> SearchArtifactIndex
+  {
+    let count = header.contacts
+    let categoryStart = start + header.parts.names
+    let regionStart = categoryStart + count
+    let phoneStart = regionStart + count * 2
+    let offsets: Data
+    if let lineOffsets {
+      guard lineOffsets.count == (count + 1) * 8 else { throw SearchArtifactError.parts }
+      offsets = lineOffsets
+    } else {
+      offsets = try data.withUnsafeBytes { raw in
+        let bytes = raw.bindMemory(to: UInt8.self)
+        var offsets = Data()
+        offsets.reserveCapacity((count + 1) * 8)
+        for range in [start..<categoryStart, phoneStart..<data.count] {
+          var value = UInt32(range.lowerBound).littleEndian
+          Swift.withUnsafeBytes(of: &value) { offsets.append(contentsOf: $0) }
+          var lines = 0
+          for position in range where bytes[position] == 10 {
+            value = UInt32(position + 1).littleEndian
+            Swift.withUnsafeBytes(of: &value) { offsets.append(contentsOf: $0) }
+            lines += 1
+          }
+          guard lines == count, range.isEmpty || bytes[range.upperBound - 1] == 10 else {
+            throw SearchArtifactError.parts
+          }
+        }
+        return offsets
+      }
+    }
+    let word: @Sendable (Int) -> Int = { at in
+      offsets.withUnsafeBytes {
+        Int(UInt32(littleEndian: $0.loadUnaligned(fromByteOffset: at * 4, as: UInt32.self)))
+      }
+    }
+    guard word(0) == start, word(count) == categoryStart,
+      word(count + 1) == phoneStart, word(count * 2 + 1) == data.count
+    else { throw SearchArtifactError.parts }
+    for row in 0..<count {
+      let category = Int(data[categoryStart + row])
+      let at = regionStart + row * 2
+      let region = Int(data[at]) | Int(data[at + 1]) << 8
+      guard header.categories.indices.contains(category), header.regions.indices.contains(region),
+        word(row) < word(row + 1), word(row + 1) <= categoryStart,
+        word(row + count + 1) < word(row + count + 2), word(row + count + 2) <= data.count
+      else { throw SearchArtifactError.parts }
+    }
+    let name: @Sendable (Int) -> String = { row in
+      let line = data[word(row)..<(word(row + 1) - 1)]
+      let from = line.firstIndex(of: 9).map { $0 + 1 } ?? line.startIndex
+      return String(decoding: line[from...], as: UTF8.self)
+    }
+    let region: @Sendable (Int) -> String = { row in
+      let at = regionStart + row * 2
+      return header.regions[Int(data[at]) | Int(data[at + 1]) << 8]
+    }
+    let rows = RankingValues<SearchArtifactIndex.Row>(count: count) { row in
+      let phone = row + count + 1
+      let phones = String(decoding: data[word(phone)..<(word(phone + 1) - 1)], as: UTF8.self).split(
+        separator: " ", omittingEmptySubsequences: false
+      ).map(String.init)
+      return SearchArtifactIndex.Row(
+        name: name(row), category: header.categories[Int(data[categoryStart + row])].id,
+        region: region(row), phones: phones)
+    }
+    return SearchArtifactIndex(
       snapshot: header.snapshot, rows: rows,
       places: header.prefectures.map {
         RankingPlace(code: $0.code, name: $0.name, prefecture: true)
       }
         + header.municipalities.map {
           RankingPlace(code: $0.code, name: $0.name, prefecture: false)
-        })
+        },
+      lineOffsets: offsets,
+      rankingRows: RankingValues(count: count) { RankingRow(name: name($0), region: region($0)) })
   }
 
   private static func line(_ data: Data, offset: inout Int) throws -> String {

@@ -229,7 +229,13 @@ final class IntegrationModel {
         lastFailure = String(describing: error)
       }
     }
-    if let saved = manifest, saved.rankedSearch != true, !busy {
+    let mappedSearch: Bool
+    if let saved = manifest {
+      mappedSearch = await store.searchUsesMappedFiles(generation: saved.generation)
+    } else {
+      mappedSearch = false
+    }
+    if let saved = manifest, !busy, saved.rankedSearch != true || !mappedSearch {
       busy = true
       do {
         manifest = try await BackgroundTimeRunner.run(

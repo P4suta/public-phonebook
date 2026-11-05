@@ -37,8 +37,9 @@ public struct RankingPosting: Sendable {
 }
 
 public struct RankingArtifact: Sendable {
+  public let packed: PackedRanking?
   public let snapshot: String
-  public let readings: [String]
+  public let readings: RankingValues<String>
   public let lexicon: [(surface: String, reading: String, count: Int64)]
   public let aliases: [(row: Int, kana: String)]
   public let variants: [String: String]
@@ -82,14 +83,27 @@ public struct RankingArtifact: Sendable {
       }
     }
     guard lexical.allSatisfy({ $0.weight > 0 }) else { throw RankingError.invalidArtifact }
+    self.packed = nil
     self.snapshot = snapshot
-    self.readings = readings
+    self.readings = RankingValues(readings)
     self.lexicon = lexicon
     self.aliases = aliases
     self.variants = variants
     self.unknownWeight = unknownWeight
     self.lexical = lexical
     self.phonetic = phonetic
+  }
+
+  public init(packed: PackedRanking) {
+    self.packed = packed
+    snapshot = packed.snapshot
+    readings = RankingValues(count: packed.contacts) { packed.reading($0) }
+    lexicon = []
+    aliases = packed.aliases
+    variants = packed.variants
+    unknownWeight = packed.unknownWeight
+    lexical = []
+    phonetic = []
   }
 }
 
