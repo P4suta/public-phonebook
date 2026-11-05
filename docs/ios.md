@@ -70,7 +70,7 @@ The fixture never ships, so the list never names it.
 Only VerificationDebug and VerificationRelease bundle the name index, ranking companion, and `search.json` declaration for that archive.
 The `PHONEBOOK_VERIFICATION_TOOLS` compilation condition controls resource copying, companion discovery, search migration, and scorer selection.
 Debug, DevRelease, ProductionDebug, and Release use literal matching in one ordered list and receive no search companions.
-Non-QA startup removes search files retained by earlier builds without removing the saved directory or caller data.
+Non-QA foreground and background startup remove search files retained by earlier builds without removing the saved directory or caller data.
 The [distribution decision](adr/keep-forgiving-search-in-qa-and-local-development.md) records the measured resource costs and the QA boundary.
 The declaration under `ios/SearchData` binds the national pair's compressed and decoded lengths and SHA-256 digests.
 `national-packed.json` selects `search-ranking-packed.br` for national builds.

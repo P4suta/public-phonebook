@@ -47,6 +47,13 @@ enum AppIdentity {
       root: root.appendingPathComponent("Directory", isDirectory: true), trace: SystemTraceSink())
   }
 
+  static func manifest(in store: SnapshotStore) async throws -> SnapshotManifest? {
+    #if !PHONEBOOK_VERIFICATION_TOOLS
+      try await store.removeSearchArtifacts()
+    #endif
+    return try await store.manifest()
+  }
+
   static func synchronizer(api: APIClient, store: SnapshotStore) -> SyncEngine {
     #if PHONEBOOK_VERIFICATION_TOOLS
       var directory = Bundle.main.resourceURL

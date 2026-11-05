@@ -224,12 +224,7 @@ final class IntegrationModel {
     defer { refreshing = false }
     if !busy {
       // Unreadable saved data starts the first run again, which shows its own progress and needs no notice.
-      do {
-        #if !PHONEBOOK_VERIFICATION_TOOLS
-          try await store.removeSearchArtifacts()
-        #endif
-        manifest = try await store.manifest()
-      } catch {
+      do { manifest = try await AppIdentity.manifest(in: store) } catch {
         manifest = nil
         lastFailure = String(describing: error)
       }
