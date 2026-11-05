@@ -30,8 +30,8 @@ def main() -> None:
     parser.add_argument("--input", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
-    if sys.version_info[:3] != (3, 13, 16):
-        raise ValueError("Reading generation requires Python 3.13.16")
+    if sys.version_info[:3] != (3, 15, 2):
+        raise ValueError("Reading generation requires Python 3.15.2")
     if importlib.metadata.version("sudachipy") != "0.7.0":
         raise ValueError("Reading generation requires SudachiPy 0.7.0")
     with args.dictionary.open("rb") as source:

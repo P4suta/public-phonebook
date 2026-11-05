@@ -39,7 +39,7 @@ The codec limits contacts to 2,000,000, compressed data to 64 MiB, and decoded d
 The lexical weight is `max(1, round(1024 * log((contacts + 1) / (frequency + 1))))`, evaluated at build time.
 Consumers perform ranking with the serialized integers.
 
-Pin Python and uv in the analyzer directory and Python dependencies in `uv.lock`.
+Pin Python 3.15.2 and uv in the analyzer directory and Python dependencies in `uv.lock`.
 Verify the Works Applications full-dictionary ZIP using SHA-256 `b38318ca26a444cd713a5a377a353308ef38c733c64cc0be905122527516c793` before extraction.
 Run the generator with isolated Python and keep its environment and dictionary under `.local/`.
 The [SudachiPy API](https://worksapplications.github.io/sudachi.rs/python/api/sudachipy.html) defines token readings, split modes, and out-of-vocabulary flags.

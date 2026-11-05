@@ -9,6 +9,7 @@ import {
 } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { brotliDecompressSync } from "node:zlib";
 import * as v from "valibot";
 import { PreparedDatasetManifestSchema } from "../src/core/dataset-storage.ts";
 import {
@@ -16,6 +17,7 @@ import {
   type SearchIndex,
 } from "../src/core/search-index.ts";
 import {
+  decodeRankingArtifact,
   encodeRankingArtifact,
   type RankingArtifact,
   rankingArtifactFile,
@@ -171,7 +173,7 @@ export function buildRankingArtifact(
     snapshot: index.header.snapshot,
     contacts: index.rows.length,
     analyzer: {
-      engine: "sudachipy/0.7.0;python/3.13.16;unicode/15.1.0;mode/C",
+      engine: "sudachipy/0.7.0;python/3.15.2;mode/C",
       dictionary: dictionaryDigest,
     },
     readings: input.readings,
@@ -291,6 +293,27 @@ async function importAliases(
   }
 }
 
+async function rankingEvidence(bundle: string): Promise<RankingArtifact> {
+  const manifest = v.parse(
+    PreparedDatasetManifestSchema,
+    JSON.parse(await readFile(join(bundle, "manifest.ready.json"), "utf8")),
+  );
+  const artifact = manifest.searchRanking;
+  if (!artifact) throw new Error("The bundle has no ranking artifact");
+  const bytes = await readFile(join(bundle, artifact.file));
+  if (bytes.length !== artifact.bytes || digest(bytes) !== artifact.sha256)
+    throw new Error("Ranking artifact checksum mismatch");
+  const decoded = brotliDecompressSync(bytes, {
+    maxOutputLength: artifact.uncompressedBytes,
+  });
+  if (
+    decoded.length !== artifact.uncompressedBytes ||
+    digest(decoded) !== artifact.uncompressedSha256
+  )
+    throw new Error("Decoded ranking checksum mismatch");
+  return decodeRankingArtifact(decoded, manifest.snapshot, manifest.contacts);
+}
+
 if (import.meta.main) {
   const [operation, source, bundle, destination, ...extra] = process.argv.slice(
     commandArgumentOffset,
@@ -303,6 +326,32 @@ if (import.meta.main) {
     !extra.length
   ) {
     await importAliases(source, bundle, destination);
+  } else if (
+    operation === "compare-evidence" &&
+    source &&
+    bundle &&
+    !destination
+  ) {
+    const [previous, current] = await Promise.all([
+      rankingEvidence(source),
+      rankingEvidence(bundle),
+    ]);
+    if (
+      JSON.stringify({ ...previous, analyzer: null }) !==
+      JSON.stringify({ ...current, analyzer: null })
+    )
+      throw new Error("Ranking evidence changed beyond analyzer identity");
+    console.info(
+      JSON.stringify({
+        operation: "search.ranking.compare",
+        contacts: current.contacts,
+        readings: "identical",
+        lexicon: "identical",
+        postings: "identical",
+        aliases: "identical",
+        variants: "identical",
+      }),
+    );
   } else if (operation === "attach" && source && !bundle) {
     const manifest = v.parse(
       PreparedDatasetManifestSchema,
@@ -347,6 +396,6 @@ if (import.meta.main) {
     }
   } else
     throw new Error(
-      "Usage: search-ranking.ts attach BUNDLE | import-aliases SOURCE BUNDLE DESTINATION",
+      "Usage: search-ranking.ts attach BUNDLE | compare-evidence PREVIOUS_BUNDLE CURRENT_BUNDLE | import-aliases SOURCE BUNDLE DESTINATION",
     );
 }
