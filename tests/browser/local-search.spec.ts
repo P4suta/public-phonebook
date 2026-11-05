@@ -1,9 +1,6 @@
 import type { Request } from "@playwright/test";
 import * as v from "valibot";
-import {
-  SearchIndexLocationSchema,
-  SearchRankingLocationSchema,
-} from "../../src/core/dataset-storage.ts";
+import { SearchIndexLocationSchema } from "../../src/core/dataset-storage.ts";
 import { expect, test } from "./fixtures.ts";
 import {
   contactLinks,
@@ -19,6 +16,24 @@ const indexReloadTimeout = 60_000;
 const indexLocation = "/api/search-index";
 const loadedAt = new Date("2026-11-02T00:00:00Z");
 const typingFrom = new Date("2026-11-02T01:00:00Z");
+
+test("built device search loads only the name index and preserves literal matching", async ({
+  page,
+}) => {
+  const companions: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.startsWith("/api/search-ranking"))
+      companions.push(request.url());
+  });
+  await page.route("**/api/search-ranking**", (route) => route.abort());
+  await page.goto("/");
+  await waitForLocalSearch(page);
+  await page.getByRole("searchbox").fill("としょかん");
+  await expect(page.locator("article")).toHaveCount(0);
+  await page.getByRole("searchbox").fill(query);
+  await expect(page.locator("article")).toHaveCount(3);
+  expect(companions).toEqual([]);
+});
 
 function contactRequest(request: Request): boolean {
   return new URL(request.url()).pathname.startsWith("/api/contact");
@@ -199,7 +214,7 @@ test("a local result opens its facility, and a changed snapshot reloads the inde
   await expect(page.getByRole("searchbox")).toHaveValue(query);
 });
 
-for (const artifact of ["search-index", "search-ranking"] as const)
+for (const artifact of ["search-index"] as const)
   test(`an artifact that fails its published digest falls back to the server search: ${artifact}`, async ({
     page,
   }) => {
@@ -208,9 +223,7 @@ for (const artifact of ["search-index", "search-ranking"] as const)
       async (route) => {
         const response = await route.fetch();
         const location = v.parse(
-          artifact === "search-index"
-            ? SearchIndexLocationSchema
-            : SearchRankingLocationSchema,
+          SearchIndexLocationSchema,
           await response.json(),
         );
         await route.fulfill({

@@ -8,6 +8,9 @@ const developmentHost = "127.0.0.1";
 const developmentPort = 8787;
 
 const configuration = defineConfig({
+  define: {
+    __PHONEBOOK_LOCAL_FORGIVING_SEARCH__: "false",
+  },
   plugins: [
     cloudflare({
       viteEnvironment: { name: "ssr" },

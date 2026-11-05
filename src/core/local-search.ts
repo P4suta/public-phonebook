@@ -155,6 +155,22 @@ export function matchIndex(
   };
 }
 
+export function orderedIndexRows(
+  index: SearchIndex,
+  query: LocalQuery,
+): readonly number[] {
+  if (query.kind === "empty") return [];
+  const buckets: number[][] = nameRankValues.map(() => []);
+  const rankOf = rowRank(index, query);
+  for (let position = 0; position < index.rows.length; position += 1) {
+    const row = index.rows[position] ?? fail("A search index row is missing");
+    const rank = rankOf(row);
+    if (rank !== unmatchedRank)
+      (buckets[rank] ?? fail("A search rank is out of range")).push(position);
+  }
+  return buckets.flat();
+}
+
 export function previewGroups(matches: LocalMatches): LocalResults {
   return {
     groups: matches.categories.map((item) => ({

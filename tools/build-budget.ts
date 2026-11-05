@@ -12,7 +12,6 @@ const searchWorkerChunk = /^local-search-worker-[\w-]+\.js$/u;
  */
 export const buildBudgets = {
   workerCompressedBytes: 1024 * bytesPerKibibyte,
-  // The frozen scorer and companion decoder measure 57,220 bytes, with about a quarter of headroom.
   searchWorkerBytes: 72 * bytesPerKibibyte,
 } as const;
 
@@ -43,8 +42,18 @@ export async function measureBuild(root = "."): Promise<BuildSizes> {
   for (const path of await files(join(root, buildOutput, "bundle")))
     if ([".js", ".mjs"].includes(extname(path)))
       workerCompressedBytes += gzipSync(await readFile(path)).byteLength;
-  const chunks = (await files(join(root, buildOutput, "assets"))).filter(
-    (path) => searchWorkerChunk.test(path.split("/").at(-1) ?? ""),
+  const assets = await files(join(root, buildOutput, "assets"));
+  for (const path of assets) {
+    if (![".js", ".mjs"].includes(extname(path))) continue;
+    const source = await readFile(path, "utf8");
+    if (
+      path.includes("/forgiving-search-loader-") ||
+      source.includes("Invalid packed ranking format metadata")
+    )
+      throw new Error(`The build includes forgiving search: ${path}`);
+  }
+  const chunks = assets.filter((path) =>
+    searchWorkerChunk.test(path.split("/").at(-1) ?? ""),
   );
   const [chunk, ...extra] = chunks;
   if (!chunk || extra.length)
