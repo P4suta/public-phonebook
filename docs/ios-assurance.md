@@ -45,8 +45,8 @@ A failure, including one that iOS reports through `requestFailed(for:withError:)
 The app's trace events stay at the info level with an operation identifier, a phase, an outcome, a snapshot identifier, a count, and a duration.
 No log line marks a telephone number, a label, a search query, or an error description as public.
 
-The pure Swift ranking core reads the shared 2,200-query national fixture and compares every row and integer score for every tenth query and the last one.
-`mise x -- just ios-search-measure` compares all 2,200 rankings, because the full replay would starve the hosted runner's other unit tests.
+`mise x -- just ios-search-measure` replays the shared 2,200-query national fixture through the Swift ranking core and the saved generation, and compares every row and integer score.
+The unit tests check the ranking readers on synthetic fixtures, because loading the national artifacts starved the hosted runner's other unit tests and forgiving search ships only in QA builds.
 The fixture binds the snapshot, contact count, and decoded artifact digests.
 The artifact readers reject truncated and noncanonical varints, out-of-range postings, trailing bytes, and mismatched identities.
 The committed Brotli pair under `ios/SearchData` supplies the national fixture without depending on a production deployment.

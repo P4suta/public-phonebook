@@ -132,10 +132,9 @@ const UI_TESTS: [&str; 25] = [
 ];
 /// The UI scenarios that run with the simulator in the dark appearance.
 const DARK_UI_TESTS: [&str; 1] = ["testDarkAppearanceSwapsBlackAndWhite"];
-const REQUIRED_TESTS: [&str; 113] = [
+const REQUIRED_TESTS: [&str; 111] = [
     "packedLexiconPrefixesUseScalarBoundaries",
     "packedReadingOverlapPreservesScalarGramsInsideGraphemeClusters",
-    "packedNationalRankingsMatchTheUnchangedContract",
     "savedSearchVerifiesDecodedFilesAndLineOffsets",
     "compressedSavedSearchRemainsReadableAndUpgradesAtomically",
     "resultPagesStayWithinBoundsAtSignedExtremes",
@@ -147,7 +146,6 @@ const REQUIRED_TESTS: [&str; 113] = [
     "telephoneResultsGroupEveryCategoryInNameOrder",
     "rankedResultPagingPreservesTheFrozenOrder",
     "searchActivationRequiresEveryMandatorySearchFile",
-    "nationalRankingsMatchEveryCommittedRowAndScore",
     "searchArtifactsMustMapEverySavedRecordBeforeActivation",
     "rejectedSearchMappingsAndCorruptFilesKeepTheActiveGeneration",
     "upgradingSearchRetainsTheSavedDirectoryAndNeedsNoArchiveDownload",
