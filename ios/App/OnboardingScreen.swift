@@ -69,7 +69,7 @@ struct OnboardingScreen: View {
     case .ready:
       if integration.ready {
         heading("準備ができました")
-        Text("施設の名前か電話番号を入れると、さがせます。")
+        Text("施設の名前を入れると、さがせます。")
         if integration.bundledOnly, let manifest = integration.manifest {
           Text("アプリに入っている、\(manifest.dataDate.formatted(date: .long, time: .omitted))のデータを使います。")
             .accessibilityIdentifier("bundled-date")

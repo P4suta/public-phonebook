@@ -15,7 +15,7 @@ function AboutPage(): ReactElement {
           学校や役所、病院などの電話番号を、名前でさがせます。
         </p>
         <h2 className={css.subheading}>電話番号をさがす</h2>
-        <p className={css.body}>検索欄に施設の名前か、電話番号を入れます。</p>
+        <p className={css.body}>検索欄に施設の名前を入れます。</p>
         <h2 className={css.subheading}>データをたしかめる・使う</h2>
         <p className={css.body}>
           電話番号のもとの情報や、データを使うときの決まりをたしかめられます。

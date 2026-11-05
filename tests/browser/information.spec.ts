@@ -11,12 +11,10 @@ test("the initial screen labels the search without a hint and offers one project
   await page.goto("/");
   const searchbox = page.getByRole("searchbox");
   await expect(searchbox).not.toHaveAttribute("placeholder");
-  await expect(searchbox).toHaveAccessibleName("施設の名前か電話番号");
+  await expect(searchbox).toHaveAccessibleName("施設の名前");
   await expect(searchbox).toHaveAccessibleDescription("");
   await expect(page.getByText(/名前の一部でも/u)).toHaveCount(0);
-  await expect(
-    page.getByText("施設の名前か電話番号", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("施設の名前", { exact: true })).toBeVisible();
   await expect(searchbox).toHaveAttribute("enterkeyhint", "search");
   await expect(
     page.getByRole("button", { name: "電話番号をさがす", exact: true }),
@@ -32,7 +30,7 @@ test("the initial screen labels the search without a hint and offers one project
     [
       link,
       page.getByRole("heading", { level: 1 }),
-      page.getByText("施設の名前か電話番号", { exact: true }),
+      page.getByText("施設の名前", { exact: true }),
     ].map(async (item) => item.boundingBox()),
   );
   if (!box || !heading || !label)
@@ -66,7 +64,7 @@ test("the about page describes search with the iPhone app's sentence at every wi
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/about");
     await expect(
-      page.getByText("検索欄に施設の名前か、電話番号を入れます。", {
+      page.getByText("検索欄に施設の名前を入れます。", {
         exact: true,
       }),
     ).toBeVisible();
