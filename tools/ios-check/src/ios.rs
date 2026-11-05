@@ -393,6 +393,10 @@ pub enum Action {
         #[arg(long)]
         device: Option<String>,
     },
+    QaInstall {
+        #[arg(long)]
+        device: Option<String>,
+    },
 }
 
 const SECRET_ENVIRONMENT: [&str; 7] = [
@@ -1291,6 +1295,10 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         Action::DeviceRecord { device } => Some(device::prepare(root, device.as_deref())?),
         _ => None,
     };
+    let qa_device = match &action {
+        Action::QaInstall { device } => Some(device::prepare_qa(root, device.as_deref())?),
+        _ => None,
+    };
     let _machine_lease = (!matches!(action, Action::Prove | Action::UnitTest))
         .then(lease::MachineLease::acquire)
         .transpose()?;
@@ -1346,6 +1354,9 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         Action::DeviceRecord { .. } => {
             let (device, delta) = prepared.context("The device record was not prepared")?;
             device::run(root, &device, &delta)
+        }
+        Action::QaInstall { .. } => {
+            device::install_qa(root, &qa_device.context("The QA device wasn't prepared")?)
         }
         Action::StoreBuildControl => store_build::control(root),
         Action::UiTest { tests, live } => {

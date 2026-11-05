@@ -111,6 +111,10 @@ ios-ui-test *args:
 ios-device-record *args:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- device-record "$@"
 
+[positional-arguments]
+ios-qa-install *args:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- qa-install "$@"
+
 data-remote environment bundle:
     doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --only-secrets R2_ACCESS_KEY_ID --only-secrets R2_SECRET_ACCESS_KEY --no-fallback -- npm run data:remote -- {{ quote(environment) }} {{ quote(bundle) }}
 

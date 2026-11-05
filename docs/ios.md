@@ -8,6 +8,17 @@ A deployment target and a successful device build don't establish execution on a
 Install the tools in `mise.toml`, run `mise x -- npm ci --ignore-scripts`, and run `mise x -- just ios-generate`.
 Open the generated `ios/PublicPhonebook.xcodeproj`.
 Create the ignored `ios/Signing.local.xcconfig` with DEVELOPMENT_TEAM set to an authorized development team.
+`mise x -- just ios-qa-install` builds and installs Public Phonebook QA on one connected, unlocked iPhone with Developer Mode.
+The command requires that local signing file and uses the verification scheme's optimized `VerificationRelease` configuration.
+If you connect two or more iPhones, pass `--device` and the selected device's identifier.
+The tool verifies the QA bundle identity, national archive and search companions, QA controls, and code signature before installation.
+It then confirms the installed bundle on the selected iPhone and writes `target/ios/qa-install/receipt.json`.
+Open Public Phonebook QA on the iPhone and complete setup if needed.
+The bundled national search needs no new files on the production site.
+The command preserves existing QA app data and runs no measurement tests, TestFlight workflow, or App Store Connect operation.
+Xcode, code signing, and the device service are external verification boundaries.
+Rust tests cover the command plan, device refusal paths, and installed bundle identity checks.
+The installation receipt records the actual device result.
 The app and its extension require the configured App Group.
 Production and verification use https://www.dial.page.
 Development uses the loopback provider fixture at http://127.0.0.1:3100, which `mise x -- node tools/native-fixture.ts --serve` starts.

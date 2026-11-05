@@ -2,6 +2,7 @@
 //! The step meter counts this tool's own processes; the device numbers come only from the XCTest metrics.
 
 use super::{bundled, logged};
+use crate::locations::CODESIGN;
 use crate::locations::PRODUCTION_ORIGIN;
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
@@ -27,6 +28,10 @@ const SCHEME: &str = "PublicPhonebookDeviceMeasurements";
 const TEST_CLASS: &str = "PhonebookDeviceMeasurements/DeviceMeasurementTests";
 const CONFIGURATION: &str = "VerificationRelease";
 const BUNDLE_IDENTIFIER: &str = "page.dial.publicphonebook.devicechecks";
+const QA_DIRECTORY: &str = "target/ios/qa-install";
+const QA_DERIVED_DATA: &str = "target/ios/qa-install/DerivedData";
+const LOCAL_SIGNING: &str = "ios/Signing.local.xcconfig";
+const QA_SCHEME: &str = "PublicPhonebookVerification";
 const LISTING_PATH: &str = "/api/datasets";
 const DELTA_LISTING_PREFIX: &str = "/api/dataset-deltas?";
 const DATASET_PREFIX: &str = "/api/datasets/";
@@ -598,8 +603,7 @@ fn record_inputs(root: &Path) -> Result<DeltaInput> {
     Ok(delta)
 }
 
-/// Refuses before any build unless one iPhone is ready, and records the service's delta inputs for the test bundle.
-pub(super) fn prepare(root: &Path, requested: Option<&str>) -> Result<(Device, DeltaInput)> {
+fn select(root: &Path, requested: Option<&str>) -> Result<Device> {
     fs::create_dir_all(root.join("target/ios/device"))?;
     logged(
         root,
@@ -623,7 +627,138 @@ pub(super) fn prepare(root: &Path, requested: Option<&str>) -> Result<(Device, D
         "Device: {} with iOS {}, build {}",
         device.model, device.os, device.build
     );
-    Ok((device, record_inputs(root)?))
+    Ok(device)
+}
+
+/// Refuses before any build unless one iPhone is ready, and records the service's delta inputs for the test bundle.
+pub(super) fn prepare(root: &Path, requested: Option<&str>) -> Result<(Device, DeltaInput)> {
+    Ok((select(root, requested)?, record_inputs(root)?))
+}
+
+pub(super) fn prepare_qa(root: &Path, requested: Option<&str>) -> Result<Device> {
+    let receipt = root.join(QA_DIRECTORY).join("receipt.json");
+    if receipt.exists() {
+        fs::remove_file(receipt)?;
+    }
+    ensure!(
+        root.join(LOCAL_SIGNING).is_file(),
+        "Create the ignored {LOCAL_SIGNING} with an authorized development team before installing QA"
+    );
+    select(root, requested)
+}
+
+fn qa_build(root: &Path, device: &Device) -> Command {
+    let mut command = Command::new("xcodebuild");
+    command.current_dir(root).args([
+        "-quiet",
+        "-project",
+        "ios/PublicPhonebook.xcodeproj",
+        "-scheme",
+        QA_SCHEME,
+        "-configuration",
+        CONFIGURATION,
+        "-destination",
+        &format!("id={}", device.udid),
+        "-derivedDataPath",
+        QA_DERIVED_DATA,
+        "-xcconfig",
+        LOCAL_SIGNING,
+        "-allowProvisioningUpdates",
+        "-jobs",
+        "2",
+        "build",
+    ]);
+    command
+}
+
+fn installed_qa(report: &Value) -> Result<()> {
+    ensure!(
+        report.pointer("/info/outcome").and_then(Value::as_str) == Some("success"),
+        "The installed-app read didn't succeed"
+    );
+    let apps = report
+        .pointer("/result/apps")
+        .and_then(Value::as_array)
+        .context("The installed-app read has no apps")?;
+    ensure!(
+        apps.len() == 1 && apps[0]["bundleIdentifier"] == BUNDLE_IDENTIFIER,
+        "The selected iPhone doesn't report the QA app as installed"
+    );
+    Ok(())
+}
+
+pub(super) fn install_qa(root: &Path, device: &Device) -> Result<()> {
+    let sources = super::source_hashes(root)?;
+    let directory = root.join(QA_DIRECTORY);
+    fs::create_dir_all(&directory)?;
+    logged(root, "qa-build", &mut qa_build(root, device))?;
+    let app = root.join(QA_DERIVED_DATA).join(BUILT_APP);
+    ensure!(
+        super::plist_string(&app.join("Info.plist"), "CFBundleIdentifier")? == BUNDLE_IDENTIFIER,
+        "The build isn't the QA application identity"
+    );
+    bundled::check_built(root, &app, CONFIGURATION)?;
+    super::store_build::require_every_marker(&app, CONFIGURATION)?;
+    logged(
+        root,
+        "qa-signature",
+        Command::new(CODESIGN)
+            .args(["--verify", "--deep", "--strict"])
+            .arg(&app),
+    )?;
+    logged(
+        root,
+        "qa-install",
+        Command::new("xcrun")
+            .args([
+                "devicectl",
+                "device",
+                "install",
+                "app",
+                "--device",
+                &device.identifier,
+                "--quiet",
+                "--omit-deprecated-fields-in-json",
+                "--json-output",
+            ])
+            .arg(directory.join("installation.json"))
+            .arg(&app),
+    )?;
+    let listing = directory.join("installed-app.json");
+    logged(
+        root,
+        "qa-installed-app",
+        Command::new("xcrun")
+            .args([
+                "devicectl",
+                "device",
+                "info",
+                "apps",
+                "--device",
+                &device.identifier,
+                "--bundle-id",
+                BUNDLE_IDENTIFIER,
+                "--quiet",
+                "--omit-deprecated-fields-in-json",
+                "--json-output",
+            ])
+            .arg(&listing),
+    )?;
+    installed_qa(&serde_json::from_slice(&fs::read(listing)?)?)?;
+    super::require_current_sources(root, &sources)?;
+    let record = json!({"result":"installed", "configuration":CONFIGURATION, "bundleIdentifier":BUNDLE_IDENTIFIER,
+        "device":{"model":device.model,"os":device.os,"build":device.build},
+        "app":app.strip_prefix(root)?, "bundledDataset":"national", "signature":"verified",
+        "source_sha256":super::source_records(&sources)});
+    fs::write(
+        directory.join("receipt.json"),
+        serde_json::to_vec_pretty(&record)?,
+    )?;
+    println!(
+        "PASS: {CONFIGURATION} QA app with the bundled national search installed on {} with iOS {}; open Public Phonebook QA on the iPhone",
+        device.model, device.os
+    );
+    Ok(())
 }
 
 /// Measures the planned paths on the device, walks the on-device items, checks the crash logs, and writes the record.
@@ -751,6 +886,50 @@ pub(super) fn run(root: &Path, device: &Device, delta: &DeltaInput) -> Result<()
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn qa_installation_builds_the_verification_release_with_local_signing() -> Result<()> {
+        let device = connected_iphone(&report(vec![phone("connected", true, "phone")]), None)?;
+        let command = qa_build(Path::new("/project"), &device);
+        let args = command
+            .get_args()
+            .map(|value| value.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        for pair in [
+            ["-scheme", QA_SCHEME],
+            ["-configuration", CONFIGURATION],
+            ["-xcconfig", LOCAL_SIGNING],
+            ["-destination", "id=phone"],
+        ] {
+            assert!(args.windows(2).any(|window| window == pair));
+        }
+        assert_eq!(args.last().map(String::as_str), Some("build"));
+        assert!(
+            !args
+                .iter()
+                .any(|value| value == "test" || value == "archive" || value == "-exportArchive")
+        );
+        let root = tempfile::tempdir()?;
+        assert!(
+            prepare_qa(root.path(), None)
+                .is_err_and(|error| error.to_string().contains(LOCAL_SIGNING))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn qa_installation_requires_the_device_to_report_exactly_the_qa_bundle() -> Result<()> {
+        let valid = json!({"info":{"outcome":"success"},"result":{"apps":[{"bundleIdentifier":BUNDLE_IDENTIFIER}]}});
+        installed_qa(&valid)?;
+        for bad in [
+            json!({}),
+            json!({"info":{"outcome":"success"},"result":{"apps":[]}}),
+            json!({"info":{"outcome":"success"},"result":{"apps":[{"bundleIdentifier":"page.dial.publicphonebook"}]}}),
+        ] {
+            assert!(installed_qa(&bad).is_err());
+        }
+        Ok(())
+    }
 
     fn phone(state: &str, developer: bool, udid: &str) -> Value {
         json!({
