@@ -78,6 +78,49 @@ private func firstName(_ store: SnapshotStore, _ generation: UUID) async throws 
   try await store.contacts(generation: generation, ids: [1]).first?.name
 }
 
+@Test func interruptedSearchRemovalKeepsTheDirectoryAndRetries() async throws {
+  for fault: FileFault in [
+    .beforeActivation, .afterActivation, .unreadableAfterActivation, .cleanup,
+  ] {
+    let root = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let files = FaultSnapshotFiles()
+    let store = try SnapshotStore(root: root.appendingPathComponent("store"), files: files)
+    let header = try sampleHeader()
+    let lines = [ArchiveLine(name: "Saved")]
+    let artifacts = try searchFixture(in: root, header: header, lines: lines)
+    try await store.begin(header: header, requiresRankedSearch: true)
+    try await store.append(records(lines, header: header))
+    try await store.installSearch(artifacts)
+    let saved = try await store.publish(at: Date())
+    files.failNext(fault)
+    await #expect(throws: (any Error).self) { try await store.removeSearchArtifacts() }
+    files.recover()
+    #expect(try await store.manifest()?.generation == saved.generation)
+    try await store.removeSearchArtifacts()
+    #expect(try await store.manifest()?.rankedSearch == nil)
+    #expect(try await firstName(store, saved.generation) == "Saved")
+    #expect(try await CallerFile.active(in: store.root)?.generation == saved.generation)
+  }
+}
+
+@Test func literalSearchCleanupDoesNotContendWithAnotherImport() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let store = try SnapshotStore(root: root)
+  let saved = try await publish([ArchiveLine(name: "Saved")], to: store)
+  let importing = try SnapshotStore(root: root)
+  try await importing.begin(header: sampleHeader(snapshot: "b"))
+  do {
+    try await store.removeSearchArtifacts()
+  } catch {
+    try await importing.abort()
+    throw error
+  }
+  try await importing.abort()
+  #expect(try await store.manifest()?.generation == saved.generation)
+}
+
 @Test func failedRankedActivationKeepsThePreviousSearchAndCallerGeneration() async throws {
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }

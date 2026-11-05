@@ -1555,6 +1555,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
             store_build::require_absent(
                 &root.join("ios/DerivedData/Build/Products/Release-iphoneos/PublicPhonebook.app"),
             )?;
+            store_build::control(root)?;
             store_build::require_every_marker(
                 &root.join(
                     "ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app",
@@ -1599,7 +1600,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "source_sha256":source_records(&sources),
                     "swift_language_mode":"6", "deployment_target":"iOS 18.0",
                     "device_build":"Release, unsigned",
-                    "store_build":format!("Release app and extension contain none of the {} verification tools markers, and VerificationDebug contains all of them", store_build::MARKERS.len()),
+                    "store_build":format!("Release app and extension contain no forgiving-search resources or {} QA markers; VerificationDebug and the rejected condition-defined Release contain every marker and companion", store_build::MARKERS.len()),
                     "simulator_runtime":RUNTIME, "simulator_device":DEVICE_TYPE,
                     "device_validation":"not run", "ios_18_runtime_validation":"not run"
                 }))?,

@@ -7,6 +7,7 @@ date: 2026-11-05
 ## Status
 
 Accepted.
+The distribution scope is partly superseded by [QA and local forgiving search](keep-forgiving-search-in-qa-and-local-development.md).
 The construction strategy is partly superseded by [reading packed search structures](read-packed-search-structures-without-startup-reconstruction.md).
 The implementation brief selects the frozen research scorer.
 This supersedes the device name-matching and ranking parts of [word matching](match-every-search-word-in-the-name-region-or-category.md) and [saved-directory search](search-the-saved-directory-on-the-device.md).

@@ -116,7 +116,9 @@ private final class BackgroundRequest: @unchecked Sendable {
     defer { task.setTaskCompleted(success: success) }
     do {
       let store = try AppIdentity.store()
-      guard let manifest = try await store.manifest() else { throw ImportError.unavailableStorage }
+      guard let manifest = try await AppIdentity.manifest(in: store) else {
+        throw ImportError.unavailableStorage
+      }
       guard let origin = URL(string: AppIdentity.apiOrigin) else { throw ServiceError.invalidURL }
       guard manifest.origin == origin.absoluteString else {
         try BackgroundRefresh.schedule(manifest: manifest)
@@ -144,7 +146,7 @@ private final class BackgroundRequest: @unchecked Sendable {
     } catch {
       do {
         let store = try AppIdentity.store()
-        try await BackgroundRefresh.schedule(manifest: store.manifest())
+        try await BackgroundRefresh.schedule(manifest: AppIdentity.manifest(in: store))
       } catch { SystemTraceSink().record(TraceEvent(phase: .schedule, outcome: .deferred)) }
     }
   }
