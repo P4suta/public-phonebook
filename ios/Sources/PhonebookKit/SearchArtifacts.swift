@@ -192,10 +192,10 @@ public enum SearchArtifacts {
       let normalized = String(fields[0])
       let name = String(fields.last ?? "")
       guard !normalized.isEmpty, !name.contains("\r") else { throw SearchArtifactError.name(row) }
-      guard
+      let normalizedMatches =
         SearchInput.normalizedName(name).precomposedStringWithCanonicalMapping.utf8.elementsEqual(
           normalized.utf8)
-      else {
+      guard normalizedMatches else {
         throw SearchArtifactError.normalization(row)
       }
       guard
@@ -245,8 +245,12 @@ public enum SearchArtifacts {
     return text
   }
 
-  public static func decompress(_ compressed: Data) throws -> Data {
-    guard compressed.count <= maximumCompressedBytes else { throw RankingError.invalidArtifact }
+  public static func decompress(_ compressed: Data, limit: Int = maximumDecodedBytes) throws -> Data
+  {
+    guard compressed.count <= maximumCompressedBytes, (1...maximumDecodedBytes).contains(limit)
+    else {
+      throw RankingError.invalidArtifact
+    }
     let stream = UnsafeMutablePointer<compression_stream>.allocate(capacity: 1)
     defer { stream.deallocate() }
     guard
@@ -271,7 +275,7 @@ public enum SearchArtifacts {
         stream.pointee.dst_size = chunk
         let status = compression_stream_process(stream, Int32(COMPRESSION_STREAM_FINALIZE.rawValue))
         let produced = chunk - stream.pointee.dst_size
-        guard status != COMPRESSION_STATUS_ERROR, produced <= maximumDecodedBytes - result.count
+        guard status != COMPRESSION_STATUS_ERROR, produced <= limit - result.count
         else {
           throw RankingError.invalidArtifact
         }

@@ -8,6 +8,8 @@ import {
   DatasetFileListingSchema,
   DirectoryDeltaListingSchema,
   datasetFileFormats,
+  SearchIndexLocationSchema,
+  SearchRankingLocationSchema,
 } from "../../src/core/dataset-storage.ts";
 import { decodeDirectoryArchive } from "../../src/core/directory-archive.ts";
 import { applyDirectoryDelta } from "../../src/core/directory-delta.ts";
@@ -179,12 +181,54 @@ describe("shared native API contract", () => {
       const decoded = decodeDirectoryArchive(text(data));
       expect(decoded.header.snapshot).toBe(manifest.snapshot);
       expect(decoded.rows).toHaveLength(manifest.contacts);
+      for (const [kind, schema] of [
+        ["search-index", SearchIndexLocationSchema],
+        ["search-ranking", SearchRankingLocationSchema],
+      ] as const) {
+        const discovery = responses.find(
+          (response) => response.path === `/api/${kind}`,
+        );
+        const artifact = v.parse(schema, JSON.parse(discovery?.body ?? ""));
+        expect(artifact.snapshot).toBe(manifest.snapshot);
+        const download = responses.find(
+          (response) => response.path === `${artifact.url}/download`,
+        );
+        expect(download?.encoding).toBe("base64");
+        expect(download?.headers["Content-Type"]).toBe(
+          "application/octet-stream",
+        );
+        const compressed = bytes(download?.body);
+        expect(compressed.byteLength).toBe(artifact.bytes);
+        expect(sha256(compressed)).toBe(artifact.sha256);
+        const decoded = brotliDecompressSync(compressed);
+        expect(decoded.byteLength).toBe(artifact.uncompressedBytes);
+        expect(sha256(decoded)).toBe(artifact.uncompressedSha256);
+      }
       return { responses, listing: manifest, file, archive: text(data) };
     };
     const baseline = revision("baseline");
+    const searchPaths = (responses: typeof actual): string[] => {
+      const locations = ["/api/search-index", "/api/search-ranking"];
+      return [
+        ...locations,
+        ...locations.map((path) => {
+          const discovery = responses.find(
+            (response) => response.path === path,
+          );
+          const artifact = v.parse(
+            path === "/api/search-ranking"
+              ? SearchRankingLocationSchema
+              : SearchIndexLocationSchema,
+            JSON.parse(discovery?.body ?? ""),
+          );
+          return `${artifact.url}/download`;
+        }),
+      ];
+    };
     expect(baseline.responses.map((response) => response.path)).toEqual([
       "/api/datasets",
       baseline.file?.url,
+      ...searchPaths(baseline.responses),
     ]);
     const updated = revision("updated");
     const deltas = v.parse(
@@ -202,6 +246,7 @@ describe("shared native API contract", () => {
       updated.listing.datasetDeltas,
       delta?.url,
       updated.file?.url,
+      ...searchPaths(updated.responses),
     ]);
     const deltaBytes = bytes(updated.responses[2]?.body);
     expect(updated.responses[2]?.headers["Content-Type"]).toBe(
@@ -220,7 +265,9 @@ describe("shared native API contract", () => {
       actual.every(
         (response) =>
           !response.encoding ===
-          !/\.tsv\.br$/u.test(new URL(response.path, contractOrigin).pathname),
+          !/(?:\.tsv\.br|\/download)$/u.test(
+            new URL(response.path, contractOrigin).pathname,
+          ),
       ),
     ).toBe(true);
     expect(actual).toEqual(expected);

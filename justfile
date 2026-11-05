@@ -88,6 +88,9 @@ icons-check:
 ios-unit-test:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- unit-test
 
+ios-search-measure:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- search-measure
+
 ios-check:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- check
 

@@ -12,6 +12,7 @@ const candidateWorkflow = ".github/workflows/candidate.yml";
  * A unit test requires this list to match `SCOPE` in `tools/ios-check/src/ios.rs`.
  */
 export const iosCheckScope = [
+  "tests/fixtures/search-ranking.json",
   "ios",
   "verification/ios",
   "src/core",

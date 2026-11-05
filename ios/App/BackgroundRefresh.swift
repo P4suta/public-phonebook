@@ -51,7 +51,7 @@ enum BackgroundRefresh {
 
   static func automatic(api: APIClient, store: SnapshotStore) -> AutomaticUpdate {
     AutomaticUpdate(
-      api: api, sync: SyncEngine(api: api, store: store, trace: SystemTraceSink()), store: store,
+      api: api, sync: AppIdentity.synchronizer(api: api, store: store), store: store,
       records: DefaultsUpdateRecords())
   }
 

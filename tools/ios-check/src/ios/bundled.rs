@@ -27,6 +27,7 @@ const ADMISSION_SCRATCH: &str = "target/ios/bundled-admission";
 const RELEASES: &str = "https://github.com/P4suta/public-phonebook/releases/download";
 pub(super) const ARCHIVE_FILE: &str = "directory.tsv.br";
 pub(super) const ENTRY_FILE: &str = "directory.json";
+const SEARCH_FILES: [&str; 3] = ["search-index.br", "search-ranking.br", "search.json"];
 const MANIFEST_FILE: &str = "manifest.ready.json";
 const FORMAT: &str = "public-phonebook-directory/1";
 const MAXIMUM_MANIFEST_BYTES: u64 = 1_048_576;
@@ -507,8 +508,115 @@ pub(super) fn prepare(root: &Path) -> Result<()> {
         };
         require_controls(dataset, &source)?;
         install(root, dataset, &source.entry, &source.archive)?;
+        prepare_search(root, dataset, &source.entry)?;
         compare_search_forms(root, dataset)?;
     }
+    Ok(())
+}
+
+fn search_files(manifest: &Value, files: &[(&str, &[u8])]) -> Result<()> {
+    ensure!(
+        manifest["format"] == "public-phonebook-bundled-search/1",
+        "Unsupported bundled search format"
+    );
+    for (kind, bytes) in files {
+        let entry = &manifest[*kind];
+        ensure!(
+            entry["bytes"].as_u64() == Some(bytes.len() as u64),
+            "Search {kind} length mismatch"
+        );
+        ensure!(
+            entry["sha256"].as_str() == Some(crate::sha256_hex(bytes).as_str()),
+            "Search {kind} digest mismatch"
+        );
+    }
+    Ok(())
+}
+
+fn prepare_search(root: &Path, dataset: Dataset, archive: &Entry) -> Result<()> {
+    let (manifest, index, ranking) = match dataset {
+        Dataset::National => (
+            serde_json::from_slice::<Value>(&fs::read(root.join("ios/SearchData/national.json"))?)?,
+            fs::read(root.join("ios/SearchData/search-index.br"))?,
+            fs::read(root.join("ios/SearchData/search-ranking.br"))?,
+        ),
+        Dataset::Fixture => {
+            let declaration: FixtureDeclaration = read_declaration(root, FIXTURE)?;
+            let corpus: Vec<CorpusResponse> =
+                serde_json::from_slice(&fs::read(root.join(declaration.corpus))?)?;
+            let response = |path: &str| -> Result<&CorpusResponse> {
+                corpus
+                    .iter()
+                    .find(|entry| entry.revision == declaration.revision && entry.path == path)
+                    .with_context(|| format!("The provider corpus has no {path}"))
+            };
+            let index: Value = serde_json::from_str(&response("/api/search-index")?.body)?;
+            let ranking: Value = serde_json::from_str(&response("/api/search-ranking")?.body)?;
+            ensure!(
+                index["snapshot"] == archive.snapshot && ranking["snapshot"] == archive.snapshot,
+                "Fixture search snapshot mismatch"
+            );
+            let bytes = |entry: &Value| -> Result<Vec<u8>> {
+                let url = entry["url"]
+                    .as_str()
+                    .context("Search artifact has no URL")?;
+                let response = response(&format!("{url}/download"))?;
+                ensure!(
+                    response.encoding.as_deref() == Some("base64"),
+                    "Search artifact isn't base64"
+                );
+                Ok(base64::engine::general_purpose::STANDARD.decode(&response.body)?)
+            };
+            let index_bytes = bytes(&index)?;
+            let ranking_bytes = bytes(&ranking)?;
+            (
+                json!({"format":"public-phonebook-bundled-search/1", "snapshot":archive.snapshot, "contacts":archive.contacts, "index":index, "ranking":ranking}),
+                index_bytes,
+                ranking_bytes,
+            )
+        }
+    };
+    ensure!(
+        manifest["snapshot"] == archive.snapshot && manifest["contacts"] == archive.contacts,
+        "The bundled search artifacts differ from the archive"
+    );
+    search_files(&manifest, &[("index", &index), ("ranking", &ranking)])?;
+    let scratch = root
+        .join(ADMISSION_SCRATCH)
+        .join(format!("search-{}", dataset.name()));
+    fs::create_dir_all(&scratch)?;
+    fs::write(scratch.join("search-index.br"), &index)?;
+    fs::write(scratch.join("search-ranking.br"), &ranking)?;
+    fs::write(
+        scratch.join("search.json"),
+        serde_json::to_vec_pretty(&manifest)?,
+    )?;
+    logged(
+        root,
+        &format!("bundled-search-{}", dataset.name()),
+        Command::new("xcrun")
+            .current_dir(root)
+            .args([
+                "swift",
+                "run",
+                "--package-path",
+                "ios",
+                "--configuration",
+                "release",
+                "--jobs",
+                "2",
+                "BundledAdmission",
+                "--search-bundle",
+            ])
+            .arg(&scratch)
+            .arg(&archive.snapshot)
+            .arg(archive.contacts.to_string()),
+    )?;
+    let output = root.join(OUTPUT).join(dataset.name());
+    for name in SEARCH_FILES {
+        fs::rename(scratch.join(name), output.join(name))?;
+    }
+    fs::remove_dir(&scratch)?;
     Ok(())
 }
 
@@ -565,10 +673,11 @@ fn bundle_files(app: &Path) -> Result<Vec<PathBuf>> {
             let path = item?.path();
             if path.is_dir() {
                 pending.push(path);
-            } else if path
-                .file_name()
-                .is_some_and(|name| name == ARCHIVE_FILE || name == ENTRY_FILE)
-            {
+            } else if path.file_name().is_some_and(|name| {
+                name == ARCHIVE_FILE
+                    || name == ENTRY_FILE
+                    || SEARCH_FILES.iter().any(|search| name == *search)
+            }) {
                 found.push(path);
             }
         }
@@ -594,8 +703,11 @@ fn require_built(
         "{declaration}: the built app's entry differs from the admitted entry"
     );
     let files = bundle_files(app)?;
+    let mut expected = vec![app.join(ENTRY_FILE), app.join(ARCHIVE_FILE)];
+    expected.extend(SEARCH_FILES.map(|name| app.join(name)));
+    expected.sort();
     ensure!(
-        files == [app.join(ENTRY_FILE), app.join(ARCHIVE_FILE)],
+        files == expected,
         "{declaration}: the built app holds bundled dataset files outside its resources: {files:?}"
     );
     Ok(())
@@ -631,6 +743,13 @@ pub(super) fn check_built(root: &Path, app: &Path, configuration: &str) -> Resul
         .with_context(|| format!("{configuration}: the built app holds no {ENTRY_FILE}"))?;
     let admitted = fs::read(root.join(OUTPUT).join(dataset.name()).join(ENTRY_FILE))?;
     require_built(declaration, app, &declared, &archive, &entry, &admitted)?;
+    let prepared = root.join(OUTPUT).join(dataset.name());
+    for name in SEARCH_FILES {
+        ensure!(
+            fs::read(app.join(name))? == fs::read(prepared.join(name))?,
+            "{configuration}: built search artifact {name} differs from admission"
+        );
+    }
     let mut changed = archive.clone();
     let last = changed.len() - 1;
     changed[last] ^= 1;
@@ -769,10 +888,18 @@ mod tests {
         let entry = serde_json::to_vec(&json!({"snapshot": declared.snapshot}))?;
         fs::write(app.path().join(ARCHIVE_FILE), b"abc")?;
         fs::write(app.path().join(ENTRY_FILE), &entry)?;
+        for name in SEARCH_FILES {
+            fs::write(app.path().join(name), b"fixture")?;
+        }
         require_built("d", app.path(), &declared, b"abc", &entry, &entry)?;
         assert!(require_built("d", app.path(), &declared, b"abc", &entry, b"{}").is_err());
         let extension = app.path().join("PlugIns/CallDirectory.appex");
         fs::create_dir_all(&extension)?;
+        for name in SEARCH_FILES {
+            fs::write(extension.join(name), b"fixture")?;
+            assert!(require_built("d", app.path(), &declared, b"abc", &entry, &entry).is_err());
+            fs::remove_file(extension.join(name))?;
+        }
         fs::write(extension.join(ARCHIVE_FILE), b"abc")?;
         assert!(require_built("d", app.path(), &declared, b"abc", &entry, &entry).is_err());
         Ok(())

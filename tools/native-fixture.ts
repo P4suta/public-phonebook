@@ -10,6 +10,8 @@ import {
   DatasetFileListingSchema,
   DirectoryDeltaListingSchema,
   datasetListingPath,
+  SearchIndexLocationSchema,
+  SearchRankingLocationSchema,
 } from "../src/core/dataset-storage.ts";
 import { directoryArchiveFormat } from "../src/core/directory-archive.ts";
 import {
@@ -111,6 +113,16 @@ async function revisionResponses(
         await request(delta.url, true);
     }
     await request(archive.url, true);
+    const index = v.parse(
+      SearchIndexLocationSchema,
+      JSON.parse(await request("/api/search-index")),
+    );
+    const ranking = v.parse(
+      SearchRankingLocationSchema,
+      JSON.parse(await request("/api/search-ranking")),
+    );
+    await request(`${index.url}/download`, true);
+    await request(`${ranking.url}/download`, true);
     return responses;
   } finally {
     await fixture.dispose();

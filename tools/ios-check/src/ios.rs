@@ -26,6 +26,7 @@ mod proof;
 mod receipts;
 mod required_reasons;
 mod screenshots;
+mod search_measurement;
 mod signing;
 mod store_build;
 mod testflight;
@@ -126,7 +127,17 @@ const UI_TESTS: [&str; 23] = [
 ];
 /// The UI scenarios that run with the simulator in the dark appearance.
 const DARK_UI_TESTS: [&str; 1] = ["testDarkAppearanceSwapsBlackAndWhite"];
-const REQUIRED_TESTS: [&str; 90] = [
+const REQUIRED_TESTS: [&str; 100] = [
+    "searchActivationRequiresEveryMandatorySearchFile",
+    "nationalRankingsMatchEveryCommittedRowAndScore",
+    "searchArtifactsMustMapEverySavedRecordBeforeActivation",
+    "rejectedSearchMappingsAndCorruptFilesKeepTheActiveGeneration",
+    "upgradingSearchRetainsTheSavedDirectoryAndNeedsNoArchiveDownload",
+    "rankedGenerationsKeepDuplicatesAndCleanOnlyTheObsoleteFiles",
+    "bundledSearchWorksWithoutAnyPublishedSearchFilesOrConnection",
+    "completeAndDeltaUpdatesActivateTheMatchingSearchPair",
+    "failedRankedActivationKeepsThePreviousSearchAndCallerGeneration",
+    "cancelledSearchAdmissionKeepsTheActiveGenerationAndRemovesTheDraft",
     "currentProviderArchiveImportsTheNationalDirectory",
     "providerArchiveSavesTheExpectedGenerationContent",
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
@@ -218,7 +229,8 @@ const REQUIRED_TESTS: [&str; 90] = [
     "eachTransferOriginTakesItsOwnSession",
     "aRefusedAutomaticTransferFailsAtOnceAndWaitsAgain",
 ];
-const SCOPE: [&str; 19] = [
+const SCOPE: [&str; 20] = [
+    "tests/fixtures/search-ranking.json",
     "ios",
     "verification/ios",
     "src/core",
@@ -347,6 +359,7 @@ pub enum Action {
     },
     Check,
     UnitTest,
+    SearchMeasure,
     Prove,
     Sanitize,
     Mutate,
@@ -1308,6 +1321,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         ),
         Action::Screenshots { origin } => screenshots::capture(root, &origin),
         Action::Generate => Ok(()),
+        Action::SearchMeasure => search_measurement::run(root),
         Action::DeviceRecord { .. } => {
             let (device, delta) = prepared.context("The device record was not prepared")?;
             device::run(root, &device, &delta)
@@ -1347,6 +1361,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "ios/Native",
                     "ios/CallDirectory",
                     "ios/DeviceMeasurements",
+                    "ios/SearchMeasurements",
                     "ios/Sources",
                     "ios/Tests",
                     "ios/UITests",

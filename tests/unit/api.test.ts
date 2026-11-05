@@ -1467,6 +1467,13 @@ describe("website search index and row locator", () => {
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(
       new Uint8Array(indexBytes),
     );
+    const raw = await serve(`${url}/download`, undefined, environment);
+    expect(raw.status).toBe(200);
+    expect(raw.headers.get("Content-Encoding")).toBeNull();
+    expect(raw.headers.get("Content-Length")).toBe(String(indexBytes.length));
+    expect(new Uint8Array(await raw.arrayBuffer())).toEqual(
+      new Uint8Array(indexBytes),
+    );
     expect(
       (
         await serve(
@@ -1530,6 +1537,35 @@ describe("website search index and row locator", () => {
       expect(cached.headers.get("Content-Encoding")).toBeNull();
       expect(await cached.text()).toBe("");
     }
+  });
+
+  it("serves raw search downloads without automatic HTTP decompression", async () => {
+    const response = await serve(`${indexUrl}/download`, {
+      headers: { "Accept-Encoding": "identity" },
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Encoding")).toBeNull();
+    expect(response.headers.get("Content-Length")).toBe(
+      String(indexBytes.length),
+    );
+    expect(response.headers.get("X-Dataset-Snapshot")).toBe(snapshot);
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+      new Uint8Array(indexBytes),
+    );
+    expect(
+      (
+        await serve(`${indexUrl}/download`, {
+          headers: { "If-None-Match": `"${indexSha256}"` },
+        })
+      ).status,
+    ).toBe(304);
+    expect(
+      (
+        await serve(
+          `/api/search-index/${otherSnapshot}/${indexSha256}/download`,
+        )
+      ).status,
+    ).toBe(404);
   });
 
   it("refuses an index request that doesn't admit Brotli", async () => {

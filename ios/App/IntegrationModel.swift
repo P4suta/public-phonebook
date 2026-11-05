@@ -164,7 +164,7 @@ final class IntegrationModel {
     origin = api.origin.absoluteString
     self.api = api
     self.store = store
-    sync = SyncEngine(api: api, store: store, trace: SystemTraceSink())
+    sync = AppIdentity.synchronizer(api: api, store: store)
     automatic = BackgroundRefresh.automatic(api: api, store: store)
     monitor.pathUpdateHandler = { [weak self] path in
       let reported = UpdatePath(expensive: path.isExpensive, constrained: path.isConstrained)
@@ -228,6 +228,17 @@ final class IntegrationModel {
         manifest = nil
         lastFailure = String(describing: error)
       }
+    }
+    if let saved = manifest, saved.rankedSearch != true, !busy {
+      busy = true
+      do {
+        manifest = try await BackgroundTimeRunner.run(
+          ApplicationBackgroundTime(), name: "prepare-search"
+        ) { [sync] in
+          try await sync.upgradeSearch()
+        }
+      } catch { lastFailure = String(describing: error) }
+      busy = false
     }
     if let manifest, !busy {
       await notifyExtensions(manifest)

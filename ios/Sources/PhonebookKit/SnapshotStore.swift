@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import PhonebookCore
 
@@ -12,6 +13,22 @@ public struct SnapshotManifest: Codable, Sendable {
   public let updatedAt: Date
   public let records: Int
   public let origin: String?
+  public let rankedSearch: Bool?
+
+  init(
+    format: Int, generation: UUID, previous: UUID?, snapshot: SnapshotID, generatedAt: String,
+    updatedAt: Date, records: Int, origin: String?, rankedSearch: Bool? = nil
+  ) {
+    self.format = format
+    self.generation = generation
+    self.previous = previous
+    self.snapshot = snapshot
+    self.generatedAt = generatedAt
+    self.updatedAt = updatedAt
+    self.records = records
+    self.origin = origin
+    self.rankedSearch = rankedSearch
+  }
 }
 
 public struct IdentificationEntry: Sendable, Equatable {
@@ -35,6 +52,8 @@ private final class SnapshotDraft {
   var records = 0
   var inserting = PhaseTimer()
   var phase: PublicationPhase = .staging
+  var requiresRankedSearch = false
+  var searchReady = false
 
   init(
     generation: UUID, header: ArchiveHeader, database: SQLiteDatabase, lease: WriterLease,
@@ -139,7 +158,14 @@ public actor SnapshotStore {
     root.appendingPathComponent("transfers", isDirectory: true)
   }
 
+  public nonisolated var searchTransfers: URL {
+    root.appendingPathComponent("search-transfers", isDirectory: true)
+  }
+
   private static let generationExtensions = ["sqlite", "names", "folded", "kinds", "regions"]
+  private static let searchExtensions = [
+    "search-index.br", "search-ranking.br", "search.json", "search-rows",
+  ]
   /// A generation saved before the caller file existed still opens, so the file isn't one of the required extensions.
   private static let callerExtension = "callers"
   private var manifestURL: URL { root.appendingPathComponent("active.json") }
@@ -161,12 +187,18 @@ public actor SnapshotStore {
       manifest.previous != manifest.generation,
       Self.generationExtensions.allSatisfy({
         FileManager.default.fileExists(atPath: url(manifest.generation, $0).path)
-      })
+      }),
+      manifest.rankedSearch != true
+        || Self.searchExtensions.allSatisfy({
+          FileManager.default.fileExists(atPath: url(manifest.generation, $0).path)
+        })
     else { throw ImportError.invalidSnapshot }
     return manifest
   }
 
-  public func begin(header: ArchiveHeader, origin: URL? = nil) throws {
+  public func begin(header: ArchiveHeader, origin: URL? = nil, requiresRankedSearch: Bool = false)
+    throws
+  {
     guard draft == nil else { throw ImportError.alreadyUpdating }
     let lease = try WriterLease(url: root.appendingPathComponent("writer.sqlite"))
     try HeldLocks.current?.hold(lease)
@@ -215,6 +247,7 @@ public actor SnapshotStore {
         names: try FileHandle(forWritingTo: url(generation, "names")),
         folded: try FileHandle(forWritingTo: url(generation, "folded")),
         origin: origin?.absoluteString)
+      draft?.requiresRankedSearch = requiresRankedSearch
       trace.record(TraceEvent(phase: .stage, outcome: .started, snapshot: header.snapshot))
     } catch {
       try removeGeneration(generation)
@@ -289,6 +322,10 @@ public actor SnapshotStore {
       (0...253_402_300_799).contains(date.timeIntervalSince1970)
     else { throw ImportError.invalidSnapshot }
     guard draft.records == draft.header.contacts else { throw ImportError.unexpectedCount }
+    guard SearchActivation.permits(required: draft.requiresRankedSearch, ready: draft.searchReady)
+    else {
+      throw ImportError.invalidSnapshot
+    }
     let snapshot = draft.header.snapshot
     trace.record(TraceEvent(phase: .insert, snapshot: snapshot, elapsed: draft.inserting.elapsed))
     try prepareNumbers(draft)
@@ -319,7 +356,7 @@ public actor SnapshotStore {
       format: SnapshotManifest.currentFormat, generation: draft.generation,
       previous: previous?.generation, snapshot: draft.header.snapshot,
       generatedAt: draft.header.generatedAt, updatedAt: date, records: draft.records,
-      origin: draft.origin)
+      origin: draft.origin, rankedSearch: draft.searchReady ? true : nil)
     let data = try JSONEncoder().encode(manifest)
     draft.phase = draft.phase.applying(.prepare).applying(.beginActivation)
     trace.record(TraceEvent(phase: .activation, outcome: .started, snapshot: snapshot))
@@ -370,7 +407,7 @@ public actor SnapshotStore {
   }
 
   private func removeGeneration(_ generation: UUID) throws {
-    for kind in Self.generationExtensions + [
+    for kind in Self.generationExtensions + Self.searchExtensions + [
       Self.callerExtension, Self.callerExtension + ".partial",
     ] {
       let target = url(generation, kind)
@@ -499,6 +536,126 @@ public actor SnapshotStore {
       names: url(generation, "names"), folded: url(generation, "folded"),
       kinds: url(generation, "kinds"), regions: url(generation, "regions"),
       places: index(database, generation).header.searchPlaces)
+  }
+
+  private struct SearchKey: Hashable {
+    let name: Data
+    let category: String
+    let region: String
+    let phones: [String]
+  }
+
+  private struct SavedSearchManifest: Codable {
+    let format: String
+    let artifacts: SearchArtifactManifest
+    let rowsSha256: SnapshotID
+  }
+
+  private static func searchDigest(_ data: Data) throws -> SnapshotID {
+    try SnapshotID(SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined())
+  }
+
+  public func installSearch(_ artifacts: SearchArtifactFiles) throws {
+    guard let draft, draft.phase == .staging, draft.records == draft.header.contacts,
+      artifacts.manifest.snapshot == draft.header.snapshot,
+      artifacts.manifest.contacts == draft.records, !draft.searchReady
+    else { throw ImportError.invalidSnapshot }
+    try Task.checkCancellation()
+    let admitted = try artifacts.admit()
+    let statement = try draft.database.prepare(
+      "SELECT id, name, category, region, phones FROM contacts ORDER BY id DESC")
+    try statement.bind([])
+    var available: [SearchKey: [UInt32]] = [:]
+    while let row = try statement.step() {
+      let category = Int(SQLiteDatabase.integer(row, 2))
+      guard draft.header.categories.indices.contains(category) else {
+        throw ImportError.invalidRecord
+      }
+      let phones = try SQLiteDatabase.text(row, 4).split(separator: "\u{1F}").map {
+        String($0.split(separator: "\u{1E}", maxSplits: 1)[0])
+      }.sorted()
+      let key = SearchKey(
+        name: Data(try SQLiteDatabase.text(row, 1).utf8),
+        category: draft.header.categories[category].id, region: try SQLiteDatabase.text(row, 3),
+        phones: phones)
+      let id = SQLiteDatabase.integer(row, 0)
+      guard id > 0, id <= draft.records else { throw ImportError.invalidRecord }
+      available[key, default: []].append(UInt32(id))
+    }
+    var mapping = Data()
+    mapping.reserveCapacity(draft.records * 4)
+    for (position, row) in admitted.index.rows.enumerated() {
+      if position.isMultiple(of: 4096) { try Task.checkCancellation() }
+      let phones = try row.phones.map { phone in
+        guard let canonical = SearchInput.normalizedPhone(phone) else {
+          throw ImportError.invalidRecord
+        }
+        return canonical
+      }.sorted()
+      let key = SearchKey(
+        name: Data(row.name.utf8), category: row.category, region: row.region, phones: phones)
+      guard let id = available[key]?.popLast() else { throw RankingError.identityMismatch }
+      if available[key]?.isEmpty == true { available[key] = nil }
+      var littleEndian = id.littleEndian
+      Swift.withUnsafeBytes(of: &littleEndian) { mapping.append(contentsOf: $0) }
+    }
+    guard available.isEmpty else { throw RankingError.identityMismatch }
+    try FileManager.default.copyItem(
+      at: artifacts.index, to: url(draft.generation, "search-index.br"))
+    try FileManager.default.copyItem(
+      at: artifacts.ranking, to: url(draft.generation, "search-ranking.br"))
+    try artifacts.manifest.index.verify(url(draft.generation, "search-index.br"))
+    try artifacts.manifest.ranking.verify(url(draft.generation, "search-ranking.br"))
+    let saved = try SavedSearchManifest(
+      format: "public-phonebook-saved-search/1", artifacts: artifacts.manifest,
+      rowsSha256: Self.searchDigest(mapping))
+    try JSONEncoder().encode(saved).write(
+      to: url(draft.generation, "search.json"), options: .withoutOverwriting)
+    try mapping.write(to: url(draft.generation, "search-rows"), options: .withoutOverwriting)
+    for kind in Self.searchExtensions {
+      let handle = try FileHandle(forUpdating: url(draft.generation, kind))
+      try handle.synchronize()
+      try handle.close()
+    }
+    draft.searchReady = true
+  }
+
+  public func rankedSearch(generation: UUID) throws -> SavedRankedSearch? {
+    let (database, generation) = try readable(generation)
+    let manifestFile = url(generation, "search.json")
+    guard FileManager.default.fileExists(atPath: manifestFile.path) else { return nil }
+    let bytes = try LocalSnapshotFiles().readManifest(at: manifestFile)
+    guard bytes.count <= 65_536 else { throw RankingError.invalidArtifact }
+    let saved = try JSONDecoder().decode(SavedSearchManifest.self, from: bytes)
+    guard saved.format == "public-phonebook-saved-search/1" else {
+      throw RankingError.invalidArtifact
+    }
+    let files = try SearchArtifactFiles(
+      manifest: saved.artifacts,
+      index: url(generation, "search-index.br"), ranking: url(generation, "search-ranking.br"))
+    let header = try index(database, generation).header
+    guard files.manifest.snapshot == header.snapshot, files.manifest.contacts == header.contacts
+    else {
+      throw RankingError.identityMismatch
+    }
+    let admitted = try files.admit()
+    let handle = try FileHandle(forReadingFrom: url(generation, "search-rows"))
+    defer { try? handle.close() }
+    let data = try handle.read(upToCount: header.contacts * 4 + 1) ?? Data()
+    guard data.count == header.contacts * 4, try Self.searchDigest(data) == saved.rowsSha256 else {
+      throw RankingError.invalidArtifact
+    }
+    let ids = data.withUnsafeBytes { raw in
+      (0..<header.contacts).map {
+        UInt32(littleEndian: raw.loadUnaligned(fromByteOffset: $0 * 4, as: UInt32.self))
+      }
+    }
+    guard Set(ids).count == header.contacts,
+      ids.allSatisfy({ $0 > 0 && Int($0) <= header.contacts })
+    else {
+      throw RankingError.invalidArtifact
+    }
+    return try SavedRankedSearch(scorer: admitted.index.scorer(admitted.ranking), ids: ids)
   }
 
   /// The most saved rows that one call returns, which bounds the memory of copying a national base.

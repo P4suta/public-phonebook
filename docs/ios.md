@@ -55,6 +55,28 @@ The gate compares the VerificationDebug and Release apps and the exported TestFl
 The fast gate refuses a national declaration whose dataset `sources/shipped-snapshots.json` lacks, because preparation writes deltas only from listed datasets.
 The fixture never ships, so the list never names it.
 
+The app also bundles the name index, ranking companion, and `search.json` declaration for that archive.
+The declaration under `ios/SearchData` binds the national pair's compressed and decoded lengths and SHA-256 digests.
+The generator admits the pair through PhonebookKit and requires the archive's snapshot and contact count.
+The VerificationRelease build needs no new files on the production site to use the national search.
+The extension carries no search artifacts.
+[The search-generation decision](adr/activate-ios-search-artifacts-with-directory-generations.md) records the mapping, limits, migration, and cleanup contract.
+
+Every ranked generation saves the pair and a hash-bound mapping from name-index positions to archive identifiers before activation.
+A complete download or delta update must admit the matching companions before replacing the active manifest.
+Each companion uses a separate resumable transfer directory and the same network-path restrictions as the archive.
+The first-run size notice includes required companion transfers.
+The current and previous generations keep their own search files, and failed staging and obsolete generations use the existing cleanup path.
+An installation with an earlier generation prepares a replacement from its saved rows without downloading the archive again.
+A failed migration preserves the saved generation.
+
+`mise x -- just ios-search-measure` measures optimized production search and a bundled offline import on the checkout's iOS Simulator.
+The report at `target/ios/search-measurements/report.json` binds the source, compiler, SDK, runtime, fixture, timings, resident peaks, and stored bytes.
+The core run compares all 2,200 complete national rankings and reports p50, p95, p99, and peak query latency.
+Each measurement runs in a separate process, and resident peaks include the ranking fixture.
+Search construction time excludes the simulator boot and compiler.
+The command doesn't measure an installed app's cold launch or physical iPhone performance.
+
 The app keeps the whole national directory on the device.
 The first launch opens a setup flow that starts the first run when the reader presses the start button, explains caller identification, and then waits for the data.
 Over that button, a notice follows the first run's plan.
