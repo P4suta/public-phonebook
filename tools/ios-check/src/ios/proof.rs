@@ -6,7 +6,15 @@ use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fmt::Write as _, fs, path::Path, process::Command};
 
-const THEOREMS: [&str; 61] = [
+const THEOREMS: [&str; 69] = [
+    "rankingDiceBound",
+    "rankingMixtureBound",
+    "rankingReadingBands",
+    "rankingPreferenceBands",
+    "rankingSignalProtectsExact",
+    "rankingGateBoundaries",
+    "rankingConservativeHanAnchor",
+    "rankingArithmeticFitsInt64",
     "activeAbsorbsEveryEvent",
     "activeSurvivesEveryFiniteTrace",
     "uncertainAbortRetainsData",
@@ -70,6 +78,10 @@ const THEOREMS: [&str; 61] = [
     "unchangedListingsStartNothing",
 ];
 const UPDATE_SOURCE: &str = include_str!("../../../../ios/Sources/PhonebookCore/UpdateCheck.swift");
+const RANKING_SOURCE: &str =
+    include_str!("../../../../ios/Sources/PhonebookCore/RankingPolicy.swift");
+const RANKING_REFINEMENT_SHA256: &str =
+    "b2d210611c5341414f56000f649e02ce5c3eff96c80cdb02ddf6c06c7a176fb7";
 /// The SHA-256 of the whitespace-free Swift decision that `verification/ios/UpdateCheck.lean` models function for function.
 /// Recheck the Lean model against the Swift file before changing this digest.
 const UPDATE_REFINEMENT_SHA256: &str =
@@ -186,7 +198,8 @@ const DELTA_DEFECTS: [(&str, &str, &str, &str, &[&str]); 7] = [
         &["choose_waiting"],
     ),
 ];
-const PROOF_MODULES: [&str; 7] = [
+const PROOF_MODULES: [&str; 8] = [
+    "RankingPolicy",
     "Publication",
     "ReceiveBudget",
     "DeltaAdmission",
@@ -204,6 +217,7 @@ const REPLAY_ROOTS: [(&str, &[&str]); 2] = [
     (
         "OmegaModels",
         &[
+            "RankingPolicy",
             "ReceiveBudget",
             "DeltaAdmission",
             "WaitDisplay",
@@ -218,7 +232,12 @@ const REPLAY_ROOTS: [(&str, &[&str]); 2] = [
 const COMPILE_WORK: [(&str, u64); 2] = [("lean compiles", 1), ("container runs", 1)];
 const REPLAY_WORK: [(&str, u64); 2] = [("kernel replays", 1), ("container runs", 1)];
 /// Each false claim must fail at its proof on line 2, which shows that the kernel checks that model.
-const FALSE_CLAIMS: [(&str, &str, &str); 5] = [
+const FALSE_CLAIMS: [(&str, &str, &str); 6] = [
+    (
+        "FalseRankingGate",
+        "import RankingPolicy\nexample : Phonebook.rankGate 1250 501 false false = true := by rfl\n",
+        "false reading admission at the strict ratio boundary",
+    ),
     (
         "FalseUpdateClaim",
         "import UpdateCheck\nexample : (Phonebook.updateStep ⟨none, none⟩ (.check 0 .archive ⟨true, false⟩)).start = some ⟨.archive, true, ⟨true, false⟩⟩ := by rfl\n",
@@ -651,6 +670,11 @@ pub fn run(root: &Path) -> Result<()> {
         fs::remove_file(&receipt)?;
     }
     let sources = source_hashes(root)?;
+    let ranking = fs::read_to_string(root.join("ios/Sources/PhonebookCore/RankingPolicy.swift"))?;
+    ensure!(
+        ranking == RANKING_SOURCE && crate::sha256_hex(&ranking) == RANKING_REFINEMENT_SHA256,
+        "The ranking proof covers a different Swift implementation; recheck verification/ios/RankingPolicy.lean"
+    );
     let receive = fs::read_to_string(root.join("ios/Sources/PhonebookCore/ReceiveBudget.swift"))?;
     let normalize = whitespace_free;
     ensure!(
