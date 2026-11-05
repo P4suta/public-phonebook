@@ -1,0 +1,734 @@
+[
+  {
+    "id": "isil:JP-2003038",
+    "name": "NIFREL",
+    "kana": "ニフレル",
+    "source": "https://www.wikidata.org/wiki/Q21654084"
+  },
+  {
+    "id": "university:325b946f0f240a749e85a89e62608c7980e3dd05f609496b0469263fee4155a5",
+    "name": "お茶の水女子大学",
+    "kana": "オチャノミズジョシダイガク",
+    "source": "https://www.wikidata.org/wiki/Q1152391"
+  },
+  {
+    "id": "isil:JP-1002924",
+    "name": "みやま市立図書館",
+    "kana": "ミヤマシリツトショカン",
+    "source": "https://www.wikidata.org/wiki/Q61889086"
+  },
+  {
+    "id": "university:f89165e05e0c39eb642d253684ceb71f465010f55064b8a0dc30c190ad49b896",
+    "name": "デジタルハリウッド大学",
+    "kana": "デジタルハリウッドダイガク",
+    "source": "https://www.wikidata.org/wiki/Q5275880"
+  },
+  {
+    "id": "isil:JP-1002359",
+    "name": "三田市立図書館",
+    "kana": "サンダシリツトショカン",
+    "source": "https://www.wikidata.org/wiki/Q11356711"
+  },
+  {
+    "id": "isil:JP-2002381",
+    "name": "上宝ふるさと歴史館",
+    "kana": "カミタカラフルサトレキシカン",
+    "source": "https://www.wikidata.org/wiki/Q111263376"
+  },
+  {
+    "id": "isil:JP-2001303",
+    "name": "上野の森美術館",
+    "kana": "ウエノノモリビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q11360245"
+  },
+  {
+    "id": "university:19978c102365cd8fb0ca68e1d25ac87722c5b54c28247a2209f252d0238f9301",
+    "name": "中央大学",
+    "kana": "チュウオウダイガク",
+    "source": "https://www.wikidata.org/wiki/Q1091287"
+  },
+  {
+    "id": "isil:JP-2000426",
+    "name": "中尊寺讃衡蔵",
+    "kana": "チュウソンジサンコウゾウ",
+    "source": "https://www.wikidata.org/wiki/Q123474160"
+  },
+  {
+    "id": "isil:JP-1003075",
+    "name": "中津市立小幡記念図書館",
+    "kana": "ナカツシリツオバタキネントショカン",
+    "source": "https://www.wikidata.org/wiki/Q11366483"
+  },
+  {
+    "id": "isil:JP-2003203",
+    "name": "丹波篠山市立歴史美術館",
+    "kana": "ササヤマシリツレキシビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q11603687"
+  },
+  {
+    "id": "isil:JP-2003472",
+    "name": "井原市立平櫛田中美術館",
+    "kana": "イバラシリツヒラクシデンチュウビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q11373381"
+  },
+  {
+    "id": "isil:JP-2002899",
+    "name": "京都市美術館",
+    "kana": "キョウトシビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q3330657"
+  },
+  {
+    "id": "university:381f4ee6a552084375773771643aa2015dc0294506077960110f274f9d75ff80",
+    "name": "京都教育大学",
+    "kana": "キョウトキョウイクダイガク",
+    "source": "https://www.wikidata.org/wiki/Q1398915"
+  },
+  {
+    "id": "university:ebbf7a3319c9defba90560e5eba775afc30e16835420b7919884ddbc1aa6960d",
+    "name": "京都橘大学",
+    "kana": "キョウトタチバナダイガク",
+    "source": "https://www.wikidata.org/wiki/Q6452217"
+  },
+  {
+    "id": "university:c4e5adb90192cb4fe2689ceafbc33dc78d0da18082fd771c6accbbbdfc3a664d",
+    "name": "仙台青葉学院大学",
+    "kana": "センダイセイヨウガクインダイガク",
+    "source": "https://www.wikidata.org/wiki/Q137652183"
+  },
+  {
+    "id": "medical:10:medical:0210738",
+    "name": "伊勢崎市民病院",
+    "kana": "イセサキシミンビョウイン",
+    "source": "https://www.wikidata.org/wiki/Q113015143"
+  },
+  {
+    "id": "isil:JP-2001161",
+    "name": "佐倉市立美術館",
+    "kana": "サクラシリツビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q11382975"
+  },
+  {
+    "id": "isil:JP-2002212",
+    "name": "信州高遠美術館",
+    "kana": "シンシュウタカトオビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q28328237"
+  },
+  {
+    "id": "university:fa3f2bb482f8ea3b2a74c6562a3aa36f00d9081170dfff893c80de01976c30ec",
+    "name": "公立はこだて未来大学",
+    "kana": "コウリツハコダテミライダイガク",
+    "source": "https://www.wikidata.org/wiki/Q835738"
+  },
+  {
+    "id": "university:10c4db6f2e037d019974e65ce2e96aa6e22c49b3910d0a7665f4621dc688c219",
+    "name": "北海道大学",
+    "kana": "ホッカイドウダイガク",
+    "source": "https://www.wikidata.org/wiki/Q1057199"
+  },
+  {
+    "id": "isil:JP-1000753",
+    "name": "千葉県立西部図書館",
+    "kana": "チバケンリツセイブトショカン",
+    "source": "https://www.wikidata.org/wiki/Q11406355"
+  },
+  {
+    "id": "isil:JP-2001942",
+    "name": "南惣美術館",
+    "kana": "ナンソウビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q132890597"
+  },
+  {
+    "id": "isil:JP-1001924",
+    "name": "名古屋市名東図書館",
+    "kana": "ナゴヤシリツメイトウトショカン",
+    "source": "https://www.wikidata.org/wiki/Q35898210"
+  },
+  {
+    "id": "isil:JP-2002602",
+    "name": "名古屋市美術館",
+    "kana": "ナゴヤシビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q469573"
+  },
+  {
+    "id": "isil:JP-2000113",
+    "name": "名寄市北国博物館",
+    "kana": "ナヨロシキタグニブツカン",
+    "source": "https://www.wikidata.org/wiki/Q70203108"
+  },
+  {
+    "id": "university:e084a51a012d440d039c084f1ea5fe77d19d341c7f54625d7c4e7f6cde80605d",
+    "name": "四日市大学",
+    "kana": "ヨッカイチダイガク",
+    "source": "https://www.wikidata.org/wiki/Q8054562"
+  },
+  {
+    "id": "isil:JP-2003004",
+    "name": "国立国際美術館",
+    "kana": "コクリツコクサイビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q1055037"
+  },
+  {
+    "id": "isil:JP-2001907",
+    "name": "国立工芸館",
+    "kana": "コクリツコウゲイカン",
+    "source": "https://www.wikidata.org/wiki/Q101001030"
+  },
+  {
+    "id": "isil:JP-2001312",
+    "name": "国立科学博物館",
+    "kana": "コクリツカガクハクブツカン",
+    "source": "https://www.wikidata.org/wiki/Q74940"
+  },
+  {
+    "id": "isil:JP-2001304",
+    "name": "国立西洋美術館",
+    "kana": "コクリツセイヨウビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q1362629"
+  },
+  {
+    "id": "isil:JP-2001162",
+    "name": "塚本美術館",
+    "kana": "ツカモトビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q131150089"
+  },
+  {
+    "id": "isil:JP-2003453",
+    "name": "大原美術館",
+    "kana": "オオハラビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q2977589"
+  },
+  {
+    "id": "university:443769649f255162bf4b185e54f3b79c9373901e0a5a63d1834ed0dbbdbaa0ab",
+    "name": "大手前大学",
+    "kana": "オオテマエダイガク",
+    "source": "https://www.wikidata.org/wiki/Q7108520"
+  },
+  {
+    "id": "university:5159b7d4fed5b8135279048cba510ac9b0dc861da92e220ded7620f49bd3275b",
+    "name": "大谷大学",
+    "kana": "オオタニダイガク",
+    "source": "https://www.wikidata.org/wiki/Q386203"
+  },
+  {
+    "id": "university:bb1498f49cc78d331793b6ab3813761d6ea30261c26e3b1499919ba4cc951ed3",
+    "name": "大阪大学",
+    "kana": "オオサカダイガク",
+    "source": "https://www.wikidata.org/wiki/Q651233"
+  },
+  {
+    "id": "isil:JP-1002161",
+    "name": "大阪市立中央図書館",
+    "kana": "オオサカシリツチュウオウトショカン",
+    "source": "https://www.wikidata.org/wiki/Q11440289"
+  },
+  {
+    "id": "university:dd4a5281749d0b09622cbe886a20be2743cb8afe77d79a4aa2f44abb0bf28837",
+    "name": "大阪教育大学",
+    "kana": "オオサカキョウイクダイガク",
+    "source": "https://www.wikidata.org/wiki/Q1136138"
+  },
+  {
+    "id": "isil:JP-1002391",
+    "name": "太子町立図書館",
+    "kana": "タイシチョウリツトショカン",
+    "source": "https://www.wikidata.org/wiki/Q61888516"
+  },
+  {
+    "id": "isil:JP-2003236",
+    "name": "太子町立歴史資料館",
+    "kana": "タイシチョウリツレキシシリョウカン",
+    "source": "https://www.wikidata.org/wiki/Q104721715"
+  },
+  {
+    "id": "university:d6bd835dbc9a71655a397b55d7a40e200a69431e5cd22ea8a4a93138616212f5",
+    "name": "奈良県立大学",
+    "kana": "ナラケンリツダイガク",
+    "source": "https://www.wikidata.org/wiki/Q4845459"
+  },
+  {
+    "id": "isil:JP-2003569",
+    "name": "奥田元宋・小由女美術館",
+    "kana": "オクダゲンソウサユメビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q22118199"
+  },
+  {
+    "id": "university:864b6d286a1977e320e427f20f2fde9332a66867059a48007593af9803603b33",
+    "name": "学習院大学",
+    "kana": "ガクシュウインダイガク",
+    "source": "https://www.wikidata.org/wiki/Q1372362"
+  },
+  {
+    "id": "university:53c63e091c801db411726b87ed433c540c1f870d821895ae1fe874424ebd48a9",
+    "name": "学習院女子大学",
+    "kana": "ガクシュウインジョシダイガク",
+    "source": "https://www.wikidata.org/wiki/Q1064270"
+  },
+  {
+    "id": "isil:JP-2002676",
+    "name": "安城市歴史博物館",
+    "kana": "アンジョウシレキシハクブツカン",
+    "source": "https://www.wikidata.org/wiki/Q28328048"
+  },
+  {
+    "id": "university:339b10892fd371ec8516cf7343ca09a5fa681b40de5339b0aaa2a4224e4e454a",
+    "name": "宮城教育大学",
+    "kana": "ミヤギキョウイクダイガク",
+    "source": "https://www.wikidata.org/wiki/Q1888278"
+  },
+  {
+    "id": "isil:JP-2004165",
+    "name": "宮崎県立美術館",
+    "kana": "ミヤザキケンリツビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q3298536"
+  },
+  {
+    "id": "isil:JP-2001809",
+    "name": "富山市ガラス美術館",
+    "kana": "トヤマシガラスビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q21653817"
+  },
+  {
+    "id": "isil:JP-2000047",
+    "name": "小樽市総合博物館",
+    "kana": "オタルシソウゴウハクブツカン",
+    "source": "https://www.wikidata.org/wiki/Q11462160"
+  },
+  {
+    "id": "isil:JP-2001647",
+    "name": "山口蓬春記念館",
+    "kana": "ヤマグチホウシュンキネンカン",
+    "source": "https://www.wikidata.org/wiki/Q125763321"
+  },
+  {
+    "id": "isil:JP-2001385",
+    "name": "山種美術館",
+    "kana": "ヤマタネビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q3329572"
+  },
+  {
+    "id": "isil:JP-2003428",
+    "name": "岡山県立美術館",
+    "kana": "オカヤマケンリツビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q4677150"
+  },
+  {
+    "id": "isil:JP-2000351",
+    "name": "岩手県立美術館",
+    "kana": "イワテケンリツビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q3298581"
+  },
+  {
+    "id": "isil:JP-2003360",
+    "name": "島根県立美術館",
+    "kana": "シマネケンリツビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q2655425"
+  },
+  {
+    "id": "isil:JP-1002357",
+    "name": "川西市立中央図書館",
+    "kana": "カワニシシリツチュウオウトショカン",
+    "source": "https://www.wikidata.org/wiki/Q17990264"
+  },
+  {
+    "id": "isil:JP-1002597",
+    "name": "市立竹原書院図書館",
+    "kana": "シリツタケハラショイントショカン",
+    "source": "https://www.wikidata.org/wiki/Q22119309"
+  },
+  {
+    "id": "university:1cfc909684fedda86ed2773cff3a90fe3ff694cac9ca5e5516c082c911ccc59f",
+    "name": "広島大学",
+    "kana": "ヒロシマダイガク",
+    "source": "https://www.wikidata.org/wiki/Q115220"
+  },
+  {
+    "id": "isil:JP-1002713",
+    "name": "徳島市立図書館",
+    "kana": "トクシマシリツトショカン",
+    "source": "https://www.wikidata.org/wiki/Q11489773"
+  },
+  {
+    "id": "university:da700e167497bee0732d5386e70368b109571433e41239501a3fbfb4dbf3d5a4",
+    "name": "愛知教育大学",
+    "kana": "アイチキョウイクダイガク",
+    "source": "https://www.wikidata.org/wiki/Q2118519"
+  },
+  {
+    "id": "university:3c6435442b58db4a2bf1944231374cbef9a69675f5dcc70a864f51ba49022588",
+    "name": "成城大学",
+    "kana": "セイジョウダイガク",
+    "source": "https://www.wikidata.org/wiki/Q587503"
+  },
+  {
+    "id": "university:ea6fa8471b66066295003b4359b83c2dfac9df2b9c124609fc11ba10e4da9d6a",
+    "name": "成蹊大学",
+    "kana": "セイケイダイガク",
+    "source": "https://www.wikidata.org/wiki/Q369333"
+  },
+  {
+    "id": "university:51011d6c664da7f8795007f6aadff5c2ba1a67d1b1bbd0708dc103a3bb759fbb",
+    "name": "旭川医科大学",
+    "kana": "アサヒカワイカダイガク",
+    "source": "https://www.wikidata.org/wiki/Q835972"
+  },
+  {
+    "id": "isil:JP-2001889",
+    "name": "朝日町立ふるさと美術館",
+    "kana": "アサヒチョウリツフルサトビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q122878638"
+  },
+  {
+    "id": "university:1dcd118da952900709328dae1a014a0e32f69b528f613a0b9dc09e03df3d42ba",
+    "name": "杏林大学",
+    "kana": "キョウリンダイガク",
+    "source": "https://www.wikidata.org/wiki/Q3610917"
+  },
+  {
+    "id": "university:4ded2b681ffb9c0b7f7c8a46bd64d0e36564194341ac59beb5f32335c3025cda",
+    "name": "東京慈恵会医科大学",
+    "kana": "トウキョウジケイカイイカダイガク",
+    "source": "https://www.wikidata.org/wiki/Q6192593"
+  },
+  {
+    "id": "university:eb9710ee97248cf4e6cc2c078bf2305078e2982b30dcbb8d776e75c9e1657495",
+    "name": "東京海洋大学",
+    "kana": "トウキョウカイヨウダイガク",
+    "source": "https://www.wikidata.org/wiki/Q1187433"
+  },
+  {
+    "id": "university:5a0a2ba9ad2bce84401e9015b7abc28437930ac42501f4e641d4943dc4b77af0",
+    "name": "東京都市大学",
+    "kana": "トウキョウトシダイガク",
+    "source": "https://www.wikidata.org/wiki/Q7813855"
+  },
+  {
+    "id": "isil:JP-2001329",
+    "name": "東京都現代美術館",
+    "kana": "トウキョウトゲンダイビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q1649688"
+  },
+  {
+    "id": "isil:JP-2001306",
+    "name": "東京都美術館",
+    "kana": "トウキョウトビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q864957"
+  },
+  {
+    "id": "university:72c96b129a4ce381a585f64c3862101c44eacaa2fd869af5d1eca07bbfba1da5",
+    "name": "東洋大学",
+    "kana": "トウヨウダイガク",
+    "source": "https://www.wikidata.org/wiki/Q1321655"
+  },
+  {
+    "id": "isil:JP-2001420",
+    "name": "板橋区立美術館",
+    "kana": "イタバシクリツビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q11532663"
+  },
+  {
+    "id": "isil:JP-2001246",
+    "name": "森美術館",
+    "kana": "モリビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q4410434"
+  },
+  {
+    "id": "university:64cacf2c454048af89386aacaff48aab631b9c8c726b82981701f3d976921c09",
+    "name": "椙山女学園大学",
+    "kana": "スギヤマジョガクエンダイガク",
+    "source": "https://www.wikidata.org/wiki/Q7635127"
+  },
+  {
+    "id": "isil:JP-2000544",
+    "name": "横手市増田まんが美術館",
+    "kana": "ヨコテシマスダマンガビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q38266963"
+  },
+  {
+    "id": "university:9233c00826835bbd7e34c7658dd8580e3cfa3d3a4e273d1527ca5ccc21118980",
+    "name": "沖縄大学",
+    "kana": "オキナワダイガク",
+    "source": "https://www.wikidata.org/wiki/Q4617521"
+  },
+  {
+    "id": "university:28d7f362e51d6d869fbf2f44e6e3ba8500f5b77eb32da6978b6cfd3f1040b624",
+    "name": "洗足学園音楽大学",
+    "kana": "センゾクガクエンオンガクダイガク",
+    "source": "https://www.wikidata.org/wiki/Q7451444"
+  },
+  {
+    "id": "university:312a07ae51f4d3a880c7dc57f88e1dadf03ef6d63fdd9cff793e7c2614144778",
+    "name": "浜松医科大学",
+    "kana": "ハママツイカダイガク",
+    "source": "https://www.wikidata.org/wiki/Q3113708"
+  },
+  {
+    "id": "isil:JP-2002500",
+    "name": "浜松市美術館",
+    "kana": "ハママツシビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q11557851"
+  },
+  {
+    "id": "medical:35:medical:0311776",
+    "name": "済生会湯田温泉病院",
+    "kana": "サイセイカイユダオンセンビョウイン",
+    "source": "https://www.wikidata.org/wiki/Q105077547"
+  },
+  {
+    "id": "isil:JP-2002749",
+    "name": "澄懐堂美術館",
+    "kana": "チョウカイドウビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q24868589"
+  },
+  {
+    "id": "university:61914eb107cb55280f4e1e0a187addc0c5e20612b3866aa1a8e8723750ed995e",
+    "name": "熊本大学",
+    "kana": "クマモトダイガク",
+    "source": "https://www.wikidata.org/wiki/Q1148782"
+  },
+  {
+    "id": "isil:JP-2002120",
+    "name": "甲斐黄金村・湯之奥金山博物館",
+    "kana": "カイオウゴンムラユノオクキンザンハクブツカン",
+    "source": "https://www.wikidata.org/wiki/Q60988980"
+  },
+  {
+    "id": "isil:JP-1001740",
+    "name": "白馬村図書館",
+    "kana": "ハクバムラトショカン",
+    "source": "https://www.wikidata.org/wiki/Q55525835"
+  },
+  {
+    "id": "isil:JP-2003705",
+    "name": "相生森林美術館",
+    "kana": "アイオイシンリンビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q11582282"
+  },
+  {
+    "id": "isil:JP-2000419",
+    "name": "碧祥寺博物館",
+    "kana": "ヘキショウジハクブツカン",
+    "source": "https://www.wikidata.org/wiki/Q11587795"
+  },
+  {
+    "id": "university:8b60b8674b38459121b22b4f87cb06fce9a23bd25b5ace1190c5b7cc020d4f91",
+    "name": "神戸情報大学院大学",
+    "kana": "コウベジョウホウダイガクインダイガク",
+    "source": "https://www.wikidata.org/wiki/Q4162544"
+  },
+  {
+    "id": "isil:JP-2003104",
+    "name": "神戸映画資料館",
+    "kana": "コウベエイガシリョウカン",
+    "source": "https://www.wikidata.org/wiki/Q11590151"
+  },
+  {
+    "id": "university:cd1b1e0625825d4ff122aeac25f8f1ebd3c913f13ae649ac7b0e6b0a5c6ea8cf",
+    "name": "福井県立大学",
+    "kana": "フクイケンリツダイガク",
+    "source": "https://www.wikidata.org/wiki/Q4845464"
+  },
+  {
+    "id": "university:d86a2f533412668623b05d73ae956138ab27841323fa5bac208b28c1195568bd",
+    "name": "福岡国際医療福祉大学",
+    "kana": "フクオカコクサイイリョウフクシダイガク",
+    "source": "https://www.wikidata.org/wiki/Q65277028"
+  },
+  {
+    "id": "university:d86a2f533412668623b05d73ae956138ab27841323fa5bac208b28c1195568bd",
+    "name": "福岡国際医療福祉大学",
+    "kana": "フクヲカコクサイイレウフクシダイガク",
+    "source": "https://www.wikidata.org/wiki/Q65277028"
+  },
+  {
+    "id": "isil:JP-1002873",
+    "name": "福岡市早良図書館",
+    "kana": "フクオカシサワラトショカン",
+    "source": "https://www.wikidata.org/wiki/Q61889034"
+  },
+  {
+    "id": "isil:JP-1002867",
+    "name": "福岡市東図書館",
+    "kana": "フクオカシヒガシトショカン",
+    "source": "https://www.wikidata.org/wiki/Q61889028"
+  },
+  {
+    "id": "isil:JP-2003903",
+    "name": "福岡市美術館",
+    "kana": "フクオカシビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q3073273"
+  },
+  {
+    "id": "university:bd0ebdcb54c1ae92446ec36a8071240c099ec2a637df4e90b3f76856009f5947",
+    "name": "福岡県立大学",
+    "kana": "フクオカケンリツダイガク",
+    "source": "https://www.wikidata.org/wiki/Q1093363"
+  },
+  {
+    "id": "isil:JP-2003899",
+    "name": "福岡県立美術館",
+    "kana": "フクオカケンリツビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q11592587"
+  },
+  {
+    "id": "university:caefaff28ae66d798062a9f7401cc302e2a7c8be4ff9ce371bb0e6263df90f3d",
+    "name": "秋田大学",
+    "kana": "アキタダイガク",
+    "source": "https://www.wikidata.org/wiki/Q1340164"
+  },
+  {
+    "id": "university:c859b22262ed609db5c35b22052535ae4782dacc8b860e25273c7b5da3a952b8",
+    "name": "聖心女子大学",
+    "kana": "セイシンジョシダイガク",
+    "source": "https://www.wikidata.org/wiki/Q860278"
+  },
+  {
+    "id": "university:7c2329b768d0569285f5aebcfd4d439de306ad3c54a88bd09b64e3e46a89425a",
+    "name": "聖隷クリストファー大学",
+    "kana": "セイレイクリストファーダイガク",
+    "source": "https://www.wikidata.org/wiki/Q7446887"
+  },
+  {
+    "id": "isil:JP-2003471",
+    "name": "華鴒大塚美術館",
+    "kana": "ハナトリオオツカビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q11620132"
+  },
+  {
+    "id": "isil:JP-2003639",
+    "name": "萩博物館",
+    "kana": "ハギハクブツカン",
+    "source": "https://www.wikidata.org/wiki/Q11620299"
+  },
+  {
+    "id": "isil:JP-2003535",
+    "name": "蘭島閣美術館",
+    "kana": "ラントウカクビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q121367781"
+  },
+  {
+    "id": "university:da90160368a4c3f06b70ccf7024615e7f34e6ba1124488bbcaac813df248b0dd",
+    "name": "西南学院大学",
+    "kana": "セイナンガクインダイガク",
+    "source": "https://www.wikidata.org/wiki/Q1036312"
+  },
+  {
+    "id": "isil:JP-2001047",
+    "name": "角川武蔵野ミュージアム",
+    "kana": "カドカワムサシノミュージアム",
+    "source": "https://www.wikidata.org/wiki/Q104661157"
+  },
+  {
+    "id": "isil:JP-1006481",
+    "name": "豊川市一宮図書館",
+    "kana": "トヨカワシイチノミヤトショカン",
+    "source": "https://www.wikidata.org/wiki/Q61898558"
+  },
+  {
+    "id": "isil:JP-1006482",
+    "name": "豊川市小坂井図書館",
+    "kana": "トヨカワシコザカイトショカン",
+    "source": "https://www.wikidata.org/wiki/Q61898560"
+  },
+  {
+    "id": "isil:JP-1001946",
+    "name": "豊川市御津図書館",
+    "kana": "トヨカワシミトトショカン",
+    "source": "https://www.wikidata.org/wiki/Q61888072"
+  },
+  {
+    "id": "isil:JP-1001945",
+    "name": "豊川市音羽図書館",
+    "kana": "トヨカワシオトワトショカン",
+    "source": "https://www.wikidata.org/wiki/Q61888070"
+  },
+  {
+    "id": "isil:JP-2002674",
+    "name": "豊田市郷土資料館",
+    "kana": "トヨタシキョウドシリョウカン",
+    "source": "https://www.wikidata.org/wiki/Q21653837"
+  },
+  {
+    "id": "university:cdff2c43949eb425b04b8927233b4e80b8d26e3d8244434c0d7cc9d8a973226f",
+    "name": "足利大学",
+    "kana": "アシカガダイガク",
+    "source": "https://www.wikidata.org/wiki/Q4805071"
+  },
+  {
+    "id": "isil:JP-2004024",
+    "name": "長崎県美術館",
+    "kana": "ナガサキケンビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q11652770"
+  },
+  {
+    "id": "university:6a063d44d145c73b04b8ad442ec761b367e589f548c31c14f42cf06b2523c9b8",
+    "name": "静岡大学",
+    "kana": "シズオカダイガク",
+    "source": "https://www.wikidata.org/wiki/Q1151045"
+  },
+  {
+    "id": "university:38bac9ad4e2a6b8722ab94f32db3c84814e19d18a77ca0c73a049b61e5b05219",
+    "name": "静岡県立大学",
+    "kana": "シズオカケンリツダイガク",
+    "source": "https://www.wikidata.org/wiki/Q2114730"
+  },
+  {
+    "id": "isil:JP-2002483",
+    "name": "静岡県立美術館",
+    "kana": "シズオカケンリツビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q11663204"
+  },
+  {
+    "id": "university:576642a0b011f23338096729f7e98a0313a0885641f29ff368f6ce087b6939bb",
+    "name": "静岡県立農林環境専門職大学",
+    "kana": "シズオカケンリツノウリンカンキョウセンモンショクダイガク",
+    "source": "https://www.wikidata.org/wiki/Q85884483"
+  },
+  {
+    "id": "university:da38bf8d775f09ab0cc1a11f59e38fdcea03fea67b8d1522cf7312bdd8295963",
+    "name": "静岡社会健康医学大学院大学",
+    "kana": "シズオカシャカイケンコウイガクダイガクインダイガク",
+    "source": "https://www.wikidata.org/wiki/Q106620279"
+  },
+  {
+    "id": "isil:JP-2003870",
+    "name": "香美市立美術館",
+    "kana": "カミシリツビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q121368534"
+  },
+  {
+    "id": "university:e6542480bea61760835911b1c33ffb6ac907af9dde92fb8c93203deeb25e28eb",
+    "name": "駿河台大学",
+    "kana": "スルガダイダイガク",
+    "source": "https://www.wikidata.org/wiki/Q7646989"
+  },
+  {
+    "id": "university:60c4c2915f9dae3c4a13a132b4723c276cf80124401aa8cdb30d34f7c87f2ee2",
+    "name": "高崎商科大学",
+    "kana": "タカサキショウカダイガク",
+    "source": "https://www.wikidata.org/wiki/Q7677292"
+  },
+  {
+    "id": "isil:JP-2003477",
+    "name": "高梁市成羽美術館",
+    "kana": "タカハシシナリワビジュツカン",
+    "source": "https://www.wikidata.org/wiki/Q11670668"
+  },
+  {
+    "id": "isil:JP-2003046",
+    "name": "高槻市立今城塚古代歴史館",
+    "kana": "イマシロヅカコダイレキシカン",
+    "source": "https://www.wikidata.org/wiki/Q11376793"
+  },
+  {
+    "id": "isil:JP-2003694",
+    "name": "鳴門市ドイツ館",
+    "kana": "ナルトシドイツカン",
+    "source": "https://www.wikidata.org/wiki/Q3740674"
+  },
+  {
+    "id": "university:fa3f2ba20b6dcb4f1ee5034dfcfbae7c1bcdc529f629caddab6cc80d04ef3bd4",
+    "name": "鹿児島大学",
+    "kana": "カゴシマダイガク",
+    "source": "https://www.wikidata.org/wiki/Q335924"
+  }
+]

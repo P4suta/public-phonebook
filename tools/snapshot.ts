@@ -33,6 +33,7 @@ import {
 import { nameTokens, normalizeName } from "../src/core/search.ts";
 import {
   compareRowOrder,
+  decodeSearchIndex,
   type RowKey,
   searchIndexFile,
 } from "../src/core/search-index.ts";
@@ -48,6 +49,7 @@ import {
 } from "./directory-delta.ts";
 import { importContact, importSource } from "./import-contact.ts";
 import { compressSearchIndex, readSearchIndex } from "./search-index.ts";
+import { writeSearchRanking } from "./search-ranking.ts";
 
 const preparationProgressInterval = 100000;
 const prefectureCodeWidth = 2;
@@ -177,6 +179,7 @@ export async function prepareSnapshot(
   outputPath: string,
   collectionDirectory?: string,
   deltaBases: readonly string[] = [],
+  ranking = false,
 ): Promise<SnapshotResult> {
   const source = resolve(sourcePath);
   const destination = resolve(outputPath);
@@ -390,6 +393,13 @@ export async function prepareSnapshot(
     if (integrity.integrity_check !== "ok")
       throw new Error("The prepared database failed its integrity check");
     const searchIndex = readSearchIndex(output, { snapshot, catalog });
+    const searchRanking = ranking
+      ? await writeSearchRanking(
+          destination,
+          output,
+          decodeSearchIndex(searchIndex),
+        )
+      : undefined;
     output.close();
     input.close();
     const files = [];
@@ -472,6 +482,7 @@ export async function prepareSnapshot(
       databaseSha256: await fileDigest(join(destination, "directory.sqlite")),
       files,
       searchIndex: searchIndexArtifact,
+      ...(searchRanking ? { searchRanking } : {}),
       deltas,
     });
     await writeFile(

@@ -1,0 +1,6 @@
+[tools]
+python = "3.13.16"
+uv = "0.13.6"
+
+[env]
+UV_PROJECT_ENVIRONMENT = "{{config_root}}/../../.local/search-readings/venv"

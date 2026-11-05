@@ -16,6 +16,7 @@ import {
   PreparedDatasetManifestSchema,
   searchIndexLocation,
   searchIndexObjectKey,
+  searchRankingLocation,
 } from "../core/dataset-storage.ts";
 import { directoryDeltaFilePattern } from "../core/directory-delta.ts";
 import { type FailureStatus, httpStatus } from "../core/http-status.ts";
@@ -523,64 +524,74 @@ function siteApi(): Hono<ApiEnvironment> {
       : problem(c, "not_found", httpStatus.notFound);
   });
 
-  router.get("/api/search-index", async (c) => {
-    const catalog = await readCatalog(directoryDatabase(c.env.DB));
-    const manifest = await readPreparedManifest(c, catalog);
-    if (!manifest) return problem(c, "unavailable", httpStatus.unavailable);
-    const location = searchIndexLocation(manifest);
-    const etag = `"${await sha256(JSON.stringify(location))}"`;
-    c.header("X-Dataset-Snapshot", catalog.snapshot);
-    c.header("ETag", etag);
-    c.header("Cache-Control", mutableCache);
-    if (matchesEntityTag(c.req.header("If-None-Match"), etag))
-      return c.body(null, httpStatus.notModified);
-    return c.json(location);
-  });
-
-  router.get("/api/search-index/:snapshot/:sha256", async (c) => {
-    const snapshot = c.req.param("snapshot");
-    const digest = c.req.param("sha256");
-    if (!v.is(DigestSchema, snapshot) || !v.is(DigestSchema, digest))
-      return problem(c, "not_found", httpStatus.notFound);
-    const catalog = await readCatalog(directoryDatabase(c.env.DB));
-    if (snapshot !== catalog.snapshot)
-      return problem(c, "not_found", httpStatus.notFound);
-    const manifest = await readPreparedManifest(c, catalog);
-    if (!manifest) return problem(c, "unavailable", httpStatus.unavailable);
-    if (digest !== manifest.searchIndex.sha256)
-      return problem(c, "not_found", httpStatus.notFound);
-    c.header("Vary", "Accept-Encoding");
-    if (!admitsContentCoding(acceptedEncodings(c.req.raw), searchIndexCoding))
-      return problem(c, "not_acceptable", httpStatus.notAcceptable);
-    const validators = {
-      ETag: `"${digest}"`,
-      "Cache-Control": immutableCache,
-      Vary: "Accept-Encoding",
-      "X-Dataset-Snapshot": snapshot,
-    };
-    if (matchesEntityTag(c.req.header("If-None-Match"), validators.ETag))
-      return new Response(null, {
-        status: httpStatus.notModified,
-        headers: validators,
-      });
-    const object = await c.env.DATASETS.get(
-      searchIndexObjectKey(snapshot, digest),
-    );
-    if (!object) return problem(c, "unavailable", httpStatus.unavailable);
-    if (object.size !== manifest.searchIndex.bytes) {
-      await object.body.cancel();
-      return problem(c, "unavailable", httpStatus.unavailable);
-    }
-    return new Response(object.body, {
-      headers: {
-        ...validators,
-        "Content-Type": searchIndexMediaType,
-        "Content-Encoding": searchIndexCoding,
-        "Content-Length": String(object.size),
-      },
-      encodeBody: "manual",
+  for (const kind of ["search-index", "search-ranking"] as const) {
+    router.get(`/api/${kind}`, async (c) => {
+      const catalog = await readCatalog(directoryDatabase(c.env.DB));
+      const manifest = await readPreparedManifest(c, catalog);
+      if (!manifest) return problem(c, "unavailable", httpStatus.unavailable);
+      const location =
+        kind === "search-index"
+          ? searchIndexLocation(manifest)
+          : searchRankingLocation(manifest);
+      if (!location) return problem(c, "unavailable", httpStatus.unavailable);
+      const etag = `"${await sha256(JSON.stringify(location))}"`;
+      c.header("X-Dataset-Snapshot", catalog.snapshot);
+      c.header("ETag", etag);
+      c.header("Cache-Control", mutableCache);
+      if (matchesEntityTag(c.req.header("If-None-Match"), etag))
+        return c.body(null, httpStatus.notModified);
+      return c.json(location);
     });
-  });
+
+    router.get(`/api/${kind}/:snapshot/:sha256`, async (c) => {
+      const snapshot = c.req.param("snapshot");
+      const digest = c.req.param("sha256");
+      if (!v.is(DigestSchema, snapshot) || !v.is(DigestSchema, digest))
+        return problem(c, "not_found", httpStatus.notFound);
+      const catalog = await readCatalog(directoryDatabase(c.env.DB));
+      if (snapshot !== catalog.snapshot)
+        return problem(c, "not_found", httpStatus.notFound);
+      const manifest = await readPreparedManifest(c, catalog);
+      if (!manifest) return problem(c, "unavailable", httpStatus.unavailable);
+      const artifact =
+        kind === "search-index" ? manifest.searchIndex : manifest.searchRanking;
+      if (!artifact || digest !== artifact.sha256)
+        return problem(c, "not_found", httpStatus.notFound);
+      c.header("Vary", "Accept-Encoding");
+      if (!admitsContentCoding(acceptedEncodings(c.req.raw), searchIndexCoding))
+        return problem(c, "not_acceptable", httpStatus.notAcceptable);
+      const validators = {
+        ETag: `"${digest}"`,
+        "Cache-Control": immutableCache,
+        Vary: "Accept-Encoding",
+        "X-Dataset-Snapshot": snapshot,
+      };
+      if (matchesEntityTag(c.req.header("If-None-Match"), validators.ETag))
+        return new Response(null, {
+          status: httpStatus.notModified,
+          headers: validators,
+        });
+      const object = await c.env.DATASETS.get(
+        kind === "search-index"
+          ? searchIndexObjectKey(snapshot, digest)
+          : `${snapshot}/${digest}/${artifact.file}`,
+      );
+      if (!object) return problem(c, "unavailable", httpStatus.unavailable);
+      if (object.size !== artifact.bytes) {
+        await object.body.cancel();
+        return problem(c, "unavailable", httpStatus.unavailable);
+      }
+      return new Response(object.body, {
+        headers: {
+          ...validators,
+          "Content-Type": searchIndexMediaType,
+          "Content-Encoding": searchIndexCoding,
+          "Content-Length": String(object.size),
+        },
+        encodeBody: "manual",
+      });
+    });
+  }
 
   router.get("/api/contacts/row/:snapshot/:row", async (c) => {
     const snapshot = c.req.param("snapshot");
