@@ -193,7 +193,7 @@ public final class PackedDictionary: Sendable {
 
   func choices(_ surface: String) -> [String]? {
     let at = lowerBound(surface)
-    guard at < count, key(at).hasPrefix(surface) else { return nil }
+    guard at < count, key(at).utf16.starts(with: surface.utf16) else { return nil }
     guard key(at).utf16.elementsEqual(surface.utf16) else { return [] }
     var result: [String] = []
     visitAt(at) { result.append(text($0)) }

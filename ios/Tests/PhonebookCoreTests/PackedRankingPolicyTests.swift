@@ -1,6 +1,30 @@
+import Foundation
 import Testing
 
 @testable import PhonebookCore
+
+private func packedWords(_ words: [UInt32]) -> PackedBytes {
+  var data = Data()
+  for word in words {
+    var value = word.littleEndian
+    withUnsafeBytes(of: &value) { data.append(contentsOf: $0) }
+  }
+  return PackedBytes(data: data, range: 0..<data.count)
+}
+
+@Test func packedLexiconPrefixesUseScalarBoundaries() throws {
+  let surface = RankingText.compact("x\u{30a}")
+  let reading = "r"
+  let data = Data((surface + reading).utf8)
+  let dictionary = PackedDictionary(
+    table: packedWords([0, 0, 1]), values: packedWords([1]),
+    strings: PackedBytes(data: data, range: 0..<data.count),
+    offsets: packedWords([0, UInt32(surface.utf8.count), UInt32(data.count)]), weights: nil,
+    fixed: true)
+  try dictionary.validate(stringCount: 2, maximum: 2)
+  #expect(dictionary.choices("x") == [])
+  #expect(dictionary.choices(surface) == [reading])
+}
 
 @Test func packedReadingOverlapPreservesScalarGramsInsideGraphemeClusters() {
   let names = [
