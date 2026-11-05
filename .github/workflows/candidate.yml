@@ -188,7 +188,7 @@ jobs:
           DATASET: ${{ inputs.dataset }}
         run: node tools/test.ts --bundle ".local/datasets/$DATASET" --stage phones
   parity:
-    name: Search parity and ranking quality
+    name: Literal search parity
     needs: [plan]
     if: contains(fromJSON(needs.plan.outputs.missing), 'parity')
     runs-on: ubuntu-24.04
@@ -232,7 +232,7 @@ jobs:
         run: node tools/local-data.ts ".local/datasets/$DATASET"
       - name: Build the client and Worker
         run: npm run build
-      - name: Check search parity and ranking quality and measure performance
+      - name: Check literal search parity and measure performance
         env:
           DATASET: ${{ inputs.dataset }}
         run: node tools/test.ts --bundle ".local/datasets/$DATASET" --stage parity
@@ -243,7 +243,6 @@ jobs:
           path: |
             .local/search-parity.json
             .local/search-performance.json
-            .local/search-quality.json
           if-no-files-found: ignore
           retention-days: 90
   e2e:

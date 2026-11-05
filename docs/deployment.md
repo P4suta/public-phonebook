@@ -40,10 +40,10 @@ The database is copied only after Miniflare closes its handles.
 R2 receives content-addressed archive keys before the replacement database becomes active.
 The original source remains read-only.
 A failed preparation never produces a ready manifest.
-Preparation also creates the [snapshot-bound device ranking artifact](adr/publish-snapshot-bound-forgiving-search-artifacts.md) with the pinned Sudachi environment.
-Run `mise install` in `tools/readings` before national preparation.
-The first generation downloads the checksum-pinned full dictionary into `.local/search-readings/`.
-The data check regenerates the readings and posting bytes, so national verification needs that environment too.
+Production preparation omits the ranking companion and needs no Sudachi analyzer.
+The website and release candidates use literal matching with the name index.
+Production admission rejects a manifest that declares a ranking companion before checking or uploading the dataset.
+The [local forgiving-search recipes](search-ranking.md#local-preparation-and-quality-checks) prepare and check separate QA bundles with the pinned analyzer.
 The native TypeScript collector and overlay preparation are described in [data sources](data-sources.md).
 
 For a built local preview, run `mise x -- just build` followed by `mise x -- npm run preview`, then open https://127.0.0.1:8787/.

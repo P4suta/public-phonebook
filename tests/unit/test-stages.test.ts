@@ -13,8 +13,6 @@ import {
   parseTestArguments,
   performanceCommand,
   performanceReport,
-  qualityCommand,
-  qualityReport,
   stageRunner,
 } from "../../tools/test.ts";
 import {
@@ -67,11 +65,18 @@ describe("test stages", () => {
       "tools/search-parity.ts",
       "/data/bundle",
     ]);
-    expect(qualityCommand("/data/bundle")).toEqual([
-      "tools/search-ranking-contract.ts",
-      "quality",
+    const invoked: {
+      readonly executable: string;
+      readonly args: readonly string[];
+    }[] = [];
+    await stageRunner(
       "/data/bundle",
-      qualityReport,
+      async (executable, args): Promise<void> => {
+        invoked.push({ executable, args });
+      },
+    ).parity();
+    expect(invoked).toEqual([
+      { executable: "node", args: ["tools/search-parity.ts", "/data/bundle"] },
     ]);
     expect(performanceCommand("/data/bundle")).toEqual([
       "tools/search-performance.ts",

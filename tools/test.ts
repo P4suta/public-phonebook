@@ -2,7 +2,7 @@ import { readFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import * as v from "valibot";
 import { requireBuildBudget } from "./build-budget.ts";
-import { checkedDataBundle } from "./check-data.ts";
+import { checkedProductionDataBundle } from "./check-data.ts";
 import { defaultBundle, localBundleVariable } from "./local-bundle.ts";
 import { command, requireCommand } from "./process.ts";
 import {
@@ -66,15 +66,10 @@ export function parseTestArguments(args: readonly string[]): TestArguments {
 /** The candidate's check stage runs the fast gate and the build checks that pull requests skip. */
 export const checkStageScripts = ["check", "check:build"] as const;
 export const performanceReport = ".local/search-performance.json";
-export const qualityReport = ".local/search-quality.json";
 
 /** Compares the device search with the API on the bundle, which the seeded local state must hold. */
 export function parityCommand(bundle: string): readonly string[] {
   return ["tools/search-parity.ts", bundle];
-}
-
-export function qualityCommand(bundle: string): readonly string[] {
-  return ["tools/search-ranking-contract.ts", "quality", bundle, qualityReport];
 }
 
 export function performanceCommand(bundle: string): readonly string[] {
@@ -91,33 +86,33 @@ export function e2eEnvironment(
 
 export function stageRunner(
   bundle: string,
+  execute: typeof requireCommand = requireCommand,
 ): Record<CandidateStage, () => Promise<void>> {
   return {
     check: async (): Promise<void> => {
       for (const script of checkStageScripts)
-        await requireCommand("npm", ["run", script]);
+        await execute("npm", ["run", script]);
       await requireBuildBudget();
     },
     data: async (): Promise<void> => {
-      await checkedDataBundle(bundle);
+      await checkedProductionDataBundle(bundle);
     },
     parity: async (): Promise<void> => {
-      await requireCommand("node", parityCommand(bundle));
-      await requireCommand("node", qualityCommand(bundle));
+      await execute("node", parityCommand(bundle));
     },
     phones: () =>
-      requireCommand("npm", [
+      execute("npm", [
         "run",
         "data:phones",
         "--",
         bundle,
         ".local/phone-quality.json",
       ]),
-    prove: () => requireCommand("npm", ["run", "prove"]),
+    prove: () => execute("npm", ["run", "prove"]),
     e2e: () =>
-      requireCommand("npm", ["run", "e2e"], undefined, e2eEnvironment(bundle)),
-    "ios-prove": () => requireCommand("cargo", [...iosCheckManifest, "prove"]),
-    "ios-check": () => requireCommand("cargo", [...iosCheckManifest, "check"]),
+      execute("npm", ["run", "e2e"], undefined, e2eEnvironment(bundle)),
+    "ios-prove": () => execute("cargo", [...iosCheckManifest, "prove"]),
+    "ios-check": () => execute("cargo", [...iosCheckManifest, "check"]),
   };
 }
 

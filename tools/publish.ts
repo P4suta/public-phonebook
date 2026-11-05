@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import * as v from "valibot";
 import { databaseResourceName, environments } from "../src/core/environment.ts";
 import { CatalogSchema, DigestSchema } from "../src/core/models.ts";
-import { checkedDataBundle } from "./check-data.ts";
+import { checkedProductionDataBundle } from "./check-data.ts";
 import { acquireLease, type PublicationLease } from "./control-lease.ts";
 import {
   type ControlStore,
@@ -227,7 +227,7 @@ function releasePorts(
     },
     deployed: () => deployedVersions(environment),
     async prepare(target): Promise<void> {
-      const manifest = await checkedDataBundle(sourceBundle);
+      const manifest = await checkedProductionDataBundle(sourceBundle);
       const identity = importIdentity(target.databaseSha256);
       const prepared = v.parse(
         v.object({
@@ -310,7 +310,7 @@ async function adoptProduction(
 ): Promise<void> {
   if (context.writer.current())
     throw new Error("Production already has a publication journal");
-  const manifest = await checkedDataBundle(bundle, "retained");
+  const manifest = await checkedProductionDataBundle(bundle, "retained");
   const active = (await deployedVersions("production")).current;
   const target: ReleaseTarget = {
     releaseId: active.versionId,
@@ -486,7 +486,7 @@ export function publicationAuthority(
 
 interface AdmittedCandidate {
   readonly sourceTree: string;
-  readonly manifest: Awaited<ReturnType<typeof checkedDataBundle>>;
+  readonly manifest: Awaited<ReturnType<typeof checkedProductionDataBundle>>;
   readonly manifestSha256: string;
   readonly previous: ReleaseTarget | null;
 }
@@ -497,7 +497,7 @@ async function admitCandidate(
   journal: ReleaseJournal | null,
 ): Promise<AdmittedCandidate> {
   const sourceTree = await committedTree();
-  const manifest = await checkedDataBundle(options.bundle);
+  const manifest = await checkedProductionDataBundle(options.bundle);
   const manifestSha256 = await fileDigest(
     join(options.bundle, "manifest.ready.json"),
   );

@@ -5,8 +5,9 @@ import { prepareSnapshot } from "./snapshot.ts";
 const commandArgumentOffset = 2;
 const deltaBaseFlag = "--delta-base";
 const deltaBaseRootFlag = "--delta-base-root";
+const forgivingSearchFlag = "--forgiving-search";
 const usage =
-  "Usage: npm run data -- prepare SOURCE_DATABASE OUTPUT_DIRECTORY [COLLECTION_DIRECTORY] [--delta-base PREPARED_BUNDLE]... [--delta-base-root DIRECTORY_OF_BUNDLES]";
+  "Usage: npm run data -- prepare SOURCE_DATABASE OUTPUT_DIRECTORY [COLLECTION_DIRECTORY] [--delta-base PREPARED_BUNDLE]... [--delta-base-root DIRECTORY_OF_BUNDLES] [--forgiving-search]";
 
 export interface PrepareArguments {
   readonly source: string;
@@ -14,6 +15,7 @@ export interface PrepareArguments {
   readonly collection: string | undefined;
   readonly deltaBases: readonly string[];
   readonly deltaBaseRoot: string | undefined;
+  readonly forgivingSearch: boolean;
 }
 
 export function parsePrepareArguments(
@@ -23,9 +25,16 @@ export function parsePrepareArguments(
   const positional: string[] = [];
   const deltaBases: string[] = [];
   let deltaBaseRoot: string | undefined;
+  let forgivingSearch = false;
   for (let index = 0; index < rest.length; index += 1) {
     const value = rest[index] ?? "";
+    if (value === forgivingSearchFlag) {
+      if (forgivingSearch) throw new Error(usage);
+      forgivingSearch = true;
+      continue;
+    }
     if (value !== deltaBaseFlag && value !== deltaBaseRootFlag) {
+      if (value.startsWith("--")) throw new Error(usage);
       positional.push(value);
       continue;
     }
@@ -45,6 +54,7 @@ export function parsePrepareArguments(
     collection: collection || undefined,
     deltaBases,
     deltaBaseRoot,
+    forgivingSearch,
   };
 }
 
@@ -79,7 +89,7 @@ if (import.meta.main) {
         options.output,
         options.collection,
         [...options.deltaBases, ...rooted],
-        true,
+        options.forgivingSearch,
       ),
     ),
   );

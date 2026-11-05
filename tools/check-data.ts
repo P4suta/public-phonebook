@@ -8,6 +8,7 @@ import { normalizeAddress } from "../src/core/address.ts";
 import {
   type PreparedDatasetManifest,
   PreparedDatasetManifestSchema,
+  ProductionDatasetManifestSchema,
 } from "../src/core/dataset-storage.ts";
 import {
   directoryArchiveEncoder,
@@ -551,6 +552,20 @@ export async function checkedDataBundle(
   await mkdir(ports.receipts, { recursive: true });
   await writeFile(path, JSON.stringify(receipt), { flush: true });
   return manifest;
+}
+
+export async function checkedProductionDataBundle(
+  directory: string,
+  forms: ArchiveForms = "canonical",
+): Promise<PreparedDatasetManifest> {
+  const manifest: unknown = JSON.parse(
+    await readFile(join(directory, manifestFile), "utf8"),
+  );
+  v.parse(ProductionDatasetManifestSchema, manifest);
+  return v.parse(
+    ProductionDatasetManifestSchema,
+    await checkedDataBundle(directory, forms),
+  );
 }
 
 if (import.meta.main) {

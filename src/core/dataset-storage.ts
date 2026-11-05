@@ -107,6 +107,14 @@ export type PreparedDatasetManifest = v.InferOutput<
   typeof PreparedDatasetManifestSchema
 >;
 
+export const ProductionDatasetManifestSchema = v.pipe(
+  PreparedDatasetManifestSchema,
+  v.check(
+    (manifest) => manifest.searchRanking === undefined,
+    "Production datasets must omit ranking companions",
+  ),
+);
+
 export const datasetListingPath = "/api/datasets";
 export const deltaListingPath = "/api/dataset-deltas";
 

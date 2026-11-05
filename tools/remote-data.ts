@@ -4,7 +4,7 @@ import * as v from "valibot";
 import { manifestObjectKey } from "../src/core/dataset-storage.ts";
 import { databaseResourceName, environments } from "../src/core/environment.ts";
 import { DigestSchema } from "../src/core/models.ts";
-import { checkedDataBundle } from "./check-data.ts";
+import { checkedProductionDataBundle } from "./check-data.ts";
 import { cloudflare, remoteSql } from "./cloudflare.ts";
 import { acquireLease, type PublicationLease } from "./control-lease.ts";
 import {
@@ -106,6 +106,19 @@ const RetainedManifestSchema = v.object({
   searchRanking: v.optional(RetainedFileSchema),
   deltas: v.optional(v.array(RetainedFileSchema), []),
 });
+const ProductionManifestSchema = v.pipe(
+  RetainedManifestSchema,
+  v.check(
+    (manifest) =>
+      manifest.searchRanking === undefined &&
+      [
+        ...manifest.files,
+        ...manifest.deltas,
+        ...(manifest.searchIndex ? [manifest.searchIndex] : []),
+      ].every((file) => !file.file.startsWith("search-ranking")),
+    "Production datasets must omit ranking companions",
+  ),
+);
 type RetainedFile = v.InferOutput<typeof RetainedFileSchema>;
 
 function datasetFiles(
@@ -114,14 +127,13 @@ function datasetFiles(
   return [
     ...manifest.files,
     ...(manifest.searchIndex ? [manifest.searchIndex] : []),
-    ...(manifest.searchRanking ? [manifest.searchRanking] : []),
     ...manifest.deltas,
   ];
 }
 
 async function bundleFiles(bundle: string): Promise<readonly RetainedFile[]> {
   const manifest = v.parse(
-    RetainedManifestSchema,
+    ProductionManifestSchema,
     JSON.parse(await readFile(join(bundle, "manifest.ready.json"), "utf8")),
   );
   return [
@@ -176,7 +188,7 @@ export async function fetchDataset(
   if (sha256Hex(manifestObject.body) !== manifestSha256)
     throw new Error("The stored manifest differs from its digest");
   const manifest = v.parse(
-    RetainedManifestSchema,
+    ProductionManifestSchema,
     JSON.parse(new TextDecoder().decode(manifestObject.body)),
   );
   await writeFile(join(directory, "manifest.ready.json"), manifestObject.body);
@@ -207,7 +219,7 @@ export async function writeArchives(
   lease: Pick<PublicationLease, "assertHeld">,
 ): Promise<readonly string[]> {
   const manifest = v.parse(
-    RetainedManifestSchema,
+    ProductionManifestSchema,
     JSON.parse(await readFile(join(bundle, "manifest.ready.json"), "utf8")),
   );
   const manifestPath = join(bundle, "manifest.ready.json");
@@ -411,7 +423,7 @@ async function prepare(
     provenance,
   );
   try {
-    const manifest = await checkedDataBundle(bundle);
+    const manifest = await checkedProductionDataBundle(bundle);
     const manifestSha256 = await fileDigest(
       join(bundle, "manifest.ready.json"),
     );
@@ -506,7 +518,7 @@ async function main(args: readonly string[]): Promise<void> {
   const store = controlStoreFromEnvironment();
   if (command.kind === "fetch") {
     await fetchDataset(store, command.manifestSha256, command.directory);
-    await checkedDataBundle(command.directory);
+    await checkedProductionDataBundle(command.directory);
     console.info(
       JSON.stringify({
         operation: "data.remote.fetch",
@@ -516,7 +528,7 @@ async function main(args: readonly string[]): Promise<void> {
     );
     return;
   }
-  await checkedDataBundle(command.bundle);
+  await checkedProductionDataBundle(command.bundle);
   console.info(
     JSON.stringify({
       operation: "data.remote.store",
