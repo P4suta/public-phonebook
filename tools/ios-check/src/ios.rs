@@ -66,9 +66,11 @@ const DEVICE_TYPE: &str = "com.apple.CoreSimulator.SimDeviceType.iPhone-17";
 const DEVICE_NAME: &str = "Public Phonebook Checks";
 const DEVICE_SUFFIX_LENGTH: usize = 8;
 const LIVE_UI_TEST: &str = "testLivePublicDirectorySearchAndSource";
+const STARTUP_UI_TEST: &str = "testBundledSearchStartupMeasurement";
 /// A hang guard that exceeds the longest sum of one scenario's own waits.
 /// The live onboarding alone waits up to 300 s, and the transfer resume scenario's waits add up to about 135 s.
 const SCENARIO_ALLOWANCE_SECONDS: u32 = 600;
+const STARTUP_SCENARIO_ALLOWANCE_SECONDS: u32 = 1500;
 /// The longest single wait in a scenario, the live onboarding's `timeout: 300` in `DirectoryUITests.swift`.
 const LONGEST_SCENARIO_WAIT_SECONDS: u32 = 300;
 const _: () = assert!(SCENARIO_ALLOWANCE_SECONDS > LONGEST_SCENARIO_WAIT_SECONDS);
@@ -100,9 +102,11 @@ const SANITIZED_CONTRACTS: [&str; 4] = [
     "cancellationBeforeAndDuringRealRequestsAlwaysCompletes",
     "firstRunAppliesTheListedDeltaToTheBundleOnce",
 ];
-const UI_TESTS: [&str; 23] = [
+const UI_TESTS: [&str; 25] = [
+    "testForgivingNamesFindTheSavedFacility",
+    "testRankedMetadataRemainsReadableAtLargestTextSize",
     "testOnboardingSavesTheDirectoryBeforeSearch",
-    "testSearchGroupsResultsAndShowsMore",
+    "testSearchRanksOneListAndShowsMore",
     "testTelephoneSearchFindsEveryRecordForTheNumber",
     "testEmptyResultsAndLargeText",
     "testContactDetailShowsRegionSourceAndExternalLinkConfirmation",
@@ -127,7 +131,15 @@ const UI_TESTS: [&str; 23] = [
 ];
 /// The UI scenarios that run with the simulator in the dark appearance.
 const DARK_UI_TESTS: [&str; 1] = ["testDarkAppearanceSwapsBlackAndWhite"];
-const REQUIRED_TESTS: [&str; 100] = [
+const REQUIRED_TESTS: [&str; 108] = [
+    "resultPagesStayWithinBoundsAtSignedExtremes",
+    "directoryModelUsesOneRankingAcrossCategories",
+    "directoryModelPreservesWrittenExactQueriesBeforeFolding",
+    "anOlderSearchCannotReplaceTheCurrentQuery",
+    "anOlderPageCannotClearTheCurrentPageOperation",
+    "searchPreparationUsesTheLatestTypedInputAndRejectsMissingContacts",
+    "telephoneResultsKeepEveryCategoryInOneNameOrder",
+    "rankedResultPagingPreservesTheFrozenOrder",
     "searchActivationRequiresEveryMandatorySearchFile",
     "nationalRankingsMatchEveryCommittedRowAndScore",
     "searchArtifactsMustMapEverySavedRecordBeforeActivation",
@@ -154,7 +166,7 @@ const REQUIRED_TESTS: [&str; 100] = [
     "nameQueriesUseTheWebNormalizationAndRanks",
     "localSearchRanksLikeTheWebsite",
     "phoneMatchesGroupEveryRecordForTheNumber",
-    "directoryModelShowsPreviewsAndMore",
+    "directoryModelPagesOneOrderedList",
     "savedContactsKeepTheirRegionPhonesAndProvenance",
     "callerEntriesAreSortedAndSharedNumbersHaveOneLabel",
     "failedOrCancelledImportsKeepTheActiveGeneration",
@@ -754,7 +766,16 @@ fn persist_app_trace(root: &Path, identifier: &str) -> Result<Output> {
 }
 
 fn ui_command(root: &Path, identifier: &str) -> Command {
-    let allowance = SCENARIO_ALLOWANCE_SECONDS.to_string();
+    ui_build_command(root, identifier, "VerificationDebug")
+}
+
+fn ui_build_command(root: &Path, identifier: &str, configuration: &str) -> Command {
+    let allowance = if configuration == "VerificationRelease" {
+        STARTUP_SCENARIO_ALLOWANCE_SECONDS
+    } else {
+        SCENARIO_ALLOWANCE_SECONDS
+    }
+    .to_string();
     let mut command = Command::new("xcodebuild");
     command.current_dir(root).args([
         "-quiet",
@@ -765,7 +786,7 @@ fn ui_command(root: &Path, identifier: &str) -> Command {
         "-scheme",
         "PublicPhonebookVerification",
         "-configuration",
-        "VerificationDebug",
+        configuration,
         "-destination",
         &format!("platform=iOS Simulator,id={identifier}"),
         "-derivedDataPath",
@@ -959,7 +980,7 @@ fn require_ui_inventory(inventory: &Value) -> Result<()> {
     let expected = UI_TESTS
         .iter()
         .copied()
-        .chain([LIVE_UI_TEST])
+        .chain([LIVE_UI_TEST, STARTUP_UI_TEST])
         .map(|name| format!("PhonebookUITests/DirectoryUITests/{name}()"))
         .collect::<BTreeSet<_>>();
     ensure!(
@@ -1884,7 +1905,7 @@ mod tests {
         let enabled = UI_TESTS
             .iter()
             .copied()
-            .chain([LIVE_UI_TEST])
+            .chain([LIVE_UI_TEST, STARTUP_UI_TEST])
             .map(|name| json!({"identifier":format!("PhonebookUITests/DirectoryUITests/{name}()")}))
             .collect::<Vec<_>>();
         let inventory = json!({"errors":[],"values":[{"enabledTests":enabled,"disabledTests":[]}]});

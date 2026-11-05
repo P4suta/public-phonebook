@@ -70,7 +70,8 @@ Keeping one global mutable index could expose mixed snapshots, so search files f
 `just ios-search-measure` compiles the production Swift packages with optimization for the iOS Simulator.
 It measures construction, all 2,200 fixture queries, and an offline national import in separate processes.
 The resident peaks include the retained ranking fixture.
-Those measurements describe search startup and import, rather than an installed app's cold launch or physical iPhone performance.
+The command also records three installed VerificationRelease app relaunches until search preparation finishes.
+First-run setup stays outside the app timer, filesystem caches remain uncontrolled, and physical iPhone performance remains unmeasured.
 Package tests cover migration, complete and delta imports, offline bundles, mapping rejection, duplicate records, retained reads, and cleanup.
 The ranking proofs establish their declared integer contracts and leave filesystem durability, UIKit, linguistic accuracy, and operating-system scheduling as external boundaries.
 

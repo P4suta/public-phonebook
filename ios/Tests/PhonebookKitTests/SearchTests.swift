@@ -111,7 +111,7 @@ private func index(_ lines: [ArchiveLine]) async throws -> (LocalSearch, Snapsho
   #expect(first.map(\.name) == ["A", "B"])
 }
 
-@MainActor @Test func directoryModelShowsPreviewsAndMore() async throws {
+@MainActor @Test func directoryModelPagesOneOrderedList() async throws {
   let lines = (0..<60).map { ArchiveLine(name: "図書館" + String(format: "%02d", $0)) }
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }
@@ -121,12 +121,13 @@ private func index(_ lines: [ArchiveLine]) async throws -> (LocalSearch, Snapsho
   await model.activate(active)
   model.query = "図書館"
   await model.search()?.value
-  let group = try #require(model.results?.groups.first)
-  #expect(group.total == 60)
-  #expect(model.visible(group).map(\.name) == ["図書館00", "図書館01", "図書館02"])
-  await model.more(group)?.value
-  #expect(model.expanded(group))
-  #expect(model.visible(group).count == 53)
+  #expect(model.results?.total == 60)
+  #expect(model.visible.map(\.name) == (0..<20).map { "図書館" + String(format: "%02d", $0) })
+  await model.more()?.value
+  #expect(model.visible.count == 40)
+  await model.more()?.value
+  #expect(model.visible.count == 60)
+  #expect(!model.expandable)
   model.query = "  "
   #expect(model.search() == nil)
   #expect(model.results == nil)
@@ -141,7 +142,6 @@ private func index(_ lines: [ArchiveLine]) async throws -> (LocalSearch, Snapsho
   await model.activate(active)
   model.query = "ＴＯＳＨＯ"
   await model.search()?.value
-  #expect(model.results?.query == "tosho")
   #expect(model.results?.input == "ＴＯＳＨＯ")
   model.query = "ＴＯＳＨＯ "
   await model.search()?.value

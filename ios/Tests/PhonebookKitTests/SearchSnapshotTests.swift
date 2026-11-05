@@ -4,15 +4,26 @@ import Testing
 
 @testable import PhonebookKit
 
-func searchFixture(in root: URL, header: ArchiveHeader, lines: [ArchiveLine]) throws
+func searchFixture(
+  in root: URL, header: ArchiveHeader, lines: [ArchiveLine],
+  aliases: [(row: Int, kana: String)] = []
+) throws
   -> SearchArtifactFiles
 {
-  let names = lines.map(\.name).sorted()
-  let namePart = Data(names.map { SearchInput.normalizedName($0) + "\t" + $0 + "\n" }.joined().utf8)
+  let ordered = lines.sorted {
+    SearchInput.normalizedName($0.name).utf8.lexicographicallyPrecedes(
+      SearchInput.normalizedName($1.name).utf8)
+  }
+  let names = ordered.map(\.name)
+  let namePart = Data(
+    names.map {
+      let normalized = SearchInput.normalizedName($0).precomposedStringWithCanonicalMapping
+      return (normalized.utf8.elementsEqual($0.utf8) ? $0 : normalized + "\t" + $0) + "\n"
+    }.joined().utf8)
   let phones = Data(names.map { _ in "0353211111\n" }.joined().utf8)
   let indexHeader: [String: Any] = [
     "snapshot": header.snapshot.rawValue, "contacts": names.count,
-    "categories": [["id": "library", "label": "Library"]],
+    "categories": header.categories.map { ["id": $0.id, "label": $0.label] },
     "prefectures": header.prefectures.map { ["code": $0.code.rawValue, "name": $0.name] },
     "municipalities": [["code": "13101", "name": "千代田区"]], "regions": ["13101"],
     "parts": [
@@ -22,11 +33,14 @@ func searchFixture(in root: URL, header: ArchiveHeader, lines: [ArchiveLine]) th
   ]
   var index = Data("public-phonebook-search-index\t1\n".utf8)
   index += try JSONSerialization.data(withJSONObject: indexHeader)
-  index += Data([10]) + namePart + Data(repeating: 0, count: names.count * 3) + phones
+  index +=
+    Data([10]) + namePart + Data(ordered.map { UInt8($0.category) })
+    + Data(repeating: 0, count: names.count * 2) + phones
   let metadata: [String: Any] = [
     "snapshot": header.snapshot.rawValue, "contacts": names.count,
     "analyzer": ["engine": "fixture", "dictionary": String(repeating: "a", count: 64)],
-    "readings": names, "lexicon": [], "aliases": [], "variants": [], "unknownWeight": 1,
+    "readings": names, "lexicon": [], "aliases": aliases.map { [$0.row, $0.kana] as [Any] },
+    "variants": [], "unknownWeight": 1,
     "lexical": [], "phonetic": [],
   ]
   var ranking = Data("public-phonebook-search-ranking\t1\n".utf8)

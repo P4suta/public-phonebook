@@ -170,7 +170,23 @@ public final class LocalSearch: Sendable {
   private func grouped(_ matches: [Match]) throws -> [[Match]] {
     var groups: [Int: [Match]] = [:]
     for match in matches { groups[category(row: match.row), default: []].append(match) }
-    return try names.withUnsafeBytes { raw -> [[Match]] in
+    var result: [[Match]] = []
+    for group in groups.values { result.append(try ordered(group)) }
+    let first = try ordered(result.compactMap(\.first))
+    let byRow = Dictionary(
+      uniqueKeysWithValues: result.compactMap { group in
+        group.first.map { ($0.row, group) }
+      })
+    return first.compactMap { byRow[$0.row] }
+  }
+
+  public func orderedIDs(_ groups: [[Match]]) throws -> [Int64] {
+    try ordered(groups.flatMap { $0 }).map(\.id)
+  }
+
+  private func ordered(_ matches: [Match]) throws -> [Match] {
+    try Task.checkCancellation()
+    return names.withUnsafeBytes { raw in
       func precedes(_ lhs: Match, _ rhs: Match) -> Bool {
         if lhs.rank != rhs.rank { return lhs.rank < rhs.rank }
         let left = Int(offsets[lhs.row])
@@ -185,12 +201,7 @@ public final class LocalSearch: Sendable {
         if leftLength != rightLength { return leftLength < rightLength }
         return lhs.row < rhs.row
       }
-      var result: [[Match]] = []
-      for group in groups.values {
-        try Task.checkCancellation()
-        result.append(group.sorted(by: precedes))
-      }
-      return result.sorted { precedes($0[0], $1[0]) }
+      return matches.sorted(by: precedes)
     }
   }
 

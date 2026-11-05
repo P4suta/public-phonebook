@@ -2,116 +2,154 @@ import Foundation
 import Observation
 import PhonebookCore
 
-/// Searches the saved national directory on the device as the reader types.
 @Observable @MainActor
 public final class DirectoryModel {
-  public static let previewSize = 3
-  public static let pageSize = 50
+  private final class Run: Sendable {}
+  private nonisolated static let contactBatchSize = 500
+  public static let pageSize = ResultPage.size
 
   public var query = ""
   public private(set) var results: SearchResults?
+  public private(set) var loading = false
   public private(set) var searching = false
+  public private(set) var loadingMore = false
   public private(set) var failed = false
   public private(set) var categories: [CategoryInfo] = []
   public private(set) var generation: UUID?
-  public private(set) var shown: [Int: Int] = [:]
+  public private(set) var shown = 0
   private var contacts: [Int64: Contact] = [:]
-  @ObservationIgnored private let store: SnapshotStore
+  @ObservationIgnored private let store: any DirectorySearchSource
   @ObservationIgnored private var index: LocalSearch?
+  @ObservationIgnored private var scorer: SavedRankedSearch?
+  @ObservationIgnored private var manifest: SnapshotManifest?
   @ObservationIgnored private var operation: Task<Void, Never>?
   @ObservationIgnored private var paging: Task<Void, Never>?
+  @ObservationIgnored private var loadRun: Run?
+  @ObservationIgnored private var searchRun: Run?
+  @ObservationIgnored private var pageRun: Run?
   @ObservationIgnored private var searched: String?
 
-  public init(store: SnapshotStore) { self.store = store }
+  public init(store: any DirectorySearchSource) { self.store = store }
 
-  public var ready: Bool { index != nil }
+  public var ready: Bool { scorer != nil || index != nil }
+  public var visible: [Contact] {
+    results?.ids.prefix(shown).compactMap { contacts[$0] } ?? []
+  }
+  public var expandable: Bool { shown < (results?.total ?? 0) }
 
   public func activate(_ manifest: SnapshotManifest?) async {
-    guard manifest?.generation != generation || index == nil else { return }
+    guard manifest?.generation != generation || !ready else { return }
+    let run = Run()
+    loadRun = run
     operation?.cancel()
+    paging?.cancel()
+    paging = nil
+    loadingMore = false
+    pageRun = nil
+    searchRun = nil
+    self.manifest = manifest
     generation = manifest?.generation
     index = nil
+    scorer = nil
     contacts = [:]
+    categories = []
     results = nil
     searched = nil
+    shown = 0
+    searching = false
+    failed = false
+    loading = generation != nil
     guard let generation else { return }
     do {
-      let index = try await store.searchIndex(generation: generation)
       let header = try await store.header(generation: generation)
-      guard generation == self.generation else { return }
+      let scorer = try await store.rankedSearch(generation: generation)
+      let index = scorer == nil ? try await store.searchIndex(generation: generation) : nil
+      try Task.checkCancellation()
+      guard loadRun === run else { return }
       categories = header.categories.map {
         CategoryInfo(
           id: $0.id, label: $0.label, publisher: $0.publisher, license: $0.license,
           licenseURL: $0.licenseUrl)
       }
       self.index = index
-      failed = false
+      self.scorer = scorer
+      loading = false
+      searched = nil
       search()
-    } catch { failed = true }
+    } catch {
+      guard loadRun === run else { return }
+      loading = false
+      failed = !(error is CancellationError)
+    }
   }
 
-  /// Searches for the current query and returns the task that answers it, or nil when the query needs no search.
-  /// The task ends once `results`, `failed`, and `searching` describe the query, or once a newer search cancels it.
   @discardableResult
   public func search() -> Task<Void, Never>? {
-    let normalized = SearchInput.searchForm(query)
-    guard normalized != searched else {
-      if let results, results.query == normalized, results.input != query {
-        self.results = SearchResults(query: normalized, input: query, groups: results.groups)
-      }
-      return operation
-    }
-    searched = normalized
+    guard searched?.utf8.elementsEqual(query.utf8) != true else { return operation }
+    searched = query
     operation?.cancel()
     paging?.cancel()
-    shown = [:]
-    guard !normalized.isEmpty, let index, let generation else {
+    paging = nil
+    loadingMore = false
+    pageRun = nil
+    shown = 0
+    results = nil
+    let run = Run()
+    searchRun = run
+    failed = false
+    guard !RankingText.compact(query).isEmpty, ready, let generation else {
       operation = nil
-      results = nil
       searching = false
       return nil
     }
     searching = true
+    failed = false
     let store = store
-    let categories = categories
-    let phone = SearchInput.normalizedPhone(query).flatMap { try? CanonicalPhone($0) }
+    let scorer = scorer
+    let index = index
     let typed = query
+    let phone = SearchInput.normalizedPhone(typed).flatMap { try? CanonicalPhone($0) }
     let task = Task {
       do {
-        let groups: [[LocalSearch.Match]]
+        let ids: [Int64]
         if let phone {
-          let ids = try await store.contactIDs(generation: generation, number: phone.number)
-          groups = try index.exact(ids)
+          let matches = try await store.contactIDs(generation: generation, number: phone.number)
+          let names = try await store.searchIndex(generation: generation)
+          ids = try names.orderedIDs(names.exact(matches))
         } else {
-          let words = SearchInput.words(normalized)
-          let work = Task.detached(priority: .userInitiated) { try index.search(words) }
-          groups = try await withTaskCancellationHandler {
+          let work = Task.detached(priority: .userInitiated) {
+            try Task.checkCancellation()
+            let ids: [Int64]
+            if let scorer {
+              ids = try scorer.search(typed).map(\.id)
+            } else if let index {
+              ids = try index.orderedIDs(index.search(SearchInput.words(typed)))
+            } else {
+              throw ImportError.unavailableStorage
+            }
+            try Task.checkCancellation()
+            return ids
+          }
+          ids = try await withTaskCancellationHandler {
             try await work.value
           } onCancel: {
             work.cancel()
           }
         }
+        let target = ResultPage.end(shown: 0, total: ids.count)
+        let loaded = try await Self.fetch(
+          Array(ids.prefix(target)), generation: generation, store: store, cached: [:])
         try Task.checkCancellation()
-        // A later edit that keeps the normalized query, such as a trailing space, reuses this search.
-        let result = SearchResults(
-          query: normalized, input: SearchInput.searchForm(query) == normalized ? query : typed,
-          groups: groups.compactMap { matches in
-            guard let first = matches.first else { return nil }
-            let category = index.category(row: first.row)
-            guard categories.indices.contains(category) else { return nil }
-            return ResultGroup(
-              category: category, key: categories[category].id,
-              label: categories[category].label, ids: matches.map(\.id))
-          })
-        let previews = try await fetch(
-          result.groups.flatMap { $0.ids.prefix(Self.previewSize) }, cached: [:])
-        try Task.checkCancellation()
-        contacts = previews
-        results = result
+        guard searchRun === run else { return }
+        contacts = loaded
+        shown = target
+        results = SearchResults(
+          input: typed, ids: ids,
+          limited: scorer != nil && phone == nil && ids.count == RankingPolicy.results)
         failed = false
         searching = false
-      } catch is CancellationError {
       } catch {
+        guard searchRun === run, !(error is CancellationError) else { return }
         results = nil
         failed = true
         searching = false
@@ -122,52 +160,62 @@ public final class DirectoryModel {
   }
 
   public func retry() {
-    searched = nil
-    search()
+    if ready {
+      searched = nil
+      search()
+    } else {
+      Task { await activate(manifest) }
+    }
   }
 
-  public func visible(_ group: ResultGroup) -> [Contact] {
-    group.ids.prefix(shown[group.category] ?? Self.previewSize).compactMap { contacts[$0] }
-  }
-
-  public func expandable(_ group: ResultGroup) -> Bool {
-    (shown[group.category] ?? Self.previewSize) < group.total
-  }
-
-  public func expanded(_ group: ResultGroup) -> Bool { shown[group.category] != nil }
-
-  /// Shows the next page of the group and returns the task that loads it, or the page task already running.
-  /// It returns nil when the group already shows every match.
   @discardableResult
-  public func more(_ group: ResultGroup) -> Task<Void, Never>? {
-    guard expandable(group) else { return nil }
+  public func more() -> Task<Void, Never>? {
+    guard let results, let generation, expandable, !searching else { return nil }
     if let paging { return paging }
-    let target = min(group.total, (shown[group.category] ?? Self.previewSize) + Self.pageSize)
-    let ids = Array(group.ids.prefix(target))
+    let run = Run()
+    pageRun = run
+    loadingMore = true
+    let target = ResultPage.end(shown: shown, total: results.total)
+    let cached = contacts
+    let store = store
     let task = Task {
-      defer { paging = nil }
+      defer {
+        if pageRun === run {
+          pageRun = nil
+          paging = nil
+          loadingMore = false
+        }
+      }
       do {
-        let loaded = try await fetch(ids, cached: contacts)
+        let loaded = try await Self.fetch(
+          Array(results.ids.prefix(target)), generation: generation, store: store, cached: cached)
         try Task.checkCancellation()
+        guard pageRun === run else { return }
         contacts = loaded
-        shown[group.category] = target
-      } catch is CancellationError {
-      } catch { failed = true }
+        shown = target
+      } catch {
+        guard pageRun === run, !(error is CancellationError) else { return }
+        failed = true
+      }
     }
     paging = task
     return task
   }
 
-  private func fetch(_ ids: [Int64], cached: [Int64: Contact]) async throws -> [Int64: Contact] {
-    guard let generation else { return cached }
+  private nonisolated static func fetch(
+    _ ids: [Int64], generation: UUID, store: any DirectorySearchSource,
+    cached: [Int64: Contact]
+  ) async throws -> [Int64: Contact] {
     var result = cached
     let missing = ids.filter { result[$0] == nil }
-    for start in stride(from: 0, to: missing.count, by: 500) {
-      let chunk = Array(missing[start..<min(start + 500, missing.count)])
+    for start in stride(from: 0, to: missing.count, by: contactBatchSize) {
+      try Task.checkCancellation()
+      let chunk = Array(missing[start..<min(start + contactBatchSize, missing.count)])
       for contact in try await store.contacts(generation: generation, ids: chunk) {
         result[contact.id] = contact
       }
     }
+    guard ids.allSatisfy({ result[$0] != nil }) else { throw ImportError.invalidRecord }
     return result
   }
 }

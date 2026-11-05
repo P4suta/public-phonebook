@@ -1,5 +1,5 @@
 use super::{device, logged, require_current_sources, source_hashes, source_records};
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{
@@ -11,6 +11,103 @@ use std::{
 const TARGET: &str = "arm64-apple-ios18.0-simulator";
 const NATIONAL_CONTACTS: u64 = 667_696;
 const FIXTURE_QUERIES: u64 = 2200;
+const APP_REPETITIONS: usize = 3;
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppMetric {
+    display_name: String,
+    unit_of_measurement: String,
+    measurements: Vec<f64>,
+    identifier: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AppRun {
+    metrics: Vec<AppMetric>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AppCase {
+    test_identifier: String,
+    test_runs: Vec<AppRun>,
+}
+
+fn app_metrics(bytes: &[u8]) -> Result<Vec<AppMetric>> {
+    let cases: Vec<AppCase> = serde_json::from_slice(bytes)?;
+    let [case] = cases.as_slice() else {
+        anyhow::bail!("The app measurement must contain one test case");
+    };
+    ensure!(
+        case.test_identifier.contains(super::STARTUP_UI_TEST),
+        "The app measurement names another test"
+    );
+    let metrics = cases
+        .into_iter()
+        .flat_map(|case| case.test_runs)
+        .flat_map(|run| run.metrics)
+        .collect::<Vec<_>>();
+    ensure!(
+        metrics.iter().all(|metric| !metric.display_name.is_empty()
+            && !metric.unit_of_measurement.is_empty()
+            && metric.measurements.len() == APP_REPETITIONS
+            && metric.measurements.iter().all(|value| value.is_finite())),
+        "The app metrics omit finite repetitions or units"
+    );
+    for required in ["clock", "memory", "launch"] {
+        ensure!(
+            metrics.iter().any(|metric| metric
+                .identifier
+                .as_deref()
+                .unwrap_or(&metric.display_name)
+                .to_ascii_lowercase()
+                .contains(required)
+                && metric.measurements.iter().all(|value| *value > 0.0)),
+            "The app measurement omits {required}"
+        );
+    }
+    Ok(metrics)
+}
+
+fn measure_app(root: &Path, identifier: &str, directory: &Path) -> Result<serde_json::Value> {
+    let bundle = directory.join("app-startup.xcresult");
+    if bundle.exists() {
+        fs::remove_dir_all(&bundle)?;
+    }
+    logged(
+        root,
+        "search-measure-app",
+        super::ui_build_command(root, identifier, "VerificationRelease")
+            .arg("-resultBundlePath")
+            .arg(&bundle)
+            .arg(format!(
+                "-only-testing:PhonebookUITests/DirectoryUITests/{}",
+                super::STARTUP_UI_TEST
+            ))
+            .arg("test"),
+    )?;
+    let read = |kind| -> Result<serde_json::Value> {
+        let output = logged(
+            root,
+            &format!("search-measure-app-{kind}"),
+            Command::new("xcrun")
+                .args(["xcresulttool", "get", "test-results", kind, "--path"])
+                .arg(&bundle),
+        )?;
+        Ok(serde_json::from_slice(&output.stdout)?)
+    };
+    super::require_ui_case(&read("summary")?, &read("tests")?, super::STARTUP_UI_TEST)?;
+    let metrics = app_metrics(&serde_json::to_vec(&read("metrics")?)?)?;
+    super::bundled::check_built(root, &root.join("ios/DerivedData/Build/Products/VerificationRelease-iphonesimulator/PublicPhonebook.app"), "VerificationRelease")?;
+    ensure!(!metrics.is_empty(), "The app measurement is empty");
+    Ok(
+        json!({"configuration":"VerificationRelease", "repetitions":APP_REPETITIONS,
+        "scope":"Process relaunch from the saved bundled national generation until the search hint replaces search preparation; first setup is outside the timer; filesystem caches are uncontrolled; XCTest reports target-app physical memory separately from the command-line resident peaks.",
+        "resultBundle":bundle.strip_prefix(root).context("App result is outside the checkout")?, "metrics":metrics}),
+    )
+}
 
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -179,18 +276,19 @@ pub(super) fn run(root: &Path) -> Result<()> {
         }
         records.push(record);
     }
+    let app = measure_app(root, simulator.id(), &directory)?;
     require_current_sources(root, &source)?;
     let record = json!({"result":"passed", "target":TARGET, "sdk":sdk,
         "swift":String::from_utf8(compiler_version.stdout)?, "runtime":super::RUNTIME,
-        "scope":"Optimized production search and offline bundled import in separate command-line processes on the checkout's booted iOS Simulator; excludes installed-app cold launch and physical iPhone performance; resident peaks include the ranking fixture.",
+        "scope":"Optimized core search and offline import in separate command-line Simulator processes, plus VerificationRelease app relaunch to search readiness; physical iPhone performance is unmeasured; command-line resident peaks include the ranking fixture.",
         "fixtureSha256":crate::sha256_hex(fs::read(root.join("tests/fixtures/search-ranking.json"))?),
-        "source_sha256":source_records(&source), "measurements":records});
+        "source_sha256":source_records(&source), "measurements":records, "installedApp":app});
     fs::write(
         directory.join("report.json"),
         serde_json::to_vec_pretty(&record)?,
     )?;
     println!(
-        "PASS: optimized Simulator search, 2,200 complete rankings, offline national import, resident peaks, and store bytes measured"
+        "PASS: optimized Simulator search, 2,200 complete rankings, offline national import, resident peaks, store bytes, and three installed-app startup measurements"
     );
     Ok(())
 }
@@ -198,6 +296,33 @@ pub(super) fn run(root: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn app_measurements_require_the_named_case_three_samples_and_each_metric_family() -> Result<()>
+    {
+        let valid = json!([{"testIdentifier":super::super::STARTUP_UI_TEST,"testRuns":[{"metrics":[
+            {"displayName":"Clock","unitOfMeasurement":"s","measurements":[1.0,2.0,3.0],"identifier":"clock"},
+            {"displayName":"Memory","unitOfMeasurement":"kB","measurements":[1.0,2.0,3.0],"identifier":"memory"},
+            {"displayName":"Launch","unitOfMeasurement":"s","measurements":[1.0,2.0,3.0],"identifier":"launch"}
+        ]}]}]);
+        assert_eq!(
+            app_metrics(&serde_json::to_vec(&valid)?)?.len(),
+            APP_REPETITIONS
+        );
+        let mut missing = valid.clone();
+        missing[0]["testRuns"][0]["metrics"]
+            .as_array_mut()
+            .context("metrics")?
+            .pop();
+        assert!(app_metrics(&serde_json::to_vec(&missing)?).is_err());
+        let mut short = valid.clone();
+        short[0]["testRuns"][0]["metrics"][0]["measurements"] = json!([1.0]);
+        assert!(app_metrics(&serde_json::to_vec(&short)?).is_err());
+        let mut zero = valid.clone();
+        zero[0]["testRuns"][0]["metrics"][1]["measurements"] = json!([0.0, 0.0, 0.0]);
+        assert!(app_metrics(&serde_json::to_vec(&zero)?).is_err());
+        Ok(())
+    }
 
     #[test]
     fn percentiles_reject_negative_nonfinite_and_reversed_measurements() {
