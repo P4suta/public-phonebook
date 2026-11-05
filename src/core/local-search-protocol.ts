@@ -1,19 +1,20 @@
 import * as v from "valibot";
 import { CategorySchema } from "./catalog.ts";
-import { CountSchema, DigestSchema, TextSchema } from "./models.ts";
+import {
+  SearchIndexLocationSchema,
+  SearchRankingLocationSchema,
+} from "./dataset-storage.ts";
+import { CountSchema, TextSchema } from "./models.ts";
 import { SearchIndexHeaderSchema } from "./search-index.ts";
 
-const IndexPathSchema = v.pipe(v.string(), v.regex(/^\/(?![/\\])[^\\\s]*$/u));
 const RequestIdSchema = CountSchema;
 export const indexProgressSteps = 20;
 
 export const LocalSearchRequestSchema = v.variant("type", [
   v.strictObject({
     type: v.literal("load"),
-    url: IndexPathSchema,
-    snapshot: DigestSchema,
-    bytes: CountSchema,
-    sha256: DigestSchema,
+    index: SearchIndexLocationSchema,
+    ranking: SearchRankingLocationSchema,
   }),
   v.strictObject({
     type: v.literal("search"),
@@ -47,6 +48,7 @@ export const IndexUnavailableSchema = v.picklist([
   "signature_mismatch",
   "malformed",
   "snapshot_mismatch",
+  "transport_mismatch",
 ]);
 export type IndexUnavailable = v.InferOutput<typeof IndexUnavailableSchema>;
 

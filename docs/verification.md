@@ -375,13 +375,15 @@ The audit requires zero unparseable spellings, source/canonical disagreements, f
 The release gate checks the build and the device search with these entry points, and the candidate stages below call them.
 Run `mise x -- node tools/build-budget.ts` after a build.
 It requires the gzip size of the Worker's modules to stay under 1 MiB, well below Cloudflare's compressed upload limit, so an accidental bundle fails here first.
-It also requires exactly one search Worker script of at most 34 KiB.
+It also requires exactly one search Worker script of at most 72 KiB.
+The frozen scorer, ranking decoder, and paired admission grew that script from 41,336 to 57,220 bytes on November 5, 2026.
+The 72 KiB limit keeps about a quarter of headroom above the measured script.
 The national browser campaign keeps the search page's own scripts within 232 KiB transferred and 736 KiB decoded before the index loads.
 On November 2, 2026, the Worker's modules measured 463,097 bytes compressed, the search Worker script 27,152 bytes, and the search page's scripts 185,459 bytes transferred and 589,343 bytes decoded.
 The script limits sit about a quarter above those sizes.
 
 Run `mise x -- node tools/search-parity.ts BUNDLE` after `mise x -- just data-local BUNDLE` seeds the same bundle.
-It loads the bundle's index through the service that the browser Worker runs, with its admission checks.
+It decodes the bundle's verified name index and runs the preserved literal matcher as a reference for the server.
 It asks the actual API against the seeded D1 for the same queries.
 A fixed seed draws 2,000 substrings and 1,000 display names from the index, 1,000 listed telephone numbers, and 200 valid numbers that no contact lists.
 The listed numbers take turns among five spellings: formatted, bare digits, full-width, parenthesized, and `+81`.
@@ -390,7 +392,8 @@ It also draws 500 queries that pair the start of a name with its municipality, p
 Each query compares the total, the category order, each category's count, and each preview row's contact ID, name, category, region, numbers, and whether its details show an address.
 For the first category of 4 to 100 rows, it also compares the complete ordered category.
 It checks 100 row positions with the row locator, the lookup that opens a device result's details.
-The run fails on any difference.
+The run fails on any difference between the server and its literal reference.
+The device scorer follows its separate shared ranking fixture and quality gate, because forgiving device ranking intentionally differs from server matching.
 Each D1 statement opens a loopback connection from Node to workerd, and macOS keeps a closed one for 30 seconds within 16,384 ephemeral ports.
 A read that fails with `EADDRNOTAVAIL` therefore waits a second and runs again, up to 60 times, while any other error fails the run at once.
 It also requires two controls to differ: previews with their first two rows swapped, and an index whose adjacent same-name rows with different details are swapped.

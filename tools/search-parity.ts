@@ -13,11 +13,7 @@ import {
   matchIndex,
   previewGroups,
 } from "../src/core/local-search.ts";
-import {
-  type LocalRow,
-  type LocalSearchReply,
-  LocalSearchReplySchema,
-} from "../src/core/local-search-protocol.ts";
+import type { LocalRow } from "../src/core/local-search-protocol.ts";
 import {
   CatalogSchema,
   type Contact,
@@ -34,7 +30,7 @@ import {
   searchIndexFile,
 } from "../src/core/search-index.ts";
 import { api, type DirectoryApiBindings } from "../src/server/api.ts";
-import { localSearchService } from "../src/ui/local-search-service.ts";
+import { localRow as indexRow } from "../src/ui/local-search-service.ts";
 import { localDataRuntime } from "./local-data.ts";
 
 const commandArgumentOffset = 2;
@@ -528,93 +524,27 @@ class ServerSearch {
   }
 }
 
-class DeviceSearch {
-  readonly #handle: (message: unknown) => Promise<void>;
-  readonly #replies: LocalSearchReply[];
+class LiteralReference {
+  readonly #index: SearchIndex;
   readonly #ids: readonly string[];
-  #requests = 0;
 
-  private constructor(
-    handle: (message: unknown) => Promise<void>,
-    replies: LocalSearchReply[],
-    ids: readonly string[],
-  ) {
-    this.#handle = handle;
-    this.#replies = replies;
+  constructor(index: SearchIndex, ids: readonly string[]) {
+    this.#index = index;
     this.#ids = ids;
   }
 
-  /** Loads the decoded index through the same service the browser Worker runs, with its admission checks. */
-  static async open(
-    decoded: Uint8Array,
-    expected: { readonly url: string; readonly snapshot: string },
-    ids: readonly string[],
-  ): Promise<DeviceSearch> {
-    const replies: LocalSearchReply[] = [];
-    const handle = localSearchService({
-      fetch: async () => new Response(decoded.slice()),
-      post: (reply) => {
-        replies.push(v.parse(LocalSearchReplySchema, reply));
-      },
-    });
-    await handle({
-      type: "load",
-      url: expected.url,
-      snapshot: expected.snapshot,
-      bytes: decoded.byteLength,
-      sha256: sha256(decoded),
-    });
-    const ready = replies.at(-1);
-    if (ready?.type !== "ready")
-      throw new Error(
-        `The device search refused the index: ${JSON.stringify(ready)}`,
-      );
-    return new DeviceSearch(handle, replies, ids);
+  preview(query: string): ComparedResults {
+    return previewOf(this.#index, query, this.#ids);
   }
 
-  async #ask(message: Record<string, unknown>): Promise<LocalSearchReply> {
-    this.#requests += 1;
-    await this.#handle({ ...message, id: this.#requests });
-    const reply = this.#replies.at(-1);
-    if (!reply || !("id" in reply) || reply.id !== this.#requests)
-      throw new Error("The device search didn't answer");
-    return reply;
-  }
-
-  async preview(query: string): Promise<ComparedResults> {
-    const reply = await this.#ask({ type: "search", query });
-    if (reply.type !== "results")
-      throw new Error(`The device search failed for ${query}`);
-    return {
-      total: reply.total,
-      groups: reply.groups.map((group) => ({
-        category: group.category,
-        total: group.total,
-        rows: group.rows.map((row) => localRow(row, this.#ids)),
-      })),
-    };
-  }
-
-  async category(
-    query: string,
-    category: Category,
-    total: number,
-  ): Promise<ComparedRow[]> {
-    const rows: ComparedRow[] = [];
-    let visible = 0;
-    while (visible < total) {
-      const reply = await this.#ask({
-        type: "continue",
-        query,
-        category,
-        visible,
-      });
-      if (reply.type !== "page" || reply.visible <= visible)
-        throw new Error(`The device continuation failed for ${query}`);
-      rows.push(...reply.rows.map((row) => localRow(row, this.#ids)));
-      visible = reply.visible;
-    }
-    return rows;
+  category(query: string, category: Category): ComparedRow[] {
+    const parsed = localQuery(query);
+    if (!parsed.ok) throw new Error(`A reference query is invalid: ${query}`);
+    const matches = matchIndex(this.#index, parsed.value);
+    return (
+      matches.categories.find((group) => group.category === category)?.rows ??
+      []
+    ).map((row) => localRow(indexRow(this.#index, row), this.#ids));
   }
 }
 
@@ -683,14 +613,7 @@ async function main(): Promise<void> {
   if (ids.length !== manifest.contacts)
     throw new Error("The bundle database has a different contact count");
   const index = decodeSearchIndex(decoded);
-  const device = await DeviceSearch.open(
-    decoded,
-    {
-      url: `/api/search-index/${manifest.snapshot}/${manifest.searchIndex.sha256}`,
-      snapshot: manifest.snapshot,
-    },
-    ids,
-  );
+  const reference = new LiteralReference(index, ids);
   const runtime = localDataRuntime(values.state ?? defaultState);
   try {
     const server = new ServerSearch({
@@ -734,7 +657,7 @@ async function main(): Promise<void> {
     let deepCompared = 0;
     for (const [position, query] of all.entries()) {
       const serverResults = await server.preview(query);
-      const localResults = await device.preview(query);
+      const localResults = reference.preview(query);
       compared.push({ query, server: serverResults, local: localResults });
       differences.push(...compareResults(query, serverResults, localResults));
       const deep = serverResults.groups.find(
@@ -747,7 +670,7 @@ async function main(): Promise<void> {
             query,
             `category ${category}`,
             await server.category(query, category),
-            await device.category(query, category, deep.total),
+            reference.category(query, category),
           ),
         );
         deepCompared += 1;
@@ -788,6 +711,7 @@ async function main(): Promise<void> {
       ).length;
     const report = {
       operation: "search-parity",
+      contract: "server-literal-reference",
       snapshot: manifest.snapshot,
       contacts: manifest.contacts,
       seed: paritySeed,
@@ -838,7 +762,8 @@ async function main(): Promise<void> {
         result: passed ? "passed" : "failed",
       }),
     );
-    if (!passed) throw new Error("The device search differs from the server");
+    if (!passed)
+      throw new Error("The server search differs from its literal reference");
   } finally {
     await runtime.dispose();
   }

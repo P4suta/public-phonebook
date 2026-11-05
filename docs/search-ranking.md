@@ -8,7 +8,10 @@ Each row is a 0-based position in the name index and maps to D1 rowid `row + 1`.
 The row supplies the display name, category, region, and telephone displays.
 The score is an integer from zero through 1,000,000, with whole-name exact results first and at most 100 results.
 
-Verify compressed and decoded sizes and SHA-256 digests from discovery before decoding either artifact.
+Native and file adapters verify compressed and decoded sizes and SHA-256 digests from discovery before decoding either artifact.
+The website uses the browser's Brotli HTTP decoder and verifies each decoded body's size and SHA-256 itself.
+It also checks the compressed length, digest ETag, content coding, and snapshot response headers against discovery.
+The browser doesn't expose the compressed body for hashing, so compressed-byte integrity relies on the checked publication and HTTPS delivery paths.
 The index's `snapshot` and row count must match the ranking companion.
 `decodeRankingArtifact` rejects unsupported formats, inconsistent counts, invalid ordinals, noncanonical varints, and trailing data.
 The constructor rejects a snapshot mismatch and invalid integer lexical weights.
@@ -41,8 +44,8 @@ Queries with one or two code points use the bounded literal route.
 
 The [scorer decision](adr/rank-device-search-with-place-preferences-and-gated-readings.md) defines retrieval, reading selection, place conditions, score encoding, and ties.
 The [presentation decision](adr/show-one-ranked-list-with-a-server-fallback.md) defines the phase 2 single list and the retained server matcher.
-Phase 1 leaves the website worker and iPhone screens on their current implementations.
-Their adapters must adopt the new core or its Swift equivalent and the shared contract before changing presentation.
+The website worker admits both artifacts before constructing the scorer and keeps the server fallback when admission fails.
+The iPhone adapter consumes the equivalent ranking contract in Swift.
 
 `tests/fixtures/search-ranking.json` declares `public-phonebook-name-ranking/1`, the exact snapshot, both decoded artifact digests, and complete expected row-and-score pairs for every fixture query.
 The fixture records all returned candidates, including score ties and secondary-route candidates.

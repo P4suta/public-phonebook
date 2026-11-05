@@ -8,6 +8,7 @@ import { serviceInformation } from "../../src/ui/service-information.ts";
 import { auditDesign } from "./design-policy.ts";
 import { expect, test } from "./fixtures.ts";
 import { recordFullPage } from "./full-page-screenshot.ts";
+import { contactLinks, waitForLocalSearch } from "./search-sources.ts";
 
 test.use({ video: "on" });
 
@@ -177,6 +178,13 @@ for (const width of [320, 390, 1440]) {
         "true",
       );
       await page.evaluate(async () => document.fonts.ready);
+      if (name === "results") {
+        await waitForLocalSearch(page);
+        await expect(contactLinks(page).first()).toHaveAttribute(
+          "href",
+          /^\/contacts\/row\//u,
+        );
+      }
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= window.innerWidth,

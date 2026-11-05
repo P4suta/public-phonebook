@@ -1,7 +1,10 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import * as v from "valibot";
 import type { Category } from "../core/catalog.ts";
-import { SearchIndexLocationSchema } from "../core/dataset-storage.ts";
+import {
+  SearchIndexLocationSchema,
+  SearchRankingLocationSchema,
+} from "../core/dataset-storage.ts";
 import type { IndexReadiness } from "../core/local-search-policy.ts";
 import {
   indexProgressSteps,
@@ -156,26 +159,26 @@ export class LocalIndexClient {
   async #locate(): Promise<void> {
     const request = new AbortController();
     this.#location = request;
-    let location: v.InferOutput<typeof SearchIndexLocationSchema>;
     try {
-      location = v.parse(
-        SearchIndexLocationSchema,
-        await requestJson("/api/search-index", request.signal),
-      );
+      const [index, ranking] = await Promise.all([
+        requestJson("/api/search-index", request.signal).then((value) =>
+          v.parse(SearchIndexLocationSchema, value),
+        ),
+        requestJson("/api/search-ranking", request.signal).then((value) =>
+          v.parse(SearchRankingLocationSchema, value),
+        ),
+      ]);
+      if (this.#location !== request) return;
+      if (index.snapshot !== ranking.snapshot) {
+        this.#fail();
+        return;
+      }
+      this.#location = null;
+      const message: LocalSearchRequest = { type: "load", index, ranking };
+      this.#ensureWorker().postMessage(message);
     } catch {
       if (!request.signal.aborted) this.#fail();
-      return;
     }
-    if (this.#location !== request) return;
-    this.#location = null;
-    const message: LocalSearchRequest = {
-      type: "load",
-      url: location.url,
-      snapshot: location.snapshot,
-      bytes: location.uncompressedBytes,
-      sha256: location.uncompressedSha256,
-    };
-    this.#ensureWorker().postMessage(message);
   }
 
   #ensureWorker(): Worker {
@@ -234,6 +237,10 @@ export class LocalIndexClient {
   }
 
   #fail(): void {
+    this.#location?.abort();
+    this.#location = null;
+    this.#worker?.terminate();
+    this.#worker = null;
     this.#reloading = false;
     this.#settle();
     this.#update({ status: "unavailable", snapshot: "", regions: null });

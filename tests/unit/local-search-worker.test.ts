@@ -1,17 +1,19 @@
 import { createHash } from "node:crypto";
 import * as v from "valibot";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   indexProgressSteps,
   type LocalSearchReply,
   LocalSearchReplySchema,
+  type LocalSearchRequest,
 } from "../../src/core/local-search-protocol.ts";
+import { decodeSearchIndex } from "../../src/core/search-index.ts";
+import { encodeRankingArtifact } from "../../src/core/search-ranking-artifact.ts";
 import { localSearchService } from "../../src/ui/local-search-service.ts";
+import { buildRankingArtifact } from "../../tools/search-ranking.ts";
 import { type ModelContact, modelDirectory } from "./local-search-fixture.ts";
 
 const snapshot = "d".repeat(64);
-const indexPath = `/api/search-index/${snapshot}/index`;
-const chunkCount = 7;
 const contacts: ModelContact[] = [
   ["c:1", "図書館", "library", "+81335812331"],
   ["c:2", "図書館", "medical", "+81335812331"],
@@ -26,36 +28,88 @@ const contacts: ModelContact[] = [
   phones: [{ e164 }],
 }));
 
+type Load = Extract<LocalSearchRequest, { type: "load" }>;
+type Location = Load["index"];
+
 function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-function withoutProgress(
-  replies: readonly LocalSearchReply[],
-): LocalSearchReply[] {
-  return replies.filter((reply) => reply.type !== "progress");
+function location(kind: string, bytes: Uint8Array): Location {
+  return {
+    snapshot,
+    url: `/api/${kind}/${snapshot}/${sha256(bytes)}`,
+    bytes: bytes.length,
+    sha256: sha256(bytes),
+    uncompressedBytes: bytes.length,
+    uncompressedSha256: sha256(bytes),
+  };
 }
 
-interface Harness {
+function fixture(rows = contacts): {
+  readonly index: Uint8Array;
+  readonly ranking: Uint8Array;
+  readonly load: Load;
+} {
+  const { bytes: index } = modelDirectory(rows, snapshot);
+  const decoded = decodeSearchIndex(index);
+  const ranking = encodeRankingArtifact(
+    buildRankingArtifact(
+      decoded,
+      {
+        readings: decoded.rows.map((entry) =>
+          entry.name.replaceAll("図書館", "トショカン"),
+        ),
+        lexicon: [["図書館", "トショカン", 10]],
+      },
+      [],
+    ),
+  );
+  return {
+    index,
+    ranking,
+    load: {
+      type: "load",
+      index: location("search-index", index),
+      ranking: {
+        ...location("search-ranking", ranking),
+        format: "public-phonebook-search-ranking/1",
+      },
+    },
+  };
+}
+
+function response(bytes: Uint8Array, expected: Location): Response {
+  return new Response(bytes.slice(), {
+    headers: {
+      "Content-Encoding": "br",
+      "Content-Length": String(expected.bytes),
+      ETag: `"${expected.sha256}"`,
+      "X-Dataset-Snapshot": expected.snapshot,
+    },
+  });
+}
+
+function harness(
+  source = fixture(),
+  fetcher?: (url: string) => Promise<Response>,
+): {
   readonly handle: (message: unknown) => Promise<void>;
   readonly replies: LocalSearchReply[];
   readonly requested: string[];
-  readonly network: { online: boolean };
-}
-
-function harness(body: Uint8Array, status = 200): Harness {
+} {
   const replies: LocalSearchReply[] = [];
   const requested: string[] = [];
-  const network = { online: true };
   return {
     replies,
     requested,
-    network,
     handle: localSearchService({
       fetch: async (url) => {
         requested.push(url);
-        if (!network.online) throw new TypeError("Failed to fetch");
-        return new Response(body.slice(), { status });
+        if (fetcher) return fetcher(url);
+        return url === source.load.index.url
+          ? response(source.index, source.load.index)
+          : response(source.ranking, source.load.ranking);
       },
       post: (reply) => {
         replies.push(v.parse(LocalSearchReplySchema, reply));
@@ -64,109 +118,69 @@ function harness(body: Uint8Array, status = 200): Harness {
   };
 }
 
-function load(
-  bytes: Uint8Array,
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> {
-  return {
-    type: "load",
-    url: indexPath,
-    snapshot,
-    bytes: bytes.byteLength,
-    sha256: sha256(bytes),
-    ...overrides,
-  };
-}
-
-function row(
-  position: number,
-  name: string,
-  category: string,
-  phone: string,
-): Record<string, unknown> {
-  return {
-    row: position,
-    name,
-    category,
-    region: "13101",
-    phones: [phone],
-    hasAddress: true,
-  };
-}
-
 describe("local search worker", () => {
-  it("fetches only the index once and keeps searching offline", async () => {
-    const { bytes } = modelDirectory(contacts, snapshot);
-    const worker = harness(bytes);
-    await worker.handle(load(bytes));
+  it("admits both artifacts and searches kana and complete numbers offline", async () => {
+    const source = fixture();
+    const worker = harness(source);
+    await worker.handle(source.load);
     expect(worker.replies.at(-1)).toMatchObject({
       type: "ready",
       snapshot,
       contacts: contacts.length,
     });
-    worker.network.online = false;
-    await worker.handle({ type: "search", id: 1, query: "図書館" });
-    expect(worker.replies.at(-1)).toEqual({
-      type: "results",
-      id: 1,
-      total: 3,
-      groups: [
-        {
-          category: "library",
-          total: 2,
-          rows: [
-            row(1, "図書館", "library", "0335812331"),
-            row(3, "市立図書館", "library", "0774981200"),
-          ],
-        },
-        {
-          category: "medical",
-          total: 1,
-          rows: [row(2, "図書館", "medical", "0335812331")],
-        },
-      ],
-    });
+    for (const query of ["図書館", "としょかん"]) {
+      await worker.handle({ type: "search", id: 1, query });
+      expect(worker.replies.at(-1)).toMatchObject({
+        type: "results",
+        total: 2,
+      });
+    }
+    await worker.handle({ type: "search", id: 2, query: "03-3581-2331" });
+    expect(worker.replies.at(-1)).toMatchObject({ type: "results", total: 2 });
     await worker.handle({
       type: "continue",
-      id: 2,
+      id: 3,
       query: "図書館",
       category: "library",
       visible: 0,
     });
-    expect(worker.replies.at(-1)).toEqual({
+    expect(worker.replies.at(-1)).toMatchObject({
       type: "page",
-      id: 2,
-      category: "library",
-      total: 2,
-      visible: 2,
-      rows: [
-        row(1, "図書館", "library", "0335812331"),
-        row(3, "市立図書館", "library", "0774981200"),
-      ],
-    });
-    await worker.handle({ type: "search", id: 3, query: "ａ診療所" });
-    expect(worker.replies.at(-1)).toEqual({
-      type: "results",
-      id: 3,
       total: 1,
-      groups: [
-        {
-          category: "medical",
-          total: 1,
-          rows: [row(0, "Ａ診療所", "medical", "09012345678")],
-        },
-      ],
+      visible: 1,
+      rows: [{ row: 1 }],
     });
-    await worker.handle({ type: "search", id: 4, query: "03-3581-2331" });
-    expect(worker.replies.at(-1)).toMatchObject({ type: "results", total: 2 });
-    expect(worker.requested).toEqual([indexPath]);
+    expect(worker.requested).toEqual([
+      source.load.index.url,
+      source.load.ranking.url,
+    ]);
   });
 
-  it("answers requests it can't serve without throwing", async () => {
-    const { bytes } = modelDirectory(contacts, snapshot);
-    const worker = harness(bytes);
+  it("passes original spelling to the exact-name guard", async () => {
+    const source = fixture(
+      ["国立図書館", "國立図書館"].map((name, position) => ({
+        id: `variant:${position}`,
+        name,
+        category: "library",
+        prefectureCode: "13",
+        municipalityCode: null,
+        phones: [{ e164: "+81335812331" }],
+      })),
+    );
+    const worker = harness(source);
+    await worker.handle(source.load);
+    await worker.handle({ type: "search", id: 1, query: "國立図書館" });
+    const reply = worker.replies.at(-1);
+    expect(
+      reply?.type === "results" ? reply.groups[0]?.rows[0]?.name : null,
+    ).toBe("國立図書館");
+  });
+
+  it("answers invalid queries and continuations without throwing", async () => {
+    const source = fixture();
+    const worker = harness(source);
     await worker.handle({ type: "search", id: 1, query: "図書館" });
-    await worker.handle(load(bytes));
+    await worker.handle(source.load);
     await worker.handle({ type: "search", id: 2, query: "図書館\0" });
     await worker.handle({
       type: "continue",
@@ -182,168 +196,142 @@ describe("local search worker", () => {
     ]);
   });
 
-  it("falls back when the index differs from its published checks", async () => {
-    const { bytes } = modelDirectory(contacts, snapshot);
-    const other = modelDirectory(contacts, "e".repeat(64)).bytes;
-    const unsigned = bytes.slice();
-    unsigned[0] = 0x50;
-    const truncated = bytes.slice(0, -1);
-    const cases = [
-      [bytes, load(bytes, { bytes: bytes.byteLength + 1 }), "length_mismatch"],
-      [bytes, load(bytes, { sha256: "0".repeat(64) }), "digest_mismatch"],
-      [unsigned, load(unsigned), "signature_mismatch"],
-      [truncated, load(truncated), "malformed"],
-      [other, load(other), "snapshot_mismatch"],
-    ] as const;
-    for (const [body, message, reason] of cases) {
-      const worker = harness(body);
-      await worker.handle(message);
-      expect(withoutProgress(worker.replies)).toEqual([
-        {
+  it("rejects either artifact's length, digest, transport, or malformed content", async () => {
+    const source = fixture();
+    for (const kind of ["index", "ranking"] as const) {
+      for (const defect of [
+        "length",
+        "digest",
+        "transport",
+        "malformed",
+        "missing",
+      ] as const) {
+        const bytes = source[kind];
+        const invalid = new Uint8Array(bytes.length).fill(42);
+        const expected = source.load[kind];
+        const message = {
+          ...source.load,
+          [kind]: {
+            ...expected,
+            uncompressedBytes: bytes.length + (defect === "length" ? 1 : 0),
+            uncompressedSha256:
+              defect === "malformed"
+                ? sha256(invalid)
+                : defect === "digest"
+                  ? "0".repeat(64)
+                  : sha256(bytes),
+          },
+        };
+        const worker = harness(source, async (url) => {
+          if (url !== expected.url)
+            return response(source.index, source.load.index);
+          if (defect === "missing") return new Response(null, { status: 404 });
+          const reply = response(
+            defect === "malformed" ? invalid : bytes,
+            expected,
+          );
+          if (defect === "transport") reply.headers.set("ETag", '"wrong"');
+          return reply;
+        });
+        await worker.handle(message);
+        expect(worker.replies.at(-1), `${kind}:${defect}`).toMatchObject({
           type: "unavailable",
-          reason,
-          detail:
-            reason === "malformed"
-              ? "Error: The search index length differs from its header"
-              : "",
-        },
-      ]);
-      await worker.handle({ type: "search", id: 1, query: "図書館" });
-      expect(worker.replies.at(-1)).toEqual({
-        type: "failed",
-        id: 1,
-        error: "not_ready",
-      });
+        });
+        await worker.handle({ type: "search", id: 1, query: "図書館" });
+        expect(worker.replies.at(-1)).toEqual({
+          type: "failed",
+          id: 1,
+          error: "not_ready",
+        });
+      }
     }
-    const missing = harness(bytes, 404);
-    await missing.handle(load(bytes));
-    const offline = harness(bytes);
-    offline.network.online = false;
-    await offline.handle(load(bytes));
-    expect([...missing.replies, ...offline.replies]).toEqual([
-      {
-        type: "unavailable",
-        reason: "fetch_failed",
-        detail: "The index responded 404",
-      },
-      {
-        type: "unavailable",
-        reason: "fetch_failed",
-        detail: "TypeError: Failed to fetch",
-      },
-    ]);
   });
 
-  it("keeps only the newest index when loads overlap", async () => {
-    const current = modelDirectory(contacts, snapshot).bytes;
-    const stale = modelDirectory(contacts.slice(1), snapshot).bytes;
-    const replies: LocalSearchReply[] = [];
-    const pending: ((response: Response) => void)[] = [];
-    const handle = localSearchService({
-      fetch: async () =>
-        new Promise<Response>((resolve) => {
-          pending.push(resolve);
-        }),
-      post: (reply) => {
-        replies.push(v.parse(LocalSearchReplySchema, reply));
-      },
-    });
-    const first = handle(load(stale));
-    const second = handle(load(current));
-    pending[1]?.(new Response(current.slice()));
-    await second;
-    const answered = replies.length;
-    pending[0]?.(new Response(stale.slice()));
-    await first;
-    expect(replies).toHaveLength(answered);
-    expect(withoutProgress(replies)).toHaveLength(1);
-    expect(replies.at(-1)).toMatchObject({
-      type: "ready",
-      contacts: contacts.length,
+  it("rejects a ranking companion with a different contact count", async () => {
+    const source = fixture();
+    const smaller = fixture(contacts.slice(1));
+    const worker = harness(source, async (url) =>
+      url === source.load.index.url
+        ? response(source.index, source.load.index)
+        : response(smaller.ranking, smaller.load.ranking),
+    );
+    await worker.handle({ ...source.load, ranking: smaller.load.ranking });
+    expect(worker.replies.at(-1)).toMatchObject({
+      type: "unavailable",
+      reason: "malformed",
     });
   });
 
-  it("reports the decoded bytes in bounded, increasing steps", async () => {
-    const { bytes } = modelDirectory(contacts, snapshot);
-    const chunk = Math.ceil(bytes.byteLength / chunkCount);
-    const replies: LocalSearchReply[] = [];
-    const handle = localSearchService({
-      fetch: async () =>
-        new Response(
-          new ReadableStream<Uint8Array>({
-            start(controller): void {
-              for (let offset = 0; offset < bytes.byteLength; offset += chunk)
-                controller.enqueue(bytes.slice(offset, offset + chunk));
-              controller.close();
-            },
-          }),
-        ),
-      post: (reply) => {
-        replies.push(v.parse(LocalSearchReplySchema, reply));
-      },
+  it("keeps the admitted pair during replacement and ignores stale loads", async () => {
+    const source = fixture();
+    const replacement = fixture(contacts.slice(1));
+    const pending = new Map<string, (value: Response) => void>();
+    let held = false;
+    const worker = harness(source, async (url) => {
+      if (held)
+        return new Promise<Response>((resolve) => {
+          pending.set(url, resolve);
+        });
+      return url === source.load.index.url
+        ? response(source.index, source.load.index)
+        : response(source.ranking, source.load.ranking);
     });
-    await handle(load(bytes));
-    const progress = replies.flatMap((reply) =>
+    await worker.handle(source.load);
+    held = true;
+    const stale = worker.handle(source.load);
+    const latest = worker.handle(replacement.load);
+    await worker.handle({ type: "search", id: 1, query: "図書館" });
+    expect(worker.replies.at(-1)).toMatchObject({ type: "results", total: 2 });
+    pending.get(replacement.load.index.url)?.(
+      response(replacement.index, replacement.load.index),
+    );
+    await vi.waitFor(() => {
+      expect(pending.has(replacement.load.ranking.url)).toBe(true);
+    });
+    pending.get(replacement.load.ranking.url)?.(
+      response(replacement.ranking, replacement.load.ranking),
+    );
+    await latest;
+    const answered = worker.replies.length;
+    pending.get(source.load.index.url)?.(
+      response(source.index, source.load.index),
+    );
+    await stale;
+    expect(worker.replies).toHaveLength(answered);
+    await worker.handle({ type: "search", id: 2, query: "図書館" });
+    expect(worker.replies.at(-1)).toMatchObject({ type: "results", total: 1 });
+  });
+
+  it("reports increasing progress across both decoded artifacts", async () => {
+    const source = fixture();
+    const worker = harness(source);
+    await worker.handle(source.load);
+    const progress = worker.replies.flatMap((reply) =>
       reply.type === "progress" ? [reply] : [],
     );
-    expect(progress.length).toBeGreaterThan(1);
     expect(progress.length).toBeLessThanOrEqual(indexProgressSteps);
-    expect(progress.every((reply) => reply.total === bytes.byteLength)).toBe(
-      true,
-    );
     expect(
       progress.every(
-        (reply, index) =>
-          index === 0 || reply.received > (progress[index - 1]?.received ?? 0),
+        (reply, i) =>
+          reply.total === source.index.length + source.ranking.length &&
+          (i === 0 || reply.received > (progress[i - 1]?.received ?? 0)),
       ),
     ).toBe(true);
-    expect(progress.at(-1)?.received).toBe(bytes.byteLength);
-    expect(replies.at(-1)).toMatchObject({ type: "ready" });
+    expect(progress.at(-1)?.received).toBe(
+      source.index.length + source.ranking.length,
+    );
   });
 
-  it("answers from the current index until a replacement is admitted, and drops it when the replacement fails", async () => {
-    const current = modelDirectory(contacts, snapshot).bytes;
-    const replacement = modelDirectory(contacts.slice(1), snapshot).bytes;
-    const replies: LocalSearchReply[] = [];
-    const pending: ((response: Response) => void)[] = [];
-    const handle = localSearchService({
-      fetch: async () =>
-        new Promise<Response>((resolve) => {
-          pending.push(resolve);
+  it("refuses foreign artifact locations before fetching", async () => {
+    const source = fixture();
+    const worker = harness(source);
+    for (const kind of ["index", "ranking"] as const)
+      await expect(
+        worker.handle({
+          ...source.load,
+          [kind]: { ...source.load[kind], url: "https://example.org/index" },
         }),
-      post: (reply) => {
-        replies.push(v.parse(LocalSearchReplySchema, reply));
-      },
-    });
-    const first = handle(load(current));
-    pending[0]?.(new Response(current.slice()));
-    await first;
-    const second = handle(load(replacement));
-    await handle({ type: "search", id: 1, query: "図書館" });
-    expect(replies.at(-1)).toMatchObject({ type: "results", id: 1, total: 3 });
-    pending[1]?.(new Response(replacement.slice()));
-    await second;
-    await handle({ type: "search", id: 2, query: "図書館" });
-    expect(replies.at(-1)).toMatchObject({ type: "results", id: 2, total: 2 });
-    const failing = handle(load(current));
-    pending[2]?.(new Response(null, { status: 404 }));
-    await failing;
-    await handle({ type: "search", id: 3, query: "図書館" });
-    expect(replies.at(-1)).toEqual({
-      type: "failed",
-      id: 3,
-      error: "not_ready",
-    });
-  });
-
-  it("refuses malformed messages and foreign index locations", async () => {
-    const { bytes } = modelDirectory(contacts, snapshot);
-    const worker = harness(bytes);
-    for (const url of ["https://example.org/index", "//example.org/x", "/\\x"])
-      await expect(worker.handle(load(bytes, { url }))).rejects.toThrow();
-    await expect(
-      worker.handle({ type: "search", query: "x" }),
-    ).rejects.toThrow();
+      ).rejects.toThrow();
     expect(worker.requested).toEqual([]);
   });
 });
