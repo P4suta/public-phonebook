@@ -427,12 +427,12 @@ Each profile also counts search messages and returned JSON bytes during the UI s
 The record holds measurements, not thresholds.
 
 On 2026-11-05, all four profiles matched the 2,200 national contract queries with zero divergences and no parser rejections.
-Chromium worker admission took 8,349.1 milliseconds, with a 9.3-millisecond p95 across 57 UI search round trips.
-Desktop WebKit admission took 10,371 milliseconds, with a 19-millisecond UI p95.
+Chromium worker admission took 7,820.9 milliseconds, with a 9.4-millisecond p95 across 57 UI search round trips.
+Desktop WebKit admission took 7,664 milliseconds, with a 17-millisecond UI p95.
 The measured artifact transfers totaled 25,989,318 bytes, and their decoded bodies totaled 123,288,026 bytes.
-Peak process resident memory reached 2,363,752,448 bytes in Chromium, 6,708,477,952 bytes in desktop WebKit, and 6,898,024,448 bytes in mobile WebKit.
+Peak process resident memory reached 2,364,686,336 bytes in Chromium, 6,453,870,592 bytes in desktop WebKit, and 6,850,248,704 bytes in mobile WebKit.
 The process sampler covers admission and the full query campaign, so those peaks don't establish an isolated worker heap or physical-device memory use.
-The final ranked-list worker script measured 54,662 bytes under the 72-KiB limit introduced for the frozen scorer and decoder.
+The final ranked-list worker script measured 54,667 bytes under the 72-KiB limit introduced for the frozen scorer and decoder.
 The 1-MiB compressed server bundle and the page-script budgets remain unchanged.
 
 Run `mise x -- just test` for the fast gate, national data reconciliation and phone profile, complete proof inventory, and national browser campaign.
