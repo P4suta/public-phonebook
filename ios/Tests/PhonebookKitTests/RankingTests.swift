@@ -23,6 +23,8 @@ private var rankingRoot: URL {
     .deletingLastPathComponent().deletingLastPathComponent()
 }
 
+private let nationalSampleStride = 10
+
 private func rankingDigest(_ data: Data) -> String {
   SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
 }
@@ -51,7 +53,12 @@ private func rankingDigest(_ data: Data) -> String {
       rankingBytes, snapshot: fixture.snapshot, contacts: fixture.contacts),
     "Ranking admission failed")
   let scorer = try #require(try? index.scorer(artifact), "Scorer construction failed")
-  for query in fixture.queries {
+  // A tenth of the fixture keeps the hosted runner's other tests on time; `just ios-search-measure` replays all of it.
+  let sampled = fixture.queries.indices.filter {
+    $0.isMultiple(of: nationalSampleStride) || $0 == fixture.queries.count - 1
+  }
+  #expect(sampled.count == 221)
+  for query in sampled.map({ fixture.queries[$0] }) {
     let actual = try scorer.search(query.query).map { [Int64($0.row), $0.score] }
     let expectedScores = Dictionary(uniqueKeysWithValues: query.hits.map { ($0[0], $0[1]) })
     let changed = actual.filter { expectedScores[$0[0]] != $0[1] }.prefix(5).map {
