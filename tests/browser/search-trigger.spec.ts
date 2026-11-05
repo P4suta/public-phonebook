@@ -17,7 +17,7 @@ const SearchStateSchema = v.object({
 });
 type SearchState = v.InferOutput<typeof SearchStateSchema>;
 
-/** Records each contacts query in the page when it calls `fetch`, before the request leaves the page. */
+/** Records each contact-groups query in the page when it calls `fetch`, before the request leaves the page. */
 async function recordSearches(page: Page): Promise<void> {
   await page.addInitScript((key) => {
     const fetched: string[] = [];
@@ -28,7 +28,7 @@ async function recordSearches(page: Page): Promise<void> {
         input instanceof Request ? input.url : String(input),
         location.href,
       );
-      if (url.pathname === "/api/contacts")
+      if (url.pathname === "/api/contact-groups")
         fetched.push(url.searchParams.get("q") ?? "");
       return send(input, init);
     };

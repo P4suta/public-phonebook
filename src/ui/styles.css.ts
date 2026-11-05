@@ -220,15 +220,41 @@ export const results = style({
   display: "flex",
   flexDirection: "column",
   gap: 0,
-  listStyle: "decimal",
-  padding: `0 0 0 ${tokens.space["24"]}`,
+  listStyle: "none",
+  padding: 0,
   margin: "0",
 });
-export const resultArea = style({
+export const resultGroups = style({
   display: "flex",
   flexDirection: "column",
   gap: tokens.space["32"],
   minWidth: 0,
+});
+export const resultGroup = style({
+  display: "flex",
+  flexDirection: "column",
+  gap: tokens.space["8"],
+  minWidth: 0,
+});
+/** Puts the category's count right after its label, on the label's baseline. */
+export const resultGroupHeading = style({
+  display: "flex",
+  alignItems: "baseline",
+  gap: tokens.space["8"],
+  ...typography("section"),
+  overflowWrap: "anywhere",
+});
+globalStyle(`${resultGroupHeading} > span:first-of-type`, { minWidth: 0 });
+globalStyle(`${resultGroupHeading} > svg`, {
+  alignSelf: "center",
+  width: tokens.control.categoryIcon,
+  height: tokens.control.categoryIcon,
+  flexShrink: 0,
+});
+globalStyle(`${resultGroupHeading} > span:last-of-type`, {
+  ...typography("meta"),
+  flexShrink: 0,
+  whiteSpace: "nowrap",
 });
 /**
  * Lays a wide result card out in two columns and three rows: the name beside the number, the region beside the call action, and the detail action below the region.
@@ -284,17 +310,6 @@ export const region = style({
   ...typography("meta"),
   overflowWrap: "anywhere",
   ...resultColumn("1"),
-});
-export const resultMetadata = style({
-  display: "flex",
-  flexWrap: "wrap",
-  alignItems: "center",
-  gap: `${tokens.space["4"]} ${tokens.space["16"]}`,
-});
-export const resultCategory = style({
-  display: "inline-flex",
-  alignItems: "center",
-  gap: tokens.space["8"],
 });
 export const contactNumbers = style({
   display: "flex",

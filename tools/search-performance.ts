@@ -1,5 +1,4 @@
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
@@ -64,8 +63,6 @@ const processInventoryMaxBytes = 8 * 1024 * 1024;
 const memorySampleIntervalMs = 250;
 const contractRequestStart = 1_000_000;
 const contractWarmupCount = 32;
-const hexRadix = 16;
-const hexByteWidth = 2;
 const maximumAdmissionMs = 1500;
 const maximumAddedProcessBytes = 400_000_000;
 
@@ -632,11 +629,8 @@ async function measureRankingContract(
   const admitted = contract.queries.filter(
     (entry) => localQuery(entry.query).ok,
   );
-  const expected = admitted.map((entry) =>
-    createHash("sha256").update(JSON.stringify(entry.hits)).digest("hex"),
-  );
   const raw: unknown = await page.evaluate(
-    async ({ queries, requestStart, timeoutMs, warmups, radix, byteWidth }) => {
+    async ({ queries, requestStart, timeoutMs, warmups }) => {
       const candidate: unknown = Reflect.get(
         window,
         "__searchPerformanceWorker",
@@ -645,7 +639,11 @@ async function measureRankingContract(
         throw new Error("The production search Worker is missing");
       const worker = candidate;
       let id = requestStart;
-      async function ask(query: string, visible: number): Promise<unknown> {
+      async function ask(
+        query: string,
+        visible: number,
+        category: string,
+      ): Promise<unknown> {
         id += 1;
         const requestId = id;
         return new Promise((resolve, reject) => {
@@ -669,75 +667,98 @@ async function measureRankingContract(
           worker.postMessage(
             visible === 0
               ? { type: "search", id: requestId, query }
-              : { type: "continue", id: requestId, query, visible },
+              : { type: "continue", id: requestId, query, category, visible },
           );
         });
       }
-      async function hits(
-        query: string,
-      ): Promise<readonly (readonly [number, number])[]> {
-        const values: [number, number][] = [];
-        let total = 0;
-        do {
-          const reply = await ask(query, values.length);
-          if (typeof reply !== "object" || reply === null)
-            throw new Error("Invalid worker reply");
-          const rows: unknown = Reflect.get(reply, "rows");
-          total = Number(Reflect.get(reply, "total"));
-          if (!Array.isArray(rows) || !Number.isSafeInteger(total))
-            throw new Error("The worker rejected a contract query");
-          if (rows.length === 0 && values.length < total)
-            throw new Error("Worker continuation stopped early");
-          for (const row of rows) {
-            if (typeof row !== "object" || row === null)
-              throw new Error("Invalid ranked row");
-            const position = Number(Reflect.get(row, "row"));
-            const score = Number(Reflect.get(row, "score"));
-            if (!Number.isSafeInteger(position) || !Number.isSafeInteger(score))
-              throw new Error("Missing integer ranking values");
-            values.push([position, score]);
-          }
-        } while (values.length < total);
-        return values;
+      function scored(rows: unknown): [number, number][] {
+        if (!Array.isArray(rows)) throw new Error("Invalid worker rows");
+        return rows.map((row: unknown) => {
+          if (typeof row !== "object" || row === null)
+            throw new Error("Invalid ranked row");
+          const position = Number(Reflect.get(row, "row"));
+          const score = Number(Reflect.get(row, "score"));
+          if (!Number.isSafeInteger(position) || !Number.isSafeInteger(score))
+            throw new Error("Missing integer ranking values");
+          return [position, score];
+        });
       }
-      for (const query of queries.slice(0, warmups)) await hits(query);
+      async function grouped(
+        query: string,
+      ): Promise<{ category: string; hits: [number, number][] }[]> {
+        const reply = await ask(query, 0, "");
+        if (typeof reply !== "object" || reply === null)
+          throw new Error("Invalid worker reply");
+        const groups: unknown = Reflect.get(reply, "groups");
+        if (!Array.isArray(groups))
+          throw new Error("The worker rejected a contract query");
+        const result: { category: string; hits: [number, number][] }[] = [];
+        for (const group of groups) {
+          const category = String(Reflect.get(group, "category"));
+          const total = Number(Reflect.get(group, "total"));
+          const hits = scored(Reflect.get(group, "rows"));
+          while (hits.length < total) {
+            const page = await ask(query, hits.length, category);
+            if (typeof page !== "object" || page === null)
+              throw new Error("Invalid worker page");
+            const more = scored(Reflect.get(page, "rows"));
+            if (more.length === 0)
+              throw new Error("Worker continuation stopped early");
+            hits.push(...more);
+          }
+          result.push({ category, hits });
+        }
+        return result;
+      }
+      for (const query of queries.slice(0, warmups)) await grouped(query);
       const times: number[] = [];
-      const hashes: string[] = [];
+      const answers: { category: string; hits: [number, number][] }[][] = [];
       for (const query of queries) {
         const start = performance.now();
-        const ranked = await hits(query);
+        answers.push(await grouped(query));
         times.push(performance.now() - start);
-        const hash = new Uint8Array(
-          await crypto.subtle.digest(
-            "SHA-256",
-            new TextEncoder().encode(JSON.stringify(ranked)),
-          ),
-        );
-        hashes.push(
-          Array.from(hash, (byte) =>
-            byte.toString(radix).padStart(byteWidth, "0"),
-          ).join(""),
-        );
       }
-      return { times, hashes };
+      return { times, answers };
     },
     {
       queries: admitted.map((entry) => entry.query),
       requestStart: contractRequestStart,
       timeoutMs: searchTimeoutMs,
       warmups: contractWarmupCount,
-      radix: hexRadix,
-      byteWidth: hexByteWidth,
     },
   );
+  const GroupSchema = v.object({
+    category: v.string(),
+    hits: v.array(v.tuple([v.number(), v.number()])),
+  });
   const measured = v.parse(
-    v.object({ times: v.array(v.number()), hashes: v.array(v.string()) }),
+    v.object({
+      times: v.array(v.number()),
+      answers: v.array(v.array(GroupSchema)),
+    }),
     raw,
   );
-  const divergences = admitted.flatMap((entry, i) =>
-    measured.hashes[i] === expected[i] ? [] : [entry.query],
-  );
-  if (measured.hashes.length !== admitted.length || divergences.length)
+  const divergences = admitted.flatMap((entry, i) => {
+    const answer = measured.answers[i] ?? [];
+    const categoryOf = new Map(
+      answer.flatMap((group) =>
+        group.hits.map(([row]) => [row, group.category] as const),
+      ),
+    );
+    const expected = new Map<string, [number, number][]>();
+    for (const [row, score] of entry.hits) {
+      const category = categoryOf.get(row) ?? "";
+      expected.set(category, [...(expected.get(category) ?? []), [row, score]]);
+    }
+    const wanted = [...expected].map(([category, hits]) => ({
+      category,
+      hits,
+    }));
+    return JSON.stringify(wanted) === JSON.stringify(answer)
+      ? []
+      : [entry.query];
+  });
+  if (measured.answers.length !== admitted.length || divergences.length)
     throw new Error(`Worker ranking differs for ${divergences.length} queries`);
   return {
     compared: admitted.length,

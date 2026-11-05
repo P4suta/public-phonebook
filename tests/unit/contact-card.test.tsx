@@ -17,7 +17,6 @@ import {
   catalogRegions,
   localCard,
   regionLabel,
-  resultIdentity,
   serverCard,
 } from "../../src/ui/result-cards.ts";
 
@@ -45,8 +44,6 @@ vi.mock("../../src/ui/styles.css.ts", () => ({
   detailAction: "detailAction",
   phoneGroup: "phoneGroup",
   region: "region",
-  resultMetadata: "resultMetadata",
-  resultCategory: "resultCategory",
   heading: "heading",
   solid: "solid",
   srOnly: "srOnly",
@@ -102,33 +99,6 @@ const contact = v.parse(ContactSchema, {
 const propertyRuns = 200;
 const propertySeed = 160;
 
-it("keeps card identity across server and device locators and distinguishes displayed content", () => {
-  const server = serverCard(contact, regions, "/");
-  const local = localCard(
-    {
-      row: 41,
-      name: contact.name,
-      category: contact.category,
-      region: "13101",
-      phones: ["0335812331", "0338272053"],
-      hasAddress: true,
-    },
-    "a".repeat(64),
-    regions,
-    "/",
-  );
-  expect(server.key).not.toBe(local.key);
-  expect(resultIdentity(server)).toBe(resultIdentity(local));
-  for (const changed of [
-    { ...local, name: "Another facility" },
-    { ...local, category: "medical" as const },
-    { ...local, region: "京都府" },
-    { ...local, phones: ["+81774981200"] },
-    { ...local, hasAddress: false },
-  ])
-    expect(resultIdentity(changed)).not.toBe(resultIdentity(server));
-});
-
 it("shows every telephone action and one contact-save action for a multi-number facility", () => {
   const result = serverCard(contact, regions, "/?q=library");
   for (const markup of [
@@ -169,9 +139,7 @@ it("shows every telephone action and one contact-save action for a multi-number 
     } else {
       expect(markup).not.toContain("Tokyo");
       expect(markup).not.toContain("google.com/maps");
-      expect(markup).toContain('data-result-category="library"');
-      expect(markup).toContain("東京都千代田区");
-      expect(markup).toContain("図書館");
+      expect(markup).toContain('<p class="region">東京都千代田区</p>');
       expect(markup).toContain(
         'href="/contacts/fixture%3Amultiple-phones?from=%2F%3Fq%3Dlibrary"',
       );
@@ -236,7 +204,7 @@ it("keeps a result's name as heading text and labels its one detail action by th
       createElement(ResultCard, { card, onOpenRow: () => undefined }),
     );
     expect(markup).toContain(
-      `<h2 class="contactName" id="contact-${contact.id}" tabindex="-1">Public library</h2>`,
+      `<h3 class="contactName" id="contact-${contact.id}" tabindex="-1">Public library</h3>`,
     );
     expect(markup.match(/href="\/contacts\//gu)).toHaveLength(1);
     expect(markup).toMatch(
@@ -299,7 +267,6 @@ it("links a device result through its index row and keeps the national number's 
     expect(card).toEqual({
       key: "row-41",
       name: "市立図書館",
-      category: "library",
       region: "京都府",
       phones: ["+81774981200"],
       hasAddress,

@@ -32,12 +32,19 @@ export interface LocalIndexState {
   readonly regions: RegionNames | null;
 }
 
-export interface LocalResults {
+export interface LocalGroup {
+  readonly category: string;
   readonly total: number;
   readonly rows: readonly LocalRow[];
 }
 
+export interface LocalResults {
+  readonly total: number;
+  readonly groups: readonly LocalGroup[];
+}
+
 export interface LocalPage {
+  readonly category: string;
   readonly total: number;
   readonly visible: number;
   readonly rows: readonly LocalRow[];
@@ -109,18 +116,15 @@ export class LocalIndexClient {
     void this.#locate();
   }
 
-  async search(
-    query: string,
-    category: Category | "" = "",
-  ): Promise<LocalResults | null> {
-    const answer = await this.#ask({ type: "search", query, category });
+  async search(query: string): Promise<LocalResults | null> {
+    const answer = await this.#ask({ type: "search", query });
     return answer?.type === "results" ? answer : null;
   }
 
   async page(
     query: string,
+    category: Category,
     visible: number,
-    category: Category | "" = "",
   ): Promise<LocalPage | null> {
     const answer = await this.#ask({
       type: "continue",
