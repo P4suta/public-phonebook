@@ -6,6 +6,7 @@ import PhonebookCore
 public final class DirectoryModel {
   private final class Run: Sendable {}
   private nonisolated static let contactBatchSize = 500
+  public static let previewSize = 3
   public static let pageSize = ResultPage.size
 
   public var query = ""
@@ -16,7 +17,8 @@ public final class DirectoryModel {
   public private(set) var failed = false
   public private(set) var categories: [CategoryInfo] = []
   public private(set) var generation: UUID?
-  public private(set) var shown = 0
+  /// How many matches each expanded category shows, keyed by category index.
+  public private(set) var shown: [Int: Int] = [:]
   private var contacts: [Int64: Contact] = [:]
   @ObservationIgnored private let store: any DirectorySearchSource
   @ObservationIgnored private let allowsForgivingSearch: Bool
@@ -36,10 +38,16 @@ public final class DirectoryModel {
   }
 
   public var ready: Bool { scorer != nil || index != nil }
-  public var visible: [Contact] {
-    results?.ids.prefix(shown).compactMap { contacts[$0] } ?? []
+
+  public func visible(_ group: ResultGroup) -> [Contact] {
+    group.ids.prefix(shown[group.category] ?? Self.previewSize).compactMap { contacts[$0] }
   }
-  public var expandable: Bool { shown < (results?.total ?? 0) }
+
+  public func expandable(_ group: ResultGroup) -> Bool {
+    (shown[group.category] ?? Self.previewSize) < group.total
+  }
+
+  public func expanded(_ group: ResultGroup) -> Bool { shown[group.category] != nil }
 
   public func activate(_ manifest: SnapshotManifest?) async {
     guard manifest?.generation != generation || !ready else { return }
@@ -59,7 +67,7 @@ public final class DirectoryModel {
     categories = []
     results = nil
     searched = nil
-    shown = 0
+    shown = [:]
     searching = false
     failed = false
     loading = generation != nil
@@ -97,7 +105,7 @@ public final class DirectoryModel {
     paging = nil
     loadingMore = false
     pageRun = nil
-    shown = 0
+    shown = [:]
     results = nil
     let run = Run()
     searchRun = run
@@ -112,45 +120,39 @@ public final class DirectoryModel {
     let store = store
     let scorer = scorer
     let index = index
+    let categories = categories
     let typed = query
     let phone = SearchInput.normalizedPhone(typed).flatMap { try? CanonicalPhone($0) }
     let task = Task {
       do {
-        let ids: [Int64]
+        let groups: [ResultGroup]
+        var loaded: [Int64: Contact] = [:]
         if let phone {
           let matches = try await store.contactIDs(generation: generation, number: phone.number)
           let names = try await store.searchIndex(generation: generation)
-          ids = try names.orderedIDs(names.exact(matches))
+          groups = Self.groups(try names.exact(matches), index: names, categories: categories)
+        } else if let scorer {
+          let ids = try await Self.detached { try scorer.search(typed).map(\.id) }
+          // A ranked search returns at most one page of candidates, so their records decide the categories.
+          loaded = try await Self.fetch(ids, generation: generation, store: store, cached: [:])
+          groups = Self.groups(ids, contacts: loaded, categories: categories)
+        } else if let index {
+          let words = SearchInput.words(typed)
+          let matches = try await Self.detached { try index.search(words) }
+          groups = Self.groups(matches, index: index, categories: categories)
         } else {
-          let work = Task.detached(priority: .userInitiated) {
-            try Task.checkCancellation()
-            let ids: [Int64]
-            if let scorer {
-              ids = try scorer.search(typed).map(\.id)
-            } else if let index {
-              ids = try index.orderedIDs(index.search(SearchInput.words(typed)))
-            } else {
-              throw ImportError.unavailableStorage
-            }
-            try Task.checkCancellation()
-            return ids
-          }
-          ids = try await withTaskCancellationHandler {
-            try await work.value
-          } onCancel: {
-            work.cancel()
-          }
+          throw ImportError.unavailableStorage
         }
-        let target = ResultPage.end(shown: 0, total: ids.count)
-        let loaded = try await Self.fetch(
-          Array(ids.prefix(target)), generation: generation, store: store, cached: [:])
+        loaded = try await Self.fetch(
+          groups.flatMap { $0.ids.prefix(Self.previewSize) }, generation: generation,
+          store: store, cached: loaded)
         try Task.checkCancellation()
         guard searchRun === run else { return }
         contacts = loaded
-        shown = target
+        let total = groups.reduce(0) { $0 + $1.total }
         results = SearchResults(
-          input: typed, ids: ids,
-          limited: scorer != nil && phone == nil && ids.count == RankingPolicy.results)
+          input: typed, groups: groups,
+          limited: scorer != nil && phone == nil && total == RankingPolicy.results)
         failed = false
         searching = false
       } catch {
@@ -173,14 +175,18 @@ public final class DirectoryModel {
     }
   }
 
+  /// Shows the next page of the category and returns the task that loads it, or the page task already running.
+  /// It returns nil when the category already shows every match.
   @discardableResult
-  public func more() -> Task<Void, Never>? {
-    guard let results, let generation, expandable, !searching else { return nil }
+  public func more(_ group: ResultGroup) -> Task<Void, Never>? {
+    guard let generation, expandable(group), !searching else { return nil }
     if let paging { return paging }
     let run = Run()
     pageRun = run
     loadingMore = true
-    let target = ResultPage.end(shown: shown, total: results.total)
+    let target = ResultPage.end(
+      shown: shown[group.category] ?? Self.previewSize, total: group.total)
+    let ids = Array(group.ids.prefix(target))
     let cached = contacts
     let store = store
     let task = Task {
@@ -192,12 +198,11 @@ public final class DirectoryModel {
         }
       }
       do {
-        let loaded = try await Self.fetch(
-          Array(results.ids.prefix(target)), generation: generation, store: store, cached: cached)
+        let loaded = try await Self.fetch(ids, generation: generation, store: store, cached: cached)
         try Task.checkCancellation()
         guard pageRun === run else { return }
         contacts = loaded
-        shown = target
+        shown[group.category] = target
       } catch {
         guard pageRun === run, !(error is CancellationError) else { return }
         failed = true
@@ -205,6 +210,56 @@ public final class DirectoryModel {
     }
     paging = task
     return task
+  }
+
+  private nonisolated static func detached<Value: Sendable>(
+    _ work: @escaping @Sendable () throws -> Value
+  ) async throws -> Value {
+    let task = Task.detached(priority: .userInitiated) {
+      try Task.checkCancellation()
+      let value = try work()
+      try Task.checkCancellation()
+      return value
+    }
+    return try await withTaskCancellationHandler {
+      try await task.value
+    } onCancel: {
+      task.cancel()
+    }
+  }
+
+  /// Names the groups that the literal index returns, in its order.
+  private nonisolated static func groups(
+    _ matches: [[LocalSearch.Match]], index: LocalSearch, categories: [CategoryInfo]
+  ) -> [ResultGroup] {
+    matches.compactMap { group in
+      guard let first = group.first else { return nil }
+      let category = index.category(row: first.row)
+      guard categories.indices.contains(category) else { return nil }
+      return ResultGroup(
+        category: category, key: categories[category].id, label: categories[category].label,
+        ids: group.map(\.id))
+    }
+  }
+
+  /// Groups ranked records by category, placing each category where its first record appears.
+  private nonisolated static func groups(
+    _ ids: [Int64], contacts: [Int64: Contact], categories: [CategoryInfo]
+  ) -> [ResultGroup] {
+    var order: [Int] = []
+    var members: [Int: [Int64]] = [:]
+    for id in ids {
+      guard let key = contacts[id]?.categoryKey,
+        let category = categories.firstIndex(where: { $0.id == key })
+      else { continue }
+      if members[category] == nil { order.append(category) }
+      members[category, default: []].append(id)
+    }
+    return order.map {
+      ResultGroup(
+        category: $0, key: categories[$0].id, label: categories[$0].label,
+        ids: members[$0] ?? [])
+    }
   }
 
   private nonisolated static func fetch(

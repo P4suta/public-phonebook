@@ -16,6 +16,11 @@ private func rankedDirectory(
   return (store, try await store.publish(at: Date()))
 }
 
+/// The names that the screen shows, category by category.
+@MainActor private func shownNames(_ model: DirectoryModel) -> [[String]] {
+  model.results?.groups.map { model.visible($0).map(\.name) } ?? []
+}
+
 @MainActor @Test func directoryModelDefaultsToLiteralSearchEvenWithSavedRanking() async throws {
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }
@@ -30,7 +35,7 @@ private func rankedDirectory(
   #expect(model.results?.ids == [])
   model.query = "a"
   await model.search()?.value
-  #expect(model.visible.map(\.name) == ["Alpha", "Beta"])
+  #expect(shownNames(model) == [["Alpha"], ["Beta"]])
   #expect(model.results?.limited == false)
 }
 
@@ -62,7 +67,7 @@ private func rankedDirectory(
     })
 }
 
-@MainActor @Test func directoryModelUsesOneRankingAcrossCategories() async throws {
+@MainActor @Test func directoryModelGroupsRankedResultsByCategory() async throws {
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }
   let (store, saved) = try await rankedDirectory(
@@ -76,8 +81,9 @@ private func rankedDirectory(
   await model.activate(saved)
   model.query = "demo"
   await model.search()?.value
-  #expect(model.results?.ids == [1, 3, 2])
-  #expect(model.visible.map(\.name) == ["Alpha", "Beta", "Gamma"])
+  // The scorer ranks Alpha, Beta, and Gamma, so Alpha's category comes first and keeps Gamma after Alpha.
+  #expect(model.results?.ids == [1, 2, 3])
+  #expect(shownNames(model) == [["Alpha", "Gamma"], ["Beta"]])
 }
 
 @MainActor @Test func directoryModelPreservesWrittenExactQueriesBeforeFolding() async throws {
@@ -186,8 +192,8 @@ private func delayedDirectory(root: URL) async throws -> (DelayedDirectory, Snap
   await gate.release()
   await old?.value
   #expect(model.results?.input == "B")
-  #expect(model.visible.count == 20)
-  #expect(model.visible.allSatisfy { $0.name.hasPrefix("B") })
+  #expect(shownNames(model).flatMap { $0 }.count == DirectoryModel.previewSize)
+  #expect(shownNames(model).flatMap { $0 }.allSatisfy { $0.hasPrefix("B") })
   #expect(!model.searching)
 }
 
@@ -208,22 +214,23 @@ private func delayedDirectory(root: URL) async throws -> (DelayedDirectory, Snap
     }
   }
   await source.holdContacts(oldGate)
-  let old = model.more()
+  let old = model.more(try #require(model.results?.groups.first))
   await oldGate.waitForEntry()
   model.query = "B"
   await model.search()?.value
+  let group = try #require(model.results?.groups.first)
   await source.holdContacts(currentGate)
-  let current = model.more()
+  let current = model.more(group)
   await currentGate.waitForEntry()
   await oldGate.release()
   await old?.value
   #expect(model.loadingMore)
-  #expect(model.visible.count == 20)
+  #expect(model.visible(group).count == DirectoryModel.previewSize)
   await currentGate.release()
   await current?.value
   #expect(!model.loadingMore)
-  #expect(model.visible.count == 40)
-  #expect(model.visible.allSatisfy { $0.name.hasPrefix("B") })
+  #expect(model.visible(group).count == DirectoryModel.previewSize + DirectoryModel.pageSize)
+  #expect(model.visible(group).allSatisfy { $0.name.hasPrefix("B") })
 }
 
 @MainActor @Test func searchPreparationUsesTheLatestTypedInputAndRejectsMissingContacts()
@@ -257,7 +264,7 @@ private func delayedDirectory(root: URL) async throws -> (DelayedDirectory, Snap
   #expect(model.results?.input == "A")
 }
 
-@MainActor @Test func telephoneResultsKeepEveryCategoryInOneNameOrder() async throws {
+@MainActor @Test func telephoneResultsGroupEveryCategoryInNameOrder() async throws {
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }
   let (store, saved) = try await rankedDirectory(
@@ -270,7 +277,7 @@ private func delayedDirectory(root: URL) async throws -> (DelayedDirectory, Snap
   await model.activate(saved)
   model.query = "03-5321-1111"
   await model.search()?.value
-  #expect(model.results?.ids == [1, 3, 2])
+  #expect(shownNames(model) == [["Alpha", "Gamma"], ["Beta"]])
   #expect(model.results?.limited == false)
 }
 
@@ -295,17 +302,28 @@ private struct OfflineDirectory: HTTPTransport {
   let saved = try await SyncEngine(api: api, store: store, searchArtifacts: source).firstRun(
     bundle: archive, progress: { _ in })
   let scorer = try #require(try await store.rankedSearch(generation: saved.manifest.generation))
-  let expected = try scorer.search("facility").map(\.id)
-  #expect(expected.count == 100)
+  let ranked = try scorer.search("facility").map(\.id)
+  #expect(ranked.count == 100)
+  let records = try await store.contacts(generation: saved.manifest.generation, ids: ranked)
+  let keys = Dictionary(uniqueKeysWithValues: records.map { ($0.id, $0.categoryKey) })
+  var order: [String] = []
+  var expected: [String: [Int64]] = [:]
+  for id in ranked {
+    let key = try #require(keys[id])
+    if expected[key] == nil { order.append(key) }
+    expected[key, default: []].append(id)
+  }
   let model = DirectoryModel(store: store, allowsForgivingSearch: true)
   await model.activate(saved.manifest)
   model.query = "facility"
   await model.search()?.value
   #expect(model.results?.limited == true)
-  #expect(model.visible.map(\.id) == Array(expected.prefix(20)))
-  while model.expandable {
-    await model.more()?.value
-    #expect(model.visible.map(\.id) == Array(expected.prefix(model.shown)))
+  let groups = try #require(model.results?.groups)
+  #expect(groups.map(\.key) == order)
+  for group in groups {
+    let ids = try #require(expected[group.key])
+    #expect(model.visible(group).map(\.id) == Array(ids.prefix(DirectoryModel.previewSize)))
+    while model.expandable(group) { await model.more(group)?.value }
+    #expect(model.visible(group).map(\.id) == ids)
   }
-  #expect(model.visible.map(\.id) == expected)
 }

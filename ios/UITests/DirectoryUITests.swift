@@ -69,28 +69,24 @@ final class DirectoryUITests: XCTestCase {
     capture(app, name: "initial-search")
   }
 
-  func testSearchRanksOneListAndShowsMore() throws {
+  func testSearchGroupsRankedResultsAndShowsMore() throws {
     let app = prepared()
     search("facility", in: app)
-    waitForResults("100件", in: app)
+    waitForGroup("library", "件", in: app)
     XCTAssertTrue(app.staticTexts["search-limit"].exists)
-    XCTAssertTrue(app.staticTexts["contact-category"].firstMatch.exists)
     XCTAssertTrue(app.staticTexts["contact-region"].firstMatch.exists)
-    XCTAssertFalse(app.descendants(matching: .any)["group-library"].exists)
-    capture(app, name: "ranked-results")
-    let more = app.buttons["more-results"]
-    XCTAssertTrue(scroll(to: more, in: app, swipes: 30))
-    capture(app, name: "ranked-results-before-more")
+    let more = app.buttons["more-library"]
+    reveal(more, in: app)
+    capture(app, name: "grouped-results")
     let names = app.staticTexts.matching(identifier: "contact-name")
     let previous = Set(names.allElementsBoundByIndex.map(\.label))
     let requests = try proxy().requests.count
     more.tap()
+    waitUntil("the more button disappears", !more.exists, timeout: 10)
     waitUntil(
-      "the next ranked page appears",
+      "the next library page appears",
       names.allElementsBoundByIndex.contains { !previous.contains($0.label) }, timeout: 10)
     XCTAssertEqual(try proxy().requests.count, requests)
-    search("Test facility", in: app)
-    XCTAssertTrue(app.staticTexts["results-count"].isHittable)
   }
 
   /// The search field offers no clear button of its own, so the system's close control beside it is the one clear control.
@@ -111,7 +107,10 @@ final class DirectoryUITests: XCTestCase {
     let app = prepared()
     for query in ["03-0000-0000", "０３（００００）００００"] {
       search(query, in: app)
-      waitForResults("241件", in: app)
+      // Every one of the 241 fixture records shares the number: 147 libraries, 47 clinics, and 47 dentists.
+      waitForGroup("library", "147件", in: app)
+      waitForGroup("medical", "47件", in: app)
+      waitForGroup("dental", "47件", in: app)
       XCTAssertFalse(app.staticTexts["search-limit"].exists)
     }
   }
@@ -123,7 +122,7 @@ final class DirectoryUITests: XCTestCase {
       let name = app.staticTexts["contact-name"].firstMatch
       XCTAssertTrue(name.waitForExistence(timeout: 10))
       XCTAssertEqual(name.label, "公開図書館")
-      XCTAssertEqual(app.staticTexts["contact-category"].firstMatch.label, "図書館")
+      XCTAssertTrue(app.descendants(matching: .any)["group-library"].exists)
       XCTAssertEqual(
         app.staticTexts["contact-region"].firstMatch.label, "Test prefecture 13Test city 13")
     }
@@ -134,8 +133,9 @@ final class DirectoryUITests: XCTestCase {
     let app = prepared(textSize: "UICTContentSizeCategoryAccessibilityXXXL")
     search("こうかいとしょかん", in: app)
     XCTAssertEqual(app.staticTexts["contact-name"].firstMatch.label, "公開図書館")
-    reveal(app.staticTexts["contact-category"].firstMatch, in: app)
-    XCTAssertEqual(app.staticTexts["contact-category"].firstMatch.label, "図書館")
+    let heading = app.descendants(matching: .any)["group-library"]
+    reveal(heading, in: app)
+    XCTAssertTrue(heading.label.hasPrefix("図書館 "))
     reveal(app.staticTexts["contact-region"].firstMatch, in: app)
     XCTAssertEqual(
       app.staticTexts["contact-region"].firstMatch.label, "Test prefecture 13Test city 13")
@@ -157,7 +157,7 @@ final class DirectoryUITests: XCTestCase {
   func testContactDetailShowsRegionSourceAndExternalLinkConfirmation() throws {
     let app = prepared()
     search("試験", in: app)
-    waitForResults("1件", in: app)
+    waitForGroup("dental", "1件", in: app)
     XCTAssertEqual(app.staticTexts["contact-region"].label, "Test prefecture 13Test city 13")
     let name = "試験歯科 <script> & Test, clinic"
     XCTAssertTrue(app.staticTexts[name].exists)
@@ -351,7 +351,7 @@ final class DirectoryUITests: XCTestCase {
     app.activate()
     XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
     goBack(app)
-    waitForResults("1件", in: app)
+    waitForGroup("dental", "1件", in: app)
   }
 
   /// The download starts at the start button, not at launch, and the welcome names the complete archive's size boldly on a costly path.
@@ -551,7 +551,7 @@ final class DirectoryUITests: XCTestCase {
     capture(app, name: "onboarding-ready-bundled")
     finish.tap()
     search("試験", in: app)
-    waitForResults("1件", in: app)
+    waitForGroup("dental", "1件", in: app)
     XCTAssertEqual(try proxy().requests, [])
   }
 
@@ -626,7 +626,7 @@ final class DirectoryUITests: XCTestCase {
     goBack(app)
     XCTAssertFalse(app.staticTexts["sync-error"].exists)
     search("試験", in: app)
-    waitForResults("1件", in: app)
+    waitForGroup("dental", "1件", in: app)
   }
 
   func testLandscapeLargeTextSettings() throws {
@@ -672,9 +672,9 @@ final class DirectoryUITests: XCTestCase {
     search("市立図書館", in: app, timeout: 180)
     let detail = app.buttons["contact-detail"].firstMatch
     XCTAssertTrue(detail.waitForExistence(timeout: 30))
-    XCTAssertTrue(app.staticTexts["contact-category"].firstMatch.exists)
+    XCTAssertTrue(groupHeading(in: app).exists)
     XCTAssertTrue(app.staticTexts["contact-region"].firstMatch.exists)
-    capture(app, name: "live-public-directory-ranked-results")
+    capture(app, name: "live-public-directory-search")
     detail.tap()
     XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
     capture(app, name: "live-public-directory-contact")
@@ -709,7 +709,7 @@ final class DirectoryUITests: XCTestCase {
       stopMeasuring()
     }
     search("市立図書館", in: app, timeout: 180)
-    XCTAssertTrue(app.staticTexts["contact-category"].firstMatch.exists)
+    XCTAssertTrue(groupHeading(in: app).exists)
     capture(app, name: "measured-national-ranked-results")
   }
 
@@ -724,7 +724,7 @@ final class DirectoryUITests: XCTestCase {
     measure(metrics: [XCTMemoryMetric(application: app)], options: options) {
       for query in ["国立国会図書館", "としょかん", "東京都大学", "市立図書館"] {
         search(query, in: app, timeout: 180)
-        XCTAssertTrue(app.staticTexts["contact-category"].firstMatch.exists)
+        XCTAssertTrue(groupHeading(in: app).exists)
       }
     }
   }
@@ -909,19 +909,26 @@ final class DirectoryUITests: XCTestCase {
     return date.label
   }
 
-  private func waitForResults(
-    _ count: String, in app: XCUIApplication,
+  /// The first category heading on the results screen.
+  private func groupHeading(in app: XCUIApplication) -> XCUIElement {
+    app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'group-'"))
+      .firstMatch
+  }
+
+  /// Waits for results, finds a category heading wherever the lazy list puts it, and checks its count.
+  private func waitForGroup(
+    _ key: String, _ count: String, in app: XCUIApplication,
     file: StaticString = #filePath, line: UInt = #line
   ) {
     waitUntil(
       "results appear", app.buttons["contact-detail"].firstMatch.exists, timeout: 15,
       file: file, line: line)
-    let heading = app.staticTexts["results-count"]
+    let heading = app.descendants(matching: .any)["group-\(key)"]
     if !scroll(to: heading, in: app, swipes: 12) {
       _ = scroll(to: heading, in: app, swipes: 12, towardTop: true)
     }
     waitUntil(
-      "the result heading shows \(count)", heading.exists && heading.label.hasPrefix(count + " "),
+      "the \(key) heading shows \(count)", heading.exists && heading.label.hasSuffix(count),
       timeout: 5,
       observed: { heading.exists ? "It shows “\(heading.label)”." : "It doesn't exist." },
       file: file, line: line)

@@ -46,11 +46,23 @@ public struct CategoryInfo: Identifiable, Sendable {
   public let licenseURL: String
 }
 
+/// The matches of one category, in ranking order.
+public struct ResultGroup: Identifiable, Sendable {
+  public let category: Int
+  public let key: String
+  public let label: String
+  public let ids: [Int64]
+  public var id: Int { category }
+  public var total: Int { ids.count }
+}
+
 public struct SearchResults: Sendable {
   public let input: String
-  public let ids: [Int64]
+  /// Categories in the order of their first match.
+  public let groups: [ResultGroup]
   public let limited: Bool
-  public var total: Int { ids.count }
+  public var ids: [Int64] { groups.flatMap(\.ids) }
+  public var total: Int { groups.reduce(0) { $0 + $1.total } }
 }
 
 public enum ImportError: Error, Equatable, Sendable {
