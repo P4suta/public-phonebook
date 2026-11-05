@@ -38,8 +38,8 @@ import { countWork, StepTimer } from "./step-timing.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 56;
-const declaredPostconditionCount = 111;
+const verifiedUnitCount = 390;
+const declaredPostconditionCount = 126;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -53,6 +53,14 @@ const provenPostconditionCount =
   declaredPostconditionCount + releaseControlPostconditions;
 
 const expected = [
+  "diceScore",
+  "boundedDiceQuotient",
+  "mixedNameScore",
+  "readingNameScore",
+  "nonexactSignalScore",
+  "preferredNameScore",
+  "conservativeReading",
+  "readingGate",
   "canFetchNext",
   "cursorDecision",
   "compatibleRegion",
@@ -95,7 +103,19 @@ const expected = [
   "rangeStart",
   "rangeEnd",
 ];
+const annotatedMethods = new Set(["diceScore", "boundedDiceQuotient"]);
 const boundFiles = [
+  "src/core/forgiving-search-policy.ts",
+  "src/core/forgiving-search.ts",
+  "src/core/lexical-search.ts",
+  "src/core/reading-search.ts",
+  "src/core/place-search.ts",
+  "src/core/search-ranking-text.ts",
+  "src/core/search-ranking-artifact.ts",
+  "tests/unit/forgiving-search-policy.test.ts",
+  "tests/unit/forgiving-search.test.ts",
+  "tools/search-ranking-contract.ts",
+  "tests/fixtures/search-ranking.json",
   "src/core/snapshot-policy.ts",
   "src/core/byte-range-policy.ts",
   "src/core/byte-range.ts",
@@ -261,6 +281,7 @@ interface ProofSourceBinding {
   readonly sha256: string;
 }
 const proofSources = [
+  "src/core/forgiving-search-policy.ts",
   "src/core/collection-policy.ts",
   "src/core/search-policy.ts",
   "src/core/search-trigger-policy.ts",
@@ -296,6 +317,36 @@ const localSearchPolicy = "src/core/local-search-policy.ts";
 const rowPolicy = "src/core/row-locator-policy.ts";
 const deltaPolicy = "src/core/directory-delta-policy.ts";
 const negativeControls: readonly NegativeControl[] = [
+  {
+    name: "ranking-dice-scale",
+    source: "src/core/forgiving-search-policy.ts",
+    from: "const diceScale = 20_000;",
+    to: "const diceScale = 20_002;",
+  },
+  {
+    name: "ranking-exact-tier",
+    source: "src/core/forgiving-search-policy.ts",
+    from: "const preferenceScale = 499_999;",
+    to: "const preferenceScale = 500_000;",
+  },
+  {
+    name: "ranking-locked-route",
+    source: "src/core/forgiving-search-policy.ts",
+    from: "    !locked &&\n",
+    to: "    (!locked || present) &&\n",
+  },
+  {
+    name: "ranking-reading-threshold",
+    source: "src/core/forgiving-search-policy.ts",
+    from: "const readingRatioThreshold = 1250;",
+    to: "const readingRatioThreshold = 1249;",
+  },
+  {
+    name: "ranking-reading-band",
+    source: "src/core/forgiving-search-policy.ts",
+    from: "const readingPhoneticWeight = 60;",
+    to: "const readingPhoneticWeight = 61;",
+  },
   {
     name: "search-policy",
     source: searchPolicy,
@@ -773,6 +824,9 @@ async function withVerifier<T>(
         ...models,
         // The deterministic resource limit bounds each condition, and the container's lifetime is the only clock.
         "--resource-limit=5000000",
+        "--isolate-assertions",
+        "--boogie",
+        "/proverOpt:O:smt.arith.solver=6",
         "--unicode-char=false",
         "--allow-deprecation",
         // Each verification condition's row carries the solver's deterministic resource count.
@@ -888,6 +942,16 @@ async function proveCompletely(): Promise<void> {
       })),
     );
     for (const name of expected) {
+      if (annotatedMethods.has(name)) {
+        const declaration =
+          model.slice(model.indexOf(`method ${name}(`)).split("\n{")[0] ?? "";
+        if (
+          !model.includes(`method ${name}(`) ||
+          !declaration.includes("\n  ensures ")
+        )
+          throw new Error(`Missing method proof: ${name}`);
+        continue;
+      }
       if (
         !model.includes(`function ${name}(`) ||
         !model.includes(`lemma ${name}_ensures(`)
