@@ -1,13 +1,8 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import * as v from "valibot";
 import { CategorySchema } from "../core/catalog.ts";
-import { rankingLimits } from "../core/forgiving-search-policy.ts";
-import {
-  createRankedSearch,
-  localQuery,
-  type RankedHit,
-  type RankedSearch,
-} from "../core/local-search.ts";
+import type { RankedSearch } from "../core/forgiving-search.ts";
+import { localQuery, orderedIndexRows } from "../core/local-search.ts";
 import { indexAdmission, nextVisible } from "../core/local-search-policy.ts";
 import {
   type IndexUnavailable,
@@ -23,10 +18,20 @@ import {
   hasSearchIndexSignature,
   type SearchIndex,
 } from "../core/search-index.ts";
-import { decodeRankingArtifact } from "../core/search-ranking-artifact.ts";
 
 const hexadecimalRadix = 16;
 const hexadecimalByteWidth = 2;
+const exactTelephoneScore = 1_000_000;
+
+export type RankingFactory = (
+  index: SearchIndex,
+  bytes: Uint8Array,
+) => RankedSearch;
+
+interface LocalHit {
+  readonly row: number;
+  readonly score?: number;
+}
 
 export interface LocalSearchPorts {
   readonly fetch: (url: string) => Promise<Response>;
@@ -125,9 +130,9 @@ async function download(
   }
 }
 
-function decode(bytes: Uint8Array): Result<SearchIndex, string> {
+function decode(bytes: Uint8Array, lazy: boolean): Result<SearchIndex, string> {
   try {
-    return { ok: true, value: decodeSearchIndex(bytes, true) };
+    return { ok: true, value: decodeSearchIndex(bytes, lazy) };
   } catch (error) {
     return { ok: false, error: String(error) };
   }
@@ -148,25 +153,37 @@ export function localRow(index: SearchIndex, position: number): LocalRow {
 
 export function localSearchService(
   ports: LocalSearchPorts,
+  createRanking?: RankingFactory,
 ): (message: unknown) => Promise<void> {
   let loads = 0;
   let index: SearchIndex | null = null;
   let ranked: RankedSearch | null = null;
   let cached: {
     readonly query: string;
-    readonly matches: readonly RankedHit[];
+    readonly matches: readonly LocalHit[];
   } | null = null;
 
   /** Keeps answering from the current index until a replacement is admitted, and drops it when the replacement fails. */
   async function load(
-    request: Extract<LocalSearchRequest, { type: "load" }>,
+    request: Extract<LocalSearchRequest, { type: "load" | "load-forgiving" }>,
   ): Promise<void> {
     loads += 1;
     const generation = loads;
     const current = (): boolean => generation === loads;
+    if (request.type === "load-forgiving" && !createRanking) {
+      ports.post({
+        type: "unavailable",
+        reason: "malformed",
+        detail: "Forgiving search is unavailable",
+      });
+      return;
+    }
     const expected = request.index;
     const total =
-      expected.uncompressedBytes + request.ranking.uncompressedBytes;
+      expected.uncompressedBytes +
+      (request.type === "load-forgiving"
+        ? request.ranking.uncompressedBytes
+        : 0);
     const downloaded = await download(ports, expected, current, 0, total);
     if (!current()) return;
     if (!downloaded.ok) {
@@ -185,7 +202,9 @@ export function localSearchService(
     const digestMatches = lengthMatches;
     if (!current()) return;
     const signatureMatches = digestMatches && hasSearchIndexSignature(bytes);
-    const decoded = signatureMatches ? decode(bytes) : null;
+    const decoded = signatureMatches
+      ? decode(bytes, request.type === "load-forgiving")
+      : null;
     const admission = indexAdmission(
       bytes.byteLength,
       expected.uncompressedBytes,
@@ -206,41 +225,36 @@ export function localSearchService(
       });
       return;
     }
-    const companion = await download(
-      ports,
-      request.ranking,
-      current,
-      expected.uncompressedBytes,
-      total,
-    );
-    if (!current()) return;
-    if (!companion.ok) {
-      index = null;
-      ranked = null;
-      ports.post({ type: "unavailable", ...companion.error });
-      return;
-    }
-    let replacement: RankedSearch;
-    try {
-      if (request.ranking.snapshot !== expected.snapshot)
-        throw new Error("Ranking discovery snapshot mismatch");
-      replacement = createRankedSearch(
-        decoded.value,
-        decodeRankingArtifact(
-          companion.value,
-          expected.snapshot,
-          decoded.value.rows.length,
-        ),
+    let replacement: RankedSearch | null = null;
+    if (request.type === "load-forgiving" && createRanking) {
+      const companion = await download(
+        ports,
+        request.ranking,
+        current,
+        expected.uncompressedBytes,
+        total,
       );
-    } catch (error) {
-      index = null;
-      ranked = null;
-      ports.post({
-        type: "unavailable",
-        reason: "malformed",
-        detail: String(error),
-      });
-      return;
+      if (!current()) return;
+      if (!companion.ok) {
+        index = null;
+        ranked = null;
+        ports.post({ type: "unavailable", ...companion.error });
+        return;
+      }
+      try {
+        if (request.ranking.snapshot !== expected.snapshot)
+          throw new Error("Ranking discovery snapshot mismatch");
+        replacement = createRanking(decoded.value, companion.value);
+      } catch (error) {
+        index = null;
+        ranked = null;
+        ports.post({
+          type: "unavailable",
+          reason: "malformed",
+          detail: String(error),
+        });
+        return;
+      }
     }
     index = decoded.value;
     ranked = replacement;
@@ -260,11 +274,11 @@ export function localSearchService(
   function matchesFor(
     current: SearchIndex,
     query: string,
-  ): Result<readonly RankedHit[], "invalid_query"> {
+  ): Result<readonly LocalHit[], "invalid_query"> {
     if (cached?.query === query) return { ok: true, value: cached.matches };
     const parsed = localQuery(query);
     if (!parsed.ok) return parsed;
-    let matches: readonly RankedHit[];
+    let matches: readonly LocalHit[];
     if (parsed.value.kind === "words" && ranked) {
       matches = ranked.search(query);
     } else if (parsed.value.kind === "telephone") {
@@ -272,20 +286,21 @@ export function localSearchService(
       matches = current.telephoneRows
         ? current
             .telephoneRows(number)
-            .map((row) => ({ row, score: rankingLimits.exactScore }))
+            .map((row) => ({ row, score: exactTelephoneScore }))
         : current.rows.flatMap((row, position) =>
             row.phones.includes(number)
-              ? [{ row: position, score: rankingLimits.exactScore }]
+              ? [{ row: position, score: exactTelephoneScore }]
               : [],
           );
-    } else matches = [];
+    } else
+      matches = orderedIndexRows(current, parsed.value).map((row) => ({ row }));
     cached = { query, matches };
     return { ok: true, value: matches };
   }
 
   return async (message: unknown): Promise<void> => {
     const request = v.parse(LocalSearchRequestSchema, message);
-    if (request.type === "load") {
+    if (request.type === "load" || request.type === "load-forgiving") {
       await load(request);
       return;
     }
@@ -314,9 +329,10 @@ export function localSearchService(
       return;
     }
     const next = nextVisible(visible, ordered.length);
-    const rows = ordered
-      .slice(visible, next)
-      .map((hit) => ({ ...localRow(current, hit.row), score: hit.score }));
+    const rows = ordered.slice(visible, next).map((hit) => ({
+      ...localRow(current, hit.row),
+      ...(hit.score === undefined ? {} : { score: hit.score }),
+    }));
     if (request.type === "search") {
       ports.post({
         type: "results",

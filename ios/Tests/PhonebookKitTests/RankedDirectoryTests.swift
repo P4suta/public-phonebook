@@ -16,6 +16,52 @@ private func rankedDirectory(
   return (store, try await store.publish(at: Date()))
 }
 
+@MainActor @Test func directoryModelDefaultsToLiteralSearchEvenWithSavedRanking() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let (store, saved) = try await rankedDirectory(
+    root: root,
+    lines: [ArchiveLine(name: "Alpha"), ArchiveLine(category: 1, name: "Beta")],
+    aliases: [(0, "demo"), (1, "demo")])
+  let model = DirectoryModel(store: store)
+  await model.activate(saved)
+  model.query = "demo"
+  await model.search()?.value
+  #expect(model.results?.ids == [])
+  model.query = "a"
+  await model.search()?.value
+  #expect(model.visible.map(\.name) == ["Alpha", "Beta"])
+  #expect(model.results?.limited == false)
+}
+
+@Test func removingSearchArtifactsPreservesTheSavedDirectoryAndIsRepeatable() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let (store, saved) = try await rankedDirectory(root: root, lines: [ArchiveLine(name: "Alpha")])
+  let storage = await store.root
+  try FileManager.default.removeItem(
+    at: storage.appendingPathComponent(saved.generation.uuidString + ".search-ranking"))
+  let previous = UUID()
+  for name in ["search-index.br", "search-ranking.br", "search.json", "search-rows"] {
+    try Data().write(to: storage.appendingPathComponent(previous.uuidString + "." + name))
+  }
+  try FileManager.default.createDirectory(
+    at: store.searchTransfers, withIntermediateDirectories: true)
+  try await store.removeSearchArtifacts()
+  try await store.removeSearchArtifacts()
+  let literal = try #require(try await store.manifest())
+  #expect(literal.generation == saved.generation)
+  #expect(literal.snapshot == saved.snapshot)
+  #expect(literal.rankedSearch == nil)
+  #expect(try await store.contacts(generation: saved.generation, ids: [1]).map(\.name) == ["Alpha"])
+  #expect(try await store.rankedSearch(generation: saved.generation) == nil)
+  #expect(!FileManager.default.fileExists(atPath: store.searchTransfers.path))
+  #expect(
+    try FileManager.default.contentsOfDirectory(atPath: storage.path).allSatisfy {
+      !$0.contains(".search")
+    })
+}
+
 @MainActor @Test func directoryModelUsesOneRankingAcrossCategories() async throws {
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }
@@ -26,7 +72,7 @@ private func rankedDirectory(
       ArchiveLine(category: 1, name: "Beta"),
     ],
     aliases: [(0, "demo"), (1, "demo"), (2, "demo")])
-  let model = DirectoryModel(store: store)
+  let model = DirectoryModel(store: store, allowsForgivingSearch: true)
   await model.activate(saved)
   model.query = "demo"
   await model.search()?.value
@@ -39,7 +85,7 @@ private func rankedDirectory(
   defer { try? FileManager.default.removeItem(at: root) }
   let (store, saved) = try await rankedDirectory(
     root: root, lines: [ArchiveLine(name: "高田医院"), ArchiveLine(name: "髙田医院")])
-  let model = DirectoryModel(store: store)
+  let model = DirectoryModel(store: store, allowsForgivingSearch: true)
   await model.activate(saved)
   for (query, id): (String, Int64) in [("髙田医院", 2), ("高田医院", 1)] {
     model.query = query
@@ -251,7 +297,7 @@ private struct OfflineDirectory: HTTPTransport {
   let scorer = try #require(try await store.rankedSearch(generation: saved.manifest.generation))
   let expected = try scorer.search("facility").map(\.id)
   #expect(expected.count == 100)
-  let model = DirectoryModel(store: store)
+  let model = DirectoryModel(store: store, allowsForgivingSearch: true)
   await model.activate(saved.manifest)
   model.query = "facility"
   await model.search()?.value

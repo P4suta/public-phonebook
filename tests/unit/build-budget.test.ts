@@ -28,6 +28,16 @@ afterEach(async () => {
 });
 
 describe("build budget", () => {
+  it("rejects a forgiving scorer in any built client asset", async () => {
+    const root = await build({
+      "bundle/index.js": "export {};",
+      "assets/assets/local-search-worker-A.js": "self.onmessage=()=>{};",
+      "assets/assets/extra-A.js":
+        "throw Error('Invalid packed ranking format metadata');",
+    });
+    await expect(measureBuild(root)).rejects.toThrow(/forgiving search/u);
+  });
+
   it("measures compressed Worker modules and the search Worker script", async () => {
     const root = await build({
       "bundle/index.js": "export default {};\n".repeat(50),

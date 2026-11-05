@@ -47,16 +47,27 @@ enum AppIdentity {
       root: root.appendingPathComponent("Directory", isDirectory: true), trace: SystemTraceSink())
   }
 
-  static func synchronizer(api: APIClient, store: SnapshotStore) -> SyncEngine {
-    var directory = Bundle.main.resourceURL
-    #if DEBUG
-      if let entry = ProcessInfo.processInfo.environment["PHONEBOOK_BUNDLED_ENTRY"] {
-        directory = URL(fileURLWithPath: entry).deletingLastPathComponent()
-      }
+  static func manifest(in store: SnapshotStore) async throws -> SnapshotManifest? {
+    #if !PHONEBOOK_VERIFICATION_TOOLS
+      try await store.removeSearchArtifacts()
     #endif
-    return SyncEngine(
-      api: api, store: store, trace: SystemTraceSink(),
-      searchArtifacts: SearchArtifactRepository(api: api, bundledDirectory: directory))
+    return try await store.manifest()
+  }
+
+  static func synchronizer(api: APIClient, store: SnapshotStore) -> SyncEngine {
+    #if PHONEBOOK_VERIFICATION_TOOLS
+      var directory = Bundle.main.resourceURL
+      #if DEBUG
+        if let entry = ProcessInfo.processInfo.environment["PHONEBOOK_BUNDLED_ENTRY"] {
+          directory = URL(fileURLWithPath: entry).deletingLastPathComponent()
+        }
+      #endif
+      return SyncEngine(
+        api: api, store: store, trace: SystemTraceSink(),
+        searchArtifacts: SearchArtifactRepository(api: api, bundledDirectory: directory))
+    #else
+      return SyncEngine(api: api, store: store, trace: SystemTraceSink())
+    #endif
   }
 }
 

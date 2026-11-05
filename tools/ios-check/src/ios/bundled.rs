@@ -696,6 +696,7 @@ fn require_built(
     archive: &[u8],
     entry: &[u8],
     admitted_entry: &[u8],
+    search: bool,
 ) -> Result<()> {
     admit_bytes(declaration, archive, declared)?;
     let entry: Value = serde_json::from_slice(entry)?;
@@ -706,7 +707,9 @@ fn require_built(
     );
     let files = bundle_files(app)?;
     let mut expected = vec![app.join(ENTRY_FILE), app.join(ARCHIVE_FILE)];
-    expected.extend(SEARCH_FILES.map(|name| app.join(name)));
+    if search {
+        expected.extend(SEARCH_FILES.map(|name| app.join(name)));
+    }
     expected.sort();
     ensure!(
         files == expected,
@@ -744,9 +747,18 @@ pub(super) fn check_built(root: &Path, app: &Path, configuration: &str) -> Resul
     let entry = fs::read(app.join(ENTRY_FILE))
         .with_context(|| format!("{configuration}: the built app holds no {ENTRY_FILE}"))?;
     let admitted = fs::read(root.join(OUTPUT).join(dataset.name()).join(ENTRY_FILE))?;
-    require_built(declaration, app, &declared, &archive, &entry, &admitted)?;
+    let search = matches!(configuration, "VerificationDebug" | "VerificationRelease");
+    require_built(
+        declaration,
+        app,
+        &declared,
+        &archive,
+        &entry,
+        &admitted,
+        search,
+    )?;
     let prepared = root.join(OUTPUT).join(dataset.name());
-    for name in SEARCH_FILES {
+    for name in SEARCH_FILES.into_iter().filter(|_| search) {
         ensure!(
             fs::read(app.join(name))? == fs::read(prepared.join(name))?,
             "{configuration}: built search artifact {name} differs from admission"
@@ -756,8 +768,16 @@ pub(super) fn check_built(root: &Path, app: &Path, configuration: &str) -> Resul
     let last = changed.len() - 1;
     changed[last] ^= 1;
     ensure!(
-        require_built(declaration, app, &declared, &changed, &entry, &admitted)
-            .is_err_and(|error| error.to_string().contains("differs in sha256")),
+        require_built(
+            declaration,
+            app,
+            &declared,
+            &changed,
+            &entry,
+            &admitted,
+            search
+        )
+        .is_err_and(|error| error.to_string().contains("differs in sha256")),
         "{configuration}: the built-app check accepted an archive with one changed byte"
     );
     println!(
@@ -893,17 +913,20 @@ mod tests {
         for name in SEARCH_FILES {
             fs::write(app.path().join(name), b"fixture")?;
         }
-        require_built("d", app.path(), &declared, b"abc", &entry, &entry)?;
-        assert!(require_built("d", app.path(), &declared, b"abc", &entry, b"{}").is_err());
+        require_built("d", app.path(), &declared, b"abc", &entry, &entry, true)?;
+        assert!(require_built("d", app.path(), &declared, b"abc", &entry, &entry, false).is_err());
+        assert!(require_built("d", app.path(), &declared, b"abc", &entry, b"{}", true).is_err());
         let extension = app.path().join("PlugIns/CallDirectory.appex");
         fs::create_dir_all(&extension)?;
         for name in SEARCH_FILES {
             fs::write(extension.join(name), b"fixture")?;
-            assert!(require_built("d", app.path(), &declared, b"abc", &entry, &entry).is_err());
+            assert!(
+                require_built("d", app.path(), &declared, b"abc", &entry, &entry, true).is_err()
+            );
             fs::remove_file(extension.join(name))?;
         }
         fs::write(extension.join(ARCHIVE_FILE), b"abc")?;
-        assert!(require_built("d", app.path(), &declared, b"abc", &entry, &entry).is_err());
+        assert!(require_built("d", app.path(), &declared, b"abc", &entry, &entry, true).is_err());
         Ok(())
     }
 }

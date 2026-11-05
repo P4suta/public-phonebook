@@ -1,5 +1,20 @@
 # Device name ranking
 
+Forgiving search runs only in the owner's QA iPhone builds and explicit local website development.
+The production website, server, and non-QA iPhone configurations use literal matching in one ordered list.
+The [distribution decision](adr/keep-forgiving-search-in-qa-and-local-development.md) records the resource costs and build boundaries.
+Run `mise x -- just dev-forgiving` to build and serve the website scorer locally over HTTPS.
+The optional port argument defaults to 8787, and `DIAL_LOCAL_STATE` selects the existing seeded local state.
+The recipe passes `--local-forgiving-search` to the development build and loopback preview commands.
+The build command rejects the option in production mode, and the browser also requires a loopback hostname.
+Every ordinary build keeps the flag off, regardless of deployment environment variables.
+An ordinary preview rejects a build that contains the local scorer.
+The local recipe uses workerd's HTTPS socket to preserve the Brotli bytes and response headers that the development HTTP proxy changes.
+The browser uses Miniflare's self-signed loopback certificate, and source changes require another recipe run.
+The production worker loads only the name index, and its build gate rejects packed scorer code and local scorer chunks.
+Vite's [build API](https://vite.dev/guide/api-javascript.html#createbuilder) accepts the local build configuration.
+The [worker constructor](https://vite.dev/guide/features.html#web-workers) uses module mode for the local scorer's dynamic import.
+
 `createRankedSearch` in `src/core/local-search.ts` exposes the frozen facility-name scorer.
 The constructor accepts a decoded `SearchIndex` and a decoded `RankingArtifact` with the same snapshot and contact count.
 It performs no network, file, clock, or environment access.
@@ -44,7 +59,7 @@ Queries with one or two code points use the bounded literal route.
 
 The [scorer decision](adr/rank-device-search-with-place-preferences-and-gated-readings.md) defines retrieval, reading selection, place conditions, score encoding, and ties.
 The [presentation decision](adr/show-one-ranked-list-with-a-server-fallback.md) defines the phase 2 single list and the retained server matcher.
-The website worker admits both artifacts before constructing the scorer and keeps the server fallback when admission fails.
+The local forgiving-search worker admits both artifacts before constructing the scorer and keeps the server fallback when admission fails.
 The iPhone adapter consumes the equivalent ranking contract in Swift.
 
 ## Packed artifact loading
@@ -55,7 +70,7 @@ The decoder keeps byte views instead of expanding national dictionaries and post
 The scorer reads those views directly and preserves the same query and result interface.
 Retained format 1 artifacts continue using the original construction path.
 
-The website uses `decodeSearchIndex(bytes, true)` after digest verification to view name and telephone lines through offsets.
+Local forgiving search uses `decodeSearchIndex(bytes, true)` after digest verification to view name and telephone lines through offsets.
 The default decoder still performs complete row validation for data checks and existing callers.
 Complete data regeneration establishes normalization and dictionary ordering before publication.
 The worker checks decoded identities and structural bounds before admitting the pair.
@@ -78,7 +93,8 @@ The report refuses to mark missing memory or ranking measurements as passing bud
 The release gate's existing performance observation keeps the budget fields with the candidate evidence.
 
 The website presents one ordered list with each facility's category and region.
-The worker returns the first 30 ranked candidates and continues the same array by 30 until it reaches the returned candidate count.
+The production worker orders literal matches by their name tier and name-index row, then returns 30 results per page across category boundaries.
+The local forgiving-search worker returns the first 30 ranked candidates and continues the same array by 30 until it reaches the returned candidate count.
 Its internal messages include the integer score for contract inspection, while result cards leave scores out.
 Complete telephone numbers keep exact-number matching in index row order.
 Existing category URLs restrict the ordered candidates to their named category, and server cursor URLs keep server continuation.

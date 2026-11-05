@@ -18,6 +18,10 @@ export const LocalSearchRequestSchema = v.variant("type", [
   v.strictObject({
     type: v.literal("load"),
     index: SearchIndexLocationSchema,
+  }),
+  v.strictObject({
+    type: v.literal("load-forgiving"),
+    index: SearchIndexLocationSchema,
     ranking: SearchRankingLocationSchema,
   }),
   v.strictObject({

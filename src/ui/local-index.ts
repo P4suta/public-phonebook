@@ -14,6 +14,7 @@ import {
   type LocalSearchRequest,
 } from "../core/local-search-protocol.ts";
 import { requestJson } from "./client.ts";
+import { localForgivingSearch } from "./local-search-mode.ts";
 import { catalogRegions, type RegionNames } from "./result-cards.ts";
 
 export type LocalIndexStatus =
@@ -160,17 +161,21 @@ export class LocalIndexClient {
         requestJson("/api/search-index", request.signal).then((value) =>
           v.parse(SearchIndexLocationSchema, value),
         ),
-        requestJson("/api/search-ranking", request.signal).then((value) =>
-          v.parse(SearchRankingLocationSchema, value),
-        ),
+        localForgivingSearch
+          ? requestJson("/api/search-ranking", request.signal).then((value) =>
+              v.parse(SearchRankingLocationSchema, value),
+            )
+          : Promise.resolve(null),
       ]);
       if (this.#location !== request) return;
-      if (index.snapshot !== ranking.snapshot) {
+      if (ranking && index.snapshot !== ranking.snapshot) {
         this.#fail();
         return;
       }
       this.#location = null;
-      const message: LocalSearchRequest = { type: "load", index, ranking };
+      const message: LocalSearchRequest = ranking
+        ? { type: "load-forgiving", index, ranking }
+        : { type: "load", index };
       this.#ensureWorker().postMessage(message);
     } catch {
       if (!request.signal.aborted) this.#fail();
@@ -181,7 +186,7 @@ export class LocalIndexClient {
     if (this.#worker) return this.#worker;
     const worker = new Worker(
       new URL("./local-search-worker.ts", import.meta.url),
-      { name: "local-search" },
+      { name: "local-search", type: "module" },
     );
     worker.addEventListener("message", (event: MessageEvent<unknown>) => {
       this.#receive(event.data);
