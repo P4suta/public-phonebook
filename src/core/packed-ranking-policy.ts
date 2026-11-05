@@ -30,3 +30,16 @@ export function packedScratchSum(
   return total + increment;
 }
 const maximumShortMatches = 100;
+const maximumReadingFrequency = 6;
+
+export function packedReadingKey(
+  row: number,
+  contacts: number,
+  frequency: number,
+): number {
+  //@ verify
+  //@ requires contacts >= 1 && contacts <= 2000000 && row >= 0 && row < contacts && frequency >= 1 && frequency <= 6
+  //@ ensures \result >= 0 && \result < 12000000
+  //@ ensures \result % contacts === row
+  return (maximumReadingFrequency - frequency) * contacts + row;
+}

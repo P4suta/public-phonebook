@@ -38,8 +38,8 @@ import { countWork, StepTimer } from "./step-timing.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 462;
-const declaredPostconditionCount = 134;
+const verifiedUnitCount = 464;
+const declaredPostconditionCount = 136;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -57,6 +57,7 @@ const expected = [
   "packedMidpoint",
   "packedShortCount",
   "packedScratchSum",
+  "packedReadingKey",
   "qualityPasses",
   "diceScore",
   "boundedDiceQuotient",
@@ -341,6 +342,12 @@ const localSearchPolicy = "src/core/local-search-policy.ts";
 const rowPolicy = "src/core/row-locator-policy.ts";
 const deltaPolicy = "src/core/directory-delta-policy.ts";
 const negativeControls: readonly NegativeControl[] = [
+  {
+    name: "packed-reading-order",
+    source: "src/core/packed-ranking-policy.ts",
+    from: "(maximumReadingFrequency - frequency) * contacts + row",
+    to: "(maximumReadingFrequency - frequency) * contacts + row + 1",
+  },
   {
     name: "packed-scratch-overflow",
     source: "src/core/packed-ranking-policy.ts",

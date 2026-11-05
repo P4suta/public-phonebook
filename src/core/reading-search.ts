@@ -7,7 +7,7 @@ import {
   unweightedDice,
 } from "./forgiving-search-policy.ts";
 import { lazyArray, type PackedRanking } from "./packed-ranking.ts";
-import { packedScratchSum } from "./packed-ranking-policy.ts";
+import { packedReadingKey, packedScratchSum } from "./packed-ranking-policy.ts";
 import type { RankingArtifact } from "./search-ranking-artifact.ts";
 import { compactSearchText, searchGrams } from "./search-ranking-text.ts";
 
@@ -242,16 +242,24 @@ export function readingSearch(
               );
             });
           const ordered = touched.subarray(0, count);
-          ordered.sort(
-            (a, b) => (frequencies[b] ?? 0) - (frequencies[a] ?? 0) || a - b,
-          );
+          for (let at = 0; at < count; at += 1) {
+            const row = touched[at];
+            if (row !== undefined)
+              ordered[at] = packedReadingKey(
+                row,
+                names.length,
+                frequencies[row] ?? 0,
+              );
+          }
+          ordered.sort();
           candidates = Array.from(
             ordered.subarray(0, rankingLimits.readingCandidates),
+            (key) => key % names.length,
           );
         } finally {
           for (let at = 0; at < count; at += 1) {
             const row = touched[at];
-            if (row !== undefined) frequencies[row] = 0;
+            if (row !== undefined) frequencies[row % names.length] = 0;
           }
         }
       } else {
