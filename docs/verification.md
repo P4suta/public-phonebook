@@ -157,6 +157,21 @@ The control records its result in `.local/check-linux/control/receipt.json`.
 
 ## Source-bound proofs
 
+The device name scorer exposes its [shared ranking contract](search-ranking.md) through `createRankedSearch`.
+The fast gate checks exact-name protection, place preferences, city-to-ward associations, reading selection, input bounds, duplicate rows, and deterministic ordering on small fixtures.
+It compares every admitted preference score with independent BigInt division and samples Dice arithmetic with a fixed seed.
+The national contract fixture contains 2,200 queries and every returned row-and-score pair, compared with the unchanged frozen research scorer before generation.
+Run `mise x -- node tools/search-ranking-contract.ts check BUNDLE tests/fixtures/search-ranking.json` to replay that fixture with the manifest-bound artifacts.
+
+The scorer's integer and Boolean policy joins the source-translated Dafny inventory in `tools/prove.ts`.
+Dice division uses checked intermediate assertions in the TypeScript source, which the generator preserves as a verified method.
+The verifier isolates assertions under the existing deterministic resource limit.
+It selects Z3 arithmetic solver 6 for the integer division and multiplication conditions, following [Dafny's arithmetic guidance](https://dafny.org/dafny/VerificationOptimization/VerificationOptimization#non-linear-arithmetic).
+Score, tier, reading-band, threshold, and locked-route mutations must fail verification.
+These proofs cover the declared integer domains and model arithmetic under exact JavaScript integer bounds.
+Unicode normalization, morphology, object traversal, candidate retrieval, and sorting retain native fixture checks.
+The mathematical claims don't certify target labels, linguistic interpretation, or future ranking accuracy.
+
 The release decisions `promotionAdmission` and `withdrawalDecision` gate the in-place candidate lifecycle in `tools/release-lifecycle.ts`.
 Promotion requires a verified candidate whose version ID is still deployed at 0% while the current version is still the verified predecessor.
 Withdrawal removes only the candidate that the journal's release owns, and only while the predecessor serves and no traffic has moved.

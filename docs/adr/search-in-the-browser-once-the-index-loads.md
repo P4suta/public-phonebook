@@ -7,6 +7,7 @@ date: 2026-11-02
 ## Status
 
 Accepted.
+The shared server ranking and category previews are partly superseded by [one ranked list with a server fallback](show-one-ranked-list-with-a-server-fallback.md).
 The owner approved this direction in the plan for on-device search, and this change implements it.
 It adopts the [name-ordered search index](publish-a-name-ordered-search-index-for-the-website.md).
 

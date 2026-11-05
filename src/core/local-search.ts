@@ -1,4 +1,11 @@
 import { groupPrecedes, nextVisible } from "./local-search-policy.ts";
+
+export {
+  createRankedSearch,
+  type RankedHit,
+  type RankedSearch,
+} from "./forgiving-search.ts";
+
 import type { Result } from "./result.ts";
 import {
   nameRank,

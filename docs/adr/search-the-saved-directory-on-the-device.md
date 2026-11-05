@@ -7,6 +7,7 @@ date: 2026-11-01
 ## Status
 
 Accepted.
+The name scan and rank are partly superseded by [place preferences and gated readings](rank-device-search-with-place-preferences-and-gated-readings.md).
 It supersedes the national search through the read API, the opt-in automatic updates, and the Contact Provider extension in [Share directory snapshots with iOS extensions](share-directory-snapshots-with-ios-extensions.md).
 
 ## Context

@@ -7,6 +7,8 @@ date: 2026-11-04
 ## Status
 
 Accepted.
+The device name matcher and rank are partly superseded by [place preferences and gated readings](rank-device-search-with-place-preferences-and-gated-readings.md).
+The [server fallback decision](show-one-ranked-list-with-a-server-fallback.md) preserves the server's word-matching rule.
 It extends the name ranking in [Search the saved directory on the device](search-the-saved-directory-on-the-device.md) and [Search in the browser once the index loads](search-in-the-browser-once-the-index-loads.md).
 [Identify each D1 database by its dataset and import transformation](identify-each-d1-database-by-its-dataset-and-import-transformation.md) amends its consequence for the folded names in D1, because a changed fold table now names a new database.
 
