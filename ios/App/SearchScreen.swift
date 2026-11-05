@@ -8,7 +8,6 @@ struct SearchScreen: View {
   @Bindable var integration: IntegrationModel
   @State private var path: [Contact] = []
   @State private var announced: [String] = []
-  @AccessibilityFocusState private var focusedContact: Int64?
   #if PHONEBOOK_VERIFICATION_TOOLS
     @State private var verification = VerificationNumberModel()
   #endif
@@ -39,15 +38,7 @@ struct SearchScreen: View {
         text: $model.query, placement: .navigationBarDrawer(displayMode: .always),
         prompt: "施設の名前"
       )
-      .onChange(of: model.query) {
-        focusedContact = nil
-        model.search()
-      }
-      .onChange(of: model.shown) { previous, current in
-        if previous > 0, current > previous, model.visible.indices.contains(previous) {
-          focusedContact = model.visible[previous].id
-        }
-      }
+      .onChange(of: model.query) { model.search() }
       .onSubmit(of: .search) { model.search() }
       .task(id: announcement) { await announce() }
       .toolbar {
@@ -164,32 +155,44 @@ struct SearchScreen: View {
       #else
         if results.total == 0 { emptyResults }
       #endif
-      if results.total > 0 {
-        Text("\(results.total)件 見つかりました").font(.title2.bold())
-          .padding(.vertical, 12)
-          .accessibilityAddTraits(.isHeader)
-          .accessibilityIdentifier("results-count")
-        if results.limited {
-          Text("関連度順に100件まで表示します。").padding(.bottom, 12)
-            .accessibilityIdentifier("search-limit")
-        }
-        Rectangle().fill(.ink).frame(height: 2)
-        ForEach(model.visible) { contact in
-          ContactCard(contact: contact, focusedContact: $focusedContact) { path.append(contact) }
-          Rectangle().fill(.ink).frame(height: 1)
-        }
-        if model.expandable {
-          Button {
-            model.more()
-          } label: {
-            IconLabel(icon: "chevron-down", text: model.loadingMore ? "読み込んでいます" : "もっと見る")
-          }
-          .buttonStyle(MonoButtonStyle())
-          .padding(.vertical, 12)
-          .disabled(model.loadingMore)
-          .accessibilityIdentifier("more-results")
-        }
+      if results.limited {
+        Text("関連度順に100件まで表示します。").padding(.top, 12)
+          .accessibilityIdentifier("search-limit")
       }
+      ForEach(results.groups) { group in groupView(group) }
+    }
+  }
+
+  @ViewBuilder private func groupView(_ group: ResultGroup) -> some View {
+    HStack(spacing: 6) {
+      DesignIcon(name: IconCatalog.categories[group.key] ?? "file", size: 16)
+      Text(group.label).bold()
+      Text("\(group.total)件")
+    }
+    .font(.title3).padding(.top, 24).padding(.bottom, 8)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("\(group.label) \(group.total)件")
+    .accessibilityAddTraits(.isHeader)
+    .accessibilityIdentifier("group-\(group.key)")
+    Rectangle().fill(.ink).frame(height: 2)
+    let visible = model.visible(group)
+    ForEach(visible) { contact in
+      ContactCard(contact: contact) { path.append(contact) }
+        .onAppear {
+          if contact.id == visible.last?.id, model.expanded(group) { model.more(group) }
+        }
+      Rectangle().fill(.ink).frame(height: 1)
+    }
+    if model.expandable(group), !model.expanded(group) {
+      Button {
+        model.more(group)
+      } label: {
+        IconLabel(icon: "chevron-down", text: "\(group.label)をもっと見る")
+      }
+      .buttonStyle(MonoButtonStyle())
+      .padding(.vertical, 12)
+      .disabled(model.loadingMore)
+      .accessibilityIdentifier("more-\(group.key)")
     }
   }
 
@@ -204,7 +207,6 @@ struct SearchScreen: View {
 
 private struct ContactCard: View {
   let contact: Contact
-  @AccessibilityFocusState.Binding var focusedContact: Int64?
   let detail: () -> Void
 
   var body: some View {
@@ -212,8 +214,6 @@ private struct ContactCard: View {
       Text(contact.name).font(.title3.bold()).multilineTextAlignment(.leading)
         .accessibilityAddTraits(.isHeader)
         .accessibilityIdentifier("contact-name")
-        .accessibilityFocused($focusedContact, equals: contact.id)
-      Text(contact.category).font(.callout.bold()).accessibilityIdentifier("contact-category")
       if !contact.region.isEmpty {
         Text(contact.region).font(.callout).accessibilityIdentifier("contact-region")
       }

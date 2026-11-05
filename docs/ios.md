@@ -69,7 +69,7 @@ The fixture never ships, so the list never names it.
 
 Only VerificationDebug and VerificationRelease bundle the name index, ranking companion, and `search.json` declaration for that archive.
 The `PHONEBOOK_VERIFICATION_TOOLS` compilation condition controls resource copying, companion discovery, search migration, and scorer selection.
-Debug, DevRelease, ProductionDebug, and Release use literal matching in one ordered list and receive no search companions.
+Debug, DevRelease, ProductionDebug, and Release use literal matching and receive no search companions.
 Non-QA foreground and background startup remove search files retained by earlier builds without removing the saved directory or caller data.
 The [distribution decision](adr/keep-forgiving-search-in-qa-and-local-development.md) records the measured resource costs and the QA boundary.
 The declaration under `ios/SearchData` binds the national pair's compressed and decoded lengths and SHA-256 digests.
@@ -218,16 +218,16 @@ The sentences say what the feature shows and ask the reader to grant the app per
 The prompt stays hidden while the state is on, unknown, or still unread, and `PhonebookCore.CallerStatus` holds that decision.
 The app reads the state again whenever it returns to the foreground.
 The simulator reports no extension state, so debug builds read `PHONEBOOK_CALLER_STATUS` for the UI scenario that draws the on and off states.
-Results appear in one ranked list while the reader types.
-The heading counts the returned results, and a 100-candidate name result explains its limit.
-The app loads 20 cards at a time, and `もっと見る` appends the next 20 without changing their order.
-VoiceOver focus moves to the first appended facility heading after that explicit action.
+Results appear under category headings while the reader types, and each heading names the category and its count.
+A category shows up to three results, and its `もっと見る` button loads the next 20 in the same order.
+Once a category is expanded, reaching its last card loads the next 20.
+A category's position follows its first result, and a 100-candidate QA name result explains its limit.
 A replacement query or generation discards late search and page completions.
 VoiceOver announces the returned count once, 0.6 seconds after the results stop changing.
-An earlier saved generation without companions keeps its literal matcher in the same list until migration succeeds.
-The [list decision](adr/show-one-ranked-list-with-a-server-fallback.md) records the presentation and its primary accessibility sources.
+An earlier saved generation without companions keeps its literal matcher until migration succeeds.
+The [category preview decision](adr/group-ranked-results-into-category-previews.md) records the presentation.
 Empty results show `あてはまる施設は0件です` and suggest part of a name or another word.
-Every result card shows the facility name as a heading, its category, its prefecture and municipality, and each telephone number.
+Every result card shows the facility name as a heading, its prefecture and municipality, and each telephone number.
 Metadata wraps with Dynamic Type and stays inside the facility's accessibility container.
 The detail screen shows the full address and source information from the saved data.
 Each telephone number is large selectable text over a full-width call button, and the app draws no copy control.
