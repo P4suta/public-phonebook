@@ -11,10 +11,7 @@ const SIZE: (u32, u32) = (1206, 2622);
 const RGBA_CHANNELS: usize = 4;
 const OPAQUE_ALPHA: u8 = 255;
 const SCREENS: [(&str, &str); 3] = [
-    (
-        "live-public-directory-ranked-results",
-        "directory-search.png",
-    ),
+    ("live-public-directory-search", "directory-search.png"),
     ("live-public-directory-contact", "contact-details.png"),
     ("live-public-directory-source", "source-attribution.png"),
 ];
@@ -259,7 +256,7 @@ mod tests {
     fn attachments_map_each_declared_screen_exactly_once() -> Result<()> {
         let entry = |name: &str, file: &str| json!({"suggestedHumanReadableName":format!("{name}_0_ID.png"),"exportedFileName":file});
         let complete = json!([{"attachments":[
-            entry("live-public-directory-ranked-results", "a.png"),
+            entry("live-public-directory-search", "a.png"),
             entry("live-public-directory-contact", "b.png"),
             entry("live-public-directory-source", "c.png"),
             entry("failure", "d.png"),
@@ -276,7 +273,7 @@ mod tests {
         duplicate[0]["attachments"]
             .as_array_mut()
             .context("attachments")?
-            .push(entry("live-public-directory-ranked-results", "e.png"));
+            .push(entry("live-public-directory-search", "e.png"));
         assert!(select(&duplicate).is_err());
         let mut missing = complete.clone();
         missing[0]["attachments"]
@@ -285,7 +282,7 @@ mod tests {
             .remove(2);
         assert!(select(&missing).is_err());
         let traversal = json!([{"attachments":[
-            entry("live-public-directory-ranked-results", "../a.png"),
+            entry("live-public-directory-search", "../a.png"),
             entry("live-public-directory-contact", "b.png"),
             entry("live-public-directory-source", "c.png"),
         ]}]);
