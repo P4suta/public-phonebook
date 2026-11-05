@@ -45,6 +45,31 @@ public struct SearchArtifactIdentity: Codable, Sendable {
     return data
   }
 
+  static func mapped(_ url: URL, bytes: Int, sha256: SnapshotID) throws -> Data {
+    guard (0...SearchArtifacts.maximumDecodedBytes).contains(bytes) else {
+      throw RankingError.invalidArtifact
+    }
+    let handle = try FileHandle(forReadingFrom: url)
+    defer { try? handle.close() }
+    var hash = SHA256()
+    var received = 0
+    while let chunk = try handle.read(upToCount: 65_536), !chunk.isEmpty {
+      received += chunk.count
+      guard received <= bytes else { throw RankingError.invalidArtifact }
+      hash.update(data: chunk)
+    }
+    guard received == bytes,
+      hash.finalize().map({ String(format: "%02x", $0) }).joined() == sha256.rawValue
+    else { throw RankingError.invalidArtifact }
+    let data = try Data(contentsOf: url, options: .alwaysMapped)
+    guard data.count == bytes else { throw RankingError.invalidArtifact }
+    return data
+  }
+
+  func mapped(_ url: URL) throws -> Data {
+    try Self.mapped(url, bytes: uncompressedBytes, sha256: uncompressedSha256)
+  }
+
   private static func digest(_ data: Data) -> String {
     SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
   }
@@ -81,6 +106,8 @@ public struct SearchArtifactManifest: Codable, Sendable {
 public struct AdmittedSearchArtifacts: Sendable {
   public let index: SearchArtifactIndex
   public let ranking: RankingArtifact
+  let indexBytes: Data
+  let rankingBytes: Data
 }
 
 public struct SearchArtifactFiles: Sendable {
@@ -110,15 +137,19 @@ public struct SearchArtifactFiles: Sendable {
 
   public func admit() throws -> AdmittedSearchArtifacts {
     try manifest.validate()
-    let decoded = try SearchArtifacts.index(manifest.index.decode(index))
+    let indexBytes = try manifest.index.decode(index)
+    let rankingBytes = try manifest.ranking.decode(ranking)
+    let packed = rankingBytes.starts(with: Data("public-phonebook-search-ranking\t2\n".utf8))
+    let decoded = try SearchArtifacts.index(indexBytes, lazy: packed)
     guard decoded.snapshot == manifest.snapshot.rawValue, decoded.rows.count == manifest.contacts
     else {
       throw RankingError.identityMismatch
     }
     let ranking = try SearchArtifacts.ranking(
-      manifest.ranking.decode(ranking), snapshot: manifest.snapshot.rawValue,
+      rankingBytes, snapshot: manifest.snapshot.rawValue,
       contacts: manifest.contacts)
-    return AdmittedSearchArtifacts(index: decoded, ranking: ranking)
+    return AdmittedSearchArtifacts(
+      index: decoded, ranking: ranking, indexBytes: indexBytes, rankingBytes: rankingBytes)
   }
 }
 

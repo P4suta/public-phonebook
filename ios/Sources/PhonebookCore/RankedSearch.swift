@@ -6,9 +6,10 @@ public final class RankedSearch: Sendable {
     let locked: Bool
   }
 
-  private let rows: [RankingRow]
-  private let names: [String]
-  private let lengths: [Int]
+  private let rows: RankingValues<RankingRow>
+  private let names: RankingValues<String>
+  private let lengths: RankingValues<Int>
+  private let packed: PackedRanking?
   private let variants: [String: String]
   private let originalExact: [String: [Int]]
   private let writtenExact: [String: [Int]]
@@ -19,28 +20,45 @@ public final class RankedSearch: Sendable {
   private let reading: ReadingRanking
   private let places: PlaceRanking
 
-  public init(
+  public convenience init(
     snapshot: String, rows: [RankingRow], places: [RankingPlace], artifact: RankingArtifact
   )
     throws
   {
+    try self.init(snapshot: snapshot, rows: RankingValues(rows), places: places, artifact: artifact)
+  }
+
+  public init(
+    snapshot: String, rows: RankingValues<RankingRow>, places: [RankingPlace],
+    artifact: RankingArtifact
+  ) throws {
     guard snapshot == artifact.snapshot, rows.count == artifact.readings.count else {
       throw RankingError.identityMismatch
     }
-    guard rows.allSatisfy({ !$0.name.isEmpty && $0.name.utf8.count <= 4096 }) else {
+    guard
+      artifact.packed != nil || rows.allSatisfy({ !$0.name.isEmpty && $0.name.utf8.count <= 4096 })
+    else {
       throw RankingError.invalidCorpus
     }
     self.rows = rows
+    packed = artifact.packed
     variants = artifact.variants
-    let names = rows.map { RankingText.name($0.name, variants: artifact.variants) }
+    let names: RankingValues<String>
+    let lengths: RankingValues<Int>
+    if let packed = artifact.packed {
+      names = RankingValues(count: rows.count) { packed.name($0) }
+      lengths = RankingValues(count: rows.count) { packed.length($0) }
+    } else {
+      names = RankingValues(rows.map { RankingText.name($0.name, variants: artifact.variants) })
+      lengths = RankingValues(names.map { $0.unicodeScalars.count })
+    }
     self.names = names
-    let lengths = names.map { $0.unicodeScalars.count }
     self.lengths = lengths
     var originalExact: [String: [Int]] = [:]
     var writtenExact: [String: [Int]] = [:]
     var foldedExact: [String: [Int]] = [:]
     var shortPostings: [String: [Int]] = [:]
-    for (row, entry) in rows.enumerated() {
+    for (row, entry) in (artifact.packed == nil ? rows : RankingValues([])).enumerated() {
       originalExact[RankingText.original(entry.name), default: []].append(row)
       writtenExact[
         RankingText.compact(entry.name).precomposedStringWithCanonicalMapping, default: []
@@ -88,7 +106,16 @@ public final class RankedSearch: Sendable {
     let length = folded.unicodeScalars.count
     let empty = Signals(hits: [], lexical: [], reading: [], locked: true)
     guard length > 0, length <= RankingPolicy.queryPoints else { return empty }
-    if let exact = originalExact[RankingText.original(query)]
+    let packedExact = packed.flatMap { packed in
+      packed.exact("original", key: RankingText.original(query)) {
+        RankingText.original(rows[$0].name)
+      }
+        ?? packed.exact(
+          "written", key: RankingText.compact(query).precomposedStringWithCanonicalMapping
+        ) { RankingText.compact(rows[$0].name).precomposedStringWithCanonicalMapping }
+        ?? packed.exact("folded", key: folded, keyOf: packed.name)
+    }
+    if let exact = packedExact ?? originalExact[RankingText.original(query)]
       ?? writtenExact[RankingText.compact(query).precomposedStringWithCanonicalMapping]
       ?? foldedExact[folded]
     {
@@ -98,7 +125,9 @@ public final class RankedSearch: Sendable {
     }
     if length <= 2 {
       return Signals(
-        hits: (shortPostings[folded] ?? []).prefix(RankingPolicy.results).map {
+        hits: (packed?.short.rows(folded) ?? shortPostings[folded] ?? []).prefix(
+          RankingPolicy.results
+        ).map {
           RankedHit(row: $0, score: 1_000_000 / Int64(1 + lengths[$0]))
         }, lexical: [], reading: [], locked: true)
     }
@@ -124,10 +153,14 @@ public final class RankedSearch: Sendable {
     var tiedRegion = Set<Int>()
     func order(_ hits: [RankedHit]) -> [RankedHit] {
       for hit in hits {
-        if PlaceRanking.matches(rows[hit.row], conditions: parsed.conditions) {
+        if parsed.conditions.isEmpty
+          || PlaceRanking.matches(rows[hit.row], conditions: parsed.conditions)
+        {
           preferred.insert(hit.row)
         }
-        if PlaceRanking.matches(rows[hit.row], conditions: tied) { tiedRegion.insert(hit.row) }
+        if tied.isEmpty || PlaceRanking.matches(rows[hit.row], conditions: tied) {
+          tiedRegion.insert(hit.row)
+        }
       }
       return hits.sorted {
         if preferred.contains($0.row) != preferred.contains($1.row) {

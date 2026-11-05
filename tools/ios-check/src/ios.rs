@@ -67,6 +67,7 @@ const DEVICE_NAME: &str = "Public Phonebook Checks";
 const DEVICE_SUFFIX_LENGTH: usize = 8;
 const LIVE_UI_TEST: &str = "testLivePublicDirectorySearchAndSource";
 const STARTUP_UI_TEST: &str = "testBundledSearchStartupMeasurement";
+const SEARCH_MEMORY_UI_TEST: &str = "testBundledSearchMemoryMeasurement";
 /// A hang guard that exceeds the longest sum of one scenario's own waits.
 /// The live onboarding alone waits up to 300 s, and the transfer resume scenario's waits add up to about 135 s.
 const SCENARIO_ALLOWANCE_SECONDS: u32 = 600;
@@ -131,7 +132,10 @@ const UI_TESTS: [&str; 25] = [
 ];
 /// The UI scenarios that run with the simulator in the dark appearance.
 const DARK_UI_TESTS: [&str; 1] = ["testDarkAppearanceSwapsBlackAndWhite"];
-const REQUIRED_TESTS: [&str; 108] = [
+const REQUIRED_TESTS: [&str; 111] = [
+    "packedNationalRankingsMatchTheUnchangedContract",
+    "savedSearchVerifiesDecodedFilesAndLineOffsets",
+    "compressedSavedSearchRemainsReadableAndUpgradesAtomically",
     "resultPagesStayWithinBoundsAtSignedExtremes",
     "directoryModelUsesOneRankingAcrossCategories",
     "directoryModelPreservesWrittenExactQueriesBeforeFolding",
@@ -984,7 +988,7 @@ fn require_ui_inventory(inventory: &Value) -> Result<()> {
     let expected = UI_TESTS
         .iter()
         .copied()
-        .chain([LIVE_UI_TEST, STARTUP_UI_TEST])
+        .chain([LIVE_UI_TEST, STARTUP_UI_TEST, SEARCH_MEMORY_UI_TEST])
         .map(|name| format!("PhonebookUITests/DirectoryUITests/{name}()"))
         .collect::<BTreeSet<_>>();
     ensure!(
@@ -1916,7 +1920,7 @@ mod tests {
         let enabled = UI_TESTS
             .iter()
             .copied()
-            .chain([LIVE_UI_TEST, STARTUP_UI_TEST])
+            .chain([LIVE_UI_TEST, STARTUP_UI_TEST, SEARCH_MEMORY_UI_TEST])
             .map(|name| json!({"identifier":format!("PhonebookUITests/DirectoryUITests/{name}()")}))
             .collect::<Vec<_>>();
         let inventory = json!({"errors":[],"values":[{"enabledTests":enabled,"disabledTests":[]}]});

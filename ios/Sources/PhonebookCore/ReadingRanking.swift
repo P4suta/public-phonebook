@@ -13,8 +13,12 @@ struct ReadingTrie: Sendable {
     var choices: [Choice] = []
   }
   private let nodes: [Node]
+  private let packed: PackedRanking?
 
-  init(_ lexicon: [(surface: String, reading: String, count: Int64)]) throws {
+  init(_ lexicon: [(surface: String, reading: String, count: Int64)], packed: PackedRanking? = nil)
+    throws
+  {
+    self.packed = packed
     var nodes = [Node()]
     for entry in lexicon {
       let key = RankingText.compact(entry.surface)
@@ -73,7 +77,18 @@ struct ReadingTrie: Sendable {
             reading: path.reading + point, cost: path.cost + (RankingText.hasHan(point) ? 1000 : 0)),
           in: &paths[at + 1])
         var node = 0
+        var surface = ""
         for end in at..<points.count {
+          if let packed {
+            surface += String(points[end])
+            guard let choices = packed.choices(surface) else { break }
+            for (rank, choice) in choices.enumerated() {
+              Self.retain(
+                ReadingPath(reading: path.reading + choice, cost: path.cost + 1 + rank),
+                in: &paths[end + 1])
+            }
+            continue
+          }
           guard let child = nodes[node].children[points[end]] else { break }
           node = child
           for (rank, choice) in nodes[node].choices.enumerated() {
@@ -89,20 +104,27 @@ struct ReadingTrie: Sendable {
 }
 
 struct ReadingRanking: Sendable {
-  private let names: [String]
-  private let readings: [String]
+  private let names: RankingValues<String>
+  private let readings: RankingValues<String>
+  private let packed: PackedRanking?
   private let trie: ReadingTrie
   private let literalExact: [String: [Int]]
   private let readingExact: [String: [Int]]
   private let postings: [String: [UInt32]]
 
-  init(names: [String], artifact: RankingArtifact) throws {
-    self.names = names.map(RankingText.compact)
-    readings = artifact.readings.map(RankingText.compact)
-    trie = try ReadingTrie(artifact.lexicon)
+  init(names: RankingValues<String>, artifact: RankingArtifact) throws {
+    packed = artifact.packed
+    if let packed = artifact.packed {
+      self.names = RankingValues(count: names.count) { packed.literal($0) }
+      readings = artifact.readings
+    } else {
+      self.names = RankingValues(names.map(RankingText.compact))
+      readings = RankingValues(artifact.readings.map(RankingText.compact))
+    }
+    trie = try ReadingTrie(artifact.lexicon, packed: artifact.packed)
     var literalExact: [String: [Int]] = [:]
     var readingExact: [String: [Int]] = [:]
-    for row in names.indices {
+    for row in artifact.packed == nil ? names.indices : 0..<0 {
       literalExact[self.names[row], default: []].append(row)
       readingExact[readings[row], default: []].append(row)
     }
@@ -124,19 +146,29 @@ struct ReadingRanking: Sendable {
       return []
     }
     let paths = trie.readings(query)
-    var exact = Set(literalExact[literal] ?? [])
-    for reading in paths { exact.formUnion(readingExact[reading] ?? []) }
+    var exact = Set(
+      packed?.exact("literal", key: literal) { names[$0] } ?? literalExact[literal] ?? [])
+    for reading in paths {
+      exact.formUnion(
+        packed?.exact("reading", key: reading) { readings[$0] } ?? readingExact[reading] ?? [])
+    }
     let lexical = RankingText.grams(literal, width: 3)
     let phonetic = paths.map { RankingText.grams($0, width: 3) }
     var candidates = Array(exact)
     if candidates.isEmpty {
-      let keys = Set(lexical + phonetic.flatMap { $0 }).filter { postings[$0] != nil }.sorted {
-        let left = postings[$0]?.count ?? 0
-        let right = postings[$1]?.count ?? 0
+      let keys = Set(lexical + phonetic.flatMap { $0 }).filter {
+        packed?.phonetic.count($0) ?? postings[$0]?.count ?? 0 > 0
+      }.sorted {
+        let left = packed?.phonetic.count($0) ?? postings[$0]?.count ?? 0
+        let right = packed?.phonetic.count($1) ?? postings[$1]?.count ?? 0
         return left != right ? left < right : RankingText.precedes($0, $1)
       }.prefix(6)
       var counts: [Int: Int] = [:]
       for key in keys {
+        if let packed {
+          packed.phonetic.visit(key) { row, _ in counts[row, default: 0] += 1 }
+          continue
+        }
         for row in postings[key] ?? [] { counts[Int(row), default: 0] += 1 }
       }
       candidates = counts.keys.sorted {
@@ -146,13 +178,21 @@ struct ReadingRanking: Sendable {
       }.prefix(512).map { $0 }
     }
     return candidates.map { row in
-      let readingGrams = RankingText.grams(readings[row], width: 3)
-      let kana = phonetic.map { Self.dice($0, readingGrams) }.max() ?? 0
+      let reading = readings[row]
+      let name = names[row]
+      let readingGrams = packed == nil ? RankingText.grams(reading, width: 3) : []
+      let kana =
+        phonetic.map { grams in
+          packed.map { Self.packedDice(grams, reading, count: $0.trigramCount(row, reading: true)) }
+            ?? Self.dice(grams, readingGrams)
+        }.max() ?? 0
       return RankedHit(
         row: row,
         score: RankingPolicy.reading(
-          literal: names[row] == literal, exactKana: paths.contains(readings[row]),
-          lexical: Self.dice(lexical, RankingText.grams(names[row], width: 3)), kana: kana))
+          literal: name == literal, exactKana: paths.contains(reading),
+          lexical: packed.map {
+            Self.packedDice(lexical, name, count: $0.trigramCount(row, reading: false))
+          } ?? Self.dice(lexical, RankingText.grams(name, width: 3)), kana: kana))
     }.filter { $0.score > 0 }.sorted {
       if $0.score != $1.score { return $0.score > $1.score }
       if names[$0.row] != names[$1.row] {
@@ -160,5 +200,10 @@ struct ReadingRanking: Sendable {
       }
       return $0.row < $1.row
     }.prefix(RankingPolicy.results).map { $0 }
+  }
+
+  private static func packedDice(_ query: [String], _ name: String, count: Int) -> Int64 {
+    let shared = query.filter { $0.unicodeScalars.count < 3 ? name == $0 : name.contains($0) }.count
+    return RankingPolicy.dice(shared: Int64(shared), query: Int64(query.count), name: Int64(count))
   }
 }

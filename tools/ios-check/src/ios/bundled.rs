@@ -536,9 +536,11 @@ fn search_files(manifest: &Value, files: &[(&str, &[u8])]) -> Result<()> {
 fn prepare_search(root: &Path, dataset: Dataset, archive: &Entry) -> Result<()> {
     let (manifest, index, ranking) = match dataset {
         Dataset::National => (
-            serde_json::from_slice::<Value>(&fs::read(root.join("ios/SearchData/national.json"))?)?,
+            serde_json::from_slice::<Value>(&fs::read(
+                root.join("ios/SearchData/national-packed.json"),
+            )?)?,
             fs::read(root.join("ios/SearchData/search-index.br"))?,
-            fs::read(root.join("ios/SearchData/search-ranking.br"))?,
+            fs::read(root.join("ios/SearchData/search-ranking-packed.br"))?,
         ),
         Dataset::Fixture => {
             let declaration: FixtureDeclaration = read_declaration(root, FIXTURE)?;

@@ -488,7 +488,9 @@ public actor SyncEngine {
     updating = true
     defer { updating = false }
     guard let saved = try await store.manifest() else { throw ImportError.unavailableStorage }
-    if saved.rankedSearch == true { return saved }
+    if saved.rankedSearch == true, await store.searchUsesMappedFiles(generation: saved.generation) {
+      return saved
+    }
     guard let searchArtifacts else { throw ImportError.invalidSnapshot }
     let header = try await store.header(generation: saved.generation)
     let artifacts = try await searchArtifacts.files(

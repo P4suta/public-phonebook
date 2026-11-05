@@ -4,16 +4,18 @@ struct LexicalRanking: Sendable {
     let bigram: Int64
   }
 
-  private let names: [String]
+  private let names: RankingValues<String>
+  private let packed: PackedRanking?
   private let postings: [String: RankingPosting]
   private let norms: [Int64]
   private let characters: [Int64]
   private let unknownWeight: Int64
 
-  init(names: [String], artifact: RankingArtifact) throws {
+  init(names: RankingValues<String>, artifact: RankingArtifact) throws {
     self.names = names
+    packed = artifact.packed
     postings = Dictionary(uniqueKeysWithValues: artifact.lexical.map { ($0.gram, $0) })
-    var norms = [Int64](repeating: 0, count: names.count)
+    var norms = [Int64](repeating: 0, count: artifact.packed == nil ? names.count : 0)
     for posting in artifact.lexical {
       for row in posting.rows {
         norms[Int(row)] += posting.weight
@@ -23,7 +25,8 @@ struct LexicalRanking: Sendable {
       }
     }
     self.norms = norms
-    characters = names.map { Int64(RankingText.grams($0, width: 1).count) }
+    characters =
+      artifact.packed == nil ? names.map { Int64(RankingText.grams($0, width: 1).count) } : []
     unknownWeight = artifact.unknownWeight
   }
 
@@ -63,6 +66,11 @@ struct LexicalRanking: Sendable {
     var shared: [Int: Int64] = [:]
     var queryWeight: Int64 = 0
     for gram in RankingText.grams(text, width: 2) {
+      if let packed {
+        let weight = packed.lexical.visit(gram) { row, weight in shared[row, default: 0] += weight }
+        queryWeight += weight ?? unknownWeight
+        continue
+      }
       let posting = postings[gram]
       queryWeight += posting?.weight ?? unknownWeight
       if let posting {
@@ -73,7 +81,9 @@ struct LexicalRanking: Sendable {
     for (row, weight) in shared {
       Self.retain(
         Candidate(
-          row: row, bigram: RankingPolicy.dice(shared: weight, query: queryWeight, name: norms[row])
+          row: row,
+          bigram: RankingPolicy.dice(
+            shared: weight, query: queryWeight, name: packed?.norm(row) ?? norms[row])
         ),
         in: &heap)
     }
@@ -86,7 +96,8 @@ struct LexicalRanking: Sendable {
         score: RankingPolicy.mixed(
           bigram: candidate.bigram,
           unigram: RankingPolicy.dice(
-            shared: Int64(overlap), query: Int64(points.count), name: characters[candidate.row])))
+            shared: Int64(overlap), query: Int64(points.count),
+            name: packed?.characters(candidate.row) ?? characters[candidate.row])))
     }.sorted { $0.score != $1.score ? $0.score > $1.score : $0.row < $1.row }
       .prefix(RankingPolicy.results).map { $0 }
   }

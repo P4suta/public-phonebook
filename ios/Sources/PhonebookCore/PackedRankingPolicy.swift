@@ -1,0 +1,15 @@
+public enum PackedRankingPolicy {
+  public static let maximumBytes = 268_435_456
+
+  public static func fits(offset: Int, length: Int, size: Int) -> Bool {
+    guard offset >= 0, length >= 0, size >= 0,
+      offset <= maximumBytes, length <= maximumBytes, size <= maximumBytes
+    else { return false }
+    return offset <= size && length <= size - offset
+  }
+
+  public static func midpoint(low: Int, high: Int) -> Int {
+    guard low >= 0, low < high, high <= maximumBytes else { return 0 }
+    return low + (high - low) / 2
+  }
+}
