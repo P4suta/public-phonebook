@@ -178,6 +178,10 @@ public actor SnapshotStore {
   }
 
   public func manifest() throws -> SnapshotManifest? {
+    try readManifest(requiringSearchArtifacts: true)
+  }
+
+  private func readManifest(requiringSearchArtifacts: Bool) throws -> SnapshotManifest? {
     guard FileManager.default.fileExists(atPath: manifestURL.path) else { return nil }
     struct Format: Decodable { let format: Int }
     let data = try files.readManifest(at: manifestURL)
@@ -191,7 +195,7 @@ public actor SnapshotStore {
       Self.generationExtensions.allSatisfy({
         FileManager.default.fileExists(atPath: url(manifest.generation, $0).path)
       }),
-      manifest.rankedSearch != true
+      !requiringSearchArtifacts || manifest.rankedSearch != true
         || [Self.searchExtensions, Self.mappedSearchExtensions].contains(where: { extensions in
           extensions.allSatisfy {
             FileManager.default.fileExists(atPath: url(manifest.generation, $0).path)
@@ -199,6 +203,31 @@ public actor SnapshotStore {
         })
     else { throw ImportError.invalidSnapshot }
     return manifest
+  }
+
+  public func removeSearchArtifacts() throws {
+    guard draft == nil else { throw ImportError.alreadyUpdating }
+    let lease = try WriterLease(url: root.appendingPathComponent("writer.sqlite"))
+    defer { lease.release() }
+    if let saved = try readManifest(requiringSearchArtifacts: false), saved.rankedSearch == true {
+      let literal = SnapshotManifest(
+        format: saved.format, generation: saved.generation, previous: saved.previous,
+        snapshot: saved.snapshot, generatedAt: saved.generatedAt, updatedAt: saved.updatedAt,
+        records: saved.records, origin: saved.origin)
+      try files.activateManifest(JSONEncoder().encode(literal), at: manifestURL)
+    }
+    let extensions = Set(Self.searchExtensions + Self.mappedSearchExtensions)
+    for item in try FileManager.default.contentsOfDirectory(
+      at: root, includingPropertiesForKeys: nil)
+    {
+      let name = item.lastPathComponent
+      if name == "search-transfers"
+        || (name.count > 37 && UUID(uuidString: String(name.prefix(36))) != nil
+          && name.dropFirst(36).first == "." && extensions.contains(String(name.dropFirst(37))))
+      {
+        try files.removeGeneration(at: item)
+      }
+    }
   }
 
   public func begin(header: ArchiveHeader, origin: URL? = nil, requiresRankedSearch: Bool = false)

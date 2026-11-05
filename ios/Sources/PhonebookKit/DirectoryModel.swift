@@ -19,6 +19,7 @@ public final class DirectoryModel {
   public private(set) var shown = 0
   private var contacts: [Int64: Contact] = [:]
   @ObservationIgnored private let store: any DirectorySearchSource
+  @ObservationIgnored private let allowsForgivingSearch: Bool
   @ObservationIgnored private var index: LocalSearch?
   @ObservationIgnored private var scorer: SavedRankedSearch?
   @ObservationIgnored private var manifest: SnapshotManifest?
@@ -29,7 +30,10 @@ public final class DirectoryModel {
   @ObservationIgnored private var pageRun: Run?
   @ObservationIgnored private var searched: String?
 
-  public init(store: any DirectorySearchSource) { self.store = store }
+  public init(store: any DirectorySearchSource, allowsForgivingSearch: Bool = false) {
+    self.store = store
+    self.allowsForgivingSearch = allowsForgivingSearch
+  }
 
   public var ready: Bool { scorer != nil || index != nil }
   public var visible: [Contact] {
@@ -62,7 +66,8 @@ public final class DirectoryModel {
     guard let generation else { return }
     do {
       let header = try await store.header(generation: generation)
-      let scorer = try await store.rankedSearch(generation: generation)
+      let scorer =
+        allowsForgivingSearch ? try await store.rankedSearch(generation: generation) : nil
       let index = scorer == nil ? try await store.searchIndex(generation: generation) : nil
       try Task.checkCancellation()
       guard loadRun === run else { return }

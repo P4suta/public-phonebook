@@ -7,6 +7,7 @@ date: 2026-11-05
 ## Status
 
 Accepted.
+The distribution scope is partly superseded by [QA and local forgiving search](keep-forgiving-search-in-qa-and-local-development.md).
 The implementation brief authorizes changing storage and loading while preserving the frozen ranking contract.
 The decision extends the [packed artifact layout](read-packed-search-structures-without-startup-reconstruction.md).
 

@@ -48,15 +48,19 @@ enum AppIdentity {
   }
 
   static func synchronizer(api: APIClient, store: SnapshotStore) -> SyncEngine {
-    var directory = Bundle.main.resourceURL
-    #if DEBUG
-      if let entry = ProcessInfo.processInfo.environment["PHONEBOOK_BUNDLED_ENTRY"] {
-        directory = URL(fileURLWithPath: entry).deletingLastPathComponent()
-      }
+    #if PHONEBOOK_VERIFICATION_TOOLS
+      var directory = Bundle.main.resourceURL
+      #if DEBUG
+        if let entry = ProcessInfo.processInfo.environment["PHONEBOOK_BUNDLED_ENTRY"] {
+          directory = URL(fileURLWithPath: entry).deletingLastPathComponent()
+        }
+      #endif
+      return SyncEngine(
+        api: api, store: store, trace: SystemTraceSink(),
+        searchArtifacts: SearchArtifactRepository(api: api, bundledDirectory: directory))
+    #else
+      return SyncEngine(api: api, store: store, trace: SystemTraceSink())
     #endif
-    return SyncEngine(
-      api: api, store: store, trace: SystemTraceSink(),
-      searchArtifacts: SearchArtifactRepository(api: api, bundledDirectory: directory))
   }
 }
 

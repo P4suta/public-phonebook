@@ -7,6 +7,7 @@ date: 2026-11-05
 ## Status
 
 Accepted.
+The engine selection is partly superseded by [QA and local forgiving search](keep-forgiving-search-in-qa-and-local-development.md), while the single list remains.
 The implementation brief approves this presentation and execution policy.
 It supersedes the website presentation in [category previews](category-previews-with-independent-continuation.md) and the ranking-parity rule in [browser search](search-in-the-browser-once-the-index-loads.md).
 Phase 1 supplies the core and contracts, while phase 2 connects the website and iPhone screens.

@@ -67,7 +67,11 @@ The gate compares the VerificationDebug and Release apps and the exported TestFl
 The fast gate refuses a national declaration whose dataset `sources/shipped-snapshots.json` lacks, because preparation writes deltas only from listed datasets.
 The fixture never ships, so the list never names it.
 
-The app also bundles the name index, ranking companion, and `search.json` declaration for that archive.
+Only VerificationDebug and VerificationRelease bundle the name index, ranking companion, and `search.json` declaration for that archive.
+The `PHONEBOOK_VERIFICATION_TOOLS` compilation condition controls resource copying, companion discovery, search migration, and scorer selection.
+Debug, DevRelease, ProductionDebug, and Release use literal matching in one ordered list and receive no search companions.
+Non-QA startup removes search files retained by earlier builds without removing the saved directory or caller data.
+The [distribution decision](adr/keep-forgiving-search-in-qa-and-local-development.md) records the measured resource costs and the QA boundary.
 The declaration under `ios/SearchData` binds the national pair's compressed and decoded lengths and SHA-256 digests.
 `national-packed.json` selects `search-ranking-packed.br` for national builds.
 The original format 1 companion and declaration remain inputs to the unchanged Swift contract test, and the app stages only the selected companion.
@@ -265,11 +269,13 @@ A reload that meets `currentlyLoading` waits 3 seconds and asks again, up to fou
 The screen never asks the owner to press the button again.
 The screen also shows the saved data date, the last answered check, the next check time, a waiting transfer, and any problem.
 Its `いま受け取る` button starts a transfer as the person, which may use any path, or the first download before any data exists.
-The gate in `ios-check` scans every file of the unsigned Release app and extension for six markers of the QA code and fails on any of them.
-The markers are the screen's type name, the filename, an accessibility identifier, and three phrases of its copy.
-The gate also requires all six markers in the VerificationDebug build, which establishes the scan's detection control.
+The gate in `ios-check` scans every file of the unsigned Release app and extension for seven markers of QA code and fails on any of them.
+The markers include the verification screen's type name, filename, identifier, three phrases, and the forgiving-search preparation task name.
+The gate rejects name-index, ranking, packed-search, mapping, and search declaration resources by filename, including empty resources.
+The gate requires all seven markers in the VerificationDebug build, which establishes the scan's detection control.
 `mise x -- cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- store-build-control` builds Release with the condition defined.
-It passes when the scan rejects that build with all six markers.
+It passes when the scan rejects that build with all seven markers and the QA resources.
+The normal `ios-check` gate runs the negative control, and App Store export runs the same absence check.
 The about screens, privacy notes, data sources, and licenses are part of the app, and only facility, map, and source pages open in the browser after a confirmation.
 
 The actual Hono handlers produce the shared provider corpus with the dataset listing and the archive.

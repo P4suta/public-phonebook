@@ -13,13 +13,14 @@ pub(super) const CONDITION: &str = "PHONEBOOK_VERIFICATION_TOOLS";
 
 /// Byte strings that the verification tools put in a build: type names, file names, identifiers, and copy.
 /// Swift stores strings of up to 15 UTF-8 bytes inside instructions, so every marker is longer.
-pub(super) const MARKERS: [&str; 6] = [
+pub(super) const MARKERS: [&str; 7] = [
     "VerificationToolsScreen",
     "verification-number.json",
     "verification-tools",
     "確認用の番号",
     "確認用の電話番号",
     "データの自動の受け取り",
+    "prepare-forgiving-search",
 ];
 const SMALL_STRING_BYTES: usize = 15;
 const _: () = {
@@ -60,6 +61,20 @@ fn findings(bundle: &Path) -> Result<Vec<(&'static str, String)>> {
     for path in paths {
         let bytes = fs::read(&path)?;
         let relative = path.strip_prefix(bundle)?.display().to_string();
+        if path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| {
+                name == "search.json"
+                    || name.starts_with("search-index")
+                    || name.starts_with("search-ranking")
+                    || name == "search-lines"
+                    || name == "search-rows"
+                    || name == "national-packed.json"
+            })
+        {
+            found.push(("forgiving-search resource", relative.clone()));
+        }
         for marker in MARKERS {
             if bytes
                 .windows(marker.len())
@@ -85,11 +100,11 @@ pub(super) fn require_absent(bundle: &Path) -> Result<()> {
     let found = findings(bundle)?;
     ensure!(
         found.is_empty(),
-        "The store build contains the QA verification tools: {}",
+        "The store build contains QA tools or forgiving search: {}",
         describe(&found)
     );
     println!(
-        "PASS: the Release app and extension contain none of the {} verification tools markers",
+        "PASS: the Release app and extension contain no forgiving-search resources and none of the {} QA markers",
         MARKERS.len()
     );
     Ok(())
@@ -148,6 +163,12 @@ pub(super) fn control(root: &Path) -> Result<()> {
     )?;
     println!("Expected rejection: {rejection}");
     require_every_marker(&bundle, "condition-defined Release")?;
+    for name in ["search-index.br", "search-ranking.br", "search.json"] {
+        ensure!(
+            bundle.join(name).is_file(),
+            "The negative control lacks {name}"
+        );
+    }
     println!(
         "PASS: the store-build check rejects a Release build that defines {CONDITION}, with all {} markers",
         MARKERS.len()
@@ -189,6 +210,21 @@ mod tests {
             every.push(0);
         }
         require_every_marker(bundle(&every)?.path(), "planted")?;
+        Ok(())
+    }
+
+    #[test]
+    fn the_absence_check_rejects_empty_search_resources() -> Result<()> {
+        for name in [
+            "search-index.br",
+            "search-ranking.br",
+            "search-ranking-packed.br",
+            "search.json",
+        ] {
+            let planted = bundle(b"")?;
+            fs::write(planted.path().join(name), b"")?;
+            assert!(require_absent(planted.path()).is_err(), "{name}");
+        }
         Ok(())
     }
 
