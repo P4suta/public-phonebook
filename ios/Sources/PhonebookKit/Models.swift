@@ -46,21 +46,11 @@ public struct CategoryInfo: Identifiable, Sendable {
   public let licenseURL: String
 }
 
-public struct ResultGroup: Identifiable, Sendable {
-  public let category: Int
-  public let key: String
-  public let label: String
-  public let ids: [Int64]
-  public var id: Int { category }
-  public var total: Int { ids.count }
-}
-
 public struct SearchResults: Sendable {
-  public let query: String
-  /// The query text as typed, whose normalized form is `query`.
   public let input: String
-  public let groups: [ResultGroup]
-  public var total: Int { groups.reduce(0) { $0 + $1.total } }
+  public let ids: [Int64]
+  public let limited: Bool
+  public var total: Int { ids.count }
 }
 
 public enum ImportError: Error, Equatable, Sendable {

@@ -6,7 +6,10 @@ use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fmt::Write as _, fs, path::Path, process::Command};
 
-const THEOREMS: [&str; 71] = [
+const THEOREMS: [&str; 74] = [
+    "resultPageBounds",
+    "resultPageAdvances",
+    "resultPageArithmeticFitsInt64",
     "requiredSearchIsReady",
     "unrequiredSearchKeepsReadableStorage",
     "rankingDiceBound",
@@ -85,6 +88,9 @@ const RANKING_SOURCE: &str =
 const SEARCH_ACTIVATION_SOURCE: &str =
     include_str!("../../../../ios/Sources/PhonebookCore/SearchActivation.swift");
 const SEARCH_ACTIVATION_REFINEMENT: &str = "publicenumSearchActivation{publicstaticfuncpermits(required:Bool,ready:Bool)->Bool{!required||ready}}";
+const RESULT_PAGE_SOURCE: &str =
+    include_str!("../../../../ios/Sources/PhonebookCore/ResultPage.swift");
+const RESULT_PAGE_REFINEMENT: &str = "publicenumResultPage{publicstaticletsize=20publicstaticfuncend(shown:Int,total:Int)->Int{guardshown>=0,total>=shownelse{return0}returnshown+min(size,total-shown)}}";
 const RANKING_REFINEMENT_SHA256: &str =
     "b2d210611c5341414f56000f649e02ce5c3eff96c80cdb02ddf6c06c7a176fb7";
 /// The SHA-256 of the whitespace-free Swift decision that `verification/ios/UpdateCheck.lean` models function for function.
@@ -203,7 +209,8 @@ const DELTA_DEFECTS: [(&str, &str, &str, &str, &[&str]); 7] = [
         &["choose_waiting"],
     ),
 ];
-const PROOF_MODULES: [&str; 9] = [
+const PROOF_MODULES: [&str; 10] = [
+    "ResultPage",
     "SearchActivation",
     "RankingPolicy",
     "Publication",
@@ -223,6 +230,7 @@ const REPLAY_ROOTS: [(&str, &[&str]); 2] = [
     (
         "OmegaModels",
         &[
+            "ResultPage",
             "SearchActivation",
             "RankingPolicy",
             "ReceiveBudget",
@@ -239,7 +247,12 @@ const REPLAY_ROOTS: [(&str, &[&str]); 2] = [
 const COMPILE_WORK: [(&str, u64); 2] = [("lean compiles", 1), ("container runs", 1)];
 const REPLAY_WORK: [(&str, u64); 2] = [("kernel replays", 1), ("container runs", 1)];
 /// Each false claim must fail at its proof on line 2, which shows that the kernel checks that model.
-const FALSE_CLAIMS: [(&str, &str, &str); 7] = [
+const FALSE_CLAIMS: [(&str, &str, &str); 8] = [
+    (
+        "FalseResultPage",
+        "import ResultPage\nexample : Phonebook.pageEnd 20 21 = 40 := by decide\n",
+        "false page growth beyond the result count",
+    ),
     (
         "FalseSearchActivation",
         "import SearchActivation\nexample : Phonebook.admitsSearch true false = true := by rfl\n",
@@ -682,6 +695,12 @@ pub fn run(root: &Path) -> Result<()> {
         fs::remove_file(&receipt)?;
     }
     let sources = source_hashes(root)?;
+    let page = fs::read_to_string(root.join("ios/Sources/PhonebookCore/ResultPage.swift"))?;
+    ensure!(
+        whitespace_free(&page) == whitespace_free(RESULT_PAGE_SOURCE)
+            && whitespace_free(&page) == RESULT_PAGE_REFINEMENT,
+        "The result page proof covers another Swift decision"
+    );
     let search_activation =
         fs::read_to_string(root.join("ios/Sources/PhonebookCore/SearchActivation.swift"))?;
     ensure!(

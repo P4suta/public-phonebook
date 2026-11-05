@@ -50,9 +50,12 @@ The fixture binds the snapshot, contact count, and decoded artifact digests.
 The artifact readers reject truncated and noncanonical varints, out-of-range postings, trailing bytes, and mismatched identities.
 The committed Brotli pair under `ios/SearchData` supplies the national fixture without depending on a production deployment.
 
-Lean checks 71 named theorems.
+Lean checks 74 named theorems.
 Its negative controls reject active deletion, digest-mismatch admission, an unchanged shared-number label, addition of a removed number, automatic transfer on an expensive path, and reading admission at the ratio boundary.
 The search activation control rejects a generation without its mandatory search files.
+The pagination control rejects a page that extends past its result count.
+Three source-bound pagination theorems establish bounds, progress, and Int64 arithmetic safety for nonnegative counts with the shown count at most the total.
+Native tests cover signed extremes and invalid counts.
 Two source-bound Boolean theorems require search readiness for a mandatory generation and preserve readable earlier generations.
 The ranking model refines `RankingPolicy.swift` function by function and binds its complete source digest.
 Its eight ranking theorems cover score bounds, reading bands, preference tiers, exact-score protection, gate boundaries, and the Han anchor.
@@ -60,6 +63,10 @@ They also establish Int64 arithmetic bounds under the declared input limits.
 Swift and Lean division agree for the nonnegative numerators and positive divisors of those bounds.
 The proof trusts the reviewed translation and Swift integer semantics.
 Unicode normalization, candidate retrieval, sorting, lexical readings, and future search quality remain native-test and empirical boundaries.
+The directory model tests exercise the real saved scorer across categories, written-form changes, all-page order, and complete telephone matching.
+Controlled asynchronous reads establish that an older query can't replace a newer result or clear its page operation.
+The UI scenarios check kana and misspelled names, metadata at the largest Dynamic Type setting, the single result list, and its explicit page action.
+The screenshot selector requires the ranked result capture rather than the earlier category layout.
 A planted defect that keeps a changed label must fail inside the two theorems that characterize the change decision and nowhere else.
 It also rejects three planted defects in the wait model inside the theorems that they break: a rising countdown, a line that changes within a second, and a countdown that reaches zero.
 A fourth wait defect that makes a waiting transfer also wait for the stall time must fail inside the waiting lemma and nowhere else.

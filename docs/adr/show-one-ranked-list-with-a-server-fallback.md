@@ -44,6 +44,17 @@ Phase 2 should express the ranking order programmatically and keep each result's
 The owner-approved single-list design determines the product layout.
 The accessibility guidance determines its semantic expression.
 
+The iPhone uses one sequence of saved contact identifiers in scorer order.
+Each facility keeps its name heading, category and region text, telephone actions, and detail action in one accessibility container.
+Apple's [list guidance](https://developer.apple.com/design/human-interface-guidelines/lists-and-tables) supports succinct text rows and detail navigation.
+Its [VoiceOver guidance](https://developer.apple.com/design/human-interface-guidelines/voiceover) requires meaningful headings and explicit grouping and order.
+The [accessibility guidance](https://developer.apple.com/design/human-interface-guidelines/accessibility) supports Dynamic Type and sufficiently sized controls.
+The app keeps native text styles and controls at least 44 points high.
+An explicit page action appends 20 results and moves VoiceOver focus to the first new facility heading.
+Editing the query preserves the search field's focus and announces the returned count after the existing pause.
+The input reaches the scorer with its original spelling and word boundaries.
+The app keeps the literal matcher for a saved generation whose search migration hasn't succeeded.
+
 ## Consequences
 
 The initial server result can change after device search becomes ready because the two engines answer different matching policies.

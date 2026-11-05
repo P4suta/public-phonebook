@@ -75,7 +75,10 @@ The report at `target/ios/search-measurements/report.json` binds the source, com
 The core run compares all 2,200 complete national rankings and reports p50, p95, p99, and peak query latency.
 Each measurement runs in a separate process, and resident peaks include the ranking fixture.
 Search construction time excludes the simulator boot and compiler.
-The command doesn't measure an installed app's cold launch or physical iPhone performance.
+The command also measures three process relaunches of the installed VerificationRelease app from its saved national generation.
+The readiness timer ends when the search hint replaces search preparation, and first-run setup stays outside that timer.
+XCTest records elapsed time, launch metrics, and target-app physical memory separately from the command-line resident peaks.
+Filesystem caches remain uncontrolled, and physical iPhone performance remains unmeasured.
 
 The app keeps the whole national directory on the device.
 The first launch opens a setup flow that starts the first run when the reader presses the start button, explains caller identification, and then waits for the data.
@@ -166,19 +169,33 @@ The decoded base and the rebuilt archive leave with the run after success, failu
 A cut transfer keeps its received bytes in the store's `transfers` directory, as every download does.
 Progress reports keep the three stages, so `WaitDisplay` and its proof stay unchanged.
 
-Search runs on the device and sends nothing.
-The search field matches complete Japanese telephone numbers and every word of a query in a facility's name, region, or category, with the website's folding and ranking.
-The start screen asks for a facility name or a telephone number in one sentence.
+Search runs on the device and sends no query to the service.
+Facility names use the [frozen forgiving scorer](search-ranking.md) from the saved generation.
+The scorer protects complete written names, compares spelling variants, combines lexical and kana evidence, and prefers explicit place conditions within its candidate pool.
+It returns at most 100 candidates in one relevance order and keeps alternatives without an automatic single-result mode.
+Changing the original written input starts a fresh search even when its folded key stays unchanged.
+Complete Japanese telephone numbers keep their existing exact matching path and name order.
+The start screen asks for a facility name with `施設の名前を入れてください。`.
+While the saved search opens, a native activity indicator shows `検索の準備をしています`.
+The field remains available, and the model searches the current input after preparation completes.
+Apple's [progress guidance](https://developer.apple.com/design/human-interface-guidelines/progress-indicators) supports the activity indicator for work whose remaining duration is unknown.
 While iOS reports the Call Directory extension as off, a rule, two sentences, and an outline button that opens the app's iPhone settings follow that hint.
 The sentences say what the feature shows and ask the reader to grant the app permission in the iPhone settings.
 The prompt stays hidden while the state is on, unknown, or still unread, and `PhonebookCore.CallerStatus` holds that decision.
 The app reads the state again whenever it returns to the foreground.
 The simulator reports no extension state, so debug builds read `PHONEBOOK_CALLER_STATUS` for the UI scenario that draws the on and off states.
-Results appear while the reader types, under category headings with three previews each, and each category expands in place.
-Each heading shows its category's count, and no line repeats the total.
-VoiceOver announces the total once, 0.6 seconds after the results stop changing, like the website's status.
+Results appear in one ranked list while the reader types.
+The heading counts the returned results, and a 100-candidate name result explains its limit.
+The app loads 20 cards at a time, and `もっと見る` appends the next 20 without changing their order.
+VoiceOver focus moves to the first appended facility heading after that explicit action.
+A replacement query or generation discards late search and page completions.
+VoiceOver announces the returned count once, 0.6 seconds after the results stop changing.
+An earlier saved generation without companions keeps its literal matcher in the same list until migration succeeds.
+The [list decision](adr/show-one-ranked-list-with-a-server-fallback.md) records the presentation and its primary accessibility sources.
 Empty results show `あてはまる施設は0件です` and suggest part of a name or another word.
-Result cards show the name as heading text, the prefecture and municipality, and each telephone number, and the detail screen shows the full address and the source information from the saved data.
+Every result card shows the facility name as a heading, its category, its prefecture and municipality, and each telephone number.
+Metadata wraps with Dynamic Type and stays inside the facility's accessibility container.
+The detail screen shows the full address and source information from the saved data.
 Each telephone number is large selectable text over a full-width call button, and the app draws no copy control.
 Below the telephone actions, one outline button opens the detail screen.
 Its label is `住所などを見る` when the facility has an address and `くわしい情報を見る` when it has none.
