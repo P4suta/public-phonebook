@@ -117,7 +117,8 @@ export function GroupResults({
     () => [...group.rows, ...localExtra],
     [group.rows, localExtra],
   );
-  const catchingUp = source === "local" && localRows.length < serverRows.length;
+  const catchUpTarget = Math.min(serverRows.length, group.total);
+  const catchingUp = source === "local" && localRows.length < catchUpTarget;
   const rows = source === "server" || catchingUp ? serverRows : localRows;
   const hasMore =
     source === "server"
@@ -147,7 +148,7 @@ export function GroupResults({
   const catchUp = useEffectEvent(async (): Promise<void> => {
     if (catchingUpNow.current || localProgress !== "idle") return;
     catchingUpNow.current = true;
-    await appendLocal(serverRows.length);
+    await appendLocal(catchUpTarget);
     catchingUpNow.current = false;
   });
   useEffect(() => {

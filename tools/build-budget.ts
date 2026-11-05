@@ -12,8 +12,8 @@ const searchWorkerChunk = /^local-search-worker-[\w-]+\.js$/u;
  */
 export const buildBudgets = {
   workerCompressedBytes: 1024 * bytesPerKibibyte,
-  // The kanji fold table from #269 and #273 grew the search Worker to 41,336 bytes.
-  searchWorkerBytes: 48 * bytesPerKibibyte,
+  // The frozen scorer and companion decoder measure 57,220 bytes, with about a quarter of headroom.
+  searchWorkerBytes: 72 * bytesPerKibibyte,
 } as const;
 
 const budgetNames = ["workerCompressedBytes", "searchWorkerBytes"] as const;

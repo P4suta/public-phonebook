@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { gzipSync } from "node:zlib";
+import { brotliDecompressSync, gzipSync } from "node:zlib";
 import * as v from "valibot";
 import { categoryDefinitions, prefectureNames } from "../src/core/catalog.ts";
 import { PreparedDatasetManifestSchema } from "../src/core/dataset-storage.ts";
@@ -17,13 +17,22 @@ import {
   SourceSchema,
 } from "../src/core/models.ts";
 import { nameTokens, normalizeName } from "../src/core/search.ts";
-import { searchIndexFile } from "../src/core/search-index.ts";
+import {
+  decodeSearchIndex,
+  searchIndexFile,
+} from "../src/core/search-index.ts";
+import {
+  encodeRankingArtifact,
+  rankingArtifactFile,
+  rankingArtifactFormat,
+} from "../src/core/search-ranking-artifact.ts";
 import { searchForm } from "../src/core/search-text.ts";
 import { contactVCard } from "../src/core/vcard.ts";
 import { categorySources } from "./category-sources.ts";
 import { databaseSchema } from "./database-schema.ts";
-import { seedLocalData } from "./local-data.ts";
+import { localDataRuntime, seedLocalData } from "./local-data.ts";
 import { compressSearchIndex, readSearchIndex } from "./search-index.ts";
+import { buildRankingArtifact } from "./search-ranking.ts";
 import {
   compressDirectoryArchive,
   contactCsv,
@@ -264,4 +273,47 @@ export async function prepareCheckFixture(): Promise<void> {
     state: ".local/check-state",
     port: fixtureServerPort,
   });
+  const manifest = v.parse(
+    PreparedDatasetManifestSchema,
+    JSON.parse(await readFile(join(directory, "manifest.ready.json"), "utf8")),
+  );
+  const index = decodeSearchIndex(
+    brotliDecompressSync(await readFile(join(directory, searchIndexFile))),
+  );
+  const decoded = encodeRankingArtifact(
+    buildRankingArtifact(
+      index,
+      {
+        readings: index.rows.map((row) => row.name),
+        lexicon: [],
+      },
+      [],
+    ),
+  );
+  const compressed = compressSearchIndex(decoded);
+  const sha256 = createHash("sha256").update(compressed).digest("hex");
+  const searchRanking = {
+    file: rankingArtifactFile,
+    format: rankingArtifactFormat,
+    sha256,
+    bytes: compressed.length,
+    uncompressedSha256: createHash("sha256").update(decoded).digest("hex"),
+    uncompressedBytes: decoded.length,
+  };
+  const runtime = localDataRuntime(".local/check-state");
+  try {
+    const bucket = await runtime.getR2Bucket("DATASETS");
+    await bucket.put(
+      `${manifest.snapshot}/${sha256}/${rankingArtifactFile}`,
+      compressed,
+    );
+    await bucket.put(
+      `${manifest.snapshot}/manifest.json`,
+      JSON.stringify(
+        v.parse(PreparedDatasetManifestSchema, { ...manifest, searchRanking }),
+      ),
+    );
+  } finally {
+    await runtime.dispose();
+  }
 }

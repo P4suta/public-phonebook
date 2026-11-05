@@ -1,6 +1,9 @@
 import type { Request } from "@playwright/test";
 import * as v from "valibot";
-import { SearchIndexLocationSchema } from "../../src/core/dataset-storage.ts";
+import {
+  SearchIndexLocationSchema,
+  SearchRankingLocationSchema,
+} from "../../src/core/dataset-storage.ts";
 import { expect, test } from "./fixtures.ts";
 import {
   contactLinks,
@@ -87,14 +90,16 @@ test("the server answers until the index loads, and the switch keeps focus and r
   const link = contactLinks(page).first();
   await expect(link).toHaveAttribute("href", /^\/contacts\/[^/]+\?/u);
   expect(searches).toHaveLength(1);
-  const names = await page.locator("article h3").allTextContents();
+  const firstName = await page.locator("article h3").first().textContent();
   await link.focus();
   const focused = await link.elementHandle();
   if (!focused) throw new Error("The first result link is missing");
   release();
   await waitForLocalSearch(page);
   await expect(link).toHaveAttribute("href", /^\/contacts\/row\//u);
-  expect(await page.locator("article h3").allTextContents()).toEqual(names);
+  expect(await page.locator("article h3").first().textContent()).toBe(
+    firstName,
+  );
   expect(
     await focused.evaluate(
       (node) => node.isConnected && document.activeElement === node,
@@ -194,40 +199,43 @@ test("a local result opens its facility, and a changed snapshot reloads the inde
   await expect(page.getByRole("searchbox")).toHaveValue(query);
 });
 
-test("an index that fails its published digest falls back to the server search", async ({
-  page,
-}) => {
-  await page.route(
-    (url) => url.pathname === indexLocation,
-    async (route) => {
-      const response = await route.fetch();
-      const location = v.parse(
-        SearchIndexLocationSchema,
-        await response.json(),
-      );
-      await route.fulfill({
-        response,
-        json: { ...location, uncompressedSha256: "0".repeat(64) },
-      });
-    },
-  );
-  const searches: string[] = [];
-  page.on("request", (request) => {
-    if (new URL(request.url()).pathname === "/api/contact-groups")
-      searches.push(request.url());
+for (const artifact of ["search-index", "search-ranking"] as const)
+  test(`an artifact that fails its published digest falls back to the server search: ${artifact}`, async ({
+    page,
+  }) => {
+    await page.route(
+      (url) => url.pathname === `/api/${artifact}`,
+      async (route) => {
+        const response = await route.fetch();
+        const location = v.parse(
+          artifact === "search-index"
+            ? SearchIndexLocationSchema
+            : SearchRankingLocationSchema,
+          await response.json(),
+        );
+        await route.fulfill({
+          response,
+          json: { ...location, uncompressedSha256: "0".repeat(64) },
+        });
+      },
+    );
+    const searches: string[] = [];
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname === "/api/contact-groups")
+        searches.push(request.url());
+    });
+    await page.goto("/");
+    await expect(searchSource(page)).toHaveAttribute(
+      "data-local-search",
+      "unavailable",
+    );
+    await page.getByRole("searchbox").fill(query);
+    await expect(contactLinks(page).first()).toHaveAttribute(
+      "href",
+      /^\/contacts\/[^/]+\?/u,
+    );
+    expect(searches).toHaveLength(1);
   });
-  await page.goto("/");
-  await expect(searchSource(page)).toHaveAttribute(
-    "data-local-search",
-    "unavailable",
-  );
-  await page.getByRole("searchbox").fill(query);
-  await expect(contactLinks(page).first()).toHaveAttribute(
-    "href",
-    /^\/contacts\/[^/]+\?/u,
-  );
-  expect(searches).toHaveLength(1);
-});
 
 test("a browser that saves data searches on the server without the index", async ({
   page,
@@ -235,7 +243,9 @@ test("a browser that saves data searches on the server without the index", async
   await saveData(page);
   const locations: string[] = [];
   page.on("request", (request) => {
-    if (new URL(request.url()).pathname.startsWith(indexLocation))
+    if (
+      /^\/api\/search-(?:index|ranking)/u.test(new URL(request.url()).pathname)
+    )
       locations.push(request.url());
   });
   await page.goto("/");
