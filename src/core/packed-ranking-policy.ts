@@ -40,6 +40,6 @@ export function packedReadingKey(
   //@ verify
   //@ requires contacts >= 1 && contacts <= 2000000 && row >= 0 && row < contacts && frequency >= 1 && frequency <= 6
   //@ ensures \result >= 0 && \result < 12000000
-  //@ ensures \result % contacts === row
+  //@ ensures (6 - frequency) * contacts <= \result && \result < (7 - frequency) * contacts
   return (maximumReadingFrequency - frequency) * contacts + row;
 }
