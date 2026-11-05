@@ -113,7 +113,15 @@ describe("packed ranking", () => {
         throw new Error("Eager corpus read");
       }),
     };
-    expect(() => createRankedSearch(unreadable, packed)).not.toThrow();
+    const unreadablePostings = {
+      ...packed,
+      lexical: lazyArray(packed.lexical.length, (): never => {
+        throw new Error("Eager posting read");
+      }),
+    };
+    expect(() =>
+      createRankedSearch(unreadable, unreadablePostings),
+    ).not.toThrow();
   });
 
   it("keeps the first hundred short matches in the frozen order", () => {

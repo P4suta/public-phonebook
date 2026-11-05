@@ -74,7 +74,10 @@ export function lexicalSearch(
   artifact: RankingArtifact,
 ): (query: string) => readonly RankedHit[] {
   const postings = new Map(
-    artifact.lexical.map(([gram, weight, rows]) => [gram, { weight, rows }]),
+    (artifact.packed ? [] : artifact.lexical).map(([gram, weight, rows]) => [
+      gram,
+      { weight, rows },
+    ]),
   );
   const norms = Array.from(
     { length: artifact.packed ? 0 : names.length },
