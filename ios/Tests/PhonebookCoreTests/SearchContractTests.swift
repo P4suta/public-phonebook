@@ -15,8 +15,13 @@ private struct SearchContract: Decodable {
     let query: String
     let rank: Int
   }
+  struct Telephone: Decodable {
+    let text: String
+    let number: String?
+  }
   let words: [Words]
   let ranks: [Rank]
+  let telephones: [Telephone]
 }
 
 /// A plain restatement of the folding and splitting rule with the Unicode White_Space list spelled out.
@@ -115,6 +120,18 @@ private func rank(name: String, places: [String], query: String) -> NameRank? {
     #expect(
       Reference.rank(name: item.name, places: item.places, words: Reference.words(item.query))
         == expected)
+  }
+}
+
+@Test func readsEveryContractTelephoneLikeTheWebsite() throws {
+  let contract = try contract()
+  #expect(contract.telephones.count > 400)
+  #expect(contract.telephones.contains { $0.number != nil })
+  #expect(contract.telephones.contains { $0.number == nil })
+  for item in contract.telephones {
+    #expect(
+      SearchInput.normalizedPhone(item.text) == item.number,
+      "\(item.text.unicodeScalars.map(\.value))")
   }
 }
 
