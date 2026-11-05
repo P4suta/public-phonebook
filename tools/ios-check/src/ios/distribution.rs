@@ -428,6 +428,7 @@ fn verify_bundle(root: &Path, app: &Path, team: &str, build: BuildNumber) -> Res
                 "Missing or altered third-party notices"
             );
             super::bundled::check_built(root, &directory, "Release")?;
+            super::store_build::require_absent(&directory)?;
         }
     }
     Ok(())

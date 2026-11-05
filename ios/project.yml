@@ -86,7 +86,7 @@ targets:
         product: PhonebookKit
       - target: CallDirectory
         embed: true
-    # `ios-check generate` admits each declared archive into target/ios/bundled-dataset, and each configuration copies its own pair.
+    # `ios-check generate` admits each archive, and only QA configurations copy search companions.
     postBuildScripts:
       - name: Bundle the declared directory archive
         basedOnDependencyAnalysis: true
@@ -106,9 +106,16 @@ targets:
           set -eu
           cp "$SCRIPT_INPUT_FILE_0" "$SCRIPT_OUTPUT_FILE_0"
           cp "$SCRIPT_INPUT_FILE_1" "$SCRIPT_OUTPUT_FILE_1"
-          cp "$SCRIPT_INPUT_FILE_2" "$SCRIPT_OUTPUT_FILE_2"
-          cp "$SCRIPT_INPUT_FILE_3" "$SCRIPT_OUTPUT_FILE_3"
-          cp "$SCRIPT_INPUT_FILE_4" "$SCRIPT_OUTPUT_FILE_4"
+          case " ${SWIFT_ACTIVE_COMPILATION_CONDITIONS:-} " in
+            *" PHONEBOOK_VERIFICATION_TOOLS "*)
+              cp "$SCRIPT_INPUT_FILE_2" "$SCRIPT_OUTPUT_FILE_2"
+              cp "$SCRIPT_INPUT_FILE_3" "$SCRIPT_OUTPUT_FILE_3"
+              cp "$SCRIPT_INPUT_FILE_4" "$SCRIPT_OUTPUT_FILE_4"
+              ;;
+            *)
+              rm -f "$SCRIPT_OUTPUT_FILE_2" "$SCRIPT_OUTPUT_FILE_3" "$SCRIPT_OUTPUT_FILE_4"
+              ;;
+          esac
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_BUNDLE_ID)

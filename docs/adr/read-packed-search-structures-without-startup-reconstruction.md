@@ -7,6 +7,7 @@ date: 2026-11-05
 ## Status
 
 Accepted.
+The distribution scope is partly superseded by [QA and local forgiving search](keep-forgiving-search-in-qa-and-local-development.md).
 The implementation brief authorizes changing artifact layout and loading while preserving the frozen scorer.
 This partly supersedes [the companion format](publish-snapshot-bound-forgiving-search-artifacts.md) and [the scorer construction](rank-device-search-with-place-preferences-and-gated-readings.md).
 The ranking policy and shared fixture remain unchanged.
