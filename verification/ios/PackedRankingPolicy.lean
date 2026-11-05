@@ -21,7 +21,7 @@ theorem packedReadingBucketBounds (row contacts frequency : Int)
     (6 - frequency) * contacts ≤ packedReadingKey row contacts frequency ∧
     packedReadingKey row contacts frequency < (7 - frequency) * contacts := by
   have remainder : packedReadingKey row contacts frequency % contacts = row := by
-    simp [packedReadingKey, Int.add_emod, Int.mul_emod, Int.emod_eq_of_lt hr.1 hr.2]
+    simp [packedReadingKey, Int.add_emod, Int.emod_eq_of_lt hr.1 hr.2]
   have alternatives : frequency = 1 ∨ frequency = 2 ∨ frequency = 3 ∨ frequency = 4 ∨ frequency = 5 ∨ frequency = 6 := by omega
   rcases alternatives with h | h | h | h | h | h <;> subst frequency <;>
     simp_all [packedReadingKey] <;> omega
