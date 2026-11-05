@@ -55,6 +55,23 @@ function originalNameKey(text: string): string {
     .normalize("NFC");
 }
 
+function rankedPrefix(
+  rows: ArrayLike<number>,
+  score: (row: number) => number,
+): RankedHit[] {
+  const hits: RankedHit[] = [];
+  for (
+    let position = 0;
+    position < Math.min(rows.length, rankingLimits.results);
+    position += 1
+  ) {
+    const row = rows[position];
+    if (row === undefined) throw new Error("Missing ranked row");
+    hits.push({ row, score: score(row) });
+  }
+  return hits;
+}
+
 function unionHits(
   left: readonly RankedHit[],
   right: readonly RankedHit[],
@@ -100,13 +117,16 @@ export function createRankedSearch(
   )
     throw new Error("Invalid unknown lexical weight");
   const variants = new Map(artifact.variants);
-  const names = index.rows.map((row) => rankingName(row.name, variants));
-  const lengths = names.map((name) => Array.from(name).length);
+  const packed = artifact.packed;
+  const names =
+    packed?.names ?? index.rows.map((row) => rankingName(row.name, variants));
+  const lengths =
+    packed?.lengths ?? names.map((name) => Array.from(name).length);
   const originalExact = new Map<string, number[]>();
   const writtenExact = new Map<string, number[]>();
   const foldedExact = new Map<string, number[]>();
   const shortPostings = new Map<string, number[]>();
-  for (const [row, entry] of index.rows.entries()) {
+  for (const [row, entry] of packed ? [] : index.rows.entries()) {
     const name = names[row] ?? "";
     appendExact(originalExact, originalNameKey(entry.name), row);
     appendExact(
@@ -135,28 +155,50 @@ export function createRankedSearch(
     const length = Array.from(folded).length;
     const empty = { hits: [], lexical: [], reading: [], locked: true } as const;
     if (!length || length > rankingLimits.queryPoints) return empty;
+    const exactRows = new Map<number, string>();
+    const exactName = (row: number): string => {
+      const previous = exactRows.get(row);
+      if (previous !== undefined) return previous;
+      const name = index.nameAt ? index.nameAt(row) : index.rows[row]?.name;
+      if (name === undefined)
+        throw new Error("Packed exact row outside snapshot");
+      exactRows.set(row, name);
+      return name;
+    };
     const exact =
-      originalExact.get(originalNameKey(query)) ??
-      writtenExact.get(compactSearchText(query).normalize("NFC")) ??
-      foldedExact.get(folded);
+      (packed
+        ? packed.exact("original", originalNameKey(query), (row) =>
+            originalNameKey(exactName(row)),
+          )
+        : originalExact.get(originalNameKey(query))) ??
+      (packed
+        ? packed.exact(
+            "written",
+            compactSearchText(query).normalize("NFC"),
+            (row) => compactSearchText(exactName(row)).normalize("NFC"),
+          )
+        : writtenExact.get(compactSearchText(query).normalize("NFC"))) ??
+      (packed
+        ? packed.exact("folded", folded, packed.name)
+        : foldedExact.get(folded));
     if (exact)
       return {
         ...empty,
-        hits: exact
-          .slice(0, rankingLimits.results)
-          .map((row) => ({ row, score: rankingLimits.exactScore })),
+        hits: rankedPrefix(exact, () => rankingLimits.exactScore),
       };
     if (length <= shortQueryPoints)
       return {
         ...empty,
-        hits: (shortPostings.get(folded) ?? [])
-          .slice(0, rankingLimits.results)
-          .map((row) => ({
-            row,
-            score: Math.floor(
-              rankingLimits.exactScore / (1 + (lengths[row] ?? 0)),
+        hits: rankedPrefix(
+          (packed
+            ? packed.dictionaries.short.get(folded)?.rows
+            : shortPostings.get(folded)) ?? [],
+          (row) =>
+            Math.floor(
+              rankingLimits.exactScore /
+                (1 + (packed ? packed.length(row) : (lengths[row] ?? 0))),
             ),
-          })),
+        ),
       };
     const lexicalHits = lexical(folded);
     const readingHits = reading(folded);
@@ -191,10 +233,22 @@ export function createRankedSearch(
           };
       const preferred = new Set<number>();
       const tiedRegion = new Set<number>();
+      const placeRows = new Map<
+        number,
+        Pick<SearchIndex["rows"][number], "name" | "region">
+      >();
       const order = (hits: readonly RankedHit[]): RankedHit[] => {
         for (const hit of hits) {
-          const row = index.rows[hit.row];
+          if (!places.conditions.length && !tiedPlaces.conditions.length) {
+            preferred.add(hit.row);
+            tiedRegion.add(hit.row);
+            continue;
+          }
+          const row =
+            placeRows.get(hit.row) ??
+            (index.placeAt ? index.placeAt(hit.row) : index.rows[hit.row]);
           if (!row) throw new Error("Candidate outside snapshot");
+          placeRows.set(hit.row, row);
           if (matchesPlaces(row, places)) preferred.add(hit.row);
           if (matchesPlaces(row, tiedPlaces)) tiedRegion.add(hit.row);
         }

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   copyFile,
+  cp,
   mkdir,
   mkdtemp,
   readFile,
@@ -9,9 +10,10 @@ import {
 } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { brotliDecompressSync } from "node:zlib";
+import { brotliCompressSync, brotliDecompressSync, constants } from "node:zlib";
 import * as v from "valibot";
 import { PreparedDatasetManifestSchema } from "../src/core/dataset-storage.ts";
+import { encodePackedRanking } from "../src/core/packed-ranking.ts";
 import {
   decodeSearchIndex,
   type SearchIndex,
@@ -30,7 +32,7 @@ import {
   searchGrams,
 } from "../src/core/search-ranking-text.ts";
 import { command } from "./process.ts";
-import { compressSearchIndex, readSearchIndex } from "./search-index.ts";
+import { readSearchIndex, searchIndexCompression } from "./search-index.ts";
 
 const dictionaryDigest =
   "b38318ca26a444cd713a5a377a353308ef38c733c64cc0be905122527516c793";
@@ -61,6 +63,19 @@ const AliasSchema = v.strictObject({
 
 function digest(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
+}
+
+const rankingBrotliQuality = 6;
+
+function compressRanking(bytes: Uint8Array): Uint8Array {
+  const options = searchIndexCompression(bytes.length);
+  return brotliCompressSync(bytes, {
+    ...options,
+    params: {
+      ...options.params,
+      [constants.BROTLI_PARAM_QUALITY]: rankingBrotliQuality,
+    },
+  });
 }
 
 async function dictionaryArchive(): Promise<string> {
@@ -230,10 +245,13 @@ export async function writeSearchRanking(
   const input =
     readings ??
     (await generateRankingReadings(index.rows.map((row) => row.name)));
-  const bytes = encodeRankingArtifact(
-    buildRankingArtifact(index, input, await rankingAliases(db)),
+  const artifact = buildRankingArtifact(index, input, await rankingAliases(db));
+  const bytes = encodePackedRanking(
+    index,
+    artifact,
+    digest(encodeRankingArtifact(artifact)),
   );
-  const compressed = compressSearchIndex(bytes);
+  const compressed = compressRanking(bytes);
   await writeFile(join(directory, rankingArtifactFile), compressed, {
     flag: "wx",
   });
@@ -352,6 +370,57 @@ if (import.meta.main) {
         variants: "identical",
       }),
     );
+  } else if (operation === "repack" && source && bundle && !destination) {
+    const manifest = v.parse(
+      PreparedDatasetManifestSchema,
+      JSON.parse(await readFile(join(source, "manifest.ready.json"), "utf8")),
+    );
+    const artifact = await rankingEvidence(source);
+    if (artifact.packed)
+      throw new Error("Repacking requires the retained source artifact");
+    const index = decodeSearchIndex(
+      brotliDecompressSync(await readFile(join(source, "search-index.br"))),
+    );
+    const bytes = encodePackedRanking(
+      index,
+      artifact,
+      manifest.searchRanking?.uncompressedSha256 ?? "",
+    );
+    console.info(
+      JSON.stringify({
+        operation: "search.ranking.pack",
+        uncompressedBytes: bytes.length,
+      }),
+    );
+    const compressed = compressRanking(bytes);
+    await cp(source, bundle, {
+      recursive: true,
+      errorOnExist: true,
+      force: false,
+    });
+    await writeFile(join(bundle, rankingArtifactFile), compressed);
+    const updated = {
+      ...manifest,
+      searchRanking: {
+        file: rankingArtifactFile,
+        format: rankingArtifactFormat,
+        sha256: digest(compressed),
+        bytes: compressed.length,
+        uncompressedSha256: digest(bytes),
+        uncompressedBytes: bytes.length,
+      },
+    };
+    for (const file of ["manifest.json", "manifest.ready.json"])
+      await writeFile(
+        join(bundle, file),
+        `${JSON.stringify(updated, null, jsonIndentation)}\n`,
+      );
+    console.info(
+      JSON.stringify({
+        operation: "search.ranking.repack",
+        ...updated.searchRanking,
+      }),
+    );
   } else if (operation === "attach" && source && !bundle) {
     const manifest = v.parse(
       PreparedDatasetManifestSchema,
@@ -396,6 +465,6 @@ if (import.meta.main) {
     }
   } else
     throw new Error(
-      "Usage: search-ranking.ts attach BUNDLE | compare-evidence PREVIOUS_BUNDLE CURRENT_BUNDLE | import-aliases SOURCE BUNDLE DESTINATION",
+      "Usage: search-ranking.ts attach BUNDLE | repack SOURCE DESTINATION | compare-evidence PREVIOUS_BUNDLE CURRENT_BUNDLE | import-aliases SOURCE BUNDLE DESTINATION",
     );
 }

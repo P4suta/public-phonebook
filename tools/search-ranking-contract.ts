@@ -150,6 +150,7 @@ export interface QualityReport {
   readonly corpusSha256: string;
   readonly indexSha256: string;
   readonly rankingSha256: string;
+  readonly rankingArtifactSha256: string;
   readonly populations: readonly {
     readonly name: string;
     readonly minimum: QualityCounts;
@@ -292,6 +293,7 @@ export async function checkSearchQuality(
     corpusSha256: corpus.sha256,
     indexSha256: bundle.indexSha256,
     rankingSha256: bundle.rankingSha256,
+    rankingArtifactSha256: bundle.rankingArtifactSha256,
     populations,
     passed: populations.every((population) => population.passed),
   };
@@ -533,6 +535,7 @@ export interface RankingBundle {
   readonly ranking: RankingArtifact;
   readonly indexSha256: string;
   readonly rankingSha256: string;
+  readonly rankingArtifactSha256: string;
 }
 
 function digest(bytes: Uint8Array): string {
@@ -584,15 +587,18 @@ export async function readRankingBundle(
     index.rows.length !== manifest.contacts
   )
     throw new Error("Search index snapshot mismatch");
+  const decodedRanking = decodeRankingArtifact(
+    await decoded(ranking),
+    manifest.snapshot,
+    manifest.contacts,
+  );
   return {
     index,
-    ranking: decodeRankingArtifact(
-      await decoded(ranking),
-      manifest.snapshot,
-      manifest.contacts,
-    ),
+    ranking: decodedRanking,
     indexSha256: indexArtifact.uncompressedSha256,
-    rankingSha256: ranking.uncompressedSha256,
+    rankingSha256:
+      decodedRanking.packed?.sourceSha256 ?? ranking.uncompressedSha256,
+    rankingArtifactSha256: ranking.uncompressedSha256,
   };
 }
 

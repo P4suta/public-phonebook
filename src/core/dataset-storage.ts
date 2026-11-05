@@ -39,7 +39,10 @@ export const SearchIndexArtifactSchema = v.strictObject({
 
 export const SearchRankingArtifactSchema = v.strictObject({
   file: v.literal(rankingArtifactFile),
-  format: v.literal(rankingArtifactFormat),
+  format: v.picklist([
+    "public-phonebook-search-ranking/1",
+    rankingArtifactFormat,
+  ]),
   sha256: DigestSchema,
   bytes: v.pipe(CountSchema, v.maxValue(rankingArtifactLimits.compressedBytes)),
   uncompressedSha256: DigestSchema,
@@ -221,7 +224,7 @@ export function searchIndexLocation(
 export const SearchRankingLocationSchema = v.pipe(
   v.strictObject({
     snapshot: DigestSchema,
-    format: v.literal(rankingArtifactFormat),
+    format: SearchRankingArtifactSchema.entries.format,
     url: v.string(),
     sha256: DigestSchema,
     bytes: SearchRankingArtifactSchema.entries.bytes,

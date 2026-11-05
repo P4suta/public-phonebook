@@ -5,6 +5,7 @@ import {
   PrefectureCodeSchema,
 } from "./catalog.ts";
 import { compareUtf8 } from "./directory-archive.ts";
+import { packedMidpoint } from "./forgiving-search-policy.ts";
 import { normalizeName } from "./identity.ts";
 import {
   type Catalog,
@@ -12,12 +13,16 @@ import {
   DigestSchema,
   TextSchema,
 } from "./models.ts";
+import { lazyArray } from "./packed-ranking.ts";
 import { searchForm } from "./search-text.ts";
 
 export const searchIndexFile = "search-index.br";
 const indexSignature = "public-phonebook-search-index\t1";
 const lineTerminator = "\n";
 const lineFeedByte = 0x0a;
+const spaceByte = 0x20;
+const firstDigitByte = 0x30;
+const lastDigitByte = 0x39;
 const nameSeparator = "\t";
 const phoneSeparator = " ";
 const reservedCharacters = ["\t", "\n", "\r"];
@@ -119,6 +124,9 @@ export interface SearchIndexInput {
 export interface SearchIndex {
   readonly header: SearchIndexHeader;
   readonly rows: readonly SearchIndexRow[];
+  readonly telephoneRows?: (number: string) => readonly number[];
+  readonly nameAt?: (row: number) => string;
+  readonly placeAt?: (row: number) => Pick<SearchIndexRow, "name" | "region">;
 }
 
 export interface RowKey {
@@ -353,7 +361,10 @@ export function hasSearchIndexSignature(bytes: Uint8Array): boolean {
   );
 }
 
-export function decodeSearchIndex(bytes: Uint8Array): SearchIndex {
+export function decodeSearchIndex(
+  bytes: Uint8Array,
+  lazy = false,
+): SearchIndex {
   const signature = signatureLine;
   if (!hasSearchIndexSignature(bytes)) fail("Unsupported search index format");
   const headerEnd = bytes.indexOf(lineFeedByte, signature.byteLength);
@@ -380,10 +391,41 @@ export function decodeSearchIndex(bytes: Uint8Array): SearchIndex {
     offset += length;
     return part;
   }
-  const nameLines = textLines(take(parts.names), "name part", contacts);
+  let phoneOffsets: Uint32Array | null = null;
+  function viewedLines(part: Uint8Array, label: string): readonly string[] {
+    if (!lazy) return textLines(part, label, contacts);
+    const offsets = new Uint32Array(contacts + 1);
+    let row = 0;
+    const telephone = label === "telephone part";
+    for (let at = 0; at < part.length; at += 1) {
+      const byte = part[at] ?? -1;
+      if (
+        telephone &&
+        byte !== lineFeedByte &&
+        byte !== spaceByte &&
+        (byte < firstDigitByte || byte > lastDigitByte)
+      )
+        fail("Search telephone bytes must be ASCII digits and separators");
+      if (part[at] !== lineFeedByte) continue;
+      row += 1;
+      if (row > contacts) fail("Search index has extra lines");
+      offsets[row] = at + 1;
+    }
+    if (row !== contacts || offsets[row] !== part.length)
+      fail("Search index line count mismatch");
+    if (telephone) phoneOffsets = offsets;
+    return lazyArray(contacts, (position) =>
+      utf8(
+        part.subarray(offsets[position] ?? 0, (offsets[position + 1] ?? 0) - 1),
+        label,
+      ),
+    );
+  }
+  const nameLines = viewedLines(take(parts.names), "name part");
   const categoryPart = take(parts.categories);
   const regionPart = take(parts.regions);
-  const phoneLines = textLines(take(parts.phones), "telephone part", contacts);
+  const phonePart = take(parts.phones);
+  const phoneLines = viewedLines(phonePart, "telephone part");
   const regionView = new DataView(
     regionPart.buffer,
     regionPart.byteOffset,
@@ -392,7 +434,7 @@ export function decodeSearchIndex(bytes: Uint8Array): SearchIndex {
   const usedRegions = new Set<number>();
   const rowsWithoutAddress = new Set(header.rowsWithoutAddress);
   let previous: string | undefined;
-  const rows = nameLines.map((line, index): SearchIndexRow => {
+  const readRow = (line: string, index: number): SearchIndexRow => {
     const fields = line.split(nameSeparator);
     if (fields.length > nameFieldLimit)
       fail("A search index name line has too many fields");
@@ -400,8 +442,8 @@ export function decodeSearchIndex(bytes: Uint8Array): SearchIndex {
     if (display === normalizedName)
       fail("A search index name repeats its normalized form");
     const name = display ?? normalizedName;
-    checkName(normalizedName, name, previous);
-    previous = normalizedName;
+    checkName(normalizedName, name, lazy ? undefined : previous);
+    if (!lazy) previous = normalizedName;
     const categoryIndex = categoryPart[index];
     const category =
       (categoryIndex === undefined
@@ -427,8 +469,72 @@ export function decodeSearchIndex(bytes: Uint8Array): SearchIndex {
       phones,
       hasAddress: !rowsWithoutAddress.has(index),
     };
-  });
+  };
+  if (lazy) {
+    for (let row = 0; row < contacts; row += 1) {
+      const category = categoryPart[row];
+      const region = regionView.getUint16(
+        row * regionWidth,
+        regionLittleEndian,
+      );
+      if (
+        category === undefined ||
+        !header.categories[category] ||
+        !header.regions[region]
+      )
+        fail("Search index row reference out of range");
+      usedRegions.add(region);
+    }
+  }
+  const rows = lazy
+    ? lazyArray(contacts, (position) =>
+        readRow(nameLines[position] ?? "", position),
+      )
+    : nameLines.map(readRow);
   if (usedRegions.size !== header.regions.length)
     fail("Every search index region must be referenced");
-  return { header, rows };
+  let phoneText: string | undefined;
+  const telephoneRows = (number: string): readonly number[] => {
+    if (!nationalNumber.test(number)) return [];
+    const offsets =
+      phoneOffsets ?? fail("Search telephone offsets are missing");
+    phoneText ??= utf8(phonePart, "telephone part");
+    const result: number[] = [];
+    let position = phoneText.indexOf(number);
+    while (position >= 0) {
+      const before =
+        position === 0 ? lineFeedByte : phoneText.charCodeAt(position - 1);
+      const after = phoneText.charCodeAt(position + number.length);
+      if (
+        (before === lineFeedByte || before === spaceByte) &&
+        (after === lineFeedByte || after === spaceByte)
+      ) {
+        let low = 0;
+        let high = contacts;
+        while (low < high) {
+          const middle = packedMidpoint(low, high);
+          if ((offsets[middle + 1] ?? 0) <= position) low = middle + 1;
+          else high = middle;
+        }
+        if (result.at(-1) !== low) result.push(low);
+      }
+      position = phoneText.indexOf(number, position + 1);
+    }
+    return result;
+  };
+  const nameAt = (row: number): string => {
+    const line = nameLines[row];
+    if (line === undefined) fail("Search name outside snapshot");
+    return line.slice(line.indexOf(nameSeparator) + 1);
+  };
+  const placeAt = (row: number): Pick<SearchIndexRow, "name" | "region"> => ({
+    name: nameAt(row),
+    region:
+      header.regions[
+        regionView.getUint16(row * regionWidth, regionLittleEndian)
+      ] ?? fail("Search region outside snapshot"),
+  });
+  return lazy
+    ? { header, rows, telephoneRows, nameAt, placeAt }
+    : { header, rows };
 }

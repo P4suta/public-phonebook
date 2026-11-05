@@ -11,7 +11,7 @@ interface LocalSearchScope {
 
 const scope: LocalSearchScope = self;
 const handle = localSearchService({
-  fetch: async (url) => fetch(url),
+  fetch: async (url) => fetch(url, { cache: "no-store" }),
   post: (reply) => scope.postMessage(reply),
 });
 scope.addEventListener("message", (event) => {

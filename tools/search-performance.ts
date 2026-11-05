@@ -27,6 +27,7 @@ import {
   type SearchIndex,
   searchIndexFile,
 } from "../src/core/search-index.ts";
+import { decodeRankingArtifact } from "../src/core/search-ranking-artifact.ts";
 import { serveBuiltWorker } from "./built-worker-server.ts";
 import { developmentHost } from "./local-data.ts";
 import { parityQueries } from "./search-parity.ts";
@@ -65,10 +66,14 @@ const contractRequestStart = 1_000_000;
 const contractWarmupCount = 32;
 const hexRadix = 16;
 const hexByteWidth = 2;
+const maximumAdmissionMs = 1500;
+const maximumAddedProcessBytes = 400_000_000;
 
 const RecordSchema = v.object({
   ready: v.nullable(v.number()),
   workerLoad: v.nullable(v.number()),
+  artifactsArrived: v.nullable(v.number()),
+  admissionAfterArrival: v.nullable(v.number()),
   searches: v.array(v.number()),
   longTasks: v.array(v.number()),
   events: v.array(v.object({ name: v.string(), duration: v.number() })),
@@ -86,6 +91,41 @@ interface Profile {
   readonly device: (typeof devices)[string];
   readonly cpuThrottling: number | null;
 }
+
+export function performanceBudget(
+  admissionMs: number | null,
+  incrementBytes: number | null,
+  p95Ms: number | null,
+  baselineP95Ms: number,
+): {
+  readonly admission: boolean;
+  readonly memory: boolean | null;
+  readonly latency: boolean;
+  readonly passed: boolean;
+} {
+  const admission =
+    admissionMs !== null &&
+    admissionMs >= 0 &&
+    admissionMs <= maximumAdmissionMs;
+  const memory =
+    incrementBytes === null
+      ? null
+      : incrementBytes >= 0 && incrementBytes <= maximumAddedProcessBytes;
+  const latency = p95Ms !== null && p95Ms >= 0 && p95Ms <= baselineP95Ms;
+  return {
+    admission,
+    memory,
+    latency,
+    passed: admission && memory === true && latency,
+  };
+}
+
+const baselineP95: Readonly<Record<string, number>> = {
+  chromium: 10.2,
+  "chromium-4x-cpu": 11.2,
+  webkit: 10,
+  "mobile-webkit": 13,
+};
 
 const profiles: readonly Profile[] = [
   {
@@ -207,6 +247,8 @@ function installRecorder(eventThreshold: number): void {
   const record: {
     ready: number | null;
     workerLoad: number | null;
+    artifactsArrived: number | null;
+    admissionAfterArrival: number | null;
     searches: number[];
     longTasks: number[];
     events: { name: string; duration: number }[];
@@ -218,6 +260,8 @@ function installRecorder(eventThreshold: number): void {
   } = {
     ready: null,
     workerLoad: null,
+    artifactsArrived: null,
+    admissionAfterArrival: null,
     searches: [],
     longTasks: [],
     events: [],
@@ -272,8 +316,18 @@ function installRecorder(eventThreshold: number): void {
       this.addEventListener("message", (event: MessageEvent<unknown>) => {
         const data = event.data;
         if (typeof data !== "object" || data === null) return;
-        if (Reflect.get(data, "type") === "ready")
+        if (
+          Reflect.get(data, "type") === "progress" &&
+          Reflect.get(data, "received") === Reflect.get(data, "total")
+        )
+          record.artifactsArrived = performance.now();
+        if (Reflect.get(data, "type") === "ready") {
           record.workerLoad = performance.now() - loadStarted;
+          record.admissionAfterArrival =
+            record.artifactsArrived === null
+              ? null
+              : performance.now() - record.artifactsArrived;
+        }
         if (Reflect.get(data, "type") === "results") {
           record.messages.resultsReceived += 1;
           record.messages.resultJsonBytes += utf8.encode(
@@ -363,6 +417,7 @@ async function measureProfile(
     await page
       .locator("search[data-local-search='ready']")
       .waitFor({ state: "attached", timeout: readyTimeoutMs });
+    const admissionMemory = trace?.checkpoint() ?? null;
     const input = page.getByRole("searchbox");
     for (const query of queries) {
       const before = (await readRecord(page)).searches.length;
@@ -386,6 +441,7 @@ async function measureProfile(
     await page.keyboard.type(typedText, { delay: typingDelayMs });
     await page.waitForTimeout(typingDelayMs);
     const record = await readRecord(page);
+    const sampledMemory = trace?.checkpoint() ?? null;
     const ranked = contract
       ? await measureRankingContract(page, contract)
       : null;
@@ -395,6 +451,19 @@ async function measureProfile(
     const supportsEvents = await page.evaluate(() =>
       PerformanceObserver.supportedEntryTypes.includes("event"),
     );
+    const processMemory = trace?.finish() ?? {
+      status: "not-run",
+      reason: "No process attribution tools were supplied",
+    };
+    const memoryIncrement: unknown = Reflect.get(
+      processMemory,
+      "peakIncrementRssBytes",
+    );
+    const rankingSummary: unknown = ranked?.completeRankingRoundTripMs;
+    const rankingP95: unknown =
+      typeof rankingSummary === "object" && rankingSummary !== null
+        ? Reflect.get(rankingSummary, "p95")
+        : null;
     return {
       name: profile.name,
       browser: browser.version(),
@@ -406,6 +475,18 @@ async function measureProfile(
       sampledWorkerMessages: sampled.messages,
       readyMs: record.ready,
       workerLoadMs: record.workerLoad,
+      admissionAfterArrivalMs: record.admissionAfterArrival,
+      budgets: {
+        maximumAdmissionMs,
+        maximumAddedProcessBytes,
+        maximumRankingP95Ms: baselineP95[profile.name] ?? 0,
+        ...performanceBudget(
+          record.admissionAfterArrival,
+          typeof memoryIncrement === "number" ? memoryIncrement : null,
+          typeof rankingP95 === "number" ? rankingP95 : null,
+          baselineP95[profile.name] ?? 0,
+        ),
+      },
       searchRoundTripMs: summarize(record.searches),
       inputEventsOver16Ms: supportsEvents
         ? summarize(record.events.map((event) => event.duration))
@@ -418,10 +499,9 @@ async function measureProfile(
         : unmeasurable,
       mainThreadHeapBytes: record.heap ?? unmeasurable,
       rankingContract: ranked,
-      processMemory: trace?.finish() ?? {
-        status: "not-run",
-        reason: "No process attribution tools were supplied",
-      },
+      processMemory,
+      admissionMemory,
+      sampleMemory: sampledMemory,
     };
   } finally {
     trace?.dispose();
@@ -441,6 +521,7 @@ function sampleMemory(
   tools: string,
   engine: string,
 ): {
+  readonly checkpoint: () => Record<string, unknown>;
   readonly finish: () => Record<string, unknown>;
   readonly dispose: () => void;
 } {
@@ -516,6 +597,14 @@ function sampleMemory(
     }
   }, memorySampleIntervalMs);
   return {
+    checkpoint: (): Record<string, unknown> => {
+      if (failure) throw failure;
+      return {
+        currentRssBytes: sample(),
+        peakIncrementRssBytes: peak - baseline,
+        samples,
+      };
+    },
     dispose: (): void => {
       clearInterval(timer);
     },
@@ -715,12 +804,21 @@ async function main(): Promise<void> {
         JSON.parse(await readFile(values.contract, "utf8")),
       )
     : null;
+  const rankingIdentity = manifest.searchRanking
+    ? (decodeRankingArtifact(
+        brotliDecompressSync(
+          await readFile(join(directory, manifest.searchRanking.file)),
+        ),
+        manifest.snapshot,
+        manifest.contacts,
+      ).packed?.sourceSha256 ?? manifest.searchRanking.uncompressedSha256)
+    : null;
   if (
     contract &&
     (contract.snapshot !== manifest.snapshot ||
       contract.contacts !== manifest.contacts ||
       contract.indexSha256 !== manifest.searchIndex.uncompressedSha256 ||
-      contract.rankingSha256 !== manifest.searchRanking?.uncompressedSha256 ||
+      contract.rankingSha256 !== rankingIdentity ||
       contract.queries.length === 0)
   )
     throw new Error("The ranking contract differs from the measured snapshot");

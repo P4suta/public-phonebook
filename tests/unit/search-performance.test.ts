@@ -4,7 +4,10 @@ import {
   decodeSearchIndex,
   type SearchIndex,
 } from "../../src/core/search-index.ts";
-import { searchWork } from "../../tools/search-performance.ts";
+import {
+  performanceBudget,
+  searchWork,
+} from "../../tools/search-performance.ts";
 import { type ModelContact, modelDirectory } from "./local-search-fixture.ts";
 
 const snapshot = "b".repeat(64);
@@ -24,6 +27,21 @@ const contacts: ModelContact[] = [
 const index = decodeSearchIndex(modelDirectory(contacts, snapshot).bytes);
 
 describe("search work", () => {
+  it("records inclusive budgets and refuses missing measurements and regressions", () => {
+    expect(performanceBudget(1500, 400_000_000, 10.2, 10.2).passed).toBe(true);
+    expect(performanceBudget(1500.01, 400_000_000, 10.2, 10.2).passed).toBe(
+      false,
+    );
+    expect(performanceBudget(1500, 400_000_001, 10.2, 10.2).passed).toBe(false);
+    expect(performanceBudget(1500, 400_000_000, 10.21, 10.2).passed).toBe(
+      false,
+    );
+    expect(performanceBudget(1500, null, 10.2, 10.2)).toMatchObject({
+      memory: null,
+      passed: false,
+    });
+    expect(performanceBudget(null, 1, null, 10.2).passed).toBe(false);
+  });
   it("counts the index rows that the matcher reads and the rows it matches", () => {
     expect(searchWork(index, ["図書館", "", "0774981200"])).toEqual({
       queries: 3,

@@ -26,6 +26,7 @@ import {
   type Source,
   SourceSchema,
 } from "../src/core/models.ts";
+import { encodePackedRanking } from "../src/core/packed-ranking.ts";
 import { decodeSearchIndex } from "../src/core/search-index.ts";
 import {
   decodeRankingArtifact,
@@ -325,9 +326,16 @@ export async function checkDataBundle(
       const readings = await generateRankingReadings(
         index.rows.map((row) => row.name),
       );
-      const expected = encodeRankingArtifact(
-        buildRankingArtifact(index, readings, await rankingAliases(db)),
+      const built = buildRankingArtifact(
+        index,
+        readings,
+        await rankingAliases(db),
       );
+      const canonical = encodeRankingArtifact(built);
+      const expected =
+        artifact.format === "public-phonebook-search-ranking/2"
+          ? encodePackedRanking(index, built, sha256Hex(canonical))
+          : canonical;
       if (
         actual.byteLength !== artifact.uncompressedBytes ||
         sha256Hex(actual) !== artifact.uncompressedSha256 ||
