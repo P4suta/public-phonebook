@@ -207,6 +207,17 @@ public actor SnapshotStore {
 
   public func removeSearchArtifacts() throws {
     guard draft == nil else { throw ImportError.alreadyUpdating }
+    let extensions = Set(Self.searchExtensions + Self.mappedSearchExtensions)
+    let targets = try FileManager.default.contentsOfDirectory(
+      at: root, includingPropertiesForKeys: nil
+    ).filter { item in
+      let name = item.lastPathComponent
+      return name == "search-transfers"
+        || (name.count > 37 && UUID(uuidString: String(name.prefix(36))) != nil
+          && name.dropFirst(36).first == "." && extensions.contains(String(name.dropFirst(37))))
+    }
+    let saved = try readManifest(requiringSearchArtifacts: false)
+    guard saved?.rankedSearch == true || !targets.isEmpty else { return }
     let lease = try WriterLease(url: root.appendingPathComponent("writer.sqlite"))
     defer { lease.release() }
     if let saved = try readManifest(requiringSearchArtifacts: false), saved.rankedSearch == true {
@@ -216,18 +227,7 @@ public actor SnapshotStore {
         records: saved.records, origin: saved.origin)
       try files.activateManifest(JSONEncoder().encode(literal), at: manifestURL)
     }
-    let extensions = Set(Self.searchExtensions + Self.mappedSearchExtensions)
-    for item in try FileManager.default.contentsOfDirectory(
-      at: root, includingPropertiesForKeys: nil)
-    {
-      let name = item.lastPathComponent
-      if name == "search-transfers"
-        || (name.count > 37 && UUID(uuidString: String(name.prefix(36))) != nil
-          && name.dropFirst(36).first == "." && extensions.contains(String(name.dropFirst(37))))
-      {
-        try files.removeGeneration(at: item)
-      }
-    }
+    for item in targets { try files.removeGeneration(at: item) }
   }
 
   public func begin(header: ArchiveHeader, origin: URL? = nil, requiresRankedSearch: Bool = false)

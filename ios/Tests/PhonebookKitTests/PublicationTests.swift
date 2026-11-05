@@ -104,6 +104,23 @@ private func firstName(_ store: SnapshotStore, _ generation: UUID) async throws 
   }
 }
 
+@Test func literalSearchCleanupDoesNotContendWithAnotherImport() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let store = try SnapshotStore(root: root)
+  let saved = try await publish([ArchiveLine(name: "Saved")], to: store)
+  let importing = try SnapshotStore(root: root)
+  try await importing.begin(header: sampleHeader(snapshot: "b"))
+  do {
+    try await store.removeSearchArtifacts()
+  } catch {
+    try await importing.abort()
+    throw error
+  }
+  try await importing.abort()
+  #expect(try await store.manifest()?.generation == saved.generation)
+}
+
 @Test func failedRankedActivationKeepsThePreviousSearchAndCallerGeneration() async throws {
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }
