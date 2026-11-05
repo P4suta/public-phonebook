@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
-import type { SearchResponse } from "../core/models.ts";
+import type { GroupedSearchResponse } from "../core/models.ts";
 import {
   emptyWebSearch,
   hasSearch,
@@ -8,16 +8,16 @@ import {
   parseWebSearch,
   webSearchParameters,
 } from "../core/web-search.ts";
-import { DirectoryError, getCatalog, getSearch } from "../ui/client.ts";
+import { DirectoryError, getCatalog, getContactGroups } from "../ui/client.ts";
 import { SearchPage } from "../ui/search-page.tsx";
 
 /** Renders the first results on the server; the page searches from the browser after that. */
 const serverResults = createIsomorphicFn()
   .server(
-    async (params: URLSearchParams): Promise<SearchResponse | null> =>
-      getSearch(params),
+    async (params: URLSearchParams): Promise<GroupedSearchResponse | null> =>
+      getContactGroups(params),
   )
-  .client(async (): Promise<SearchResponse | null> => null);
+  .client(async (): Promise<GroupedSearchResponse | null> => null);
 
 export const Route = createFileRoute("/")({
   validateSearch: (raw: Record<string, unknown>) => {

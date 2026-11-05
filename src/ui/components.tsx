@@ -127,29 +127,18 @@ export function ResultCard({
 }): ReactElement {
   const headingId = `contact-${card.key}`;
   const detail = uiCopy.resultDetail.label(card.hasAddress);
-  const category = categoryDefinitions.find(
-    (item) => item.id === card.category,
-  );
   return (
     <article
       className={css.card}
       data-layout="result"
+      data-grouped="true"
       aria-labelledby={headingId}
     >
       <div className={css.contactHeader}>
-        <h2 className={css.contactName} id={headingId} tabIndex={-1}>
+        <h3 className={css.contactName} id={headingId} tabIndex={-1}>
           {card.name}
-        </h2>
-        <p className={`${css.region} ${css.resultMetadata}`}>
-          <span
-            className={css.resultCategory}
-            data-result-category={card.category}
-          >
-            <CategoryIcon category={card.category} />
-            {category?.label ?? card.category}
-          </span>
-          {card.region && <span>{card.region}</span>}
-        </p>
+        </h3>
+        {card.region && <p className={css.region}>{card.region}</p>}
       </div>
       <PhoneActions phones={card.phones} />
       <a

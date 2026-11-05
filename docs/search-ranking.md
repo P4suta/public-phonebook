@@ -1,7 +1,7 @@
 # Device name ranking
 
 Forgiving search runs only in the owner's QA iPhone builds and explicit local website development.
-The production website, server, and non-QA iPhone configurations use literal matching in one ordered list.
+The production website, server, and non-QA iPhone configurations use literal matching.
 The [distribution decision](adr/keep-forgiving-search-in-qa-and-local-development.md) records the resource costs and build boundaries.
 Run `mise x -- just dev-forgiving` to build and serve the website scorer locally over HTTPS.
 The optional port argument defaults to 8787, and `DIAL_LOCAL_STATE` selects the existing seeded local state.
@@ -58,7 +58,7 @@ Place-only input keeps its original interpretation.
 Queries with one or two code points use the bounded literal route.
 
 The [scorer decision](adr/rank-device-search-with-place-preferences-and-gated-readings.md) defines retrieval, reading selection, place conditions, score encoding, and ties.
-The [presentation decision](adr/show-one-ranked-list-with-a-server-fallback.md) defines the phase 2 single list and the retained server matcher.
+The [server fallback decision](adr/show-one-ranked-list-with-a-server-fallback.md) keeps the server matcher, and [category previews for ranked results](adr/group-ranked-results-into-category-previews.md) defines the presentation.
 The local forgiving-search worker admits both artifacts before constructing the scorer and keeps the server fallback when admission fails.
 The iPhone adapter consumes the equivalent ranking contract in Swift.
 
@@ -92,14 +92,11 @@ Supply `--contract tests/fixtures/search-ranking.json` and `--process-tools DIRE
 The report refuses to mark missing memory or ranking measurements as passing budgets.
 The release gate's existing performance observation keeps the budget fields with the candidate evidence.
 
-The website presents one ordered list with each facility's category and region.
-The production worker orders literal matches by their name tier and name-index row, then returns 30 results per page across category boundaries.
-The local forgiving-search worker returns the first 30 ranked candidates and continues the same array by 30 until it reaches the returned candidate count.
+The website groups results into category previews of up to three results, with a continuation of 30 results per category.
+The production worker groups literal matches as the server does.
+The local forgiving-search worker groups its ranked candidates by category, placing each category where its first candidate appears and keeping rank order inside it.
 Its internal messages include the integer score for contract inspection, while result cards leave scores out.
 Complete telephone numbers keep exact-number matching in index row order.
-Existing category URLs restrict the ordered candidates to their named category, and server cursor URLs keep server continuation.
-Matching card content preserves result focus across the initial engine change.
-A focused candidate that leaves the result set returns focus to the search field.
 
 `tests/fixtures/search-ranking.json` declares `public-phonebook-name-ranking/1`, the exact snapshot, both decoded artifact digests, and complete expected row-and-score pairs for every fixture query.
 The fixture records all returned candidates, including score ties and secondary-route candidates.

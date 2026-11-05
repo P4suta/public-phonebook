@@ -10,9 +10,11 @@ import {
   useRef,
   useState,
 } from "react";
+import * as v from "valibot";
+import { CategorySchema } from "../core/catalog.ts";
 import { searchSource } from "../core/local-search-policy.ts";
 import type { LocalRow } from "../core/local-search-protocol.ts";
-import type { Contact, SearchResponse } from "../core/models.ts";
+import type { Contact, GroupedSearchResponse } from "../core/models.ts";
 import {
   completeTelephone,
   inputScript,
@@ -27,14 +29,19 @@ import {
 import {
   hasSearch,
   parseWebSearch,
-  type WebSearch,
   webSearchParameters,
 } from "../core/web-search.ts";
 import { Route } from "../routes/index.tsx";
-import { DirectoryError, getRowLocation, getSearch } from "./client.ts";
+import { DirectoryError, getContactGroups, getRowLocation } from "./client.ts";
 import { LinkButton, LoadingError } from "./components.tsx";
 import { uiCopy } from "./copy.ts";
 import { ErrorPage } from "./error-page.tsx";
+import {
+  type Continuation,
+  GroupResults,
+  type GroupView,
+  type ResultSource,
+} from "./group-results.tsx";
 import { Icon } from "./icons.tsx";
 import {
   indexReadiness,
@@ -42,12 +49,6 @@ import {
   type LocalResults,
   useLocalIndex,
 } from "./local-index.ts";
-import {
-  type Continuation,
-  RankedResults,
-  type RankedView,
-  type ResultSource,
-} from "./ranked-results.tsx";
 import {
   catalogRegions,
   localCard,
@@ -65,10 +66,12 @@ const restartCodes: readonly string[] = [
   "invalid_cursor",
 ];
 
-interface ResultsView extends RankedView {
+interface ResultsView {
   readonly key: string;
   readonly epoch: number;
   readonly source: ResultSource;
+  readonly total: number;
+  readonly groups: readonly GroupView[];
   readonly more: Continuation;
 }
 
@@ -76,13 +79,12 @@ interface LocalView {
   readonly key: string;
   readonly generation: number;
   readonly query: string;
-  readonly category: WebSearch["category"];
   readonly snapshot: string;
   readonly regions: RegionNames;
   readonly results: LocalResults;
 }
 
-// Server results share the first index's epoch, so the first switch keeps the list mounted.
+// Server results share the first index's epoch, so the first switch keeps each group mounted.
 const firstIndexGeneration = 1;
 const noContinuation = async (): Promise<null> => null;
 
@@ -123,7 +125,7 @@ export function SearchPage(): ReactElement {
   const key = webSearchParameters(search).toString();
   const localKey = webSearchParameters({ ...search, cursor: "" }).toString();
   const initialKey = webSearchParameters(initialSearch).toString();
-  const queryKey = ["contacts", catalog.snapshot, key];
+  const queryKey = ["contact-groups", catalog.snapshot, key];
   const readiness = indexReadiness(index.status);
   const local = index.status === "ready" && !search.cursor;
   const returnTo = `/${key ? `?${key}` : ""}`;
@@ -136,7 +138,10 @@ export function SearchPage(): ReactElement {
   const query = useQuery({
     queryKey,
     queryFn: async ({ signal }) => {
-      const result = await getSearch(webSearchParameters(search), signal);
+      const result = await getContactGroups(
+        webSearchParameters(search),
+        signal,
+      );
       if (result.meta.snapshot !== catalog.snapshot)
         throw new DirectoryError("snapshot_changed", "");
       return result;
@@ -158,15 +163,25 @@ export function SearchPage(): ReactElement {
           key: localKey,
           generation,
           query: search.q,
-          category: search.category,
           snapshot,
           regions: names,
           results,
         });
     };
-    void client.search(search.q, search.category).then((results) => {
-      if (results) view(results);
-    });
+    if (search.category)
+      void client.page(search.q, search.category, 0).then((page) => {
+        if (page)
+          view({
+            total: page.total,
+            groups: [
+              { category: page.category, total: page.total, rows: page.rows },
+            ],
+          });
+      });
+    else
+      void client.search(search.q).then((results) => {
+        if (results) view(results);
+      });
     return (): void => {
       current = false;
     };
@@ -403,11 +418,11 @@ export function SearchPage(): ReactElement {
                 <p className={css.body}>{uiCopy.search.empty}</p>
               </section>
             )}
-            <div className={css.resultArea}>
-              {view && (
-                <RankedResults
-                  key={`${view.key}:${view.epoch}`}
-                  result={view}
+            <div className={css.resultGroups}>
+              {view?.groups.map((group) => (
+                <GroupResults
+                  key={`${view.key}:${view.epoch}:${group.category}`}
+                  group={group}
                   source={view.source}
                   search={
                     view.source === "local" ? { ...search, cursor: "" } : search
@@ -417,7 +432,7 @@ export function SearchPage(): ReactElement {
                   more={view.more}
                   onOpenRow={openRow}
                 />
-              )}
+              ))}
             </div>
           </>
         )}
@@ -427,7 +442,7 @@ export function SearchPage(): ReactElement {
 }
 
 function fromServer(
-  response: SearchResponse,
+  response: GroupedSearchResponse,
   key: string,
   toCard: (contact: Contact) => ResultCardView,
 ): ResultsView {
@@ -436,8 +451,12 @@ function fromServer(
     epoch: firstIndexGeneration,
     source: "server",
     total: response.meta.total,
-    rows: response.data.map(toCard),
-    server: response,
+    groups: response.groups.map((group) => ({
+      category: group.category,
+      total: group.results.meta.total,
+      rows: group.results.data.map(toCard),
+      server: group.results,
+    })),
     more: noContinuation,
   };
 }
@@ -454,10 +473,14 @@ function fromLocal(
     epoch: Math.max(view.generation, firstIndexGeneration),
     source: "local",
     total: view.results.total,
-    rows: view.results.rows.map(card),
-    server: null,
-    more: async (visible) => {
-      const page = await client.page(view.query, visible, view.category);
+    groups: view.results.groups.map((group) => ({
+      category: v.parse(CategorySchema, group.category),
+      total: group.total,
+      rows: group.rows.map(card),
+      server: null,
+    })),
+    more: async (category, visible) => {
+      const page = await client.page(view.query, category, visible);
       return page ? page.rows.map(card) : null;
     },
   };
