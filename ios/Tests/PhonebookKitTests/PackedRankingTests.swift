@@ -1,7 +1,7 @@
 import Foundation
-import PhonebookCore
 import Testing
 
+@testable import PhonebookCore
 @testable import PhonebookKit
 
 private struct PackedTestSource: SearchArtifactSource {
@@ -15,8 +15,8 @@ private struct PackedTestSource: SearchArtifactSource {
   func release(snapshot: SnapshotID, partials: URL) async throws {}
 }
 
-private struct PackedContract: Decodable {
-  struct Query: Decodable {
+private struct PackedContract: Decodable, Sendable {
+  struct Query: Decodable, Sendable {
     let query: String
     let hits: [[Int64]]
   }
@@ -26,7 +26,15 @@ private struct PackedContract: Decodable {
   let queries: [Query]
 }
 
-@Test func packedNationalRankingsMatchTheUnchangedContract() throws {
+private func expectBoundedCache(_ packed: PackedRanking) {
+  for dictionary in [packed.lexical, packed.phonetic] {
+    let usage = dictionary.cacheUsage
+    #expect((0...(4 * 1_048_576)).contains(usage.bytes))
+    #expect((1...256).contains(usage.entries))
+  }
+}
+
+@Test func packedNationalRankingsMatchTheUnchangedContract() async throws {
   let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
     .deletingLastPathComponent().deletingLastPathComponent()
   let fixture = try JSONDecoder().decode(
@@ -48,6 +56,20 @@ private struct PackedContract: Decodable {
     #expect(hits == query.hits, "Packed ranking differs for \(query.query)")
     if hits != query.hits { return }
   }
+  expectBoundedCache(packed)
+  let coldArtifact = try SearchArtifacts.ranking(
+    admitted.rankingBytes, snapshot: fixture.snapshot, contacts: fixture.contacts,
+    completeValidation: false)
+  let cold = try admitted.index.scorer(coldArtifact)
+  await withTaskGroup(of: Bool.self) { group in
+    for query in fixture.queries.prefix(64) {
+      group.addTask {
+        (try? cold.search(query.query).map { [Int64($0.row), $0.score] }) == query.hits
+      }
+    }
+    for await matched in group { #expect(matched) }
+  }
+  expectBoundedCache(try #require(coldArtifact.packed))
   #expect(throws: (any Error).self) {
     try PackedRanking(
       data: admitted.rankingBytes, snapshot: String(repeating: "b", count: 64),

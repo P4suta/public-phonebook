@@ -9,6 +9,14 @@ def packedFits (offset length size : Int) : Bool :=
 def packedMidpoint (low high : Int) : Int :=
   if low >= 0 && low < high && high <= 268435456 then low + (high - low) / 2 else 0
 
+def packedScratchSum (total increment : Int) : Int := total + increment
+
+theorem packedScratchFitsUInt32 (total increment : Int)
+    (ht : 0 ≤ total ∧ total ≤ 25600000 - increment)
+    (hi : 1 ≤ increment ∧ increment ≤ 25600000) :
+    1 ≤ packedScratchSum total increment ∧ packedScratchSum total increment ≤ 25600000 ∧
+    packedScratchSum total increment < 4294967296 := by simp [packedScratchSum]; omega
+
 theorem packedBoundsEquivalent (offset length size : Int)
     (ho : 0 ≤ offset ∧ offset ≤ 268435456)
     (hl : 0 ≤ length ∧ length ≤ 268435456)
@@ -36,5 +44,6 @@ theorem packedArithmeticFitsInt64 (offset length size low high : Int)
 #print axioms packedBoundsEquivalent
 #print axioms packedMidpointProgress
 #print axioms packedArithmeticFitsInt64
+#print axioms packedScratchFitsUInt32
 
 end Phonebook

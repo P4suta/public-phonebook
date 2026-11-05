@@ -132,7 +132,8 @@ const UI_TESTS: [&str; 25] = [
 ];
 /// The UI scenarios that run with the simulator in the dark appearance.
 const DARK_UI_TESTS: [&str; 1] = ["testDarkAppearanceSwapsBlackAndWhite"];
-const REQUIRED_TESTS: [&str; 111] = [
+const REQUIRED_TESTS: [&str; 112] = [
+    "packedReadingOverlapPreservesScalarGramsInsideGraphemeClusters",
     "packedNationalRankingsMatchTheUnchangedContract",
     "savedSearchVerifiesDecodedFilesAndLineOffsets",
     "compressedSavedSearchRemainsReadableAndUpgradesAtomically",

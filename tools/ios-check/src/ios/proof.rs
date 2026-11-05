@@ -6,7 +6,8 @@ use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fmt::Write as _, fs, path::Path, process::Command};
 
-const THEOREMS: [&str; 77] = [
+const THEOREMS: [&str; 78] = [
+    "packedScratchFitsUInt32",
     "packedBoundsEquivalent",
     "packedMidpointProgress",
     "packedArithmeticFitsInt64",
@@ -93,7 +94,7 @@ const SEARCH_ACTIVATION_SOURCE: &str =
 const SEARCH_ACTIVATION_REFINEMENT: &str = "publicenumSearchActivation{publicstaticfuncpermits(required:Bool,ready:Bool)->Bool{!required||ready}}";
 const PACKED_SOURCE: &str =
     include_str!("../../../../ios/Sources/PhonebookCore/PackedRankingPolicy.swift");
-const PACKED_REFINEMENT: &str = "publicenumPackedRankingPolicy{publicstaticletmaximumBytes=268_435_456publicstaticfuncfits(offset:Int,length:Int,size:Int)->Bool{guardoffset>=0,length>=0,size>=0,offset<=maximumBytes,length<=maximumBytes,size<=maximumByteselse{returnfalse}returnoffset<=size&&length<=size-offset}publicstaticfuncmidpoint(low:Int,high:Int)->Int{guardlow>=0,low<high,high<=maximumByteselse{return0}returnlow+(high-low)/2}}";
+const PACKED_REFINEMENT: &str = "publicenumPackedRankingPolicy{publicstaticletmaximumBytes=268_435_456publicstaticfuncscratchSum(total:UInt32,increment:UInt32)->UInt32{total+increment}publicstaticfuncfits(offset:Int,length:Int,size:Int)->Bool{guardoffset>=0,length>=0,size>=0,offset<=maximumBytes,length<=maximumBytes,size<=maximumByteselse{returnfalse}returnoffset<=size&&length<=size-offset}publicstaticfuncmidpoint(low:Int,high:Int)->Int{guardlow>=0,low<high,high<=maximumByteselse{return0}returnlow+(high-low)/2}}";
 const RESULT_PAGE_SOURCE: &str =
     include_str!("../../../../ios/Sources/PhonebookCore/ResultPage.swift");
 const RESULT_PAGE_REFINEMENT: &str = "publicenumResultPage{publicstaticletsize=20publicstaticfuncend(shown:Int,total:Int)->Int{guardshown>=0,total>=shownelse{return0}returnshown+min(size,total-shown)}}";
@@ -164,7 +165,14 @@ const CALLER_DELTA_SOURCE: &str =
 /// Swift compares the labels' UTF-8 bytes, which Lean's string equality matches because UTF-8 encodes each string one way.
 const CALLER_DELTA_REFINEMENT: &str = "publicenumCallerChange:String,CaseIterable,Sendable{caseremove,add,keep,replacepublicstaticfuncdecide(held:Int64,heldLabel:String,wanted:Int64,wantedLabel:String)->Self{ifheld<wanted{return.remove}ifwanted<held{return.add}ifheldLabel.utf8.elementsEqual(wantedLabel.utf8){return.keep}return.replace}}";
 /// Each planted defect changes one place in its model and must fail inside every theorem it names and nowhere else.
-const DELTA_DEFECTS: [(&str, &str, &str, &str, &[&str]); 8] = [
+const DELTA_DEFECTS: [(&str, &str, &str, &str, &[&str]); 9] = [
+    (
+        "PackedScratchOverflows",
+        "PackedRankingPolicy",
+        "def packedScratchSum (total increment : Int) : Int := total + increment",
+        "def packedScratchSum (total increment : Int) : Int := total + increment + 1",
+        &["packedScratchFitsUInt32"],
+    ),
     (
         "PackedMidpointStopsAdvancing",
         "PackedRankingPolicy",

@@ -1,3 +1,5 @@
+import Foundation
+
 public final class RankedSearch: Sendable {
   private struct Signals {
     let hits: [RankedHit]
@@ -143,6 +145,10 @@ public final class RankedSearch: Sendable {
   }
 
   public func search(_ query: String) throws -> [RankedHit] {
+    try autoreleasepool { try searchWithinPool(query) }
+  }
+
+  private func searchWithinPool(_ query: String) throws -> [RankedHit] {
     let original = try base(query)
     if original.locked { return original.hits }
     let parsed = places.parse(query)

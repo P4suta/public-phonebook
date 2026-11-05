@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 private struct PackedPair<A: Decodable, B: Decodable>: Decodable {
   let first: A
@@ -48,13 +49,50 @@ struct PackedBytes: Sendable {
   }
 }
 
-public struct PackedDictionary: Sendable {
+struct PostingCacheUsage: Sendable {
+  let bytes: Int
+  let entries: Int
+}
+
+public final class PackedDictionary: Sendable {
+  private struct Posting: Sendable {
+    let rows: [UInt32]
+    let weight: Int64
+  }
+  private struct Cache: Sendable {
+    var entries: [String: Posting] = [:]
+    var order: [String] = []
+    var bytes = 0
+  }
+  private static let cacheLimit = 4 * 1_048_576
+  private static let cacheEntries = 256
+  private static let entryBytes = 128
+  private let cache = Mutex(Cache())
+  var cacheUsage: PostingCacheUsage {
+    cache.withLock { PostingCacheUsage(bytes: $0.bytes, entries: $0.entries.count) }
+  }
   let table: PackedBytes
   let values: PackedBytes
   let strings: PackedBytes
   let offsets: PackedBytes
   let weights: PackedBytes?
   let fixed: Bool
+
+  init(
+    table: PackedBytes, values: PackedBytes, strings: PackedBytes, offsets: PackedBytes,
+    weights: PackedBytes?, fixed: Bool
+  ) {
+    self.table = table
+    self.values = values
+    self.strings = strings
+    self.offsets = offsets
+    self.weights = weights
+    self.fixed = fixed
+  }
+
+  private static func size(_ key: String, _ posting: Posting) -> Int {
+    posting.rows.count * 4 + key.utf8.count + entryBytes
+  }
 
   var count: Int { table.count / 12 }
 
@@ -113,8 +151,36 @@ public struct PackedDictionary: Sendable {
 
   @discardableResult
   public func visit(_ key: String, _ visit: (Int, Int64) -> Void) -> Int64? {
+    if !fixed, let previous = cache.withLock({ $0.entries[key] }) {
+      for row in previous.rows { visit(Int(row), previous.weight) }
+      return previous.weight
+    }
     guard let at = find(key) else { return nil }
     let weight = Int64(weights?.word(at) ?? 0)
+    let count = table.word(at * 3 + 2)
+    let bytes = count * 4 + key.utf8.count + Self.entryBytes
+    if !fixed && bytes <= Self.cacheLimit {
+      var rows: [UInt32] = []
+      rows.reserveCapacity(count)
+      visitAt(at) { rows.append(UInt32($0)) }
+      let posting = Posting(rows: rows, weight: weight)
+      cache.withLock { cache in
+        guard cache.entries[key] == nil else { return }
+        while !ReceiveBudget.admits(used: cache.bytes, incoming: bytes, limit: Self.cacheLimit)
+          || cache.entries.count >= Self.cacheEntries
+        {
+          let oldest = cache.order.removeFirst()
+          if let removed = cache.entries.removeValue(forKey: oldest) {
+            cache.bytes -= Self.size(oldest, removed)
+          }
+        }
+        cache.entries[key] = posting
+        cache.order.append(key)
+        cache.bytes += bytes
+      }
+      for row in rows { visit(Int(row), weight) }
+      return weight
+    }
     visitAt(at) { visit($0, weight) }
     return weight
   }
@@ -193,7 +259,7 @@ public final class PackedRanking: Sendable {
   public let short: PackedDictionary
   private let lexicon: PackedDictionary
   private let rows: PackedBytes
-  private let norms: PackedBytes
+  private let norms: [UInt32]
   private let trigrams: PackedBytes
   private let strings: PackedBytes
   private let offsets: PackedBytes
@@ -302,7 +368,13 @@ public final class PackedRanking: Sendable {
     self.strings = strings
     self.offsets = offsets
     self.rows = rows
-    self.norms = norms
+    self.norms = norms.data.withUnsafeBytes { raw in
+      (0..<contacts).map {
+        UInt32(
+          littleEndian: raw.loadUnaligned(
+            fromByteOffset: norms.range.lowerBound + $0 * 4, as: UInt32.self))
+      }
+    }
     self.trigrams = trigrams
     self.exactOrders = exactOrders
     lexical = try dictionary("lexical")
@@ -322,7 +394,7 @@ public final class PackedRanking: Sendable {
   }
   public func length(_ row: Int) -> Int { rows.word(row * 3 + 2) >> 16 }
   public func characters(_ row: Int) -> Int64 { Int64(rows.word(row * 3 + 2) & 0xffff) }
-  public func norm(_ row: Int) -> Int64 { Int64(norms.word(row)) }
+  public func norm(_ row: Int) -> Int64 { Int64(norms[row]) }
   public func trigramCount(_ row: Int, reading: Bool) -> Int {
     reading ? trigrams.word(row) >> 16 : trigrams.word(row) & 0xffff
   }

@@ -87,12 +87,12 @@ fn metric_budget(metrics: &[AppMetric], family: &str, unit: &str, maximum: f64) 
     let selected = metrics
         .iter()
         .filter(|metric| {
-            metric
+            let identifier = metric
                 .identifier
                 .as_deref()
                 .unwrap_or(&metric.display_name)
-                .to_ascii_lowercase()
-                .contains(family)
+                .to_ascii_lowercase();
+            identifier.contains(family) && (family != "memory" || identifier.contains("peak"))
         })
         .collect::<Vec<_>>();
     if selected.is_empty()
@@ -366,11 +366,17 @@ mod tests {
     #[test]
     fn app_budgets_require_measured_units_and_reject_an_exceeded_peak() {
         let mut metrics = vec![AppMetric {
-            display_name: "Memory".into(),
+            display_name: "Memory Peak Physical".into(),
             unit_of_measurement: "kB".into(),
             measurements: vec![MAXIMUM_APP_KILOBYTES; APP_REPETITIONS],
-            identifier: Some("memory".into()),
+            identifier: Some("physical_memory_peak".into()),
         }];
+        metrics.push(AppMetric {
+            display_name: "Memory Physical".into(),
+            unit_of_measurement: "kB".into(),
+            measurements: vec![-1.0; APP_REPETITIONS],
+            identifier: Some("physical_memory".into()),
+        });
         assert_eq!(
             metric_budget(&metrics, "memory", "kB", MAXIMUM_APP_KILOBYTES),
             Some(true)
@@ -387,6 +393,10 @@ mod tests {
         );
         assert_eq!(
             metric_budget(&[], "clock", "s", MAXIMUM_APP_STARTUP_SECONDS),
+            None
+        );
+        assert_eq!(
+            metric_budget(&metrics[1..], "memory", "kB", MAXIMUM_APP_KILOBYTES),
             None
         );
     }

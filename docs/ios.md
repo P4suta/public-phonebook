@@ -103,6 +103,7 @@ XCTest records elapsed time, launch metrics, and target-app physical memory unde
 The report compares saved reopening and app launch with a 1,000 ms budget and searching memory with 250,000,000 bytes.
 The saved query p95 baseline is 19.133292 ms.
 The app memory verdict conservatively interprets each reported `kB` as 1,024 bytes.
+The verdict uses peak physical memory, while change measurements remain separate deltas.
 Unknown units and missing measurements produce no passing budget verdict.
 Filesystem caches remain uncontrolled, and physical iPhone performance remains unmeasured.
 

@@ -70,25 +70,34 @@ struct ReadingTrie: Sendable {
     var paths = [[ReadingPath]](repeating: [], count: points.count + 1)
     paths[0] = [ReadingPath(reading: "", cost: 0)]
     for at in points.indices {
-      for path in paths[at] {
-        let point = String(points[at])
-        Self.retain(
-          ReadingPath(
-            reading: path.reading + point, cost: path.cost + (RankingText.hasHan(point) ? 1000 : 0)),
-          in: &paths[at + 1])
-        var node = 0
+      let point = String(points[at])
+      let fallbackCost = RankingText.hasHan(point) ? 1000 : 0
+      var tokens: [(end: Int, choices: [String])] = []
+      if let packed {
         var surface = ""
         for end in at..<points.count {
-          if let packed {
-            surface += String(points[end])
-            guard let choices = packed.choices(surface) else { break }
-            for (rank, choice) in choices.enumerated() {
+          surface += String(points[end])
+          guard let choices = packed.choices(surface) else { break }
+          if !choices.isEmpty { tokens.append((end, choices)) }
+        }
+      }
+      for path in paths[at] {
+        Self.retain(
+          ReadingPath(
+            reading: path.reading + point, cost: path.cost + fallbackCost),
+          in: &paths[at + 1])
+        if packed != nil {
+          for token in tokens {
+            for (rank, choice) in token.choices.enumerated() {
               Self.retain(
                 ReadingPath(reading: path.reading + choice, cost: path.cost + 1 + rank),
-                in: &paths[end + 1])
+                in: &paths[token.end + 1])
             }
-            continue
           }
+          continue
+        }
+        var node = 0
+        for end in at..<points.count {
           guard let child = nodes[node].children[points[end]] else { break }
           node = child
           for (rank, choice) in nodes[node].choices.enumerated() {
@@ -104,6 +113,10 @@ struct ReadingTrie: Sendable {
 }
 
 struct ReadingRanking: Sendable {
+  private struct Candidate {
+    let hit: RankedHit
+    let literal: String
+  }
   private let names: RankingValues<String>
   private let readings: RankingValues<String>
   private let packed: PackedRanking?
@@ -140,6 +153,32 @@ struct ReadingRanking: Sendable {
       name: Int64(name.count))
   }
 
+  private func packedCandidates(_ keys: ArraySlice<String>, packed: PackedRanking) -> [Int] {
+    var frequencies = [UInt32](repeating: 0, count: names.count)
+    var touched = [UInt32](repeating: 0, count: names.count)
+    var count = 0
+    return frequencies.withUnsafeMutableBufferPointer { frequencies in
+      touched.withUnsafeMutableBufferPointer { touched in
+        for key in keys {
+          packed.phonetic.visit(key) { row, _ in
+            if frequencies[row] == 0 {
+              touched[count] = UInt32(row)
+              count += 1
+            }
+            frequencies[row] = PackedRankingPolicy.scratchSum(total: frequencies[row], increment: 1)
+          }
+        }
+        var ordered = Array(touched.prefix(count))
+        ordered.sort {
+          let left = frequencies[Int($0)]
+          let right = frequencies[Int($1)]
+          return left != right ? left > right : $0 < $1
+        }
+        return ordered.prefix(512).map(Int.init)
+      }
+    }
+  }
+
   func search(_ query: String) throws -> [RankedHit] {
     let literal = RankingText.compact(query)
     guard !literal.isEmpty, literal.unicodeScalars.count <= RankingPolicy.queryPoints else {
@@ -164,18 +203,18 @@ struct ReadingRanking: Sendable {
         return left != right ? left < right : RankingText.precedes($0, $1)
       }.prefix(6)
       var counts: [Int: Int] = [:]
-      for key in keys {
-        if let packed {
-          packed.phonetic.visit(key) { row, _ in counts[row, default: 0] += 1 }
-          continue
+      if let packed {
+        candidates = packedCandidates(keys, packed: packed)
+      } else {
+        for key in keys {
+          for row in postings[key] ?? [] { counts[Int(row), default: 0] += 1 }
         }
-        for row in postings[key] ?? [] { counts[Int(row), default: 0] += 1 }
+        candidates = counts.keys.sorted {
+          let left = counts[$0] ?? 0
+          let right = counts[$1] ?? 0
+          return left != right ? left > right : $0 < $1
+        }.prefix(512).map { $0 }
       }
-      candidates = counts.keys.sorted {
-        let left = counts[$0] ?? 0
-        let right = counts[$1] ?? 0
-        return left != right ? left > right : $0 < $1
-      }.prefix(512).map { $0 }
     }
     return candidates.map { row in
       let reading = readings[row]
@@ -186,23 +225,27 @@ struct ReadingRanking: Sendable {
           packed.map { Self.packedDice(grams, reading, count: $0.trigramCount(row, reading: true)) }
             ?? Self.dice(grams, readingGrams)
         }.max() ?? 0
-      return RankedHit(
-        row: row,
-        score: RankingPolicy.reading(
-          literal: name == literal, exactKana: paths.contains(reading),
-          lexical: packed.map {
-            Self.packedDice(lexical, name, count: $0.trigramCount(row, reading: false))
-          } ?? Self.dice(lexical, RankingText.grams(name, width: 3)), kana: kana))
-    }.filter { $0.score > 0 }.sorted {
-      if $0.score != $1.score { return $0.score > $1.score }
-      if names[$0.row] != names[$1.row] {
-        return RankingText.precedes(names[$0.row], names[$1.row])
+      return Candidate(
+        hit: RankedHit(
+          row: row,
+          score: RankingPolicy.reading(
+            literal: name == literal, exactKana: paths.contains(reading),
+            lexical: packed.map {
+              Self.packedDice(lexical, name, count: $0.trigramCount(row, reading: false))
+            } ?? Self.dice(lexical, RankingText.grams(name, width: 3)), kana: kana)), literal: name)
+    }.filter { $0.hit.score > 0 }.sorted {
+      if $0.hit.score != $1.hit.score { return $0.hit.score > $1.hit.score }
+      if $0.literal != $1.literal {
+        return RankingText.precedes($0.literal, $1.literal)
       }
-      return $0.row < $1.row
-    }.prefix(RankingPolicy.results).map { $0 }
+      return $0.hit.row < $1.hit.row
+    }.prefix(RankingPolicy.results).map(\.hit)
   }
 
-  private static func packedDice(_ query: [String], _ name: String, count: Int) -> Int64 {
+  static func packedDice(_ query: [String], _ name: String, count: Int) -> Int64 {
+    if name.count != name.unicodeScalars.count {
+      return dice(query, RankingText.grams(name, width: 3))
+    }
     let shared = query.filter { $0.unicodeScalars.count < 3 ? name == $0 : name.contains($0) }.count
     return RankingPolicy.dice(shared: Int64(shared), query: Int64(query.count), name: Int64(count))
   }

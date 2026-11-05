@@ -61,16 +61,41 @@ struct LexicalRanking: Sendable {
     }
   }
 
-  func search(_ query: String) throws -> [RankedHit] {
-    let text = RankingText.compact(query)
+  private func packedCandidates(_ grams: [String], packed: PackedRanking) -> [Candidate] {
+    var sums = [UInt32](repeating: 0, count: names.count)
+    var touched = [UInt32](repeating: 0, count: names.count)
+    var count = 0
+    var queryWeight: Int64 = 0
+    var heap: [Candidate] = []
+    sums.withUnsafeMutableBufferPointer { sums in
+      touched.withUnsafeMutableBufferPointer { touched in
+        for gram in grams {
+          let weight = packed.lexical.visit(gram) { row, weight in
+            if sums[row] == 0 {
+              touched[count] = UInt32(row)
+              count += 1
+            }
+            sums[row] = PackedRankingPolicy.scratchSum(total: sums[row], increment: UInt32(weight))
+          }
+          queryWeight += weight ?? unknownWeight
+        }
+        for at in 0..<count {
+          let row = Int(touched[at])
+          Self.retain(
+            Candidate(
+              row: row,
+              bigram: RankingPolicy.dice(
+                shared: Int64(sums[row]), query: queryWeight, name: packed.norm(row))), in: &heap)
+        }
+      }
+    }
+    return heap
+  }
+
+  private func legacyCandidates(_ grams: [String]) -> [Candidate] {
     var shared: [Int: Int64] = [:]
     var queryWeight: Int64 = 0
-    for gram in RankingText.grams(text, width: 2) {
-      if let packed {
-        let weight = packed.lexical.visit(gram) { row, weight in shared[row, default: 0] += weight }
-        queryWeight += weight ?? unknownWeight
-        continue
-      }
+    for gram in grams {
       let posting = postings[gram]
       queryWeight += posting?.weight ?? unknownWeight
       if let posting {
@@ -83,10 +108,17 @@ struct LexicalRanking: Sendable {
         Candidate(
           row: row,
           bigram: RankingPolicy.dice(
-            shared: weight, query: queryWeight, name: packed?.norm(row) ?? norms[row])
+            shared: weight, query: queryWeight, name: norms[row])
         ),
         in: &heap)
     }
+    return heap
+  }
+
+  func search(_ query: String) throws -> [RankedHit] {
+    let text = RankingText.compact(query)
+    let grams = RankingText.grams(text, width: 2)
+    let heap = packed.map { packedCandidates(grams, packed: $0) } ?? legacyCandidates(grams)
     let points = RankingText.grams(text, width: 1)
     return heap.map { candidate in
       let name = names[candidate.row]

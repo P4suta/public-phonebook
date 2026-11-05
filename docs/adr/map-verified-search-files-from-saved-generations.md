@@ -45,4 +45,15 @@ Decoded storage consumes more disk space than compressed storage.
 Mapping avoids a second national object graph and makes later launches independent of decompression and scorer reconstruction.
 File hashes preserve integrity, while the checked import establishes semantic correspondence with the directory.
 Source-bound arithmetic proofs cover section bounds and binary-search progress.
+Query-local fixed-width arrays accumulate candidate weights without national dictionaries or shared mutable scratch storage.
+The reader copies only the precomputed unsigned 32-bit norm table for frequent candidate reads.
+The lexical and phonetic posting caches evict the earliest entries first.
+Each cache has a 4 MiB accounting limit and holds at most 256 entries.
+Cache misses decode outside the mutex, and queries keep immutable arrays after releasing the mutex.
+The cache accounts for row bytes, key bytes, and 128 bytes per entry, while measurements include actual runtime overhead.
+Each hash chunk and search call scopes Foundation temporary objects to an [autorelease pool](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/MemoryMgmt/Articles/mmAutoreleasePools.html).
+The scopes bound temporary-object lifetimes during command-line loops and background work.
+The reading lane resolves each query token once per input position and keeps candidate literals through sorting.
+Names whose graphemes span more than one scalar keep the original scalar-gram overlap calculation.
+The scratch-sum proof assumes at most 256 distinct query grams, positive weights of at most 100,000, and unique rows within each posting.
 Corruption tests, complete national ranking comparisons, integration tests, and measurements cover file I/O, Unicode, actor scheduling, and runtime memory outside the arithmetic model.

@@ -53,10 +53,17 @@ public struct SearchArtifactIdentity: Codable, Sendable {
     defer { try? handle.close() }
     var hash = SHA256()
     var received = 0
-    while let chunk = try handle.read(upToCount: 65_536), !chunk.isEmpty {
-      received += chunk.count
-      guard received <= bytes else { throw RankingError.invalidArtifact }
-      hash.update(data: chunk)
+    while true {
+      let more = try autoreleasepool { () throws -> Bool in
+        guard let chunk = try handle.read(upToCount: 65_536), !chunk.isEmpty else { return false }
+        guard ReceiveBudget.admits(used: received, incoming: chunk.count, limit: bytes) else {
+          throw RankingError.invalidArtifact
+        }
+        received += chunk.count
+        hash.update(data: chunk)
+        return true
+      }
+      if !more { break }
     }
     guard received == bytes,
       hash.finalize().map({ String(format: "%02x", $0) }).joined() == sha256.rawValue

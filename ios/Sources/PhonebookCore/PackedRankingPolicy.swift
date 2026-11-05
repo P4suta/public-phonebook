@@ -1,6 +1,10 @@
 public enum PackedRankingPolicy {
   public static let maximumBytes = 268_435_456
 
+  public static func scratchSum(total: UInt32, increment: UInt32) -> UInt32 {
+    total + increment
+  }
+
   public static func fits(offset: Int, length: Int, size: Int) -> Bool {
     guard offset >= 0, length >= 0, size >= 0,
       offset <= maximumBytes, length <= maximumBytes, size <= maximumBytes
