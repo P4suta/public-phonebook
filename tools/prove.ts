@@ -38,8 +38,8 @@ import { countWork, StepTimer } from "./step-timing.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 403;
-const declaredPostconditionCount = 127;
+const verifiedUnitCount = 462;
+const declaredPostconditionCount = 134;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -53,6 +53,10 @@ const provenPostconditionCount =
   declaredPostconditionCount + releaseControlPostconditions;
 
 const expected = [
+  "packedSectionFits",
+  "packedMidpoint",
+  "packedShortCount",
+  "packedScratchSum",
   "qualityPasses",
   "diceScore",
   "boundedDiceQuotient",
@@ -106,6 +110,9 @@ const expected = [
 ];
 const annotatedMethods = new Set(["diceScore", "boundedDiceQuotient"]);
 const boundFiles = [
+  "src/core/packed-ranking-policy.ts",
+  "src/core/packed-ranking.ts",
+  "tests/unit/packed-ranking.test.ts",
   "src/core/search-quality-policy.ts",
   "src/core/search-quality.ts",
   "tests/unit/search-quality.test.ts",
@@ -234,7 +241,7 @@ const boundFiles = [
   "src/server.ts",
   "vite.config.ts",
   "src/ui/components.tsx",
-  "src/ui/group-results.tsx",
+  "src/ui/ranked-results.tsx",
   "src/ui/search-page.tsx",
   "src/server/database.ts",
   "src/server/search-cache.ts",
@@ -296,6 +303,7 @@ interface ProofSourceBinding {
   readonly sha256: string;
 }
 const proofSources = [
+  "src/core/packed-ranking-policy.ts",
   "src/core/search-quality-policy.ts",
   "src/core/forgiving-search-policy.ts",
   "src/core/collection-policy.ts",
@@ -333,6 +341,30 @@ const localSearchPolicy = "src/core/local-search-policy.ts";
 const rowPolicy = "src/core/row-locator-policy.ts";
 const deltaPolicy = "src/core/directory-delta-policy.ts";
 const negativeControls: readonly NegativeControl[] = [
+  {
+    name: "packed-scratch-overflow",
+    source: "src/core/packed-ranking-policy.ts",
+    from: "return total + increment;",
+    to: "return total + increment + 1;",
+  },
+  {
+    name: "packed-section-overrun",
+    source: "src/core/packed-ranking-policy.ts",
+    from: "length <= size - offset",
+    to: "length <= size - offset + 1",
+  },
+  {
+    name: "packed-midpoint-progress",
+    source: "src/core/forgiving-search-policy.ts",
+    from: "low + Math.floor((high - low) / binarySearchBranches)",
+    to: "high",
+  },
+  {
+    name: "packed-short-limit",
+    source: "src/core/packed-ranking-policy.ts",
+    from: "const maximumShortMatches = 100;",
+    to: "const maximumShortMatches = 101;",
+  },
   {
     name: "ranking-quality-regression",
     source: "src/core/search-quality-policy.ts",

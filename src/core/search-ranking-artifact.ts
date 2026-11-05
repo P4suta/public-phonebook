@@ -1,10 +1,17 @@
 import * as v from "valibot";
 import { DigestSchema } from "./models.ts";
+import {
+  decodePackedRanking,
+  type PackedRanking,
+  packedRankingSignature,
+} from "./packed-ranking.ts";
 
 export const rankingArtifactFile = "search-ranking.br";
-export const rankingArtifactFormat = "public-phonebook-search-ranking/1";
+export const rankingArtifactFormat = "public-phonebook-search-ranking/2";
 const signature = "public-phonebook-search-ranking\t1\n";
 const lineFeedByte = 10;
+const packedVersionByte = 0x32;
+const versionSuffixLength = 2;
 const varintBase = 128;
 const maximumVarintMultiplier = varintBase ** 3;
 export const rankingArtifactLimits = {
@@ -39,6 +46,7 @@ const MetadataSchema = v.strictObject({
 
 export type RankingPosting = readonly [string, number, readonly number[]];
 export interface RankingArtifact {
+  readonly packed?: PackedRanking;
   readonly snapshot: string;
   readonly contacts: number;
   readonly analyzer: { readonly engine: string; readonly dictionary: string };
@@ -134,6 +142,11 @@ export function decodeRankingArtifact(
   snapshot: string,
   contacts: number,
 ): RankingArtifact {
+  if (
+    bytes[packedRankingSignature.length - versionSuffixLength] ===
+    packedVersionByte
+  )
+    return decodePackedRanking(bytes, snapshot, contacts);
   if (bytes.length > rankingArtifactLimits.uncompressedBytes)
     throw new Error("Ranking artifact exceeds its byte limit");
   const decoder = new TextDecoder("utf-8", { fatal: true });

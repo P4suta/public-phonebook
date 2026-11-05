@@ -14,6 +14,14 @@ const readingPhoneticWeight = 60;
 const conservativeLexicalMaximum = 600_000;
 const readingRatioThreshold = 1250;
 const kanaShareThreshold = 500;
+const binarySearchBranches = 2;
+
+export function packedMidpoint(low: number, high: number): number {
+  //@ verify
+  //@ requires low >= 0 && low < high && high <= 268435456
+  //@ ensures \result >= low && \result < high
+  return low + Math.floor((high - low) / binarySearchBranches);
+}
 
 export const rankingLimits = {
   queryPoints: 256,

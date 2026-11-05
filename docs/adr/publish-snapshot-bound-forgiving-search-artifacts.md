@@ -7,6 +7,7 @@ date: 2026-11-05
 ## Status
 
 Accepted.
+The packed format and loading portions are partly superseded by [reading packed search structures](read-packed-search-structures-without-startup-reconstruction.md).
 The implementation brief authorizes the frozen research scorer and its build-time artifacts.
 This amends [the name-ordered index decision](publish-a-name-ordered-search-index-for-the-website.md) by adding a companion artifact without changing that index's format or row order.
 

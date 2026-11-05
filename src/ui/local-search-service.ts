@@ -1,3 +1,4 @@
+import { sha256 } from "@noble/hashes/sha2.js";
 import * as v from "valibot";
 import { CategorySchema } from "../core/catalog.ts";
 import { rankingLimits } from "../core/forgiving-search-policy.ts";
@@ -41,24 +42,10 @@ interface Expected {
   readonly uncompressedSha256: string;
 }
 
-async function digestHex(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest), (byte) =>
+function digestHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) =>
     byte.toString(hexadecimalRadix).padStart(hexadecimalByteWidth, "0"),
   ).join("");
-}
-
-function concatenate(
-  chunks: readonly Uint8Array[],
-  length: number,
-): Uint8Array<ArrayBuffer> {
-  const bytes = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes;
 }
 
 /** Reads the decoded body and reports each completed step; a body longer than expected stops early and fails admission. */
@@ -94,7 +81,8 @@ async function download(
     if (!response.body)
       return { ok: false, error: { reason: "length_mismatch", detail: "" } };
     const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
+    const bytes = new Uint8Array(expected.uncompressedBytes);
+    const hash = sha256.create();
     let received = 0;
     let step = Math.floor(
       (receivedBefore * indexProgressSteps) / Math.max(total, 1),
@@ -105,12 +93,13 @@ async function download(
       const chunk: unknown = read.value;
       if (!(chunk instanceof Uint8Array))
         throw new TypeError("The index body didn't stream bytes");
-      chunks.push(chunk);
       received += chunk.byteLength;
       if (received > expected.uncompressedBytes || !current()) {
         await reader.cancel();
         return { ok: false, error: { reason: "length_mismatch", detail: "" } };
       }
+      bytes.set(chunk, received - chunk.byteLength);
+      hash.update(chunk);
       const reached = Math.floor(
         ((receivedBefore + received) * indexProgressSteps) / Math.max(total, 1),
       );
@@ -123,10 +112,9 @@ async function download(
         });
       }
     }
-    const bytes = concatenate(chunks, received);
-    if (bytes.length !== expected.uncompressedBytes)
+    if (received !== expected.uncompressedBytes)
       return { ok: false, error: { reason: "length_mismatch", detail: "" } };
-    if ((await digestHex(bytes)) !== expected.uncompressedSha256)
+    if (digestHex(hash.digest()) !== expected.uncompressedSha256)
       return { ok: false, error: { reason: "digest_mismatch", detail: "" } };
     return { ok: true, value: bytes };
   } catch (error) {
@@ -139,7 +127,7 @@ async function download(
 
 function decode(bytes: Uint8Array): Result<SearchIndex, string> {
   try {
-    return { ok: true, value: decodeSearchIndex(bytes) };
+    return { ok: true, value: decodeSearchIndex(bytes, true) };
   } catch (error) {
     return { ok: false, error: String(error) };
   }
@@ -281,11 +269,15 @@ export function localSearchService(
       matches = ranked.search(query);
     } else if (parsed.value.kind === "telephone") {
       const { number } = parsed.value;
-      matches = current.rows.flatMap((row, position) =>
-        row.phones.includes(number)
-          ? [{ row: position, score: rankingLimits.exactScore }]
-          : [],
-      );
+      matches = current.telephoneRows
+        ? current
+            .telephoneRows(number)
+            .map((row) => ({ row, score: rankingLimits.exactScore }))
+        : current.rows.flatMap((row, position) =>
+            row.phones.includes(number)
+              ? [{ row: position, score: rankingLimits.exactScore }]
+              : [],
+          );
     } else matches = [];
     cached = { query, matches };
     return { ok: true, value: matches };

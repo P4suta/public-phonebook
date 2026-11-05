@@ -9,9 +9,9 @@ The row supplies the display name, category, region, and telephone displays.
 The score is an integer from zero through 1,000,000, with whole-name exact results first and at most 100 results.
 
 Native and file adapters verify compressed and decoded sizes and SHA-256 digests from discovery before decoding either artifact.
-The website uses the browser's Brotli HTTP decoder and verifies each decoded body's size and SHA-256 itself.
-It also compares the compressed length, digest ETag, content coding, and snapshot response headers with discovery.
-The browser doesn't expose the compressed body for hashing, so compressed-byte integrity relies on the checked publication and HTTPS delivery paths.
+The website uses the browser's Brotli HTTP decoder and verifies decoded size and SHA-256.
+The worker compares compressed length, digest ETag, content coding, and snapshot response headers with discovery.
+The HTTP decoder doesn't expose compressed bytes for hashing, so compressed-byte integrity relies on the checked publication and HTTPS delivery paths.
 The index's `snapshot` and row count must match the ranking companion.
 `decodeRankingArtifact` rejects unsupported formats, inconsistent counts, invalid ordinals, noncanonical varints, and trailing data.
 The constructor rejects a snapshot mismatch and invalid integer lexical weights.
@@ -46,6 +46,36 @@ The [scorer decision](adr/rank-device-search-with-place-preferences-and-gated-re
 The [presentation decision](adr/show-one-ranked-list-with-a-server-fallback.md) defines the phase 2 single list and the retained server matcher.
 The website worker admits both artifacts before constructing the scorer and keeps the server fallback when admission fails.
 The iPhone adapter consumes the equivalent ranking contract in Swift.
+
+## Packed artifact loading
+
+The builder publishes `public-phonebook-search-ranking/2` with precomputed row statistics, sorted dictionaries, compact reading choices, and compressed posting lists.
+The [packed-search decision](adr/read-packed-search-structures-without-startup-reconstruction.md) describes the layout and its verification boundary.
+The decoder keeps byte views instead of expanding national dictionaries and postings.
+The scorer reads those views directly and preserves the same query and result interface.
+Retained format 1 artifacts continue using the original construction path.
+
+The website uses `decodeSearchIndex(bytes, true)` after digest verification to view name and telephone lines through offsets.
+The default decoder still performs complete row validation for data checks and existing callers.
+Complete data regeneration establishes normalization and dictionary ordering before publication.
+The worker checks decoded identities and structural bounds before admitting the pair.
+The worker uses the Fetch standard's [no-store request cache mode](https://fetch.spec.whatwg.org/#concept-request-cache-mode) to avoid keeping another decoded HTTP cache entry.
+An admitted worker continues searching offline within its page lifetime.
+A fresh page requires another artifact download.
+It decodes result rows when needed and keeps server search available after failed admission.
+
+The packed header's `sourceSha256` identifies the canonical format 1 source used by the unchanged 2,200-query fixture.
+The prepared manifest's `uncompressedSha256` identifies the actual packed bytes.
+The contract tool verifies the actual files before comparing the source fingerprint and every returned ranking.
+The data gate independently regenerates the fingerprint and complete packed file from the prepared database and pinned readings.
+Never use the source fingerprint as the packed file's checksum.
+
+`tools/search-performance.ts` records a 1,500 ms admission budget after the last artifact byte arrives and a 400 MB peak added browser-process budget.
+The complete-ranking p95 baseline is 10.2 ms for Chromium and 11.2 ms for Chromium with its existing fourfold page CPU setting.
+The baseline is 10 ms for desktop WebKit and 13 ms for mobile WebKit.
+Supply `--contract tests/fixtures/search-ranking.json` and `--process-tools DIRECTORY` for a complete attributed local budget record.
+The report refuses to mark missing memory or ranking measurements as passing budgets.
+The release gate's existing performance observation keeps the budget fields with the candidate evidence.
 
 The website presents one ordered list with each facility's category and region.
 The worker returns the first 30 ranked candidates and continues the same array by 30 until it reaches the returned candidate count.

@@ -75,7 +75,7 @@ export function parsePlaceQuery(
 
 const prefectureCodeWidth = 2;
 export function matchesPlaces(
-  row: SearchIndex["rows"][number],
+  row: Pick<SearchIndex["rows"][number], "name" | "region">,
   query: PlaceQuery,
 ): boolean {
   const literal = compactSearchText(row.name);
