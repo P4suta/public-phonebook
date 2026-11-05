@@ -16,6 +16,7 @@ import {
   ContactSchema,
   SourceSchema,
 } from "../src/core/models.ts";
+import { encodePackedRanking } from "../src/core/packed-ranking.ts";
 import { nameTokens, normalizeName } from "../src/core/search.ts";
 import {
   decodeSearchIndex,
@@ -280,15 +281,18 @@ export async function prepareCheckFixture(): Promise<void> {
   const index = decodeSearchIndex(
     brotliDecompressSync(await readFile(join(directory, searchIndexFile))),
   );
-  const decoded = encodeRankingArtifact(
-    buildRankingArtifact(
-      index,
-      {
-        readings: index.rows.map((row) => row.name),
-        lexicon: [],
-      },
-      [],
-    ),
+  const artifact = buildRankingArtifact(
+    index,
+    {
+      readings: index.rows.map((row) => row.name),
+      lexicon: [],
+    },
+    [],
+  );
+  const decoded = encodePackedRanking(
+    index,
+    artifact,
+    createHash("sha256").update(encodeRankingArtifact(artifact)).digest("hex"),
   );
   const compressed = compressSearchIndex(decoded);
   const sha256 = createHash("sha256").update(compressed).digest("hex");
