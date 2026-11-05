@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 const retiredPhrases = [
   "候補が出ます",
   "電話番号でもさがせます",
+  "名前か、電話番号",
+  "名前か電話番号",
   "施設や窓口",
   "着信時に名前を出す機能",
   "入力した言葉",
@@ -13,7 +15,7 @@ const retiredPhrases = [
 
 /** Statements the website and the iPhone app make word for word. */
 const sharedStatements = [
-  "検索欄に施設の名前か、電話番号を入れます。",
+  "検索欄に施設の名前を入れます。",
   "全国の施設が公開した電話番号のデータを、アプリの中に受け取って使います。",
   "新しいデータが出ると、自動で受け取ります。",
   "モバイルデータ通信や省データモードのときは、ほかの回線につながるまで待ちます。",

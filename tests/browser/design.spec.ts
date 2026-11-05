@@ -357,14 +357,14 @@ test("the text-spacing gate detects clipped text", async ({ page }) => {
   expect(await clippedText(page)).toEqual([]);
   await page.evaluate(() => {
     const planted = document.createElement("p");
-    planted.textContent = "施設の名前か電話番号";
+    planted.textContent = "施設の名前";
     planted.style.height = "1em";
     planted.style.overflow = "hidden";
     planted.style.lineHeight = "3";
     document.querySelector("main")?.appendChild(planted);
   });
   expect(await clippedText(page)).toEqual([
-    expect.stringMatching(/^P "施設の名前か電話番号"/u),
+    expect.stringMatching(/^P "施設の名前"/u),
   ]);
 });
 

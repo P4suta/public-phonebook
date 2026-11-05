@@ -30,7 +30,7 @@ struct SearchScreen: View {
       .toolbarBackground(.surface, for: .navigationBar)
       .searchable(
         text: $model.query, placement: .navigationBarDrawer(displayMode: .always),
-        prompt: "施設の名前か、電話番号"
+        prompt: "施設の名前"
       )
       .onChange(of: model.query) { model.search() }
       .onSubmit(of: .search) { model.search() }
@@ -83,7 +83,7 @@ struct SearchScreen: View {
   @ViewBuilder private var content: some View {
     if model.results == nil, !model.searching, !model.failed {
       VStack(alignment: .leading, spacing: 8) {
-        Text("施設の名前か、電話番号を入れてください。")
+        Text("施設の名前を入れてください。")
         // Only a first download shows here, because automatic updates stay silent.
         if integration.receiving, let wait = integration.wait {
           FirstDownloadProgress(

@@ -5,7 +5,7 @@ type Statement = `${string}ます。`;
 
 export const uiCopy = {
   search: {
-    label: "施設の名前か電話番号",
+    label: "施設の名前",
     action: "電話番号をさがす" satisfies Action,
     searching: "電話番号をさがしています。",
     found: (total: string): `${string}件 見つかりました` =>

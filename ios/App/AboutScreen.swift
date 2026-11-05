@@ -16,7 +16,7 @@ struct AboutScreen: View {
         Text("国や自治体の公式アプリではありません。")
 
         section("使い方")
-        Text("検索欄に施設の名前か、電話番号を入れます。")
+        Text("検索欄に施設の名前を入れます。")
         Text("電話の相手が分かるようにするには、「設定」から\(AppIdentity.displayName)を許可します。")
         Text("電話をかけたり受けたりするのは、いつもの電話アプリです。")
 

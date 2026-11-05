@@ -63,7 +63,7 @@ final class DirectoryUITests: XCTestCase {
     finish.tap()
     XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 10))
     XCTAssertTrue(app.descendants(matching: .any)["search-hint"].exists)
-    XCTAssertTrue(app.staticTexts["施設の名前か、電話番号を入れてください。"].exists)
+    XCTAssertTrue(app.staticTexts["施設の名前を入れてください。"].exists)
     XCTAssertFalse(app.staticTexts["名前の一部でも、さがせます。"].exists)
     XCTAssertEqual(try proxy().requests.filter { $0.hasPrefix("/api/datasets/") }.count, 1)
     capture(app, name: "initial-search")
