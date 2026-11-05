@@ -10,7 +10,7 @@ The score is an integer from zero through 1,000,000, with whole-name exact resul
 
 Native and file adapters verify compressed and decoded sizes and SHA-256 digests from discovery before decoding either artifact.
 The website uses the browser's Brotli HTTP decoder and verifies each decoded body's size and SHA-256 itself.
-It also checks the compressed length, digest ETag, content coding, and snapshot response headers against discovery.
+It also compares the compressed length, digest ETag, content coding, and snapshot response headers with discovery.
 The browser doesn't expose the compressed body for hashing, so compressed-byte integrity relies on the checked publication and HTTPS delivery paths.
 The index's `snapshot` and row count must match the ranking companion.
 `decodeRankingArtifact` rejects unsupported formats, inconsistent counts, invalid ordinals, noncanonical varints, and trailing data.
@@ -46,6 +46,14 @@ The [scorer decision](adr/rank-device-search-with-place-preferences-and-gated-re
 The [presentation decision](adr/show-one-ranked-list-with-a-server-fallback.md) defines the phase 2 single list and the retained server matcher.
 The website worker admits both artifacts before constructing the scorer and keeps the server fallback when admission fails.
 The iPhone adapter consumes the equivalent ranking contract in Swift.
+
+The website presents one ordered list with each facility's category and region.
+The worker returns the first 30 ranked candidates and continues the same array by 30 until it reaches the returned candidate count.
+Its internal messages include the integer score for contract inspection, while result cards leave scores out.
+Complete telephone numbers keep exact-number matching in index row order.
+Existing category URLs restrict the ordered candidates to their named category, and server cursor URLs keep server continuation.
+Matching card content preserves result focus across the initial engine change.
+A focused candidate that leaves the result set returns focus to the search field.
 
 `tests/fixtures/search-ranking.json` declares `public-phonebook-name-ranking/1`, the exact snapshot, both decoded artifact digests, and complete expected row-and-score pairs for every fixture query.
 The fixture records all returned candidates, including score ties and secondary-route candidates.

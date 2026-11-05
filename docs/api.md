@@ -155,6 +155,11 @@ They send no cross-origin headers, and they answer `OPTIONS` with 405.
 A request whose `Sec-Fetch-Site` header is present and differs from `same-origin` gets a 403 problem with the code `cross_origin`.
 A request without that header stays admitted, so server rendering and the release checks reach these routes.
 Search accepts page sizes from 1 through 30.
+The website uses `/api/contacts` for its initial server results and ranked continuation.
+The response keeps its existing `data`, snapshot, total, cursor, and link fields.
+The category-preview endpoint keeps its existing response for other site consumers.
+After the website admits both search artifacts, its device scorer supplies up to 100 forgiving name candidates in a separate rank order.
+The server keeps its literal matching and ordering contract, including for pages without JavaScript.
 
 ### Website search index
 

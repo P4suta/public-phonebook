@@ -124,7 +124,7 @@ These checks compare the retained export, not a live Figma file or subjective vi
 ## Interaction and copy
 
 Use short, concrete Japanese labels.
-The search label names facility names and telephone numbers.
+The search label asks for a facility name.
 The search has no region or category filter, like the iPhone app.
 Japanese composition completes before an automatic search begins.
 Input that contains hiragana, katakana, or kanji searches 120 milliseconds after composition ends or the text changes.
@@ -135,10 +135,13 @@ The pause is three times the median interval between the reader's keystrokes sin
 Enter and the search button always search, and clearing the field restores the initial screen after the same short delay.
 A pure policy decides the trigger, so typing doesn't send one request per keystroke.
 These triggers apply until the search index is ready and whenever the page searches on the server.
-After the first render, the page loads the search index in a Web Worker, unless the browser asks to save data.
+After the first render, the page loads the name index and ranking companion in a Web Worker, unless the browser asks to save data.
 A thin black bar along the bottom of the search field shows the loading progress, and assistive technology doesn't announce it.
 Once the index is ready, each input searches in the Worker without a request, except during composition.
-The page then replaces server results in place, so the visible rows and focus stay.
+The page then replaces server results with forgiving device results in place.
+Matching card content keeps its elements and focus even when its rank changes.
+When a focused candidate leaves the device results, focus returns to the search field.
+The [focus order guidance](https://www.w3.org/WAI/WCAG22/Understanding/focus-order.html) requires an order that preserves meaning and operation.
 Without JavaScript, before the index is ready, and when the index fails its checks, the server searches.
 Early native-form input survives JavaScript enhancement.
 Clearing the search term restores the initial screen without a separate home action.
@@ -146,17 +149,21 @@ The search input stays mounted and focused across initial and result layouts.
 Layout changes do not use motion animation.
 No visible line repeats the result total.
 A visually hidden status announces the total about 0.6 seconds after typing stops.
-A visitor downloads the search index, not the national database, and it stays only in the browser's HTTP cache.
+A visitor downloads the two search artifacts, and they stay only in the browser's HTTP cache.
 
 Results prioritize exact names and show large telephone numbers with call actions.
-Every contact appears under its fixed facility-category heading with one category icon and the category's exact count.
-The count follows the category label 8 pixels after it, on the label's baseline.
-The category that holds an exact name comes first, and the exact name leads that category.
-Each category initially previews up to three contacts rather than filling the screen with one large category.
-The category order follows its best contact's exact-name, prefix, substring, region-or-category, normalized-name, and stable-ID order, as the [word search decision](adr/match-every-search-word-in-the-name-region-or-category.md) records.
-There is no grouping selector.
-The existing desktop and mobile result screens demonstrate the `高知大学` search.
-Grouped contacts inherit the shared heading's category and use third-level facility headings.
+Results use one ordered list.
+Each card names the facility category and region.
+The [W3C content structure guidance](https://www.w3.org/WAI/tutorials/page-structure/content/) associates ordered lists with sequential information.
+Facility names use second-level headings under the search results heading.
+The list starts with up to 30 contacts and continues by 30 in rank order.
+Device name search returns at most 100 candidates under the [ranking policy](adr/rank-device-search-with-place-preferences-and-gated-readings.md).
+The server keeps its existing exact-name, prefix, substring, place, normalized-name, and stable-ID ordering before device admission and without JavaScript.
+The [single-list decision](adr/show-one-ranked-list-with-a-server-fallback.md) records the distinction between the engines.
+A native continuation link opens the next server page without JavaScript.
+With JavaScript, the first explicit continuation appends a page and focuses its first facility heading.
+Later pages load as the continuation enters view.
+The [status message guidance](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html) supports announcing the result count without taking input focus.
 The telephone value is plain selectable text, and no control copies it.
 Primary call actions fill the telephone column.
 The value never carries a telephone URI or initiates calling.

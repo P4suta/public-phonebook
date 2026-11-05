@@ -55,29 +55,21 @@ async function installResult(
   const contact = result.data[0];
   if (!contact) throw new Error("Missing contact design fixture");
   await saveData(page);
-  await page.route("**/api/contact-groups?**", async (route) => {
+  await page.route("**/api/contacts?**", async (route) => {
     await route.fulfill({
       json: {
-        groups: [
+        ...result,
+        data: [
           {
+            ...contact,
             category: example.category,
-            results: {
-              ...result,
-              data: [
-                {
-                  ...contact,
-                  category: example.category,
-                  name: example.facility,
-                  address: example.address,
-                  phones: example.phones,
-                },
-              ],
-              meta: { ...result.meta, total: 1, nextCursor: null },
-              links: { ...result.links, next: null },
-            },
+            name: example.facility,
+            address: example.address,
+            phones: example.phones,
           },
         ],
-        meta: { snapshot: result.meta.snapshot, total: 1 },
+        meta: { ...result.meta, total: 1, nextCursor: null },
+        links: { ...result.links, next: null },
       },
     });
   });
@@ -86,8 +78,7 @@ async function installResult(
   await page.getByRole("searchbox").fill("表示確認");
   await expect(page.locator("article")).toHaveCount(1);
   await expect(
-    page.getByRole("heading", {
-      name: `${example.categoryLabel} 1件`,
+    page.getByText(example.categoryLabel, {
       exact: true,
     }),
   ).toBeVisible();
@@ -468,8 +459,8 @@ test("a wide result card puts the details below the region on the left and the c
   };
   const [name, region, number, call, detail] = await Promise.all(
     [
-      card.getByRole("heading", { level: 3 }),
-      card.locator("h3 + p"),
+      card.getByRole("heading", { level: 2 }),
+      card.locator("h2 + p"),
       card.locator("[data-phone]"),
       card.getByRole("link", { name: /に電話をかける$/u }),
       card.getByRole("link", { name: /の住所などを見る$/u }),
