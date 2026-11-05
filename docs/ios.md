@@ -77,7 +77,7 @@ Each measurement runs in a separate process, and resident peaks include the rank
 Search construction time excludes the simulator boot and compiler.
 The command also measures three process relaunches of the installed VerificationRelease app from its saved national generation.
 The readiness timer ends when the search hint replaces search preparation, and first-run setup stays outside that timer.
-XCTest records elapsed time, launch metrics, and target-app physical memory separately from the command-line resident peaks.
+XCTest records elapsed time, launch metrics, and target-app physical memory under `installedApp`.
 Filesystem caches remain uncontrolled, and physical iPhone performance remains unmeasured.
 
 The app keeps the whole national directory on the device.

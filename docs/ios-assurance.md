@@ -51,7 +51,8 @@ The artifact readers reject truncated and noncanonical varints, out-of-range pos
 The committed Brotli pair under `ios/SearchData` supplies the national fixture without depending on a production deployment.
 
 Lean checks 74 named theorems.
-Its negative controls reject active deletion, digest-mismatch admission, an unchanged shared-number label, addition of a removed number, automatic transfer on an expensive path, and reading admission at the ratio boundary.
+Its negative controls reject active deletion, digest-mismatch admission, an unchanged shared-number label, and addition of a removed number.
+They also reject automatic transfer on an expensive path and reading admission at the ratio boundary.
 The search activation control rejects a generation without its mandatory search files.
 The pagination control rejects a page that extends past its result count.
 Three source-bound pagination theorems establish bounds, progress, and Int64 arithmetic safety for nonnegative counts with the shown count at most the total.

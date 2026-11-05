@@ -250,7 +250,7 @@ const REPLAY_WORK: [(&str, u64); 2] = [("kernel replays", 1), ("container runs",
 const FALSE_CLAIMS: [(&str, &str, &str); 8] = [
     (
         "FalseResultPage",
-        "import ResultPage\nexample : Phonebook.pageEnd 20 21 = 40 := by decide\n",
+        "import ResultPage\nexample : Phonebook.pageEnd 20 21 = 40 := by rfl\n",
         "false page growth beyond the result count",
     ),
     (
