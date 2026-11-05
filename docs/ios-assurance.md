@@ -45,7 +45,19 @@ A failure, including one that iOS reports through `requestFailed(for:withError:)
 The app's trace events stay at the info level with an operation identifier, a phase, an outcome, a snapshot identifier, a count, and a duration.
 No log line marks a telephone number, a label, a search query, or an error description as public.
 
-Lean checks 61 named theorems and rejects a false active-deletion claim, a false digest-mismatch admission, a false claim that a shared number keeps its national label, a false addition of a number that leaves, and a false automatic transfer on an expensive path.
+The pure Swift ranking core reads the shared 2,200-query national fixture and compares every row and integer score.
+The fixture binds the snapshot, contact count, and decoded artifact digests.
+The artifact readers reject truncated and noncanonical varints, out-of-range postings, trailing bytes, and mismatched identities.
+The committed Brotli pair under `ios/SearchData` supplies the national fixture without depending on a production deployment.
+
+Lean checks 69 named theorems.
+Its negative controls reject active deletion, digest-mismatch admission, an unchanged shared-number label, addition of a removed number, automatic transfer on an expensive path, and reading admission at the ratio boundary.
+The ranking model refines `RankingPolicy.swift` function by function and binds its complete source digest.
+Its eight ranking theorems cover score bounds, reading bands, preference tiers, exact-score protection, gate boundaries, and the Han anchor.
+They also establish Int64 arithmetic bounds under the declared input limits.
+Swift and Lean division agree for the nonnegative numerators and positive divisors of those bounds.
+The proof trusts the reviewed translation and Swift integer semantics.
+Unicode normalization, candidate retrieval, sorting, lexical readings, and future search quality remain native-test and empirical boundaries.
 A planted defect that keeps a changed label must fail inside the two theorems that characterize the change decision and nowhere else.
 It also rejects three planted defects in the wait model inside the theorems that they break: a rising countdown, a line that changes within a second, and a countdown that reaches zero.
 A fourth wait defect that makes a waiting transfer also wait for the stall time must fail inside the waiting lemma and nowhere else.
