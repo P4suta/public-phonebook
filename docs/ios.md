@@ -27,14 +27,15 @@ Debug maps to development and Release maps to production.
 The verification scheme uses VerificationDebug for tests and VerificationRelease for archives.
 DevRelease and ProductionDebug make environment independent of optimization.
 Swift Build compiles the Swift packages with their Debug configuration when a configuration name contains `debug` or `development` in any case, and with their Release configuration otherwise.
-Every debug configuration name therefore contains `Debug`, no release configuration name contains either word, and the generator rejects a name that breaks that rule.
+Every debug configuration name contains `Debug`, no release configuration name contains either word, and the generator rejects a name that breaks that rule.
 DevRelease and VerificationRelease compile the packages with `-O` and debug information, like Release.
 A DevRelease simulator build for one simulator needs no `ONLY_ACTIVE_ARCH` override, because the app and its packages build the same architectures.
 Override PHONEBOOK_API_ORIGIN only for an explicitly selected test build.
 The generator inspects all six actual Xcode configurations and rejects missing or incorrect environment fields.
 
 The app's property list declares a [launch screen](https://developer.apple.com/documentation/xcode/specifying-your-apps-launch-screen) with the `LaunchBackground` color from `ios/Config/Launch.xcassets`.
-That color matches the first screen's surface, white in the light appearance and black in the dark one, as the [launching guidelines](https://developer.apple.com/design/human-interface-guidelines/launching) ask, and the launch screen shows no text or logo.
+The launch color matches the first screen's surface, white in the light appearance and black in the dark one, following Apple's [launching guidelines](https://developer.apple.com/design/human-interface-guidelines/launching).
+The launch screen shows no text or logo.
 The app follows the system appearance by swapping the black and white of [the visual rules](design.md#visual-rules), as the [Dark Mode guidelines](https://developer.apple.com/design/human-interface-guidelines/dark-mode) ask.
 Icons scale with the text size through `@ScaledMetric` from their sizes at the default text size, and controls keep their 44-point targets.
 Every confirmation dialog titles its cancel button `キャンセル`, as the [Alerts guidelines](https://developer.apple.com/design/human-interface-guidelines/alerts) ask.
@@ -68,6 +69,8 @@ The fixture never ships, so the list never names it.
 
 The app also bundles the name index, ranking companion, and `search.json` declaration for that archive.
 The declaration under `ios/SearchData` binds the national pair's compressed and decoded lengths and SHA-256 digests.
+`national-packed.json` selects `search-ranking-packed.br` for national builds.
+The original format 1 companion and declaration remain inputs to the unchanged Swift contract test, and the app stages only the selected companion.
 The generator admits the pair through PhonebookKit and requires the archive's snapshot and contact count.
 The VerificationRelease build needs no new files on the production site to use the national search.
 The extension carries no search artifacts.
@@ -81,14 +84,27 @@ The current and previous generations keep their own search files, and failed sta
 An installation with an earlier generation prepares a replacement from its saved rows without downloading the archive again.
 A failed migration preserves the saved generation.
 
+Saved-search format 2 writes decoded `search-index` and `search-ranking` files, checked line offsets, and the row mapping with the generation.
+Later launches hash those files through 64 KiB buffers and request Foundation's mapped reading option.
+The packed scorer reads immutable tables directly and constructs no national posting maps or reading trie.
+The [mapped-generation decision](adr/map-verified-search-files-from-saved-generations.md) defines the storage and verification boundary.
+The format 1 saved reader remains available during migration.
+Import and verification run on the storage actor while the existing progress interface stays available.
+
 `mise x -- just ios-search-measure` measures optimized production search and a bundled offline import on the checkout's iOS Simulator.
 The report at `target/ios/search-measurements/report.json` binds the source, compiler, SDK, runtime, fixture, timings, resident peaks, and stored bytes.
-The core run compares all 2,200 complete national rankings and reports p50, p95, p99, and peak query latency.
-Each measurement runs in a separate process, and resident peaks include the ranking fixture.
+The core and saved-generation runs compare all 2,200 complete national rankings and report p50, p95, p99, and peak query latency.
+Import, core admission, and saved reopening run in separate processes, and resident peaks include the ranking fixture and mapping validation.
 Search construction time excludes the simulator boot and compiler.
 The command also measures three process relaunches of the installed VerificationRelease app from its saved national generation.
 The readiness timer ends when the search hint replaces search preparation, and first-run setup stays outside that timer.
 XCTest records elapsed time, launch metrics, and target-app physical memory under `installedApp`.
+`installedAppSearch` records three memory measurements that each search four national queries.
+The report compares saved reopening and app launch with a 1,000 ms budget and searching memory with 250,000,000 bytes.
+The saved query p95 baseline is 19.133292 ms.
+The app memory verdict conservatively interprets each reported `kB` as 1,024 bytes.
+The verdict uses peak physical memory, while change measurements remain separate deltas.
+Unknown units and missing measurements produce no passing budget verdict.
 Filesystem caches remain uncontrolled, and physical iPhone performance remains unmeasured.
 
 The app keeps the whole national directory on the device.
@@ -105,7 +121,8 @@ That run leaves the daily check due, so the next launch or return to the foregro
 A relaunch after the start button continues the first run without another press.
 The app adds nothing to the Contacts app, and deleting the app removes everything it saved.
 The app reads `/api/datasets` and picks the one file whose `format` is `public-phonebook-directory/1`, and it skips entries in other formats unread.
-When the listing has no file in that format, a first run asks the reader to update the app, and after the first run About and the search start screen say so in one passive line.
+When the listing lacks a file in that format, a first run asks the reader to update the app.
+After the first run, About and the search start screen state the same need in one passive line.
 It downloads that `directory.tsv.br` and accepts it only when its length, the SHA-256 digest of the whole file, and its snapshot header match the listing.
 The received bytes stay in the store's `transfers` directory after a failure or suspension, and the next attempt asks for the rest with a Range request.
 A 206 reply must start at the kept length and end at the listed length, a 200 reply starts the file again, and a 416 reply discards the kept bytes.
@@ -113,7 +130,8 @@ A changed snapshot or digest names a different file, so the app discards the kep
 The app removes the file once its generation activates, and a file lock keeps two downloads from writing it at once.
 `APIClient` owns one ephemeral `URLSession` for its JSON requests and two for its dataset transfers, and the last copy of the client invalidates all three.
 Each request still carries its own path rules, because `allowsExpensiveNetworkAccess` and `allowsConstrainedNetworkAccess` on a request override the session.
-The session of the transfers that the person starts sets `waitsForConnectivity`, so such a transfer without a connection waits for a path, and the wait display shows the weak-signal line at once.
+The session for transfers that the person starts sets `waitsForConnectivity`.
+A transfer without a connection waits for a path, and the wait display shows the weak-signal line at once.
 The JSON session fails at once without a connection, so the listing and its retries keep their timing.
 The transfer's 900-second resource timeout bounds the wait, and the first download's retry schedule takes over after it.
 For a waiting transfer, a refused connection also waits, because the session connects again only when the network path changes.
@@ -127,12 +145,13 @@ The first download uses any network path.
 After the first run, a launch or a return to the foreground makes the daily check that `PhonebookCore.UpdateCheck` decides.
 The check reads `/api/datasets` with `If-None-Match` once 24 hours have passed since the last answered read, and a first run whose listing answered counts as that read.
 A 304 reply or a listing of the saved snapshot starts no transfer.
-A listing of another snapshot starts its delta or the complete archive at once on a path that is neither expensive nor constrained.
+A listing of another snapshot starts its delta or the complete archive at once on a path that's neither expensive nor constrained.
 On mobile data, a personal hotspot, or Low Data Mode, that automatic transfer waits, whatever its size, and the next report of an inexpensive path from `NWPathMonitor` starts it.
 The transfer reuses the checked listing's body, so it reads the listing no second time, and its requests also refuse those paths through `allowsExpensiveNetworkAccess` and `allowsConstrainedNetworkAccess`.
 A transfer that the person starts, such as the first download or the QA screen's, may use any path.
 A failed automatic check or transfer shows nothing, keeps the saved data, and tries again at the next daily check, and only the QA screen names its reason.
-The record of the last answered read, its ETag, the listing body, and a waiting transfer stays in the app's defaults, so a background task in a new process continues it.
+The app's defaults keep the last answered read, its ETag, the listing body, and a waiting transfer.
+A background task in a new process continues the waiting transfer.
 A background app refresh task makes the same check and shares the 24-hour limit, and it leaves a transfer waiting for the background processing task.
 The background processing task performs a waiting transfer and its import, and without one its earliest date falls a month after the saved snapshot's `generatedAt`.
 Updates stay silent.
@@ -234,7 +253,8 @@ A search that matches the label or the complete number shows the entry under a `
 That button opens the iOS call confirmation, so the owner can check calling with their own number instead of a facility's.
 The Call Directory extension reads the file and merges the entry into the national caller numbers in ascending order while it loads them.
 After iOS accepts a load, the extension records the generation and the test entry that iOS holds in `callers-loaded`.
-When iOS asks for an [incremental](https://developer.apple.com/documentation/callkit/cxcalldirectoryextensioncontext/isincremental) load and the record names a caller file that the store still keeps, the extension streams that file and the active one together.
+An [incremental](https://developer.apple.com/documentation/callkit/cxcalldirectoryextensioncontext/isincremental) load checks whether the record names a caller file that the store still keeps.
+When the file exists, the extension streams the named file and the active file together.
 It removes every number that left or changed its label, and then adds every new or changed entry, each in ascending order.
 `PhonebookCore.CallerChange` holds the step decision, and `verification/ios/CallerDelta.lean` proves that the changes turn the held entries into the wanted ones.
 Any other record, a record from an earlier app version, or a full request loads every entry as before.
@@ -246,8 +266,8 @@ The screen never asks the owner to press the button again.
 The screen also shows the saved data date, the last answered check, the next check time, a waiting transfer, and any problem.
 Its `いま受け取る` button starts a transfer as the person, which may use any path, or the first download before any data exists.
 The gate in `ios-check` scans every file of the unsigned Release app and extension for six markers of the QA code and fails on any of them.
-The markers are the screen's type name, the file name, an accessibility identifier, and three phrases of its copy.
-The gate also requires all six markers in the VerificationDebug build, so the scan demonstrably sees them.
+The markers are the screen's type name, the filename, an accessibility identifier, and three phrases of its copy.
+The gate also requires all six markers in the VerificationDebug build, which establishes the scan's detection control.
 `mise x -- cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- store-build-control` builds Release with the condition defined.
 It passes when the scan rejects that build with all six markers.
 The about screens, privacy notes, data sources, and licenses are part of the app, and only facility, map, and source pages open in the browser after a confirmation.
@@ -285,7 +305,7 @@ The manual TestFlight workflow runs all four campaigns for one `main` commit bef
 The full UI harness creates and erases its own simulator and reinstalls the app for every scenario.
 Each checkout gets its own simulator, named `Public Phonebook Checks` with the first eight hexadecimal digits of the SHA-256 of its path.
 The harness starts the fixture on a loopback port that the kernel reports free and passes it as `PHONEBOOK_FIXTURE_PORT` to the fixture and to the UI test runner.
-Another process on port 3100 therefore can't stop the gate, and `node tools/native-fixture.ts --serve` alone still uses 3100.
+Another process on port 3100 can't stop the gate, and `node tools/native-fixture.ts --serve` alone still uses 3100.
 Each scenario runs with a 600-second execution time allowance, a hang guard that exceeds the longest sum of one scenario's own waits.
 A scenario that reaches the allowance counts as inconclusive rather than failed, and the gate still stops on it.
 Its proxy forwards Range requests and can drip or stall a reply, so the scenarios reach the receiving steps, a weak signal, and a resumed transfer.
@@ -298,7 +318,8 @@ A failed scenario also leaves `target/ios/ui-failures/<scenario>/` with the expo
 Its `failure.json` names each failing assertion with its repository-relative source line and lists the test steps with their start offsets and durations.
 The `attachments` folder holds the screenshots, the accessibility tree, and the screen recording.
 It also holds the fixture request log, which gives each request's arrival time, upstream status or error, and upstream duration.
-Each wait is a named step, and a timed-out wait reports its elapsed time and, while saving, the save progress and save error on the screen.
+Each wait is a named step, and a timed-out wait reports its elapsed time.
+During saving, the failure report includes the screen's save progress and save error.
 `simulator.log` holds the app's directory trace with the test runner, SpringBoard, RunningBoard, and testmanagerd messages from the scenario.
 `host.log` holds the host's memory, swap, load, simulators, and CoreSimulator log from the scenario.
 The gate prints each failing assertion and its location, and records them in the UI receipt.

@@ -156,7 +156,7 @@ private struct FixedSearchArtifacts: SearchArtifactSource {
   #expect(try previous.search("Library").map(\.id) == [1, 2])
   let names = try FileManager.default.contentsOfDirectory(atPath: directory.path)
   #expect(!names.contains { $0.hasPrefix(saved[0].generation.uuidString) })
-  #expect(names.contains(saved[1].generation.uuidString + ".search-ranking.br"))
+  #expect(names.contains(saved[1].generation.uuidString + ".search-ranking"))
   #expect(names.contains(saved[2].generation.uuidString + ".search-rows"))
   let map = directory.appendingPathComponent(saved[2].generation.uuidString + ".search-rows")
   try Data([2, 0, 0, 0, 1, 0, 0, 0]).write(to: map)

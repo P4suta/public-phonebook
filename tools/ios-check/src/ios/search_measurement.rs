@@ -12,6 +12,10 @@ const TARGET: &str = "arm64-apple-ios18.0-simulator";
 const NATIONAL_CONTACTS: u64 = 667_696;
 const FIXTURE_QUERIES: u64 = 2200;
 const APP_REPETITIONS: usize = 3;
+const MAXIMUM_APP_STARTUP_SECONDS: f64 = 1.0;
+const MAXIMUM_APP_MEMORY_BYTES: f64 = 250_000_000.0;
+const CONSERVATIVE_BYTES_PER_KILOBYTE: f64 = 1024.0;
+const MAXIMUM_APP_KILOBYTES: f64 = MAXIMUM_APP_MEMORY_BYTES / CONSERVATIVE_BYTES_PER_KILOBYTE;
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,12 +40,20 @@ struct AppCase {
 }
 
 fn app_metrics(bytes: &[u8]) -> Result<Vec<AppMetric>> {
+    case_metrics(
+        bytes,
+        super::STARTUP_UI_TEST,
+        &["clock", "memory", "launch"],
+    )
+}
+
+fn case_metrics(bytes: &[u8], name: &str, required_families: &[&str]) -> Result<Vec<AppMetric>> {
     let cases: Vec<AppCase> = serde_json::from_slice(bytes)?;
     let [case] = cases.as_slice() else {
         anyhow::bail!("The app measurement must contain one test case");
     };
     ensure!(
-        case.test_identifier.contains(super::STARTUP_UI_TEST),
+        case.test_identifier.contains(name),
         "The app measurement names another test"
     );
     let metrics = cases
@@ -56,7 +68,7 @@ fn app_metrics(bytes: &[u8]) -> Result<Vec<AppMetric>> {
             && metric.measurements.iter().all(|value| value.is_finite())),
         "The app metrics omit finite repetitions or units"
     );
-    for required in ["clock", "memory", "launch"] {
+    for required in required_families {
         ensure!(
             metrics.iter().any(|metric| metric
                 .identifier
@@ -71,40 +83,83 @@ fn app_metrics(bytes: &[u8]) -> Result<Vec<AppMetric>> {
     Ok(metrics)
 }
 
-fn measure_app(root: &Path, identifier: &str, directory: &Path) -> Result<serde_json::Value> {
-    let bundle = directory.join("app-startup.xcresult");
+fn metric_budget(metrics: &[AppMetric], family: &str, unit: &str, maximum: f64) -> Option<bool> {
+    let selected = metrics
+        .iter()
+        .filter(|metric| {
+            let identifier = metric
+                .identifier
+                .as_deref()
+                .unwrap_or(&metric.display_name)
+                .to_ascii_lowercase();
+            identifier.contains(family) && (family != "memory" || identifier.contains("peak"))
+        })
+        .collect::<Vec<_>>();
+    if selected.is_empty()
+        || selected
+            .iter()
+            .any(|metric| metric.unit_of_measurement != unit)
+    {
+        return None;
+    }
+    Some(selected.iter().all(|metric| {
+        metric
+            .measurements
+            .iter()
+            .all(|value| value.is_finite() && *value >= 0.0 && *value <= maximum)
+    }))
+}
+
+fn measure_app(
+    root: &Path,
+    identifier: &str,
+    directory: &Path,
+    case: &str,
+) -> Result<serde_json::Value> {
+    let stem = if case == super::STARTUP_UI_TEST {
+        "app-startup"
+    } else {
+        "app-search-memory"
+    };
+    let bundle = directory.join(format!("{stem}.xcresult"));
     if bundle.exists() {
         fs::remove_dir_all(&bundle)?;
     }
     logged(
         root,
-        "search-measure-app",
+        &format!("search-measure-{stem}"),
         super::ui_build_command(root, identifier, "VerificationRelease")
             .arg("-resultBundlePath")
             .arg(&bundle)
             .arg(format!(
                 "-only-testing:PhonebookUITests/DirectoryUITests/{}",
-                super::STARTUP_UI_TEST
+                case
             ))
             .arg("test"),
     )?;
     let read = |kind| -> Result<serde_json::Value> {
         let output = logged(
             root,
-            &format!("search-measure-app-{kind}"),
+            &format!("search-measure-{stem}-{kind}"),
             Command::new("xcrun")
                 .args(["xcresulttool", "get", "test-results", kind, "--path"])
                 .arg(&bundle),
         )?;
         Ok(serde_json::from_slice(&output.stdout)?)
     };
-    super::require_ui_case(&read("summary")?, &read("tests")?, super::STARTUP_UI_TEST)?;
-    let metrics = app_metrics(&serde_json::to_vec(&read("metrics")?)?)?;
+    super::require_ui_case(&read("summary")?, &read("tests")?, case)?;
+    let bytes = serde_json::to_vec(&read("metrics")?)?;
+    let metrics = if case == super::STARTUP_UI_TEST {
+        app_metrics(&bytes)?
+    } else {
+        case_metrics(&bytes, case, &["memory"])?
+    };
     super::bundled::check_built(root, &root.join("ios/DerivedData/Build/Products/VerificationRelease-iphonesimulator/PublicPhonebook.app"), "VerificationRelease")?;
     ensure!(!metrics.is_empty(), "The app measurement is empty");
     Ok(
-        json!({"configuration":"VerificationRelease", "repetitions":APP_REPETITIONS,
-        "scope":"Process relaunch from the saved bundled national generation until the search hint replaces search preparation; first setup is outside the timer; filesystem caches are uncontrolled; XCTest reports target-app physical memory separately from the command-line resident peaks.",
+        json!({"configuration":"VerificationRelease", "test":case, "repetitions":APP_REPETITIONS,
+        "scope":"Startup measures process relaunch from the saved national generation to the search hint; the memory case searches four national queries per repetition; first setup is outside each timer; filesystem caches are uncontrolled; XCTest target-app physical memory differs from command-line resident peaks.",
+        "budgets":{"maximumStartupSeconds":MAXIMUM_APP_STARTUP_SECONDS,"maximumPhysicalMemoryBytes":MAXIMUM_APP_MEMORY_BYTES,"kilobyteInterpretation":"Conservative 1024 bytes per reported kB", "startup":metric_budget(&metrics,"clock","s",MAXIMUM_APP_STARTUP_SECONDS),"memory":metric_budget(&metrics,"memory","kB",MAXIMUM_APP_KILOBYTES)},
         "resultBundle":bundle.strip_prefix(root).context("App result is outside the checkout")?, "metrics":metrics}),
     )
 }
@@ -234,7 +289,11 @@ pub(super) fn run(root: &Path) -> Result<()> {
     )?;
     let simulator = device(root)?;
     let mut records = Vec::new();
-    for mode in ["core", "import"] {
+    let saved_store = directory.join("saved-store");
+    if saved_store.exists() {
+        fs::remove_dir_all(&saved_store)?;
+    }
+    for mode in ["core", "import", "saved"] {
         let output = directory.join(format!("{mode}.json"));
         if output.exists() {
             fs::remove_file(&output)?;
@@ -261,14 +320,15 @@ pub(super) fn run(root: &Path) -> Result<()> {
                 .is_some_and(|value| value.is_finite() && value > 0.0),
             "Search startup wasn't measured"
         );
-        if mode == "core" {
+        if mode != "import" {
             ensure!(
                 record["comparedQueries"] == FIXTURE_QUERIES,
                 "Search measurement omitted rankings"
             );
             let latency: Latency = serde_json::from_value(record["latencyMilliseconds"].clone())?;
             ensure!(latency.valid(), "Search percentiles are malformed");
-        } else {
+        }
+        if mode != "core" {
             ensure!(
                 record["storeBytes"].as_u64().is_some_and(|value| value > 0),
                 "The saved store wasn't measured"
@@ -276,13 +336,19 @@ pub(super) fn run(root: &Path) -> Result<()> {
         }
         records.push(record);
     }
-    let app = measure_app(root, simulator.id(), &directory)?;
+    let app = measure_app(root, simulator.id(), &directory, super::STARTUP_UI_TEST)?;
+    let app_search = measure_app(
+        root,
+        simulator.id(),
+        &directory,
+        super::SEARCH_MEMORY_UI_TEST,
+    )?;
     require_current_sources(root, &source)?;
     let record = json!({"result":"passed", "target":TARGET, "sdk":sdk,
         "swift":String::from_utf8(compiler_version.stdout)?, "runtime":super::RUNTIME,
-        "scope":"Optimized core search and offline import in separate command-line Simulator processes, plus VerificationRelease app relaunch to search readiness; physical iPhone performance is unmeasured; command-line resident peaks include the ranking fixture.",
+        "scope":"Optimized core search, offline import, and saved-generation reopening in separate command-line Simulator processes, plus VerificationRelease app relaunch to search readiness; physical iPhone performance is unmeasured; command-line resident peaks include the ranking fixture and row-mapping validation.",
         "fixtureSha256":crate::sha256_hex(fs::read(root.join("tests/fixtures/search-ranking.json"))?),
-        "source_sha256":source_records(&source), "measurements":records, "installedApp":app});
+        "source_sha256":source_records(&source), "measurements":records, "installedApp":app, "installedAppSearch":app_search});
     fs::write(
         directory.join("report.json"),
         serde_json::to_vec_pretty(&record)?,
@@ -296,6 +362,44 @@ pub(super) fn run(root: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn app_budgets_require_measured_units_and_reject_an_exceeded_peak() {
+        let mut metrics = vec![AppMetric {
+            display_name: "Memory Peak Physical".into(),
+            unit_of_measurement: "kB".into(),
+            measurements: vec![MAXIMUM_APP_KILOBYTES; APP_REPETITIONS],
+            identifier: Some("physical_memory_peak".into()),
+        }];
+        metrics.push(AppMetric {
+            display_name: "Memory Physical".into(),
+            unit_of_measurement: "kB".into(),
+            measurements: vec![-1.0; APP_REPETITIONS],
+            identifier: Some("physical_memory".into()),
+        });
+        assert_eq!(
+            metric_budget(&metrics, "memory", "kB", MAXIMUM_APP_KILOBYTES),
+            Some(true)
+        );
+        metrics[0].measurements[0] += 1.0;
+        assert_eq!(
+            metric_budget(&metrics, "memory", "kB", MAXIMUM_APP_KILOBYTES),
+            Some(false)
+        );
+        metrics[0].unit_of_measurement = "MB".into();
+        assert_eq!(
+            metric_budget(&metrics, "memory", "kB", MAXIMUM_APP_KILOBYTES),
+            None
+        );
+        assert_eq!(
+            metric_budget(&[], "clock", "s", MAXIMUM_APP_STARTUP_SECONDS),
+            None
+        );
+        assert_eq!(
+            metric_budget(&metrics[1..], "memory", "kB", MAXIMUM_APP_KILOBYTES),
+            None
+        );
+    }
 
     #[test]
     fn app_measurements_require_the_named_case_three_samples_and_each_metric_family() -> Result<()>
