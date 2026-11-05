@@ -11,6 +11,21 @@ def packedMidpoint (low high : Int) : Int :=
 
 def packedScratchSum (total increment : Int) : Int := total + increment
 
+def packedReadingKey (row contacts frequency : Int) : Int := (6 - frequency) * contacts + row
+
+theorem packedReadingBucketBounds (row contacts frequency : Int)
+    (hc : 1 ≤ contacts ∧ contacts ≤ 2000000) (hr : 0 ≤ row ∧ row < contacts)
+    (hf : 1 ≤ frequency ∧ frequency ≤ 6) :
+    0 ≤ packedReadingKey row contacts frequency ∧ packedReadingKey row contacts frequency < 12000000 ∧
+    packedReadingKey row contacts frequency % contacts = row ∧
+    (6 - frequency) * contacts ≤ packedReadingKey row contacts frequency ∧
+    packedReadingKey row contacts frequency < (7 - frequency) * contacts := by
+  have remainder : packedReadingKey row contacts frequency % contacts = row := by
+    simp [packedReadingKey, Int.add_emod, Int.mul_emod, Int.emod_eq_of_lt hr.1 hr.2]
+  have alternatives : frequency = 1 ∨ frequency = 2 ∨ frequency = 3 ∨ frequency = 4 ∨ frequency = 5 ∨ frequency = 6 := by omega
+  rcases alternatives with h | h | h | h | h | h <;> subst frequency <;>
+    simp_all [packedReadingKey] <;> omega
+
 theorem packedScratchFitsUInt32 (total increment : Int)
     (ht : 0 ≤ total ∧ total ≤ 25600000 - increment)
     (hi : 1 ≤ increment ∧ increment ≤ 25600000) :
@@ -45,5 +60,6 @@ theorem packedArithmeticFitsInt64 (offset length size low high : Int)
 #print axioms packedMidpointProgress
 #print axioms packedArithmeticFitsInt64
 #print axioms packedScratchFitsUInt32
+#print axioms packedReadingBucketBounds
 
 end Phonebook

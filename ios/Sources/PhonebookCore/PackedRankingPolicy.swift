@@ -5,6 +5,10 @@ public enum PackedRankingPolicy {
     total + increment
   }
 
+  public static func readingKey(row: Int, contacts: Int, frequency: UInt32) -> UInt32 {
+    UInt32((6 - Int(frequency)) * contacts + row)
+  }
+
   public static func fits(offset: Int, length: Int, size: Int) -> Bool {
     guard offset >= 0, length >= 0, size >= 0,
       offset <= maximumBytes, length <= maximumBytes, size <= maximumBytes

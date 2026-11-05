@@ -168,13 +168,13 @@ struct ReadingRanking: Sendable {
             frequencies[row] = PackedRankingPolicy.scratchSum(total: frequencies[row], increment: 1)
           }
         }
-        var ordered = Array(touched.prefix(count))
-        ordered.sort {
-          let left = frequencies[Int($0)]
-          let right = frequencies[Int($1)]
-          return left != right ? left > right : $0 < $1
+        for at in 0..<count {
+          let row = Int(touched[at])
+          touched[at] = PackedRankingPolicy.readingKey(
+            row: row, contacts: names.count, frequency: frequencies[row])
         }
-        return ordered.prefix(512).map(Int.init)
+        let ordered = touched.prefix(count).sorted()
+        return ordered.prefix(512).map { Int($0) % names.count }
       }
     }
   }
