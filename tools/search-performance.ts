@@ -1,4 +1,6 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { setFlagsFromString } from "node:v8";
@@ -28,6 +30,11 @@ import {
 import { serveBuiltWorker } from "./built-worker-server.ts";
 import { developmentHost } from "./local-data.ts";
 import { parityQueries } from "./search-parity.ts";
+import {
+  type RankingContract,
+  RankingContractSchema,
+} from "./search-ranking-contract.ts";
+import { fileDigest } from "./snapshot.ts";
 
 const commandArgumentOffset = 2;
 const defaultState = ".local/state";
@@ -52,9 +59,16 @@ const unmeasurable = "not supported by this engine";
 const jsonIndentation = 2;
 const eventThresholdMs = 16;
 const rowIndex = /^(?:0|[1-9]\d*)$/u;
+const processInventoryMaxBytes = 8 * 1024 * 1024;
+const memorySampleIntervalMs = 250;
+const contractRequestStart = 1_000_000;
+const contractWarmupCount = 32;
+const hexRadix = 16;
+const hexByteWidth = 2;
 
 const RecordSchema = v.object({
   ready: v.nullable(v.number()),
+  workerLoad: v.nullable(v.number()),
   searches: v.array(v.number()),
   longTasks: v.array(v.number()),
   events: v.array(v.object({ name: v.string(), duration: v.number() })),
@@ -74,6 +88,12 @@ interface Profile {
 }
 
 const profiles: readonly Profile[] = [
+  {
+    name: "chromium",
+    engine: chromium,
+    device: devices["Desktop Chrome"],
+    cpuThrottling: null,
+  },
   {
     name: "chromium-4x-cpu",
     engine: chromium,
@@ -106,7 +126,7 @@ export const manualMeasurements = [
     name: "worker-heap",
     status: "not-run",
     reason:
-      "Browsers expose a Worker's heap only to cross-origin isolated pages or a debugger session; the record keeps the main-thread heap and a V8 estimate of the decoded index instead.",
+      "The optional process sampler measures the owned browser process tree, not an isolated Worker heap; the main-thread heap and Node estimate have separate fields.",
   },
 ] as const;
 
@@ -186,6 +206,7 @@ export function searchWork(
 function installRecorder(eventThreshold: number): void {
   const record: {
     ready: number | null;
+    workerLoad: number | null;
     searches: number[];
     longTasks: number[];
     events: { name: string; duration: number }[];
@@ -196,6 +217,7 @@ function installRecorder(eventThreshold: number): void {
     };
   } = {
     ready: null,
+    workerLoad: null,
     searches: [],
     longTasks: [],
     events: [],
@@ -221,12 +243,20 @@ function installRecorder(eventThreshold: number): void {
   window.Worker = class extends NativeWorker {
     constructor(url: string | URL, options?: WorkerOptions) {
       super(url, options);
+      Reflect.set(window, "__searchPerformanceWorker", this);
       const pending = new Map<number, number>();
+      let loadStarted = 0;
       const post: unknown = Reflect.get(this, "postMessage");
       Reflect.set(
         this,
         "postMessage",
         (message: unknown, options?: unknown) => {
+          if (
+            typeof message === "object" &&
+            message !== null &&
+            Reflect.get(message, "type") === "load"
+          )
+            loadStarted = performance.now();
           if (
             typeof message === "object" &&
             message !== null &&
@@ -242,6 +272,8 @@ function installRecorder(eventThreshold: number): void {
       this.addEventListener("message", (event: MessageEvent<unknown>) => {
         const data = event.data;
         if (typeof data !== "object" || data === null) return;
+        if (Reflect.get(data, "type") === "ready")
+          record.workerLoad = performance.now() - loadStarted;
         if (Reflect.get(data, "type") === "results") {
           record.messages.resultsReceived += 1;
           record.messages.resultJsonBytes += utf8.encode(
@@ -297,16 +329,21 @@ async function measureProfile(
   browser: Browser,
   profile: Profile,
   origin: string,
-  indexPath: string,
+  artifactPaths: readonly string[],
   queries: readonly string[],
+  contract: RankingContract | null,
+  memory: { readonly root: number; readonly tools: string } | null,
 ): Promise<Record<string, unknown>> {
   const context = await browser.newContext({
     ...profile.device,
     baseURL: origin,
     ignoreHTTPSErrors: true,
   });
+  let trace: ReturnType<typeof sampleMemory> | null = null;
   try {
     const page = await context.newPage();
+    if (memory)
+      trace = sampleMemory(memory.root, memory.tools, profile.engine.name());
     await page.addInitScript(installRecorder, eventThresholdMs);
     if (profile.cpuThrottling !== null) {
       const session = await context.newCDPSession(page);
@@ -314,11 +351,12 @@ async function measureProfile(
         rate: profile.cpuThrottling,
       });
     }
-    let transferred: number | null = null;
+    const transferred = new Map<string, number>();
     page.on("requestfinished", (request) => {
-      if (new URL(request.url()).pathname !== indexPath) return;
+      const path = new URL(request.url()).pathname;
+      if (!artifactPaths.includes(path)) return;
       void request.sizes().then((sizes) => {
-        transferred = sizes.responseBodySize;
+        transferred.set(path, sizes.responseBodySize);
       });
     });
     await page.goto("/");
@@ -348,6 +386,9 @@ async function measureProfile(
     await page.keyboard.type(typedText, { delay: typingDelayMs });
     await page.waitForTimeout(typingDelayMs);
     const record = await readRecord(page);
+    const ranked = contract
+      ? await measureRankingContract(page, contract)
+      : null;
     const supportsLongTasks = await page.evaluate(() =>
       PerformanceObserver.supportedEntryTypes.includes("longtask"),
     );
@@ -358,9 +399,13 @@ async function measureProfile(
       name: profile.name,
       browser: browser.version(),
       cpuThrottling: profile.cpuThrottling,
-      transferredIndexBytes: transferred,
+      transferredArtifactBytes: [...transferred].map(([path, bytes]) => ({
+        path,
+        bytes,
+      })),
       sampledWorkerMessages: sampled.messages,
       readyMs: record.ready,
+      workerLoadMs: record.workerLoad,
       searchRoundTripMs: summarize(record.searches),
       inputEventsOver16Ms: supportsEvents
         ? summarize(record.events.map((event) => event.duration))
@@ -372,10 +417,246 @@ async function measureProfile(
           }
         : unmeasurable,
       mainThreadHeapBytes: record.heap ?? unmeasurable,
+      rankingContract: ranked,
+      processMemory: trace?.finish() ?? {
+        status: "not-run",
+        reason: "No process attribution tools were supplied",
+      },
     };
   } finally {
+    trace?.dispose();
     await context.close();
   }
+}
+
+const ProcessSchema = v.object({
+  PID: v.number(),
+  "Parent PID": v.number(),
+  VmRSS: v.number(),
+  Command: v.string(),
+});
+
+function sampleMemory(
+  root: number,
+  tools: string,
+  engine: string,
+): {
+  readonly finish: () => Record<string, unknown>;
+  readonly dispose: () => void;
+} {
+  let peak = 0;
+  let samples = 0;
+  let webContent = false;
+  let failure: unknown = null;
+  function sample(): number {
+    const processes = v.parse(
+      v.array(ProcessSchema),
+      JSON.parse(
+        execFileSync(
+          "procs",
+          [
+            "--json",
+            "--insert",
+            "Ppid",
+            "--insert",
+            "VmRss",
+            "--interval",
+            "1",
+          ],
+          { encoding: "utf8", maxBuffer: processInventoryMaxBytes },
+        ),
+      ),
+    );
+    const selected = new Set([root]);
+    function descend(): void {
+      let previous = 0;
+      while (previous !== selected.size) {
+        previous = selected.size;
+        for (const process of processes)
+          if (selected.has(process["Parent PID"])) selected.add(process.PID);
+      }
+    }
+    descend();
+    const webkit = processes.filter((process) =>
+      /WebKit|Playwright.app/u.test(process.Command),
+    );
+    if (webkit.length) {
+      const owners = execFileSync(
+        join(tools, "process-ownership"),
+        webkit.map((process) => String(process.PID)),
+        { encoding: "utf8" },
+      );
+      for (const line of owners.trim().split("\n")) {
+        if (!/^\d+ -?\d+$/u.test(line))
+          throw new Error("Invalid process responsibility record");
+        const [pid, owner] = line.split(" ").map(Number);
+        if (pid !== undefined && owner !== undefined && selected.has(owner))
+          selected.add(pid);
+      }
+    }
+    descend();
+    const owned = processes.filter((process) => selected.has(process.PID));
+    if (owned.some((process) => process.Command.includes("WebContent")))
+      webContent = true;
+    const rss = owned.reduce((sum, process) => sum + process.VmRSS, 0);
+    if (rss <= 0) throw new Error("Empty browser process memory inventory");
+    peak = Math.max(peak, rss);
+    samples += 1;
+    return rss;
+  }
+  const baseline = sample();
+  if (engine === "webkit" && !webContent)
+    throw new Error("WebKit memory needs an attributed WebContent process");
+  const timer = setInterval(() => {
+    try {
+      sample();
+    } catch (error) {
+      failure = error;
+      clearInterval(timer);
+    }
+  }, memorySampleIntervalMs);
+  return {
+    dispose: (): void => {
+      clearInterval(timer);
+    },
+    finish: (): Record<string, unknown> => {
+      clearInterval(timer);
+      if (failure) throw failure;
+      sample();
+      return {
+        status: "measured",
+        baselineRssBytes: baseline,
+        peakRssBytes: peak,
+        peakIncrementRssBytes: peak - baseline,
+        samples,
+        intervalMs: memorySampleIntervalMs,
+        webContentAttributed: webContent,
+      };
+    },
+  };
+}
+
+async function measureRankingContract(
+  page: Page,
+  contract: RankingContract,
+): Promise<Record<string, unknown>> {
+  const admitted = contract.queries.filter(
+    (entry) => localQuery(entry.query).ok,
+  );
+  const expected = admitted.map((entry) =>
+    createHash("sha256").update(JSON.stringify(entry.hits)).digest("hex"),
+  );
+  const raw: unknown = await page.evaluate(
+    async ({ queries, requestStart, timeoutMs, warmups, radix, byteWidth }) => {
+      const candidate: unknown = Reflect.get(
+        window,
+        "__searchPerformanceWorker",
+      );
+      if (!(candidate instanceof Worker))
+        throw new Error("The production search Worker is missing");
+      const worker = candidate;
+      let id = requestStart;
+      async function ask(query: string, visible: number): Promise<unknown> {
+        id += 1;
+        const requestId = id;
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            worker.removeEventListener("message", receive);
+            reject(new Error("Worker contract request timed out"));
+          }, timeoutMs);
+          function receive(event: MessageEvent<unknown>): void {
+            const data = event.data;
+            if (
+              typeof data !== "object" ||
+              data === null ||
+              Reflect.get(data, "id") !== requestId
+            )
+              return;
+            clearTimeout(timeout);
+            worker.removeEventListener("message", receive);
+            resolve(data);
+          }
+          worker.addEventListener("message", receive);
+          worker.postMessage(
+            visible === 0
+              ? { type: "search", id: requestId, query }
+              : { type: "continue", id: requestId, query, visible },
+          );
+        });
+      }
+      async function hits(
+        query: string,
+      ): Promise<readonly (readonly [number, number])[]> {
+        const values: [number, number][] = [];
+        let total = 0;
+        do {
+          const reply = await ask(query, values.length);
+          if (typeof reply !== "object" || reply === null)
+            throw new Error("Invalid worker reply");
+          const rows: unknown = Reflect.get(reply, "rows");
+          total = Number(Reflect.get(reply, "total"));
+          if (!Array.isArray(rows) || !Number.isSafeInteger(total))
+            throw new Error("The worker rejected a contract query");
+          if (rows.length === 0 && values.length < total)
+            throw new Error("Worker continuation stopped early");
+          for (const row of rows) {
+            if (typeof row !== "object" || row === null)
+              throw new Error("Invalid ranked row");
+            const position = Number(Reflect.get(row, "row"));
+            const score = Number(Reflect.get(row, "score"));
+            if (!Number.isSafeInteger(position) || !Number.isSafeInteger(score))
+              throw new Error("Missing integer ranking values");
+            values.push([position, score]);
+          }
+        } while (values.length < total);
+        return values;
+      }
+      for (const query of queries.slice(0, warmups)) await hits(query);
+      const times: number[] = [];
+      const hashes: string[] = [];
+      for (const query of queries) {
+        const start = performance.now();
+        const ranked = await hits(query);
+        times.push(performance.now() - start);
+        const hash = new Uint8Array(
+          await crypto.subtle.digest(
+            "SHA-256",
+            new TextEncoder().encode(JSON.stringify(ranked)),
+          ),
+        );
+        hashes.push(
+          Array.from(hash, (byte) =>
+            byte.toString(radix).padStart(byteWidth, "0"),
+          ).join(""),
+        );
+      }
+      return { times, hashes };
+    },
+    {
+      queries: admitted.map((entry) => entry.query),
+      requestStart: contractRequestStart,
+      timeoutMs: searchTimeoutMs,
+      warmups: contractWarmupCount,
+      radix: hexRadix,
+      byteWidth: hexByteWidth,
+    },
+  );
+  const measured = v.parse(
+    v.object({ times: v.array(v.number()), hashes: v.array(v.string()) }),
+    raw,
+  );
+  const divergences = admitted.flatMap((entry, i) =>
+    measured.hashes[i] === expected[i] ? [] : [entry.query],
+  );
+  if (measured.hashes.length !== admitted.length || divergences.length)
+    throw new Error(`Worker ranking differs for ${divergences.length} queries`);
+  return {
+    compared: admitted.length,
+    rejectedByQueryParser: contract.queries.length - admitted.length,
+    divergences: 0,
+    completeRankingRoundTripMs: summarize(measured.times),
+    samplesMs: measured.times,
+  };
 }
 
 function decodedIndexHeapBytes(decoded: Uint8Array): number {
@@ -401,12 +682,14 @@ async function main(): Promise<void> {
       state: { type: "string" },
       output: { type: "string" },
       port: { type: "string" },
+      contract: { type: "string" },
+      "process-tools": { type: "string" },
     },
   });
   const [bundle, ...extra] = positionals;
   if (!bundle || extra.length)
     throw new Error(
-      "Usage: node tools/search-performance.ts BUNDLE [--state DIRECTORY] [--output FILE] [--port PORT]",
+      "Usage: node tools/search-performance.ts BUNDLE [--state DIRECTORY] [--output FILE] [--port PORT] [--contract FILE] [--process-tools DIRECTORY]",
     );
   const directory = resolve(bundle);
   const manifestText: unknown = JSON.parse(
@@ -419,11 +702,42 @@ async function main(): Promise<void> {
   const index = decodeSearchIndex(decoded);
   const queries = parityQueries(index, sampleSeed, sampleCounts);
   const sample = [
-    ...queries.substrings,
-    ...queries.names,
-    ...queries.numbers,
-    ...queries.places,
+    ...new Set([
+      ...queries.substrings,
+      ...queries.names,
+      ...queries.numbers,
+      ...queries.places,
+    ]),
   ];
+  const contract = values.contract
+    ? v.parse(
+        RankingContractSchema,
+        JSON.parse(await readFile(values.contract, "utf8")),
+      )
+    : null;
+  if (
+    contract &&
+    (contract.snapshot !== manifest.snapshot ||
+      contract.contacts !== manifest.contacts ||
+      contract.indexSha256 !== manifest.searchIndex.uncompressedSha256 ||
+      contract.rankingSha256 !== manifest.searchRanking?.uncompressedSha256 ||
+      contract.queries.length === 0)
+  )
+    throw new Error("The ranking contract differs from the measured snapshot");
+  const processTools = values["process-tools"]
+    ? resolve(values["process-tools"])
+    : null;
+  const processToolIdentity = processTools
+    ? {
+        launcherSha256: await fileDigest(join(processTools, "browser-launch")),
+        ownershipSha256: await fileDigest(
+          join(processTools, "process-ownership"),
+        ),
+        procs: execFileSync("procs", ["--version"], {
+          encoding: "utf8",
+        }).trim(),
+      }
+    : null;
   const typed = Array.from(typedText);
   const work = {
     sample: searchWork(index, sample),
@@ -438,30 +752,76 @@ async function main(): Promise<void> {
     state: values.state ?? defaultState,
   });
   const origin = `https://${developmentHost}:${port}`;
-  const indexPath = `/api/search-index/${manifest.snapshot}/${manifest.searchIndex.sha256}`;
+  const assets = ".cloudflare/output/v0/workers/default/assets/assets";
+  const [workerScript, ...extraWorkers] = (await readdir(assets)).filter(
+    (file) => /^local-search-worker-[\w-]+\.js$/u.test(file),
+  );
+  if (!workerScript || extraWorkers.length)
+    throw new Error("Expected one built search Worker");
+  const artifactPaths = [
+    `/api/search-index/${manifest.snapshot}/${manifest.searchIndex.sha256}`,
+    ...(manifest.searchRanking
+      ? [
+          `/api/search-ranking/${manifest.snapshot}/${manifest.searchRanking.sha256}`,
+        ]
+      : []),
+  ];
   try {
     const measured: Record<string, unknown>[] = [];
     for (const profile of profiles) {
-      const browser = await profile.engine.launch();
+      const server = await profile.engine.launchServer({
+        ...(processTools && profile.engine.name() === "webkit"
+          ? { executablePath: join(processTools, "browser-launch") }
+          : {}),
+        env: {
+          ...process.env,
+          ENGINE_BROWSER_EXECUTABLE: profile.engine.executablePath(),
+        },
+      });
       try {
-        measured.push(
-          await measureProfile(browser, profile, origin, indexPath, sample),
-        );
+        const browser = await profile.engine.connect(server.wsEndpoint());
+        try {
+          const root = server.process().pid;
+          if (processTools && !root)
+            throw new Error("No browser process identity");
+          measured.push(
+            await measureProfile(
+              browser,
+              profile,
+              origin,
+              artifactPaths,
+              sample,
+              contract,
+              processTools && root ? { root, tools: processTools } : null,
+            ),
+          );
+        } finally {
+          await browser.close();
+        }
       } finally {
-        await browser.close();
+        await server.close();
       }
     }
     const report = {
       operation: "search-performance",
       snapshot: manifest.snapshot,
+      workerScriptSha256: await fileDigest(join(assets, workerScript)),
+      measurementSourceSha256: await fileDigest("tools/search-performance.ts"),
       indexBytes: {
         compressed: manifest.searchIndex.bytes,
         decoded: manifest.searchIndex.uncompressedBytes,
       },
+      rankingBytes: manifest.searchRanking
+        ? {
+            compressed: manifest.searchRanking.bytes,
+            decoded: manifest.searchRanking.uncompressedBytes,
+          }
+        : null,
       decodedIndexHeapBytesInNode: decodedIndexHeapBytes(decoded),
       queries: sample.length,
       typedText,
-      work,
+      literalReferenceWork: work,
+      processToolIdentity,
       profiles: measured,
       manual: manualMeasurements,
       generatedAt: new Date().toISOString(),
@@ -471,7 +831,16 @@ async function main(): Promise<void> {
       output,
       `${JSON.stringify(report, null, jsonIndentation)}\n`,
     );
-    console.info(JSON.stringify({ ...report, output }));
+    console.info(
+      JSON.stringify({
+        operation: report.operation,
+        snapshot: report.snapshot,
+        queries: sample.length,
+        profiles: measured.length,
+        output,
+        result: "recorded",
+      }),
+    );
   } finally {
     await runtime.dispose();
   }

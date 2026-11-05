@@ -1,14 +1,13 @@
 import * as v from "valibot";
+import { CategorySchema } from "../core/catalog.ts";
+import { rankingLimits } from "../core/forgiving-search-policy.ts";
 import {
-  continueCategory,
   createRankedSearch,
-  type LocalMatches,
   localQuery,
-  matchIndex,
-  previewGroups,
+  type RankedHit,
   type RankedSearch,
 } from "../core/local-search.ts";
-import { indexAdmission } from "../core/local-search-policy.ts";
+import { indexAdmission, nextVisible } from "../core/local-search-policy.ts";
 import {
   type IndexUnavailable,
   indexProgressSteps,
@@ -152,7 +151,7 @@ export function localRow(index: SearchIndex, position: number): LocalRow {
   return {
     row: position,
     name: row.name,
-    category: row.category,
+    category: v.parse(CategorySchema, row.category),
     region: row.region,
     phones: [...row.phones],
     hasAddress: row.hasAddress,
@@ -167,7 +166,7 @@ export function localSearchService(
   let ranked: RankedSearch | null = null;
   let cached: {
     readonly query: string;
-    readonly matches: LocalMatches;
+    readonly matches: readonly RankedHit[];
   } | null = null;
 
   /** Keeps answering from the current index until a replacement is admitted, and drops it when the replacement fails. */
@@ -273,29 +272,21 @@ export function localSearchService(
   function matchesFor(
     current: SearchIndex,
     query: string,
-  ): Result<LocalMatches, "invalid_query"> {
+  ): Result<readonly RankedHit[], "invalid_query"> {
     if (cached?.query === query) return { ok: true, value: cached.matches };
     const parsed = localQuery(query);
     if (!parsed.ok) return parsed;
-    let matches: LocalMatches;
+    let matches: readonly RankedHit[];
     if (parsed.value.kind === "words" && ranked) {
-      const hits = ranked.search(query);
-      const categories = new Map<string, number[]>();
-      for (const { row: position } of hits) {
-        const category = current.rows[position]?.category;
-        if (!category) throw new Error("A ranked row is out of range");
-        const rows = categories.get(category) ?? [];
-        rows.push(position);
-        categories.set(category, rows);
-      }
-      matches = {
-        total: hits.length,
-        categories: [...categories].map(([category, rows]) => ({
-          category,
-          rows,
-        })),
-      };
-    } else matches = matchIndex(current, parsed.value);
+      matches = ranked.search(query);
+    } else if (parsed.value.kind === "telephone") {
+      const { number } = parsed.value;
+      matches = current.rows.flatMap((row, position) =>
+        row.phones.includes(number)
+          ? [{ row: position, score: rankingLimits.exactScore }]
+          : [],
+      );
+    } else matches = [];
     cached = { query, matches };
     return { ok: true, value: matches };
   }
@@ -316,36 +307,39 @@ export function localSearchService(
       ports.post({ type: "failed", id: request.id, error: matches.error });
       return;
     }
-    if (request.type === "search") {
-      const results = previewGroups(matches.value);
+    const ordered = request.category
+      ? matches.value.filter(
+          (hit) => current.rows[hit.row]?.category === request.category,
+        )
+      : matches.value;
+    const visible = request.type === "search" ? 0 : request.visible;
+    if (visible > ordered.length) {
       ports.post({
-        type: "results",
+        type: "failed",
         id: request.id,
-        total: results.total,
-        groups: results.groups.map((group) => ({
-          category: group.category,
-          total: group.total,
-          rows: group.rows.map((position) => localRow(current, position)),
-        })),
+        error: "invalid_continuation",
       });
       return;
     }
-    const page = continueCategory(
-      matches.value,
-      request.category,
-      request.visible,
-    );
-    if (!page.ok) {
-      ports.post({ type: "failed", id: request.id, error: page.error });
+    const next = nextVisible(visible, ordered.length);
+    const rows = ordered
+      .slice(visible, next)
+      .map((hit) => ({ ...localRow(current, hit.row), score: hit.score }));
+    if (request.type === "search") {
+      ports.post({
+        type: "results",
+        id: request.id,
+        total: ordered.length,
+        rows,
+      });
       return;
     }
     ports.post({
       type: "page",
       id: request.id,
-      category: page.value.category,
-      total: page.value.total,
-      visible: page.value.visible,
-      rows: page.value.rows.map((position) => localRow(current, position)),
+      total: ordered.length,
+      visible: next,
+      rows,
     });
   };
 }

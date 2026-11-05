@@ -407,16 +407,33 @@ The candidate workflow retains the report with the parity and performance eviden
 Small deterministic fixtures and a source-translated threshold proof check the gate without putting national data or morphology in the fast pull-request checks.
 
 Run `mise x -- node tools/search-performance.ts BUNDLE` with the build and the seeded state to record the device search's performance in `.local/search-performance.json`.
-It serves the build like the browser campaign, and runs Chromium with 4x CPU throttling, desktop WebKit, and the iPhone 13 profile.
-It records the transferred index bytes, the time until the index is ready, and the p50 and p95 of the Worker's search round trip for 40 queries.
+It serves the build like the browser campaign and runs Chromium, Chromium with 4x CPU throttling, desktop WebKit, and the iPhone 13 profile.
+It records both artifacts' transfer bytes, navigation-to-ready time, worker admission time, and the p50 and p95 of search round trips for up to 50 distinct sampled queries.
 It also records input events of 16 ms or longer while typing, long tasks in Chromium, and the main-thread heap in Chromium.
-It estimates the decoded index's heap in V8 from Node, because browsers expose a Worker's heap only to cross-origin isolated pages.
-Safari on a physical iPhone and the Worker's own heap need a person and a debugger, so the record lists them as not run.
-The record also holds counts that depend only on the build, the dataset, and the fixed query sample, so they repeat on any machine.
-Node runs the production matcher over the decoded index for the 40 queries and for each prefix of the typed text, and counts the index rows it reads and the rows it matches.
-Each browser profile counts the search messages posted to the Worker during the 40 queries, the result messages it returns, and the UTF-8 bytes of their JSON.
-An optimization of the device search is judged by these counts, and the timings stay observations.
+The separate Node heap estimate covers only the decoded name index.
+The literal-reference work counters describe the server matching reference, while the browser timings measure the production device worker.
+The optional `--contract FILE` compares complete row-and-score rankings through the actual worker and every continuation after 32 warm-up queries.
+The contract must match the snapshot, contact count, and both decoded digests.
+Its timing field covers retrieval of the complete returned ranking, and its equality check compares SHA-256 digests of ordered pairs.
+The report counts inputs that the website's query parser rejects.
+The optional `--process-tools DIRECTORY` samples resident memory across the owned browser process tree every 250 milliseconds.
+The directory supplies the macOS browser launcher and process-responsibility inspector from the search-engine experiment.
+The report records both helper digests and the installed `procs` version.
+WebKit memory sampling requires an attributed WebContent process and refuses an incomplete process inventory.
+The memory result includes browser infrastructure and may count shared pages more than once or miss peaks between samples.
+The sampling, viewport emulation, and Chromium CPU setting don't establish physical-phone performance.
+Safari on a physical iPhone and an isolated worker-heap measurement remain unrun.
+Each profile also counts search messages and returned JSON bytes during the UI sample.
 The record holds measurements, not thresholds.
+
+On 2026-11-05, all four profiles matched the 2,200 national contract queries with zero divergences and no parser rejections.
+Chromium worker admission took 8,349.1 milliseconds, with a 9.3-millisecond p95 across 57 UI search round trips.
+Desktop WebKit admission took 10,371 milliseconds, with a 19-millisecond UI p95.
+The measured artifact transfers totaled 25,989,318 bytes, and their decoded bodies totaled 123,288,026 bytes.
+Peak process resident memory reached 2,363,752,448 bytes in Chromium, 6,708,477,952 bytes in desktop WebKit, and 6,898,024,448 bytes in mobile WebKit.
+The process sampler covers admission and the full query campaign, so those peaks don't establish an isolated worker heap or physical-device memory use.
+The final ranked-list worker script measured 54,662 bytes under the 72-KiB limit introduced for the frozen scorer and decoder.
+The 1-MiB compressed server bundle and the page-script budgets remain unchanged.
 
 Run `mise x -- just test` for the fast gate, national data reconciliation and phone profile, complete proof inventory, and national browser campaign.
 The command invalidates its preceding test receipt before execution and records a replacement only for an unchanged clean Git tree and dataset manifest.

@@ -568,7 +568,7 @@ function previewOf(
           {
             row: position,
             name: row.name,
-            category: row.category,
+            category: v.parse(CategorySchema, row.category),
             region: row.region,
             phones: [...row.phones],
             hasAddress: row.hasAddress,

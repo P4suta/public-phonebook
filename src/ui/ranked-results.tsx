@@ -8,32 +8,30 @@ import {
   type ReactElement,
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { type Category, categoryDefinitions } from "../core/catalog.ts";
 import type { Contact, SearchResponse } from "../core/models.ts";
 import { checkPageChain } from "../core/page-chain.ts";
 import { canFetchNext } from "../core/search-policy.ts";
 import { type WebSearch, webSearchParameters } from "../core/web-search.ts";
 import { DirectoryError, getSearch } from "./client.ts";
 import { LoadingError, ResultCard } from "./components.tsx";
-import { CategoryIcon, Icon } from "./icons.tsx";
-import type { ResultCardView } from "./result-cards.ts";
+import { Icon } from "./icons.tsx";
+import { type ResultCardView, resultIdentity } from "./result-cards.ts";
 import * as css from "./styles.css.ts";
 
 export type ResultSource = "server" | "local";
 
-export interface GroupView {
-  readonly category: Category;
+export interface RankedView {
   readonly total: number;
   readonly rows: readonly ResultCardView[];
   readonly server: SearchResponse | null;
 }
 
 export type Continuation = (
-  category: Category,
   visible: number,
 ) => Promise<readonly ResultCardView[] | null>;
 
@@ -46,11 +44,11 @@ const restartCodes: readonly string[] = [
 ];
 
 /**
- * Shows one category and continues it from the server or the device.
- * Rows are keyed by position, so the same ranking from either source keeps its elements and focus.
+ * Continues one ranked list from the server or the device.
+ * Matching card content keeps its elements and focus across engine changes.
  */
-export function GroupResults({
-  group,
+export function RankedResults({
+  result,
   source,
   search,
   snapshot,
@@ -58,7 +56,7 @@ export function GroupResults({
   more,
   onOpenRow,
 }: {
-  readonly group: GroupView;
+  readonly result: RankedView;
   readonly source: ResultSource;
   readonly search: WebSearch;
   readonly snapshot: string;
@@ -66,27 +64,22 @@ export function GroupResults({
   readonly more: Continuation;
   readonly onOpenRow: (card: ResultCardView) => void;
 }): ReactElement | null {
-  const categorySearch = { ...search, category: group.category };
-  const key = webSearchParameters(categorySearch).toString();
-  const queryKey = ["contact-category", snapshot, key];
+  const key = webSearchParameters(search).toString();
+  const queryKey = ["contact-list", snapshot, key];
   const client = useQueryClient();
   const sentinel = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLOListElement>(null);
   const focusFrom = useRef<number | null>(null);
-  const [expanded, setExpanded] = useState(Boolean(search.category));
+  const [expanded, setExpanded] = useState(false);
   const [localExtra, setLocalExtra] = useState<readonly ResultCardView[]>([]);
   const [localProgress, setLocalProgress] = useState<LocalProgress>("idle");
-  const label =
-    categoryDefinitions.find((category) => category.id === group.category)
-      ?.label ?? group.category;
+  const focused = useRef<HTMLElement | null>(null);
   const query = useInfiniteQuery({
     queryKey,
     queryFn: async ({ pageParam, signal }) => {
-      const params = webSearchParameters(categorySearch);
+      const params = webSearchParameters(search);
       if (pageParam) params.set("cursor", pageParam);
       const page = await getSearch(params, signal);
-      if (page.data.some((contact) => contact.category !== group.category))
-        throw new DirectoryError("invalid_page", "");
       const cached =
         client.getQueryData<InfiniteData<SearchResponse, string>>(queryKey);
       const index = cached?.pageParams.indexOf(pageParam) ?? -1;
@@ -100,8 +93,8 @@ export function GroupResults({
     },
     initialPageParam: search.cursor,
     getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
-    ...(group.server
-      ? { initialData: { pages: [group.server], pageParams: [search.cursor] } }
+    ...(result.server
+      ? { initialData: { pages: [result.server], pageParams: [search.cursor] } }
       : {}),
     enabled: false,
     staleTime: Infinity,
@@ -114,16 +107,16 @@ export function GroupResults({
     [query.data, toCard],
   );
   const localRows = useMemo(
-    () => [...group.rows, ...localExtra],
-    [group.rows, localExtra],
+    () => [...result.rows, ...localExtra],
+    [result.rows, localExtra],
   );
-  const catchUpTarget = Math.min(serverRows.length, group.total);
+  const catchUpTarget = Math.min(serverRows.length, result.total);
   const catchingUp = source === "local" && localRows.length < catchUpTarget;
   const rows = source === "server" || catchingUp ? serverRows : localRows;
   const hasMore =
     source === "server"
       ? Boolean(query.hasNextPage)
-      : !catchingUp && rows.length < group.total;
+      : !catchingUp && rows.length < result.total;
   const pending =
     source === "server" ? query.isFetching : localProgress === "loading";
   const failed =
@@ -133,13 +126,13 @@ export function GroupResults({
   async function appendLocal(target: number): Promise<void> {
     let extra = localExtra;
     do {
-      const page = await more(group.category, group.rows.length + extra.length);
+      const page = await more(result.rows.length + extra.length);
       if (!page || page.length === 0) {
         setLocalProgress("failed");
         return;
       }
       extra = [...extra, ...page];
-    } while (group.rows.length + extra.length < target);
+    } while (result.rows.length + extra.length < target);
     setLocalExtra(extra);
     setLocalProgress("idle");
   }
@@ -151,7 +144,7 @@ export function GroupResults({
     await appendLocal(catchUpTarget);
     catchingUpNow.current = false;
   });
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (catchingUp) void catchUp();
   }, [catchingUp]);
 
@@ -168,15 +161,26 @@ export function GroupResults({
 
   function retry(): void {
     if (source === "server") void query.fetchNextPage({ cancelRefetch: false });
-    else setLocalProgress("idle");
+    else {
+      setLocalProgress("loading");
+      void appendLocal(rows.length + 1);
+    }
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const from = focusFrom.current;
     if (from === null || rows.length <= from) return;
     focusFrom.current = null;
-    list.current?.children.item(from)?.querySelector("h3")?.focus();
+    list.current?.children.item(from)?.querySelector("h2")?.focus();
   }, [rows.length]);
+  useLayoutEffect(() => {
+    if (
+      focused.current &&
+      !focused.current.isConnected &&
+      document.activeElement === document.body
+    )
+      document.getElementById("directory-search")?.focus();
+  }, [rows]);
 
   const continueOnView = useEffectEvent((): void => {
     void loadMore(false);
@@ -195,8 +199,16 @@ export function GroupResults({
     return (): void => observer.disconnect();
   }, [observing]);
 
-  if (group.total === 0) return null;
-  const headingId = `category-${group.category}`;
+  const keyedRows = useMemo(() => {
+    const occurrences = new Map<string, number>();
+    return rows.map((card) => {
+      const identity = resultIdentity(card);
+      const occurrence = occurrences.get(identity) ?? 0;
+      occurrences.set(identity, occurrence + 1);
+      return { card, key: `${identity}:${occurrence}` };
+    });
+  }, [rows]);
+  if (result.total === 0) return null;
   const next =
     source === "server"
       ? (query.data?.pages.at(-1)?.meta.nextCursor ?? "")
@@ -204,18 +216,16 @@ export function GroupResults({
   const loadingNext = hasMore && pending;
   return (
     <section
-      className={css.resultGroup}
-      data-result-category={group.category}
-      aria-labelledby={headingId}
+      className={css.stack}
+      data-result-list={source}
+      aria-label="検索結果"
+      onFocusCapture={(event) => {
+        focused.current = event.target;
+      }}
     >
-      <h2 className={css.resultGroupHeading} id={headingId}>
-        <CategoryIcon category={group.category} />
-        <span>{label}</span>
-        <span>{group.total.toLocaleString("ja-JP")}件</span>
-      </h2>
       <ol className={css.results} ref={list}>
-        {rows.map((card, position) => (
-          <li key={position}>
+        {keyedRows.map(({ card, key }) => (
+          <li key={key}>
             <ResultCard card={card} onOpenRow={onOpenRow} />
           </li>
         ))}
@@ -236,7 +246,7 @@ export function GroupResults({
         <div className={css.actions} ref={sentinel}>
           <a
             className={css.button}
-            href={`/?${webSearchParameters({ ...categorySearch, cursor: next })}`}
+            href={`/?${webSearchParameters({ ...search, cursor: next })}`}
             aria-disabled={loadingNext}
             onClick={(event) => {
               if (
@@ -254,14 +264,14 @@ export function GroupResults({
           >
             <Icon name="chevron-down" />
             {loadingNext
-              ? `${label}を読みこんでいます。`
-              : `${label}をもっと見る`}
+              ? "検索結果を読みこんでいます。"
+              : "検索結果をもっと見る"}
           </a>
         </div>
       )}
       {expanded && (
         <output className={css.srOnly}>
-          {label}を{rows.length.toLocaleString("ja-JP")}件、読みこみました。
+          検索結果を{rows.length.toLocaleString("ja-JP")}件、読みこみました。
         </output>
       )}
     </section>

@@ -8,6 +8,10 @@ import { CountSchema, TextSchema } from "./models.ts";
 import { SearchIndexHeaderSchema } from "./search-index.ts";
 
 const RequestIdSchema = CountSchema;
+const LocalCategorySchema = v.optional(
+  v.union([CategorySchema, v.literal("")]),
+  "",
+);
 export const indexProgressSteps = 20;
 
 export const LocalSearchRequestSchema = v.variant("type", [
@@ -20,12 +24,13 @@ export const LocalSearchRequestSchema = v.variant("type", [
     type: v.literal("search"),
     id: RequestIdSchema,
     query: v.string(),
+    category: LocalCategorySchema,
   }),
   v.strictObject({
     type: v.literal("continue"),
     id: RequestIdSchema,
     query: v.string(),
-    category: CategorySchema,
+    category: LocalCategorySchema,
     visible: CountSchema,
   }),
 ]);
@@ -34,10 +39,11 @@ export type LocalSearchRequest = v.InferOutput<typeof LocalSearchRequestSchema>;
 export const LocalRowSchema = v.strictObject({
   row: CountSchema,
   name: TextSchema,
-  category: TextSchema,
+  category: CategorySchema,
   region: v.string(),
   phones: v.array(v.string()),
   hasAddress: v.boolean(),
+  score: v.optional(v.pipe(CountSchema, v.maxValue(1_000_000))),
 });
 export type LocalRow = v.InferOutput<typeof LocalRowSchema>;
 
@@ -78,18 +84,11 @@ export const LocalSearchReplySchema = v.variant("type", [
     type: v.literal("results"),
     id: RequestIdSchema,
     total: CountSchema,
-    groups: v.array(
-      v.strictObject({
-        category: TextSchema,
-        total: CountSchema,
-        rows: v.array(LocalRowSchema),
-      }),
-    ),
+    rows: v.array(LocalRowSchema),
   }),
   v.strictObject({
     type: v.literal("page"),
     id: RequestIdSchema,
-    category: TextSchema,
     total: CountSchema,
     visible: CountSchema,
     rows: v.array(LocalRowSchema),

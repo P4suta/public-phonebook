@@ -77,7 +77,7 @@ test("the server answers until the index loads, and the switch keeps focus and r
   const release = await holdIndex(page);
   const searches: string[] = [];
   page.on("request", (request) => {
-    if (new URL(request.url()).pathname === "/api/contact-groups")
+    if (new URL(request.url()).pathname === "/api/contacts")
       searches.push(request.url());
   });
   await page.goto("/");
@@ -90,14 +90,14 @@ test("the server answers until the index loads, and the switch keeps focus and r
   const link = contactLinks(page).first();
   await expect(link).toHaveAttribute("href", /^\/contacts\/[^/]+\?/u);
   expect(searches).toHaveLength(1);
-  const firstName = await page.locator("article h3").first().textContent();
+  const firstName = await page.locator("article h2").first().textContent();
   await link.focus();
   const focused = await link.elementHandle();
   if (!focused) throw new Error("The first result link is missing");
   release();
   await waitForLocalSearch(page);
   await expect(link).toHaveAttribute("href", /^\/contacts\/row\//u);
-  expect(await page.locator("article h3").first().textContent()).toBe(
+  expect(await page.locator("article h2").first().textContent()).toBe(
     firstName,
   );
   expect(
@@ -221,7 +221,7 @@ for (const artifact of ["search-index", "search-ranking"] as const)
     );
     const searches: string[] = [];
     page.on("request", (request) => {
-      if (new URL(request.url()).pathname === "/api/contact-groups")
+      if (new URL(request.url()).pathname === "/api/contacts")
         searches.push(request.url());
     });
     await page.goto("/");
