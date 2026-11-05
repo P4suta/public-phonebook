@@ -170,6 +170,7 @@ const mobilePrefixes = ["090", "080", "070"] as const;
 const mobileDigits = 8;
 const mobileShare = 0.5;
 const spellings = 2;
+const fullWidthOffset = 0xfee0;
 const pairWidth = 2;
 const jsonIndentation = 2;
 const decimalBase = 10;
@@ -236,6 +237,30 @@ function e164(national: string): string {
   return `${countryPrefix}${national.slice(trunkPrefix.length)}`;
 }
 
+/** The spellings a listed number takes in the parity queries, from its formatted form. */
+export const numberSpellings: readonly ((
+  formatted: string,
+  national: string,
+) => string)[] = [
+  (formatted) => formatted,
+  (_, national) => national,
+  (formatted) =>
+    formatted.replace(/[0-9-]/gu, (character) =>
+      String.fromCodePoint((character.codePointAt(0) ?? 0) + fullWidthOffset),
+    ),
+  (formatted) => {
+    const [area = "", ...rest] = formatted.split("-");
+    return rest.length ? `(${area}) ${rest.join("-")}` : `(${area})`;
+  },
+  (formatted) => `${countryPrefix} ${formatted.slice(trunkPrefix.length)}`,
+];
+
+function numberSpelling(national: string, spelling: number): string {
+  const spell = numberSpellings[spelling];
+  if (!spell) throw new Error("A number spelling is missing");
+  return spell(formatPhone(e164(national)), national);
+}
+
 function digits(count: number, random: () => number): string {
   return Array.from({ length: count }, () =>
     String(Math.floor(random() * decimalBase)),
@@ -267,7 +292,7 @@ export function parityQueries(
   );
   const numbers = Array.from({ length: counts.numbers }, (_, position) => {
     const national = pick(pick(rows, random).phones, random);
-    return position % spellings === 0 ? formatPhone(e164(national)) : national;
+    return numberSpelling(national, position % numberSpellings.length);
   });
   const absent: string[] = [];
   while (absent.length < counts.absent) {
@@ -740,6 +765,14 @@ async function main(): Promise<void> {
     const absentMatches = compared
       .filter(({ query }) => queries.absent.includes(query))
       .filter(({ server: results }) => results.total > 0).length;
+    // Every spelling of a listed number must read as that number and find at least its own contact.
+    const unreadNumbers = queries.numbers.filter((query) => {
+      const parsed = localQuery(query);
+      return !parsed.ok || parsed.value.kind !== "telephone";
+    }).length;
+    const unmatchedNumbers = compared
+      .filter(({ query }) => queries.numbers.includes(query))
+      .filter(({ server: results }) => results.total === 0).length;
     const reordered = compared.reduce(
       (count, { query, server: results, local }) =>
         count + compareResults(query, results, reorderPreviews(local)).length,
@@ -770,6 +803,8 @@ async function main(): Promise<void> {
       rowLocatorSamples,
       rowLocatorMismatches,
       absentMatches,
+      unreadNumbers,
+      unmatchedNumbers,
       differences: differences.length,
       examples: differences.slice(0, exampleLimit),
       controls: {
@@ -785,6 +820,8 @@ async function main(): Promise<void> {
       differences.length === 0 &&
       rowLocatorMismatches.length === 0 &&
       absentMatches === 0 &&
+      unreadNumbers === 0 &&
+      unmatchedNumbers === 0 &&
       reordered > 0 &&
       swapped.names.length > 0 &&
       swappedDifferences > 0;

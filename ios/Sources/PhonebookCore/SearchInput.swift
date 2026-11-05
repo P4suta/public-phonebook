@@ -103,7 +103,7 @@ public enum SearchInput {
   }
 
   public static func normalizedPhone(_ input: String) -> String? {
-    let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
+    let text = input.trimmingCharacters(in: queryEdges)
     guard text.utf16.count <= maximumPhoneLength, isTelephoneSpelling(text) else { return nil }
     let compact = String(
       String.UnicodeScalarView(
@@ -132,6 +132,14 @@ public enum SearchInput {
     return groups.joined() == domestic ? groups.joined(separator: "-") : domestic
   }
 
+  /// The ECMAScript white space and line terminators that the website's `trim` removes.
+  /// They include U+FEFF and exclude U+0085, unlike Foundation's whitespace set.
+  private static let queryEdges: CharacterSet = {
+    var edges = CharacterSet(charactersIn: "\t\n\u{0B}\u{0C}\r \u{A0}\u{1680}\u{2028}\u{2029}")
+    edges.insert(charactersIn: "\u{202F}\u{205F}\u{3000}\u{FEFF}")
+    edges.insert(charactersIn: "\u{2000}"..."\u{200A}")
+    return edges
+  }()
   private static let telephoneScalars = Set(
     "0123456789０１２３４５６７８９+＋()（）.． \t\u{00a0}\u{3000}-－‐‑‒–—―−⁻₋﹣ーｰ".unicodeScalars)
   private static let compactedSeparators = Set(" \t().-‐‑‒–—―−ー".unicodeScalars)

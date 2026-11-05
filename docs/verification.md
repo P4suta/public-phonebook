@@ -180,6 +180,9 @@ Search-trigger controls ignore composition, search an incomplete telephone numbe
 The word rank decision proves that a row matches exactly when every word occurs in its name or its region or category, and that region and category matches rank after every name match.
 Its control ranks a region or category match with the name matches and must fail verification.
 Fixed-seed property tests compare the word splitting, the folding, and the match-and-rank decision with a plain reference on both platforms.
+The shared search contract also lists the number that the website reads from each of 429 telephone spellings, or none.
+They cover hyphens, full-width digits, parentheses, `+81`, edge whitespace, and altered spellings that stay word queries.
+A website test compares each reading with a plain restatement of the rule, and the iPhone app's tests require the same reading.
 `mise x -- just check` requires, without the network, that both kanji variant tables carry the same pairs under the pinned provenance.
 It also requires the committed 364 traditional forms of the Joyo Kanji Table to sit beside 362 standard characters and to fold into them through the table.
 `mise x -- just check-build` fetches the pinned Unihan archive and the pinned Joyo Kanji Table notice, verifies their SHA-256 digests, regenerates both tables and the traditional forms, and requires the committed bytes.
@@ -365,7 +368,9 @@ The script limits sit about a quarter above those sizes.
 Run `mise x -- node tools/search-parity.ts BUNDLE` after `mise x -- just data-local BUNDLE` seeds the same bundle.
 It loads the bundle's index through the service that the browser Worker runs, with its admission checks.
 It asks the actual API against the seeded D1 for the same queries.
-A fixed seed draws 2,000 substrings and 1,000 display names from the index, 1,000 listed telephone numbers in two spellings, and 200 valid numbers that no contact lists.
+A fixed seed draws 2,000 substrings and 1,000 display names from the index, 1,000 listed telephone numbers, and 200 valid numbers that no contact lists.
+The listed numbers take turns among five spellings: formatted, bare digits, full-width, parenthesized, and `+81`.
+Every one of them must read as a complete number and find at least one contact.
 It also draws 500 queries that pair the start of a name with its municipality, prefecture, or category label.
 Each query compares the total, the category order, each category's count, and each preview row's contact ID, name, category, region, numbers, and whether its details show an address.
 For the first category of 4 to 100 rows, it also compares the complete ordered category.

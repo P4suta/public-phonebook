@@ -5,6 +5,7 @@ import {
   type ComparedResults,
   compareResults,
   isPortExhaustion,
+  numberSpellings,
   type PortRetry,
   parityQueries,
   reorderPreviews,
@@ -199,6 +200,24 @@ describe("search parity", () => {
       expect(parsed.ok, number).toBe(true);
       if (parsed.ok) expect(listed.has(`0${parsed.value.slice(3)}`)).toBe(true);
     }
+    const spellings = [
+      /^0[0-9]+(-[0-9]+)+$/u,
+      /^0[0-9]+$/u,
+      /^０[０-９－]+$/u,
+      /^\(0[0-9]+\)( [0-9-]+)?$/u,
+      /^\+81 [1-9][0-9-]+$/u,
+    ];
+    expect(spellings).toHaveLength(numberSpellings.length);
+    for (const spelling of spellings)
+      expect(
+        first.numbers.some((number) => spelling.test(number)),
+        String(spelling),
+      ).toBe(true);
+    expect(
+      first.numbers.every((number) =>
+        spellings.some((spelling) => spelling.test(number)),
+      ),
+    ).toBe(true);
     for (const number of first.absent) {
       expect(normalizePhone(number).ok, number).toBe(true);
       expect(listed.has(number), number).toBe(false);
