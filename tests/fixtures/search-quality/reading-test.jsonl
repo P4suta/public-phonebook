@@ -1,0 +1,1048 @@
+{"query":"ヤマシロシカクリニック","targets":[136838,136839,136840],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"やましろしかくりにっく","targets":[136838,136839,136840],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"やましろ志賀クリニック","targets":[136838,136839,136840],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ノダジビインコウカ","targets":[645226],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"のだじびいんこうか","targets":[645226],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"野田耳鼻いんこう科","targets":[645226],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"野田耳鼻咽喉華","targets":[645226],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ミラトレウエノ","targets":[290808],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"みらとれうえの","targets":[290808],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"コスモヤッキョクキゴウレイクタウンディーエムビル","targets":[207124],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"こすもやっきょくきごうれいくたうんでぃーえむびる","targets":[207124],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ミナミツモリホイクショ","targets":[400103],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"みなみつもりほいくしょ","targets":[400103],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"南津守ほいく所","targets":[400103],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"南津守哺育所","targets":[400103],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"アイノゴウグループホーム","targets":[477259],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あいのごうぐるーぷほーむ","targets":[477259],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あいの郷グループホーム","targets":[477259],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"愛（かなさ）の郷グループホーム","targets":[477259],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ショウキチチョウザイヤッキョク","targets":[439361],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しょうきちちょうざいやっきょく","targets":[439361],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"小吉調剤やっきょく","targets":[439361],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"庄吉調剤薬局","targets":[439361],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ナノハナエンデイサービスセンター","targets":[97875],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"なのはなえんでいさーびすせんたー","targets":[97875],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"なのはな苑(ユニット）デイサービスセンター","targets":[97875],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ライフヤッキョクキゴウマツウラテン","targets":[142516],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"らいふやっきょくきごうまつうらてん","targets":[142516],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"らいふ薬局　松浦てん","targets":[142516],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"らいふ薬局　松浦天","targets":[142516],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンシャダンキゴウユウミライハカイキゴウアリタシカイイン","targets":[377225],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんしゃだんきごうゆうみらいはかいきごうありたしかいいん","targets":[377225],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療法人社団　ゆうみらい歯かい　有田歯科医院","targets":[377225],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療法人社団　ゆうみらい歯会　有田歯科委員","targets":[377225],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ホウモンヘルプサービスキゴウキゴウサンシニアカワヅ","targets":[614786],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほうもんへるぷさーびすきごうきごうさんしにあかわづ","targets":[614786],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほうもんヘルプサービス　　サンシニア河津","targets":[614786],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"訪問ヘルプサービス　　サンシニア川津","targets":[614786],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ショウナンヒラツカカシジョウミャクリュウクリニック","targets":[540607],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しょうなんひらつかかしじょうみゃくりゅうくりにっく","targets":[540607],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"湘南ひらつか下肢静脈瘤クリニック","targets":[540607],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"湘南平塚下肢静脈龍クリニック","targets":[540607],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"レンケイガタコウトウ","targets":[642067],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"れんけいがたこうとう","targets":[642067],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"連携型こうとう","targets":[642067],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"連携型向東","targets":[642067],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"レンゲソウケアサービス","targets":[144211,144212,144213],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"れんげそうけあさーびす","targets":[144211,144212,144213],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"れんげ創ケアサービス","targets":[144211,144212,144213],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"グリーンコープケアプランセンタークマモトキタ","targets":[176353],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ぐりーんこーぷけあぷらんせんたーくまもときた","targets":[176353],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"グリーンコープケアプランセンターくまもと北","targets":[176353],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"グリーンコープケアプランセンター熊本喜多","targets":[176353],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ケツフルミタニトウキョウ","targets":[594746],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"けつふるみたにとうきょう","targets":[594746],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"結ふる美谷とうきょう","targets":[594746],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"結ふる三谷東京","targets":[594746],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンキゴウマホリョウカイキゴウキゴウマホラカイシンリョウジョ","targets":[364623],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんきごうまほりょうかいきごうきごうまほらかいしんりょうじょ","targets":[364623],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療法人　真秀良会　　まほら会しんりょう所","targets":[364623],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療法人　真秀凌会　　まほら会診療所","targets":[364623],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヤカゲキョウドビジュツカン","targets":[134961],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"やかげきょうどびじゅつかん","targets":[134961],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"やかげ郷土びじゅつ館","targets":[134961],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"やかげ郷土美術漢","targets":[134961],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ナゴヤシリツノナミショウガッコウ","targets":[406511],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"なごやしりつのなみしょうがっこう","targets":[406511],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"名古屋市立野並しょう学校","targets":[406511],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"名古屋市立野波小学校","targets":[406511],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"フォレストチョウザイヤッキョクトヨタコマバテン","targets":[269919],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ふぉれすとちょうざいやっきょくとよたこまばてん","targets":[269919],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"フォレスト調剤薬局豊田こまば店","targets":[269919],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"フォレスト調剤薬局豊田駒場点","targets":[269919],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ニチイケアセンターダイゴ","targets":[257617,257618],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"にちいけあせんたーだいご","targets":[257617,257618],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ニチイケアセンター大子","targets":[257617,257618],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"テノクチシカクリニック","targets":[525495],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"てのくちしかくりにっく","targets":[525495],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"樋之口しかクリニック","targets":[525495],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"樋之口四家クリニック","targets":[525495],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"キタムラナイカ","targets":[355759],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"きたむらないか","targets":[355759],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"北村ないか","targets":[355759],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"北村内家","targets":[355759],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イシカワナイカクリニック","targets":[576811,576812,576813,576814],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いしかわないかくりにっく","targets":[576811,576812,576813,576814],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いしかわ内科クリニック","targets":[576811,576812,576813,576814],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"石河内科クリニック","targets":[576811,576812,576813,576814],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カイゴヨウヒンショップソレイユ","targets":[329018],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かいごようひんしょっぷそれいゆ","targets":[329018],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かいご用品ショップそれいゆ","targets":[329018],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"開悟用品ショップそれいゆ","targets":[329018],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ワークキャンパスオオワニ","targets":[306223],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"わーくきゃんぱすおおわに","targets":[306223],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"デイサービスコノハナ","targets":[236943],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"でいさーびすこのはな","targets":[236943],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"デイサービスこの葉南","targets":[236943],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"アカギシカイイン","targets":[24044,24045],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あかぎしかいいん","targets":[24044,24045],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あかぎ歯科いいん","targets":[24044,24045],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"あかぎ爾医院","targets":[24044,24045],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"フレンドクラブテンリ","targets":[271493],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ふれんどくらぶてんり","targets":[271493],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"フレンド倶楽部てんり","targets":[271493],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"フレンド俱楽部天理","targets":[271493],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヒメジシリツトショカンシラハマブンカン","targets":[430603],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ひめじしりつとしょかんしらはまぶんかん","targets":[430603],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"姫路市立としょ館白浜分館","targets":[430603],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"姫治市立図書館白浜分館","targets":[430603],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"モンファーマシーオオサワテン","targets":[134915],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"もんふぁーましーおおさわてん","targets":[134915],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"もんファーマシー大沢てん","targets":[134915],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"もんファーマシー大沢展","targets":[134915],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ショウガイシャタキノウガタジギョウショココイロ","targets":[654450],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しょうがいしゃたきのうがたじぎょうしょここいろ","targets":[654450],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"障害者多機能がた事業所ここいろ","targets":[654450],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"障碍者多機能型事業所ここいろ","targets":[654450],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"クジュウクリエンデイサービスセンター","targets":[320634],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"くじゅうくりえんでいさーびすせんたー","targets":[320634],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"九十九里えんデイサービスセンター","targets":[320634],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"九十九里園(ユニット)デイサービスセンター","targets":[320634],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ノノイチヨコミヤクリニック","targets":[644440],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ののいちよこみやくりにっく","targets":[644440],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"シンセイコウミンカン","targets":[573394],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しんせいこうみんかん","targets":[573394],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しんせい公民館","targets":[573394],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"新生公民館","targets":[573394],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"グループホームフワフワカミサト","targets":[185714],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ぐるーぷほーむふわふわかみさと","targets":[185714],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"グループホームふわふわ神里","targets":[185714],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ナカタネチョウショウボウダンキゴウヤクバソウムカキゴウ","targets":[318404],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"なかたねちょうしょうぼうだんきごうやくばそうむかきごう","targets":[318404],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"中種子町消防団（役場そうむ課）","targets":[318404],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"中種子町消防団（役場総務家（わがや））","targets":[318404],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"シラカワビョウインホウモンカンゴステーション","targets":[563006],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しらかわびょういんほうもんかんごすてーしょん","targets":[563006],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"白川病院ほうもん看護ステーション","targets":[563006],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"白川病院（みなし）訪問看護ステーション","targets":[563006],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヒマワリホイクルーム","targets":[111138],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ひまわりほいくるーむ","targets":[111138],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ひまわり哺育ルーム","targets":[111138],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"デイサービスセンターヒトツヤネノシタ","targets":[243055],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"でいさーびすせんたーひとつやねのした","targets":[243055],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"デイサービスセンターひとつやねの下","targets":[243055],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"ミトシチテキショウガイシャシュウロウシエンシセツハゲミ","targets":[530304],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"みとしちてきしょうがいしゃしゅうろうしえんしせつはげみ","targets":[530304],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"水戸市知的障害者就労しえん施設はげみ","targets":[530304],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"水戸市知的障碍（がい)者就労支援施設はげみ","targets":[530304],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"オケガワヒジヤシンリョウジョ","targets":[522981],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"おけがわひじやしんりょうじょ","targets":[522981],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"おけがわ日出谷診療所","targets":[522981],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"桶川日出谷診療女","targets":[522981],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ウルギムラシカシンリョウジョ","targets":[417882],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"うるぎむらしかしんりょうじょ","targets":[417882],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"うるぎ村歯科診療所","targets":[417882],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"売木村歯科診療助","targets":[417882],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ミヤギノタイイクカンオンスイプール","targets":[435637],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"みやぎのたいいくかんおんすいぷーる","targets":[435637],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"宮城野たいいく館温水プール","targets":[435637],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"宮城野体育柑温水プール","targets":[435637],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ケンブチチョウホイクショ","targets":[352679],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"けんぶちちょうほいくしょ","targets":[352679],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"剣淵町保育しょ","targets":[352679],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"剣淵超保育所","targets":[352679],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヘルパーステーションワガイエ","targets":[281439],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"へるぱーすてーしょんわがいえ","targets":[281439],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ヘルパーステーションわが家","targets":[281439],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"ヘルパーステーション和が家（おうち）","targets":[281439],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンミツワカイコバヤシナイカ","targets":[368514],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんみつわかいこばやしないか","targets":[368514],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療法人三和会小林ないか","targets":[368514],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療宝神三和会小林内科","targets":[368514],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンヒロナオカイキゴウオオカワショウカキナイカ","targets":[371164],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんひろなおかいきごうおおかわしょうかきないか","targets":[371164],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療法人大尚会　大川消化器ないか","targets":[371164],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"衣料法人大尚会　大川消化器内科","targets":[371164],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カンノヤッキョク","targets":[50817],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かんのやっきょく","targets":[50817],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ヤッキョクマツモトキヨシキゴウオヤベテン","targets":[608024],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"やっきょくまつもときよしきごうおやべてん","targets":[608024],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"薬局マツモトキヨシ　小矢部てん","targets":[608024],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"薬局マツモトキヨシ　小矢部典","targets":[608024],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"レコードブックトットリツノイ","targets":[304249],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"れこーどぶっくとっとりつのい","targets":[304249],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"レコードブック鳥取つのい","targets":[304249],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"モチマツシカイイン","targets":[133659],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"もちまつしかいいん","targets":[133659],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"もちまつしか医院","targets":[133659],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"もちまつ鹿医院","targets":[133659],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"アイグランホイクエンタカネ","targets":[146953],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あいぐらんほいくえんたかね","targets":[146953],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"アイグラン保育園たかね","targets":[146953],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"アイグラン哺育園高根","targets":[146953],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"デイサービスセンタートキワツバメ","targets":[242684],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"でいさーびすせんたーときわつばめ","targets":[242684],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"オクガワシカイイン","targets":[429941],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"おくがわしかいいん","targets":[429941],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"奥川しか医院","targets":[429941],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"奥川爾医院","targets":[429941],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"オザワガンカイイン","targets":[441355],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"おざわがんかいいん","targets":[441355],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"小沢がんか医院","targets":[441355],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"小沢眼科委員","targets":[441355],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"オウメシシンマチトショカン","targets":[657100],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"おうめししんまちとしょかん","targets":[657100],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"青梅市しんまち図書館","targets":[657100],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"青梅市新町図書缶","targets":[657100],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"アサカアイイクエンパローネ","targets":[433631],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あさかあいいくえんぱろーね","targets":[433631],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"安積愛育えんパローネ","targets":[433631],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"安積愛育苑（ユニット）パローネ","targets":[433631],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カルテットニシミズエ","targets":[168685],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かるてっとにしみずえ","targets":[168685],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンキゴウタイイチエキゴウワコウリハビリテーションビョウイン","targets":[363974],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんきごうたいいちえきごうわこうりはびりてーしょんびょういん","targets":[363974],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療法人　泰一会　わこうリハビリテーション病院","targets":[363974],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"衣料法人　泰一会　和光リハビリテーション病院","targets":[363974],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"トクゾウキゴウワークストダコウエン","targets":[17930],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とくぞうきごうわーくすとだこうえん","targets":[17930],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ホンマキョタクシエンサービス","targets":[120376],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほんまきょたくしえんさーびす","targets":[120376],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほんまきょたく支援サービス","targets":[120376],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"ミヤバヤシショウニカアレルギーカ","targets":[129708],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"みやばやししょうにかあれるぎーか","targets":[129708],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"みやばやし小児かアレルギー科","targets":[129708],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"みやばやし小児日アレルギー科","targets":[129708],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ホウモンカンゴステーションキゴウシェアハートネオ","targets":[625995],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほうもんかんごすてーしょんきごうしぇあはーとねお","targets":[625995],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"訪問かんごステーション　シェアハートNEo","targets":[625995],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"シナガワリフラカブシキガイシャユモトコウジョウシンリョウジョ","targets":[408885],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しながわりふらかぶしきがいしゃゆもとこうじょうしんりょうじょ","targets":[408885],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"品川リフラかぶしき会社湯本工場診療所","targets":[408885],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"品川リフラ株式会社湯本工場神領所","targets":[408885],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カスガニシチョウザイヤッキョク","targets":[496185],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かすがにしちょうざいやっきょく","targets":[496185],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"春日にし調剤薬局","targets":[496185],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"香清西調剤薬局","targets":[496185],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ユウゲンガイシャポラリスショウイシグラ","targets":[501414],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ゆうげんがいしゃぽらりすしょういしぐら","targets":[501414],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"有限会社ポラリス翔いしぐら","targets":[501414],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"悠玄会社ポラリス翔石倉","targets":[501414],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ユウゲンガイシャアンシンライフ","targets":[501870],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ゆうげんがいしゃあんしんらいふ","targets":[501870],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"有限会社あんしんライフ","targets":[501870],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"悠玄会社安心ライフ","targets":[501870],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ツバサヤッキョクサノテン","targets":[89772],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"つばさやっきょくさのてん","targets":[89772],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"つばさやっきょく佐野店","targets":[89772],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"つばさ薬局佐野転","targets":[89772],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンシャダンタカヤスイインキゴウホウモンカンゴステーションカミカワ","targets":[394180],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんしゃだんたかやすいいんきごうほうもんかんごすてーしょんかみかわ","targets":[394180],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療法人しゃだん高安医院　訪問看護ステーション神川","targets":[394180],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療法人社団高安委員　訪問看護ステーション神川","targets":[394180],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"インマイライフアラトキゴウニンチショウタイオウガタキョウドウセイカツカイゴ","targets":[158292],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いんまいらいふあらときごうにんちしょうたいおうがたきょうどうせいかつかいご","targets":[158292],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"インマイライフあらと　認知症対応型共同せいかつ介護","targets":[158292],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"インマイライフあらと　認知症対応形共同生活介護","targets":[158292],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ショウガイシャシエンシセツキゴウノゾミノソノキゴウハマナス","targets":[653175],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しょうがいしゃしえんしせつきごうのぞみのそのきごうはまなす","targets":[653175],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"障がい者しえん施設　望みの園　はまなす","targets":[653175],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"障碍（がい）者支援施設　望みの園　はまなす","targets":[653175],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ニジイロハルヒマチテン","targets":[100276],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"にじいろはるひまちてん","targets":[100276],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"にじいろ春日町てん","targets":[100276],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"にじいろ春日町展","targets":[100276],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ショウガイフクシサービスジギョウショワクワクランド","targets":[652408],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しょうがいふくしさーびすじぎょうしょわくわくらんど","targets":[652408],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"障がいふくしサービス事業所わくわくランド","targets":[652408],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"障がい福士サービス事業所わくわくランド","targets":[652408],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カイゴシエンセンターコトブキナガオノサト","targets":[328868],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かいごしえんせんたーことぶきながおのさと","targets":[328868],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"介護支援センターことぶき長生の郷","targets":[328868],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"介護支援センター寿長尾の郷","targets":[328868],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"チイキミッチャクガタツウショカイゴヒロンタムライマ","targets":[414005],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ちいきみっちゃくがたつうしょかいごひろんたむらいま","targets":[414005],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"地域密着型通所介護ひろんた村いま","targets":[414005],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"地域密着型通所介護ひろんた村今","targets":[414005],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ハナリボンキゴウホウモンカンゴステーション","targets":[601877],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"はなりぼんきごうほうもんかんごすてーしょん","targets":[601877],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"花りぼん　ほうもん看護ステーション","targets":[601877],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"華りぼん　訪問看護ステーション","targets":[601877],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"アンシンノオテツダイツナグ","targets":[31746],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あんしんのおてつだいつなぐ","targets":[31746],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"タケノコナガタヒガシホイクエン","targets":[83828],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"たけのこながたひがしほいくえん","targets":[83828],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"たけのこながたひがし保育園","targets":[83828],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"たけのこ永田東哺育園","targets":[83828],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヒヨシホンチョウヤッキョク","targets":[491741],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ひよしほんちょうやっきょく","targets":[491741],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ひよしほんちょう薬局","targets":[491741],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"デイサービスキゴウラペカスミガオカ","targets":[234848],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"でいさーびすきごうらぺかすみがおか","targets":[234848],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"デイサービス　ラペ霞ケ丘","targets":[234848],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"トクベツヨウゴロウジンホームキゴウヤマキ","targets":[544924],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とくべつようごろうじんほーむきごうやまき","targets":[544924],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"特別ようご老人ホーム　やまき","targets":[544924],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"特別擁護老人ホーム　やまき","targets":[544924],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"スイートフクシヨウグヨコハマ","targets":[219645],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"すいーとふくしようぐよこはま","targets":[219645],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"スイート福祉用ぐ横浜","targets":[219645],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"スイート福祉様具横浜","targets":[219645],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"テシオチョウヤクバ","targets":[427952],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"てしおちょうやくば","targets":[427952],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"天塩ちょう役場","targets":[427952],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"手塩町役場","targets":[427952],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンキゴウフクエカイキゴウトウシンデンフクチシンリョウイン","targets":[364920],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんきごうふくえかいきごうとうしんでんふくちしんりょういん","targets":[364920],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療法人　福恵会　東新田福地診療いん","targets":[364920],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療法人　福恵会　東新田福智診療院","targets":[364920],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カントウメディカルカブシキガイシャキゴウトチギエイギョウショ","targets":[650367,650368],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かんとうめでぃかるかぶしきがいしゃきごうとちぎえいぎょうしょ","targets":[650367,650368],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"関東メディカルかぶしき会社　栃木営業所","targets":[650367,650368],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"竿燈メディカル株式会社　栃木営業所","targets":[650367,650368],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カナザワシヤクショ","targets":[645980],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かなざわしやくしょ","targets":[645980],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"金沢し役所","targets":[645980],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"金沢梓役所","targets":[645980],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"シュウロウシエンケンキュウショカデナ","targets":[447673],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しゅうろうしえんけんきゅうしょかでな","targets":[447673],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"就労支援研究所かでな","targets":[447673],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"就労支援研究署嘉手納","targets":[447673],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ロウジンタンキニュウショジギョウショトコハ","targets":[598477],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ろうじんたんきにゅうしょじぎょうしょとこは","targets":[598477],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"老人短期入所じぎょう所とこは","targets":[598477],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"老人短期入所事業（ここあ）所とこは","targets":[598477],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"キッズリハキタク","targets":[170402],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"きっずりはきたく","targets":[170402],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"キッズリハきた区","targets":[170402],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"キッズリハ北具","targets":[170402],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"シュウロウケイゾクシエンエーガタジギョウショキゴウジョブファーム","targets":[448244],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しゅうろうけいぞくしえんえーがたじぎょうしょきごうじょぶふぁーむ","targets":[448244],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"就労継続支援Ａ型事業しょ　ジョブファーム","targets":[448244],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"就労継続支援Ａ型事業所（ユニット）　ジョブファーム","targets":[448244],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"キタマエブネノサトシリョウカン","targets":[355036],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"きたまえぶねのさとしりょうかん","targets":[355036],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"北前船の里しりょう館","targets":[355036],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"北前船の里史料館","targets":[355036],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヨシオカナイカ","targets":[404632],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"よしおかないか","targets":[404632],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"よしおか内科","targets":[404632],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"吉岡内家","targets":[404632],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"アナベルホウモンカイゴジギョウショ","targets":[153075],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あなべるほうもんかいごじぎょうしょ","targets":[153075],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"アナベル訪問介護じぎょう所","targets":[153075],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"アナベル訪問介護事業（ここあ）所","targets":[153075],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ニンテイコドモエンネギシホイクエン","targets":[634327],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"にんていこどもえんねぎしほいくえん","targets":[634327],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"認定こども園根岸保育えん","targets":[634327],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"認定こども笑ん根岸保育園","targets":[634327],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヘルパーステーションタカマツ","targets":[282794],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"へるぱーすてーしょんたかまつ","targets":[282794],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ヘルパーステーション高松（たかまつ）","targets":[282794],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ソウダンシエンジギョウショキゴウイコイ","targets":[568057],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"そうだんしえんじぎょうしょきごういこい","targets":[568057],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"相談しえん事業所　いこい","targets":[568057],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"相談支援事業（ここあ）所　いこい","targets":[568057],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カトウマミシカ","targets":[47703],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かとうまみしか","targets":[47703],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かとうまみ志賀","targets":[47703],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ホウモンカンゴステーションナギ","targets":[630612],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほうもんかんごすてーしょんなぎ","targets":[630612],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほうもん看護ステーション凪","targets":[630612],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"訪問看護ステーション凪(なぎ)","targets":[630612],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ホンコウデイサービスチョウロク","targets":[504910],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほんこうでいさーびすちょうろく","targets":[504910],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"本校デイサービスちょうろく","targets":[504910],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"グローバルシチズンウチナダ","targets":[192145],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ぐろーばるしちずんうちなだ","targets":[192145],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"アイズホウモンカンゴステーションアゲオチュウオウ","targets":[20556],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あいずほうもんかんごすてーしょんあげおちゅうおう","targets":[20556],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あいず訪問かんごステーション上尾中央","targets":[20556],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"ナカヤヤッキョク","targets":[252888],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"なかややっきょく","targets":[252888],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"イトシマコウコウホケンセンターシカキュウジツキュウカンシンリョウジョ","targets":[593833],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いとしまこうこうほけんせんたーしかきゅうじつきゅうかんしんりょうじょ","targets":[593833],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"糸島口腔保健センター歯科休日きゅうかん診療所","targets":[593833],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"糸島煌々保健センター歯科休日急患診療所","targets":[593833],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヘルパーステーションキゴウヨウカ","targets":[276484],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"へるぱーすてーしょんきごうようか","targets":[276484],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ヘルパーステーション　陽香","targets":[276484],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ナノハナシンリョウジョ","targets":[605637,605638,605639,605640],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"なのはなしんりょうじょ","targets":[605637,605638,605639,605640],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"菜の花しんりょう所","targets":[605637,605638,605639,605640],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"菜の花診療所（あいあい）","targets":[605637,605638,605639,605640],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"モリオカシカ","targets":[523959],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"もりおかしか","targets":[523959],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"森岡しか","targets":[523959],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"盛岡歯科","targets":[523959],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ショウガイシャシエンシセツキゴウタマガワエンキゴウキゴウタマガワエンキゴウ","targets":[653184,653185],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しょうがいしゃしえんしせつきごうたまがわえんきごうきごうたまがわえんきごう","targets":[653184,653185],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"障がい者支援施設　玉川えん　(たまがわえん)","targets":[653184,653185],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"障がい社支援施設　玉川園　(たまがわえん)","targets":[653184,653185],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カブシキガイシャタカハシキゴウライフサポートジギョウブ","targets":[518012,518013],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かぶしきがいしゃたかはしきごうらいふさぽーとじぎょうぶ","targets":[518012,518013],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"株式会社たかはし　ライフサポートじぎょう部","targets":[518012,518013],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"株式害者たかはし　ライフサポート事業部","targets":[518012,518013],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンシャダンキゴウサクラギリカメンタルクリニック","targets":[383684],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんしゃだんきごうさくらぎりかめんたるくりにっく","targets":[383684],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょう法人社団　桜木りかメンタルクリニック","targets":[383684],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"衣料法人社団　桜木りかメンタルクリニック","targets":[383684],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"サイワイチョウクリニックナゴミ","targets":[470285],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"さいわいちょうくりにっくなごみ","targets":[470285],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ヤマモトカナコヒフカクリニックキゴウヒガシカコガワイン","targets":[459832],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"やまもとかなこひふかくりにっくきごうひがしかこがわいん","targets":[459832],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"やまもと可菜子皮フ科クリニック　東加古川院","targets":[459832],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"山本可菜子皮フ科クリニック　東加古川印","targets":[459832],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カーサフォレストイクタミナミ","targets":[169099],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かーさふぉれすといくたみなみ","targets":[169099],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ショウガイシャセイカツシエンセンターリンク","targets":[655553,655554],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しょうがいしゃせいかつしえんせんたーりんく","targets":[655553,655554],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"障害者せいかつ支援センターりんく","targets":[655553,655554],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"障碍（がい）者生活支援センターりんく","targets":[655553,655554],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"キョウジビインコウカ","targets":[52754],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"きょうじびいんこうか","targets":[52754],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"きょうじび咽喉科","targets":[52754],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"きょう耳鼻咽喉課","targets":[52754],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"トクベツヨウゴロウジンホームキゴウリンゴノイエ","targets":[544995],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とくべつようごろうじんほーむきごうりんごのいえ","targets":[544995],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とくべつ養護老人ホーム　りんごの家","targets":[544995],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"特別養護老人ホーム　りんごの家（おうち）","targets":[544995],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"アグネスシズオカ","targets":[150717],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あぐねすしずおか","targets":[150717],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ニチイケアセンターヤマトタカダ","targets":[255636,255637,255638],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"にちいけあせんたーやまとたかだ","targets":[255636,255637,255638],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"エンジュキタゴウ","targets":[40465],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"えんじゅきたごう","targets":[40465],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"サイキシリツヨノウヅチュウガッコウ","targets":[337486],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"さいきしりつよのうづちゅうがっこう","targets":[337486],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"佐伯市立米水津中がっこう","targets":[337486],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"佐伯市立米納津中学校","targets":[337486],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"デイサービスユウラクエン","targets":[248936],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"でいさーびすゆうらくえん","targets":[248936],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"デイサービスゆうらく苑","targets":[248936],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"デイサービス遊楽縁（ゆかり）","targets":[248936],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"トクヤマビョウイントクテイシセツサクラ","targets":[474675],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とくやまびょういんとくていしせつさくら","targets":[474675],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"徳山病院特定しせつさくら","targets":[474675],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"徳山病院特定私設さくら","targets":[474675],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"トウホウチュウヘルパーステーション","targets":[510473],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とうほうちゅうへるぱーすてーしょん","targets":[510473],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"東豊ちゅうヘルパーステーション","targets":[510473],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"東豊駐ヘルパーステーション","targets":[510473],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ナカノシマデンタルクリニック","targets":[315400],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"なかのしまでんたるくりにっく","targets":[315400],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"中野島デンタルクリニック","targets":[315400],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"アベニューヤッキョク","targets":[153723],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あべにゅーやっきょく","targets":[153723],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ノノハナヤッキョク","targets":[644537,644538,644539,644540,644541],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ののはなやっきょく","targets":[644537,644538,644539,644540,644541],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"野の花やっきょく","targets":[644537,644538,644539,644540,644541],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"之の花薬局","targets":[644537,644538,644539,644540,644541],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"シマシマゴコロホイクエン","targets":[475785],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しましまごころほいくえん","targets":[475785],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"志真志まごころほいく園","targets":[475785],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"志真志まごころ保育淵","targets":[475785],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"メディケアプラザチュウオウトオリキョタクカイゴシエンジギョウショ","targets":[291805],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"めでぃけあぷらざちゅうおうとおりきょたくかいごしえんじぎょうしょ","targets":[291805],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"メディケアプラザ中央とおり居宅介護支援事業所","targets":[291805],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"メディケアプラザ中央通居宅介護支援事業所","targets":[291805],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ナガハマシミンテイキュウジョウ","targets":[649051],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ながはましみんていきゅうじょう","targets":[649051],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"長浜市民庭球じょう","targets":[649051],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"長浜市民庭球城","targets":[649051],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヨコハマヘルスケアクリニック","targets":[526033],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"よこはまへるすけあくりにっく","targets":[526033],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"マエバシシリツホソイホイクショ","targets":[352371],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"まえばししりつほそいほいくしょ","targets":[352371],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"前橋市りつ細井保育所","targets":[352371],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"前橋市立細井保育署","targets":[352371],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ホウカゴトウデイサービスキゴウテンシノワキゴウビジョン","targets":[485821],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほうかごとうでいさーびすきごうてんしのわきごうびじょん","targets":[485821],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほうか後等デイサービス　天使のわ　ビジョン","targets":[485821],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"放課後東デイサービス　天使のわ　ビジョン","targets":[485821],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"トットリケンコウコウソウゴウホケンセンター","targets":[664863],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とっとりけんこうこうそうごうほけんせんたー","targets":[664863],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"鳥取県口腔そうごう保健センター","targets":[664863],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"鳥取県口腔綜合保健センター","targets":[664863],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カトウナイカ","targets":[353314,353315,353316,353317,353318,353319],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かとうないか","targets":[353314,353315,353316,353317,353318,353319],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かとう内科","targets":[353314,353315,353316,353317,353318,353319],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"嘉藤内科","targets":[353314,353315,353316,353317,353318,353319],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ニジイロヤッキョク","targets":[610211],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"にじいろやっきょく","targets":[610211],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"虹いろやっきょく","targets":[610211],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"尼寺いろ薬局","targets":[610211],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"クリオネアケボノヤッキョク","targets":[174046],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"くりおねあけぼのやっきょく","targets":[174046],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"エンゼルチョウザイヤッキョクキゴウカワニシテン","targets":[164706],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"えんぜるちょうざいやっきょくきごうかわにしてん","targets":[164706],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"エンゼル調剤薬局　かわにし店","targets":[164706],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"エンゼル調剤薬局　川西展","targets":[164706],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"シャカイフクシホウジンテイショウカイカイゴロウジンホケンシセツカロス","targets":[582803],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しゃかいふくしほうじんていしょうかいかいごろうじんほけんしせつかろす","targets":[582803],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"社会福祉法人貞しょう会介護老人保健施設カロス","targets":[582803],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"社会福祉法人貞省会開悟老人保健施設カロス","targets":[582803],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"サンヨウオノダシリツチュウオウトショカンアカサキブンカン","targets":[461162],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"さんようおのだしりつちゅうおうとしょかんあかさきぶんかん","targets":[461162],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"山陽おのだ市立中央図書館赤崎分館","targets":[461162],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"山容小野田市立中央図書館赤崎分館","targets":[461162],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"トクベツヨウゴロウジンホームサンビラカワナカジマ","targets":[549824],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とくべつようごろうじんほーむさんびらかわなかじま","targets":[549824],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"特別ようご老人ホームサンビラかわなかじま","targets":[549824],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"特別擁護老人ホームサンビラかわなかじま","targets":[549824],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"フジシロデイサービスセンター","targets":[608980],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ふじしろでいさーびすせんたー","targets":[608980],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"藤白デイサービスセンター","targets":[608980],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヤマトコオリヤマシショウヒシャセンター","targets":[421991],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"やまとこおりやまししょうひしゃせんたー","targets":[421991],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"大和郡山し消費者センター","targets":[421991],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"大和郡山市消費車センター","targets":[421991],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カジヤッキョクミナミテン","targets":[352993],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かじやっきょくみなみてん","targets":[352993],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"加地やっきょく南店","targets":[352993],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"加地薬局南転","targets":[352993],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"グループホームキラミノイコイ","targets":[183044],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ぐるーぷほーむきらみのいこい","targets":[183044],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"グループホームきらみの憩い","targets":[183044],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ニンテイコドモエンミノリ","targets":[633475,633476],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"にんていこどもえんみのり","targets":[633475,633476],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"にんていこども園みのり","targets":[633475,633476],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"認定こども園(ユニット)みのり","targets":[633475,633476],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"トクマルジビインコウカイイン","targets":[474593],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とくまるじびいんこうかいいん","targets":[474593],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"徳丸じび咽喉科医院","targets":[474593],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"徳丸耳鼻咽喉家医院","targets":[474593],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カナメチョウヤマモトガンカ","targets":[614089],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かなめちょうやまもとがんか","targets":[614089],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かなめちょうやまもと眼科","targets":[614089],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"ココトモニシオキジュウコウ","targets":[206098],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ここともにしおきじゅうこう","targets":[206098],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ココトモ西尾きじゅう校","targets":[206098],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"ココトモ西尾寄住候","targets":[206098],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ホウカゴトウデイサービスヒマワリキゴウシマダカナヤコウ","targets":[486980],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほうかごとうでいさーびすひまわりきごうしまだかなやこう","targets":[486980],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"放課ご等デイサービスひまわり　島田金谷校","targets":[486980],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"放課伍等デイサービスひまわり　島田金谷校","targets":[486980],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ホウモンカイゴステーションキゴウソーネット","targets":[618605],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほうもんかいごすてーしょんきごうそーねっと","targets":[618605],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"訪問かいごステーション　ソーネット","targets":[618605],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"訪問会悟ステーション　ソーネット","targets":[618605],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ツキミノカリン","targets":[87916],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"つきみのかりん","targets":[87916],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"月見野かりん","targets":[87916],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"キタキュウシュウヘルスケアサービスユカワホウモンカンゴステーション","targets":[354818],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"きたきゅうしゅうへるすけあさーびすゆかわほうもんかんごすてーしょん","targets":[354818],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"きたきゅうしゅうヘルスケアサービス湯川訪問看護ステーション","targets":[354818],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"北九州ヘルスケアサービス祐川訪問看護ステーション","targets":[354818],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ゲンキファクトリーニシキチョウ","targets":[58007],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"げんきふぁくとりーにしきちょう","targets":[58007],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"サンガタマチミウラシカ","targets":[309773],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"さんがたまちみうらしか","targets":[309773],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"三ヶ田町みうら歯科","targets":[309773],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"珊ヶ田町三浦歯科","targets":[309773],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ロウジンカイゴシエンセンターアリアケエン","targets":[597883],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ろうじんかいごしえんせんたーありあけえん","targets":[597883],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"老人介護支援センター有明えん","targets":[597883],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"老人介護支援センター有明園（ユニット）","targets":[597883],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"アヤセコッコホイクエン","targets":[595029],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あやせこっこほいくえん","targets":[595029],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"綾瀬こっこほいく園","targets":[595029],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"彩聖こっこ保育園","targets":[595029],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"チョウザイヤッキョクツルハドラッグミトモトヨシダテン","targets":[636024],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ちょうざいやっきょくつるはどらっぐみともとよしだてん","targets":[636024],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"調剤やっきょくツルハドラッグ水戸元吉田店","targets":[636024],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"調剤薬局ツルハドラッグ水戸元吉田天","targets":[636024],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"リタリコジュニアヒガシトツカエキマエキョウシツ","targets":[10525],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"りたりこじゅにあひがしとつかえきまえきょうしつ","targets":[10525],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"LITALICOジュニア東戸塚駅前きょうしつ","targets":[10525],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"オヒサマオカチョウホイクエン","targets":[44555],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"おひさまおかちょうほいくえん","targets":[44555],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"おひさま岡町保育えん","targets":[44555],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"おひさま岡町保育苑（ユニット）","targets":[44555],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"コウエキザイダンホウジンタケオカイロウジンホウモンカンゴステーションノゾミ","targets":[348182],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"こうえきざいだんほうじんたけおかいろうじんほうもんかんごすてーしょんのぞみ","targets":[348182],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"公益財団法人たけお会老人訪問看護ステーションのぞみ","targets":[348182],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"公益財団法人健和会（おもやい）老人訪問看護ステーションのぞみ","targets":[348182],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンキゴウオクダシカイイン","targets":[357721,357722],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんきごうおくだしかいいん","targets":[357721,357722],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療ほうじん　おくだ歯科医院","targets":[357721,357722],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療宝神　おくだ歯科医院","targets":[357721,357722],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ショウガイシャジリツシエンノウジョウキヅナサギョウショ","targets":[653514],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しょうがいしゃじりつしえんのうじょうきづなさぎょうしょ","targets":[653514],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"障がい者自立支援農場きづなさぎょう所","targets":[653514],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"障害者自立支援農場きづな作業所","targets":[653514],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ショウキボタキノウガタキョタクカイゴフィオーレヤヨイ","targets":[444702],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しょうきぼたきのうがたきょたくかいごふぃおーれやよい","targets":[444702],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"小きぼ多機能型居宅介護フィオーレ弥生","targets":[444702],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"祥規模多機能型居宅介護フィオーレ弥生","targets":[444702],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"タキガワケイサツショカミスナガワチュウザイショ","targets":[541483],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"たきがわけいさつしょかみすながわちゅうざいしょ","targets":[541483],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"滝川警察署上砂川駐在しょ","targets":[541483],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"滝川警察署上砂川駐在杵","targets":[541483],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ドリームケアダイトウ","targets":[252151],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"どりーむけあだいとう","targets":[252151],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ドリームケア大東","targets":[252151],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"アスナロノゴウキョタクカイゴシエンジギョウショ","targets":[27776],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あすなろのごうきょたくかいごしえんじぎょうしょ","targets":[27776],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あすなろのごう居宅介護支援事業所","targets":[27776],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"あすなろの郷居宅開悟支援事業所","targets":[27776],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"コスモスヒフカ","targets":[206675,206676],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"こすもすひふか","targets":[206675,206676],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"コスモス皮膚か","targets":[206675,206676],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"コスモス皮膚火","targets":[206675,206676],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"チュウジドウデイサービスジギョウショ","targets":[434176],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ちゅうじどうでいさーびすじぎょうしょ","targets":[434176],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ちゅう児童デイサービス事業所","targets":[434176],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"肘児童デイサービス事業所","targets":[434176],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カスミガウラシリツトショカン","targets":[47110],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かすみがうらしりつとしょかん","targets":[47110],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かすみがうら市立としょ館","targets":[47110],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"かすみがうら私立図書館","targets":[47110],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"タワラクリニックトウキョウ","targets":[85553],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"たわらくりにっくとうきょう","targets":[85553],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンシャダンキゴウテルエカイキゴウシカシマヅイイン","targets":[384700],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんしゃだんきごうてるえかいきごうしかしまづいいん","targets":[384700],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療法人社団　照栄かい　歯科島津医院","targets":[384700],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療宝神社団　照栄会　歯科島津医院","targets":[384700],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カミガキイイン","targets":[583346],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かみがきいいん","targets":[583346],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"神垣いいん","targets":[583346],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"神垣委員","targets":[583346],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イバラキケイサツショ","targets":[604233],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いばらきけいさつしょ","targets":[604233],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いばらき警察署","targets":[604233],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"茨木警察所（ユニット）","targets":[604233],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"クラシヲカンガエルカイ","targets":[497058],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"くらしをかんがえるかい","targets":[497058],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"暮らしを考えるかい","targets":[497058],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"暮らしを考える貝","targets":[497058],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヴェルペンスマイルスタジオサルタ","targets":[307528],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ゔぇるぺんすまいるすたじおさるた","targets":[307528],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"フミケアサービス","targets":[351248,351249],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ふみけあさーびす","targets":[351248,351249],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"二三ケアサービス","targets":[351248,351249],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"オノヅルヨウジョウインキゴウホウモンカイゴジギョウショ","targets":[446119],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"おのづるようじょういんきごうほうもんかいごじぎょうしょ","targets":[446119],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"小野鶴養生院　ほうもん介護事業所","targets":[446119],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"小野鶴養生印　訪問介護事業所","targets":[446119],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンキゴウスナガイイン","targets":[366434],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんきごうすながいいん","targets":[366434],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療法人　須永いいん","targets":[366434],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療法人　須永委員","targets":[366434],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンキゴウセイケガンカ","targets":[364120],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんきごうせいけがんか","targets":[364120],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょう法人　清家眼科","targets":[364120],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療法人　盛池眼科","targets":[364120],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"シロキセイケイゲカクリニック","targets":[563045],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しろきせいけいげかくりにっく","targets":[563045],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"白木せいけい外科クリニック","targets":[563045],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"白木正形外科クリニック","targets":[563045],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ニンテイコドモエンキゴウジョウトウチドリホイクエン","targets":[632479],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"にんていこどもえんきごうじょうとうちどりほいくえん","targets":[632479],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"にんていこども園　城東ちどり保育園","targets":[632479],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"認定こども園　城東ちどり保育苑(ユニット）","targets":[632479],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"コウボウメイ","targets":[466899],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"こうぼうめい","targets":[466899],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"幸房めい","targets":[466899],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンシャダンキゴウコウシカイキゴウイワモトキョウセイシカ","targets":[385039],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんしゃだんきごうこうしかいきごういわもときょうせいしか","targets":[385039],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょう法人社団　皓歯会　岩本矯正歯科","targets":[385039],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療法人社団　皓歯会　岩元矯正歯科","targets":[385039],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリエナイカショウニカイイン","targets":[346232,346233],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりえないかしょうにかいいん","targets":[346232,346233],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりえ内科小児科医院","targets":[346232,346233],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"入江内科小児下医院","targets":[346232,346233],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ツルガセイキョウシンリョウジョキョタクカイゴシエンジギョウショ","targets":[90357],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"つるがせいきょうしんりょうじょきょたくかいごしえんじぎょうしょ","targets":[90357],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"つるが生協診療所居宅介護支援じぎょう所","targets":[90357],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"つるが生協診療所居宅会悟支援事業所","targets":[90357],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ツチヤホウモンカイゴジギョウショトヨナカセンター","targets":[411446,411447],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"つちやほうもんかいごじぎょうしょとよなかせんたー","targets":[411446,411447],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"土屋訪問介護事業所とよなかセンター","targets":[411446,411447],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"土屋訪問介護(ゆめ)事業所豊中センター","targets":[411446,411447],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カールエイカイワチルドレン","targets":[169209],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かーるえいかいわちるどれん","targets":[169209],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"カールえい会話チルドレン","targets":[169209],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"カール営会話チルドレン","targets":[169209],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"コスモヤッキョクキゴウワカマツテン","targets":[207150],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"こすもやっきょくきごうわかまつてん","targets":[207150],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"コスモやっきょく　若松店","targets":[207150],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"コスモ薬局　若松展","targets":[207150],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ホウカゴトウデイサービスキゴウライム","targets":[484715],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほうかごとうでいさーびすきごうらいむ","targets":[484715],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"放課後とうデイサービス　らいむ","targets":[484715],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"法科後等デイサービス　らいむ","targets":[484715],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ソウダンシエンジギョウピュア","targets":[567756,567757],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"そうだんしえんじぎょうぴゅあ","targets":[567756,567757],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"相談支援じぎょうぴゅあ","targets":[567756,567757],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"相談支援地行ぴゅあ","targets":[567756,567757],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヒビヤシカイイン","targets":[493213],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ひびやしかいいん","targets":[493213],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"日比谷歯科いいん","targets":[493213],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"日比谷歯科委員","targets":[493213],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"トクベツヨウゴロウジンホームキゴウキゴウナカバルキスイエン","targets":[543858],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とくべつようごろうじんほーむきごうきごうなかばるきすいえん","targets":[543858],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"特別養護老人ホーム　　なかばるき水苑","targets":[543858],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"特別養護老人ホーム　　なかばる紀水縁（つながり）","targets":[543858],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ショウキボトクベツヨウゴロウジンホームホワイエ","targets":[445648,445649],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しょうきぼとくべつようごろうじんほーむほわいえ","targets":[445648,445649],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"小規模とくべつ養護老人ホームほわいえ","targets":[445648,445649],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"焦規模特別養護老人ホームほわいえ","targets":[445648,445649],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ケアエイドスワコウイキエイギョウショ","targets":[192990],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"けあえいどすわこういきえいぎょうしょ","targets":[192990],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ケアエイド諏訪広域営業しょ","targets":[192990],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"ケアエイド諏訪広域営業処","targets":[192990],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ナーシングヴィラヨノキョタクカイゴシエンジギョウショ","targets":[253473],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"なーしんぐゔぃらよのきょたくかいごしえんじぎょうしょ","targets":[253473],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ナーシングヴィラ与野きょたく介護支援事業所","targets":[253473],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"ナーシングヴィラ与野居宅介護支援事業（ここあ）所","targets":[253473],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"マゴコロホウモンカイゴジギョウショ","targets":[122135,122136],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"まごころほうもんかいごじぎょうしょ","targets":[122135,122136],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"まごころ訪問かいご事業所","targets":[122135,122136],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"まごころ訪問開悟事業所","targets":[122135,122136],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"モリワキシカ","targets":[292600],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"もりわきしか","targets":[292600],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"モリワキ四家","targets":[292600],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ホウモンカイゴマスト","targets":[621152,621153,621154],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほうもんかいごますと","targets":[621152,621153,621154],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"訪問かいごマスト","targets":[621152,621153,621154],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"訪問開悟マスト","targets":[621152,621153,621154],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"トヤマナイカ","targets":[93442],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とやまないか","targets":[93442],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とやま内家","targets":[93442],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"トクベツヨウゴロウジンホームクルメマサフンエン","targets":[550275],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とくべつようごろうじんほーむくるめまさふんえん","targets":[550275],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"特別養護老人ホームくるめ昌普久苑","targets":[550275],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"特別養護老人ホーム久留米真紗普久苑","targets":[550275],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"パナソニックエイジフリーショップセタガヤ","targets":[264503],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ぱなそにっくえいじふりーしょっぷせたがや","targets":[264503],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"イニシシャカイフクシシキゴウサギョウリョウホウシジムショ","targets":[35956],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いにししゃかいふくししきごうさぎょうりょうほうしじむしょ","targets":[35956],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いにし社会福祉士／作業療法士事務しょ","targets":[35956],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"いにし社会福祉使／作業療法士事務所","targets":[35956],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ホウモンカンゴステーションキゴウキボウ","targets":[625186],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほうもんかんごすてーしょんきごうきぼう","targets":[625186],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"訪問かんごステーション　きぼう","targets":[625186],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"カツヤマシヤクショ","targets":[354285],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かつやましやくしょ","targets":[354285],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"勝山市やくしょ","targets":[354285],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"勝山仕役所","targets":[354285],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"コールナウフクノカミ","targets":[209215],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"こーるなうふくのかみ","targets":[209215],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ホウモンカイゴマリモ","targets":[617421,617422],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほうもんかいごまりも","targets":[617421,617422],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"訪問かいごまりも","targets":[617421,617422],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"訪問介護(ゆめ)まりも","targets":[617421,617422],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンシャダンキゴウゴヒカリカイキゴウカズサザイタクシンリョウジョ","targets":[378542],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんしゃだんきごうごひかりかいきごうかずさざいたくしんりょうじょ","targets":[378542],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療法人社団　伍ひかり会　上総在宅診療所","targets":[378542],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療法人社団　伍光里会　上総在宅診療所","targets":[378542],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"セコヤッキョク","targets":[79739],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"せこやっきょく","targets":[79739],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ツクイマツモト","targets":[230584,230585,230586],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"つくいまつもと","targets":[230584,230585,230586],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ツクイ松元","targets":[230584,230585,230586],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヤッキョクイロハキゴウカコガワテン","targets":[607124],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"やっきょくいろはきごうかこがわてん","targets":[607124],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"薬局いろは　かこがわ店","targets":[607124],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"薬局いろは　加古川典","targets":[607124],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ケアビジョンギョウダエキマエ","targets":[57262,57263,57264],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"けあびじょんぎょうだえきまえ","targets":[57262,57263,57264],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"けあビジョン行田えきまえ","targets":[57262,57263,57264],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"けあビジョン行田（ぎょうだ）駅前","targets":[57262,57263,57264],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カイゴロウジンホケンシセツキゴウフジ","targets":[329847],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かいごろうじんほけんしせつきごうふじ","targets":[329847],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"介護老人ほけん施設　ふじ","targets":[329847],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"介護(ゆめ)老人保健施設　ふじ","targets":[329847],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヤマナカヒフカクリニック","targets":[137195],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"やまなかひふかくりにっく","targets":[137195],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"やまなか皮フかクリニック","targets":[137195],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"ヤッキョクダックスシモギョウカラスマテン","targets":[607581],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"やっきょくだっくすしもぎょうからすまてん","targets":[607581],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"薬局ダックス下京烏丸てん","targets":[607581],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"薬局ダックス下京烏丸天","targets":[607581],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イケノダイクリニック","targets":[532144],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いけのだいくりにっく","targets":[532144],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"オオグチチョウリツキタホイクエン","targets":[421636],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"おおぐちちょうりつきたほいくえん","targets":[421636],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"大口町立きた保育園","targets":[421636],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"大口町立喜多保育園","targets":[421636],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"サポートワークスヒガシフクヤマ","targets":[211367],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"さぽーとわーくすひがしふくやま","targets":[211367],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ウェルネスハマナコホウモンカンゴステーションツヅキ","targets":[159331],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"うぇるねすはまなこほうもんかんごすてーしょんつづき","targets":[159331],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ウェルネスはまなこ訪問看護ステーションつづき","targets":[159331],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"ヤスマチヨウチエン","targets":[433618],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"やすまちようちえん","targets":[433618],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"安町幼稚えん","targets":[433618],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"安町幼稚園(ユニット)","targets":[433618],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カイゴロウジンホケンシセツキゴウミレニアムマッシーランド","targets":[330478],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かいごろうじんほけんしせつきごうみれにあむまっしーらんど","targets":[330478],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"介護老人保健しせつ　ミレニアムマッシーランド","targets":[330478],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"介護老人保険施設　ミレニアムマッシーランド","targets":[330478],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"アスカヒフカクリニック","targets":[27486],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あすかひふかくりにっく","targets":[27486],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あすかひふ科クリニック","targets":[27486],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"ダイジサチショウキボホイクエン","targets":[423484],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"だいじさちしょうきぼほいくえん","targets":[423484],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"大慈さちしょう規模保育園","targets":[423484],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"大慈さち證規模保育園","targets":[423484],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヒャクカエンミヤマエロッヂ","targets":[563951,563952],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ひゃくかえんみやまえろっぢ","targets":[563951,563952],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ひゃく花園宮前ロッヂ","targets":[563951,563952],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"百香園宮前ロッヂ","targets":[563951,563952],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ワカサチョウコクミンケンコウホケンジョウチュウシンリョウジョ","targets":[603308,603309,603310],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"わかさちょうこくみんけんこうほけんじょうちゅうしんりょうじょ","targets":[603308,603309,603310],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"若狭町国民健康保険上中しんりょう所","targets":[603308,603309,603310],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"若佐町国民健康保険上中診療所","targets":[603308,603309,603310],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ホソキビョウインキゴウツウショリハビリテーションキゴウユウユウ","targets":[594433],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほそきびょういんきごうつうしょりはびりてーしょんきごうゆうゆう","targets":[594433],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"細木病院　つうしょリハビリテーション　ゆうゆう","targets":[594433],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"細木病院（みなし）　通所リハビリテーション　ゆうゆう","targets":[594433],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カブシキガイシャジェーエーイコイノムラセイカツフクシセンター","targets":[517599],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かぶしきがいしゃじぇーえーいこいのむらせいかつふくしせんたー","targets":[517599],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"株式会社ＪＡいこいのむら生活福祉センター","targets":[517599],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"株式害者ＪＡいこいの村生活福祉センター","targets":[517599],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ホウモンカンゴステーションシ","targets":[630923],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほうもんかんごすてーしょんし","targets":[630923],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"訪問看護ステーションし","targets":[630923],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"訪問看護ステーション史","targets":[630923],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンシャダンリョクセイカイキゴウドウタレナイカシンリョウジョ","targets":[393157],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんしゃだんりょくせいかいきごうどうたれないかしんりょうじょ","targets":[393157],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療法人社団りょくせい会　どうたれ内科診療所","targets":[393157],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療法人社団緑星楷　どうたれ内科診療所","targets":[393157],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ココロノサトクリニック","targets":[59630],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"こころのさとくりにっく","targets":[59630],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"こころの聰クリニック","targets":[59630],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"オアシスチリュウ","targets":[165356,165357,165358],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"おあしすちりゅう","targets":[165356,165357,165358],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"オアシス池鯉鮒","targets":[165356,165357,165358],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"アオゾラショウキボホイクエン","targets":[23027],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あおぞらしょうきぼほいくえん","targets":[23027],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あおぞら小きぼ保育園","targets":[23027],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"あおぞら昇規模保育園","targets":[23027],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"サカイシリツシンカナオカヒガシショウガッコウ","targets":[416920],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"さかいしりつしんかなおかひがししょうがっこう","targets":[416920],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"堺市りつ新金岡東小学校","targets":[416920],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"堺市立新金岡東詔学校","targets":[416920],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"サボワールユウゲンガイシャキゴウベルホウモンニュウヨクカイゴジギョウショ","targets":[210632],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"さぼわーるゆうげんがいしゃきごうべるほうもんにゅうよくかいごじぎょうしょ","targets":[210632],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"サボワール有限会社　ベル訪問入浴かいご事業所","targets":[210632],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"サボワール悠玄会社　ベル訪問入浴介護事業所","targets":[210632],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンシャダンキゴウユウキカイキゴウカイゴロウジンホケンシセツキゴウナゴミノサト","targets":[378650],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんしゃだんきごうゆうきかいきごうかいごろうじんほけんしせつきごうなごみのさと","targets":[378650],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょう法人社団　佑樹会　介護老人保健施設　なごみの里","targets":[378650],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"衣料法人社団　佑樹会　介護老人保健施設　なごみの里","targets":[378650],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カミヤハハトコノクリニック","targets":[49050],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かみやははとこのくりにっく","targets":[49050],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かみやははと子のクリニック","targets":[49050],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"かみや母と胡のクリニック","targets":[49050],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"コウセイカイゴホケンセンター","targets":[497122],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"こうせいかいごほけんせんたー","targets":[497122],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"更生介護ほけんセンター","targets":[497122],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"港晴介護保険センター","targets":[497122],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"サービスツキコウレイシャムケジュウタクハーモニーヒガシマツヤマ","targets":[214239],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"さーびすつきこうれいしゃむけじゅうたくはーもにーひがしまつやま","targets":[214239],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"サービスつき高齢者向け住宅ハーモニー東松山","targets":[214239],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"サービス付き高齢謝向け住宅ハーモニー東松山","targets":[214239],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ショートステイイオリ","targets":[217402],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しょーとすていいおり","targets":[217402],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ショートステイ一織","targets":[217402],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"タンキニュウショジギョウショキゴウナルカワソウヤスラギ","targets":[575137],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"たんきにゅうしょじぎょうしょきごうなるかわそうやすらぎ","targets":[575137],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"短期にゅうしょ事業所　七川荘やすらぎ","targets":[575137],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"短期入所事業所　七川総やすらぎ","targets":[575137],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イルカヤッキョクキゴウコガテン","targets":[36769],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いるかやっきょくきごうこがてん","targets":[36769],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いるかやっきょく　古河店","targets":[36769],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"いるか薬局　古賀店","targets":[36769],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"フナダシカイイン","targets":[115961],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ふなだしかいいん","targets":[115961],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ふなだ歯科いいん","targets":[115961],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"ふなだ志賀医院","targets":[115961],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ウラカワワラシベエン","targets":[536822],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"うらかわわらしべえん","targets":[536822],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"浦河わらしべえん","targets":[536822],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"浦川わらしべ園","targets":[536822],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"サイカイケイサツショコムカイチュウザイショ","targets":[613286],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"さいかいけいさつしょこむかいちゅうざいしょ","targets":[613286],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"西海警察署小迎駐在しょ","targets":[613286],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"西海警察署小向駐在所","targets":[613286],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"カワニシイイン","targets":[466476,466477,466478],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"かわにしいいん","targets":[466476,466477,466478],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"川西いいん","targets":[466476,466477,466478],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"川西委員","targets":[466476,466477,466478],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ウルマシタテイシガワレキシミンゾクシリョウカン","targets":[39367],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"うるましたていしがわれきしみんぞくしりょうかん","targets":[39367],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"うるま市立石川れきし民俗資料館","targets":[39367],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"うるま市立石川歴史民俗史料館","targets":[39367],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンシャダンヨウジョウカイキゴウマツオカイイン","targets":[394154],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんしゃだんようじょうかいきごうまつおかいいん","targets":[394154],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療法人しゃだん養生会　松岡医院","targets":[394154],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療法人社団養生会　松岡委員","targets":[394154],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"デイサービスセンターデンボウノオカ","targets":[242675],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"でいさーびすせんたーでんぼうのおか","targets":[242675],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"デイサービスセンターでんぼうの岡","targets":[242675],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ヌクイホイクエン","targets":[638690,638691],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ぬくいほいくえん","targets":[638690,638691],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ぬくい保育園","targets":[638690,638691],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"貫井哺育園","targets":[638690,638691],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ニホンチョウザイキゴウメイダイゼンヤッキョク","targets":[492522],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"にほんちょうざいきごうめいだいぜんやっきょく","targets":[492522],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"にほん調剤　名大前薬局","targets":[492522],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"日本調剤　名大善薬局","targets":[492522],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"トクベツヨウゴロウジンホームノゾミノモンフジミノサトキゴウユニットガタキゴウ","targets":[551359],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とくべつようごろうじんほーむのぞみのもんふじみのさときごうゆにっとがたきごう","targets":[551359],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"特別養護老人ホームのぞみの門富士見の里（ユニット型）","targets":[551359],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"特別養護老人ホーム希生の門富士見の里（ユニット型）","targets":[551359],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"コウアツガスホアンキョウカイ","targets":[661161],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"こうあつがすほあんきょうかい","targets":[661161],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"高圧ガスほあん協会","targets":[661161],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"高圧ガス保安興会","targets":[661161],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ツルガミカタショウボウクミアイミハマショウボウダンキゴウツルガミカタショウボウクミアイミハマショウボウショキゴウ","targets":[488065],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"つるがみかたしょうぼうくみあいみはましょうぼうだんきごうつるがみかたしょうぼうくみあいみはましょうぼうしょきごう","targets":[488065],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"敦賀美方消防組合美浜消防団（敦賀美方消防組合美浜消防しょ）","targets":[488065],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"敦賀味方消防組合美浜消防団（敦賀美方消防組合美浜消防署）","targets":[488065],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"アツノリヨウチエン","targets":[537900],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あつのりようちえん","targets":[537900],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"淳教幼稚えん","targets":[537900],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"敦徳幼稚園","targets":[537900],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"タケオクマノコエン","targets":[341151],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"たけおくまのこえん","targets":[341151],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"たけおくまのこ園","targets":[341151],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"健生くまのこ炎","targets":[341151],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンシャダンキゴウトヨスミカイキゴウサカイミナミクリニック","targets":[386889],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんしゃだんきごうとよすみかいきごうさかいみなみくりにっく","targets":[386889],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療法人しゃだん　豊済会　境南クリニック","targets":[386889],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療法人社団　豊済海　境南クリニック","targets":[386889],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"フクオカシリツキュウカンシンリョウセンター","targets":[585598],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ふくおかしりつきゅうかんしんりょうせんたー","targets":[585598],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ふくおか市立急患診療センター","targets":[585598],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"福岡仕立急患診療センター","targets":[585598],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ライフケアサポートヒライ","targets":[295851],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"らいふけあさぽーとひらい","targets":[295851],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ライフケアサポート平位","targets":[295851],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ニチイケアセンターカドマ","targets":[257735,257736,257737],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"にちいけあせんたーかどま","targets":[257735,257736,257737],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ニチイケアセンター門間","targets":[257735,257736,257737],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"サンカクシンリョウジョ","targets":[311706],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"さんかくしんりょうじょ","targets":[311706],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"三角診療じょ","targets":[311706],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"参画診療所","targets":[311706],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"セカワシカイイン","targets":[542047,542048,542049,542050,542051],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"せかわしかいいん","targets":[542047,542048,542049,542050,542051],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"瀬川歯科いいん","targets":[542047,542048,542049,542050,542051],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"瀬川爾医院","targets":[542047,542048,542049,542050,542051],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"トヨミヤッキョクキゴウミナミヤマテン","targets":[250703],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とよみやっきょくきごうみなみやまてん","targets":[250703],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"トヨミやっきょく　みなみやま店","targets":[250703],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"トヨミ薬局　みなみやま点","targets":[250703],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"デイサービスネコノテミツ","targets":[237757],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"でいさーびすねこのてみつ","targets":[237757],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ジョブサポートフウノアヤ","targets":[219342],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"じょぶさぽーとふうのあや","targets":[219342],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ジョブサポートふうの彩","targets":[219342],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"ジョブサポート風の彩（いろどり）","targets":[219342],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ホウモンカイゴジギョウショキゴウフルライフケアカンマキ","targets":[622081],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ほうもんかいごじぎょうしょきごうふるらいふけあかんまき","targets":[622081],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"訪問介護じぎょう所　フルライフケア上牧","targets":[622081],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"訪問会悟事業所　フルライフケア上牧","targets":[622081],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"アクアマリンヤッキョク","targets":[150059],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あくあまりんやっきょく","targets":[150059],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ヒダカビョウインホイクショキゴウタンポポ","targets":[493840],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ひだかびょういんほいくしょきごうたんぽぽ","targets":[493840],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"日高びょういん保育所　たんぽぽ","targets":[493840],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"日高病院哺育所　たんぽぽ","targets":[493840],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ケンショウカイデイサービスセンター","targets":[341221],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"けんしょうかいでいさーびすせんたー","targets":[341221],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"顕正会デイサービスセンター","targets":[341221],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンカイホウカイキゴウカシマキネンビョウイン","targets":[374937],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんかいほうかいきごうかしまきねんびょういん","targets":[374937],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療法人海邦かい　鹿島記念病院","targets":[374937],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療法人海邦会　鹿島記念病院（みなし）","targets":[374937],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"シミズサカイヒガシシンリョウジョ","targets":[475741],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しみずさかいひがししんりょうじょ","targets":[475741],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"志水さかいひがし診療所","targets":[475741],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"志水坂井東診療所","targets":[475741],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"オオハラシカクリニック","targets":[421560],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"おおはらしかくりにっく","targets":[421560],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"おおはら歯科クリニック","targets":[421560],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"大原爾クリニック","targets":[421560],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ショウガイシャジリツシエンジギョウショツバサ","targets":[655881],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"しょうがいしゃじりつしえんじぎょうしょつばさ","targets":[655881],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"障害者じりつ支援事業所つばさ","targets":[655881],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"障碍者自立支援事業所つばさ","targets":[655881],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"サクラノカキョタクカイゴシエンジギョウショ","targets":[522249],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"さくらのかきょたくかいごしえんじぎょうしょ","targets":[522249],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"桜の家居たく介護支援事業所","targets":[522249],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"桜の家居宅介護支援事業処","targets":[522249],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"トクベツヨウゴロウジンホームキゴウササヅエン","targets":[544341],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とくべつようごろうじんほーむきごうささづえん","targets":[544341],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とくべつ養護老人ホーム　ささづ苑","targets":[544341],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"特別擁護老人ホーム　ささづ苑","targets":[544341],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ジドウタチシエンジギョウショキゴウプクプク","targets":[346172],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"じどうたちしえんじぎょうしょきごうぷくぷく","targets":[346172],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"児童達しえん事業所　ぷくぷく","targets":[346172],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"児童田知支援事業所　ぷくぷく","targets":[346172],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ムツシリツトショカンオオハタブンカン","targets":[132245],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"むつしりつとしょかんおおはたぶんかん","targets":[132245],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"むつ市りつ図書館大畑分館","targets":[132245],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"むつ市立図書緩大畑分館","targets":[132245],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"トットリシカイイン","targets":[664851,664852],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"とっとりしかいいん","targets":[664851,664852],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"鳥取しか医院","targets":[664851,664852],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"鳥取四家医院","targets":[664851,664852],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"チョウザイヤッキョクツルハドラッグハクチョウテン","targets":[636059],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ちょうざいやっきょくつるはどらっぐはくちょうてん","targets":[636059],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ちょうざい薬局ツルハドラッグ白鳥店","targets":[636059],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"調剤薬局ツルハドラッグ白鳥転","targets":[636059],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"グループホームフウノモリ","targets":[190140,190141],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ぐるーぷほーむふうのもり","targets":[190140,190141],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"グループホーム楓のもり","targets":[190140,190141],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"グループホーム楓の森","targets":[190140,190141],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"グループホームジュアンノソノ","targets":[183843],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"ぐるーぷほーむじゅあんのその","targets":[183843],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"グループホームじゅあんの苑","targets":[183843],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"マゴコロヤッキョクキゴウカゾテン","targets":[122092],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"まごころやっきょくきごうかぞてん","targets":[122092],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"まごころ薬局　かぞ店","targets":[122092],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"まごころ薬局　加須（かぞ）店","targets":[122092],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"ムカイジンヒニョウキカナイカ","targets":[406976],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"むかいじんひにょうきかないか","targets":[406976],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"向井腎泌尿器科ないか","targets":[406976],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"向井腎泌尿器果内科","targets":[406976],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"マイガンカクリニック","targets":[121334],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"まいがんかくりにっく","targets":[121334],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"サトウヒニョウキカクリニック","targets":[338243,338244,338245],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"さとうひにょうきかくりにっく","targets":[338243,338244,338245],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"佐藤ひにょう器科クリニック","targets":[338243,338244,338245],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"佐東泌尿器科クリニック","targets":[338243,338244,338245],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"コウナンケアプラザ","targets":[531501,531502],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"こうなんけあぷらざ","targets":[531501,531502],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"弘南ケアプラザ","targets":[531501,531502],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"タイヨウヤッキョクキゴウシンモバラテン","targets":[424744],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"たいようやっきょくきごうしんもばらてん","targets":[424744],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"大洋やっきょく　新茂原店","targets":[424744],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"太洋薬局　新茂原店","targets":[424744],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"イリョウホウジンシャダンリョクフウカイキゴウミドリクリニック","targets":[393183],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"いりょうほうじんしゃだんりょくふうかいきごうみどりくりにっく","targets":[393183],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"医療法人社団りょくふう会　みどりクリニック","targets":[393183],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"医療法人社団緑風買　みどりクリニック","targets":[393183],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"キゴウオオブネカンポウドウヤッキョク","targets":[326],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"きごうおおぶねかんぽうどうやっきょく","targets":[326],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"きごう大船漢方堂薬局","targets":[326],"kind":"mixed-kana","source":"synthetic","split":"test"}
+{"query":"（有）大船寛方堂薬局","targets":[326],"kind":"same-reading","source":"synthetic","split":"test"}
+{"query":"アプコキゴウチュウオウヤッキョク","targets":[153550],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"あぷこきごうちゅうおうやっきょく","targets":[153550],"kind":"kana","source":"synthetic","split":"test"}
+{"query":"アプコ　中央やっきょく","targets":[153550],"kind":"mixed-kana","source":"synthetic","split":"test"}

@@ -1,0 +1,127 @@
+{
+  "format": "public-phonebook-search-quality/1",
+  "snapshot": "5bd74f209c80bf850edeced4031076ba3924713f6f7f5f3209503276bccc3814",
+  "nameTableSha256": "1112018e4ed078b29b811fa174d80ac416bc3764640c75206ae30358c8f68fa8",
+  "frozenScorerSha256": "dcb063701b0473b3f14694574627675444208f335495ff886996c72ffcb704e9",
+  "developmentReportSha256": "08d0f578c5eb16bbfe77bd744a6b44825a0cc52029994941be3b833b54a297ac",
+  "validationReportSha256": "c79e8708f8d0a56405885df8a93c252672013a0057a1d6ac6aafd9ec502c6cc9",
+  "targets": {
+    "file": "targets.json",
+    "sha256": "d2180ac345f72419d20c34e8a4972bcba837e0b7aaf4bf2a4eccbad87c0e3429",
+    "count": 10067
+  },
+  "populations": [
+    {
+      "name": "curated",
+      "file": "curated.jsonl",
+      "sourceFile": "bench/queries.jsonl",
+      "sourceSha256": "bdec7e1ca7979e7752fb9a6ea54ef39b4fc48a60841bf1065b05e807948054ad",
+      "sha256": "bdec7e1ca7979e7752fb9a6ea54ef39b4fc48a60841bf1065b05e807948054ad",
+      "split": "eval",
+      "minimum": {
+        "queries": 242,
+        "top1": 222,
+        "top3": 229,
+        "top10": 234
+      }
+    },
+    {
+      "name": "synthetic-test",
+      "file": "synthetic-test.jsonl",
+      "sourceFile": "bench/queries-synthetic.jsonl",
+      "sourceSha256": "4a7ad65d5558d144fc93f4341e8daf4775e8a15c0458d23d5ae2120e24204834",
+      "sha256": "b5237e0727f5ff823de102e6777409d72a2b64a70edcb94e4d9be281725c77e6",
+      "split": "test",
+      "minimum": {
+        "queries": 7425,
+        "top1": 6577,
+        "top3": 6822,
+        "top10": 6973
+      }
+    },
+    {
+      "name": "reading-curated",
+      "file": "reading-curated.jsonl",
+      "sourceFile": "bench/queries-readings.jsonl",
+      "sourceSha256": "3f08e4486b7d6b1151abf4259da2f75dd74daa5dfbcad5edb8c2f62fa93e6105",
+      "sha256": "271af533cb0487a22470f1e654cbd7261702f5bad17d67de877fa0fa293392e6",
+      "split": "eval",
+      "minimum": {
+        "queries": 25,
+        "top1": 25,
+        "top3": 25,
+        "top10": 25
+      }
+    },
+    {
+      "name": "reading-test",
+      "file": "reading-test.jsonl",
+      "sourceFile": "bench/queries-readings.jsonl",
+      "sourceSha256": "3f08e4486b7d6b1151abf4259da2f75dd74daa5dfbcad5edb8c2f62fa93e6105",
+      "sha256": "25314657da2dbde176c5c8813f8031ca6cfcd0ef99acabeccf726a15dbfa9823",
+      "split": "test",
+      "minimum": {
+        "queries": 1048,
+        "top1": 874,
+        "top3": 917,
+        "top10": 956
+      }
+    },
+    {
+      "name": "prominence-curated",
+      "file": "prominence-curated.jsonl",
+      "sourceFile": "bench/queries-prominence.jsonl",
+      "sourceSha256": "e4e320f120f4194fbb7a305193106ff87b755c7787e520b2287cf8ba3e2f21b4",
+      "sha256": "1ee9f323cb45e0e5cffbc95e75e951b54ebd8f3ac232414f7701ef5f18e60c0d",
+      "split": "eval",
+      "minimum": {
+        "queries": 24,
+        "top1": 19,
+        "top3": 21,
+        "top10": 23
+      }
+    },
+    {
+      "name": "prominence-test",
+      "file": "prominence-test.jsonl",
+      "sourceFile": "bench/queries-prominence.jsonl",
+      "sourceSha256": "e4e320f120f4194fbb7a305193106ff87b755c7787e520b2287cf8ba3e2f21b4",
+      "sha256": "47b7e687f2903666f1dfdbab4e60d44e3160cb349e132b22ff1d0247380d9bbe",
+      "split": "test",
+      "minimum": {
+        "queries": 1346,
+        "top1": 1220,
+        "top3": 1261,
+        "top10": 1287
+      }
+    },
+    {
+      "name": "blind-development",
+      "file": "blind-development.jsonl",
+      "sourceFile": "bench/queries-blind.jsonl",
+      "sourceSha256": "d7f0089b3aedbdd3ab833daafa136ab17b19ff778161aef660231fed097bad6f",
+      "sha256": "d7f0089b3aedbdd3ab833daafa136ab17b19ff778161aef660231fed097bad6f",
+      "split": "blind",
+      "minimum": {
+        "queries": 500,
+        "top1": 414,
+        "top3": 449,
+        "top10": 466
+      }
+    },
+    {
+      "name": "blind-independent",
+      "file": "blind-independent.jsonl",
+      "sourceFile": "bench/queries-blind2.jsonl",
+      "sourceSha256": "1eda03163ec6ee6bccdf87977f3fe4deca6fd10040245ccca0010f4630194514",
+      "sha256": "1eda03163ec6ee6bccdf87977f3fe4deca6fd10040245ccca0010f4630194514",
+      "split": "blind2",
+      "minimum": {
+        "queries": 564,
+        "top1": 443,
+        "top3": 489,
+        "top10": 520
+      }
+    }
+  ]
+}

@@ -38,8 +38,8 @@ import { countWork, StepTimer } from "./step-timing.ts";
 const immutableFileMode = 0o444;
 const writableFileMode = 0o644;
 const lineFeedByte = 10;
-const verifiedUnitCount = 390;
-const declaredPostconditionCount = 126;
+const verifiedUnitCount = 403;
+const declaredPostconditionCount = 127;
 const commandArgumentOffset = 2;
 const jsonIndentation = 2;
 const verifierExecutable = "/opt/dafny/dafny";
@@ -53,6 +53,7 @@ const provenPostconditionCount =
   declaredPostconditionCount + releaseControlPostconditions;
 
 const expected = [
+  "qualityPasses",
   "diceScore",
   "boundedDiceQuotient",
   "mixedNameScore",
@@ -105,6 +106,20 @@ const expected = [
 ];
 const annotatedMethods = new Set(["diceScore", "boundedDiceQuotient"]);
 const boundFiles = [
+  "src/core/search-quality-policy.ts",
+  "src/core/search-quality.ts",
+  "tests/unit/search-quality.test.ts",
+  "tests/fixtures/search-quality/manifest.json",
+  "tests/fixtures/search-quality/targets.json",
+  "tests/fixtures/search-quality/curated.jsonl",
+  "tests/fixtures/search-quality/synthetic-test.jsonl",
+  "tests/fixtures/search-quality/reading-curated.jsonl",
+  "tests/fixtures/search-quality/reading-test.jsonl",
+  "tests/fixtures/search-quality/prominence-curated.jsonl",
+  "tests/fixtures/search-quality/prominence-test.jsonl",
+  "tests/fixtures/search-quality/blind-development.jsonl",
+  "tests/fixtures/search-quality/blind-independent.jsonl",
+  ".github/workflows/candidate.yml",
   "src/core/forgiving-search-policy.ts",
   "src/core/forgiving-search.ts",
   "src/core/lexical-search.ts",
@@ -281,6 +296,7 @@ interface ProofSourceBinding {
   readonly sha256: string;
 }
 const proofSources = [
+  "src/core/search-quality-policy.ts",
   "src/core/forgiving-search-policy.ts",
   "src/core/collection-policy.ts",
   "src/core/search-policy.ts",
@@ -317,6 +333,12 @@ const localSearchPolicy = "src/core/local-search-policy.ts";
 const rowPolicy = "src/core/row-locator-policy.ts";
 const deltaPolicy = "src/core/directory-delta-policy.ts";
 const negativeControls: readonly NegativeControl[] = [
+  {
+    name: "ranking-quality-regression",
+    source: "src/core/search-quality-policy.ts",
+    from: "    top1 >= minimum1 &&",
+    to: "    top1 >= minimum1 - 1 &&",
+  },
   {
     name: "ranking-dice-scale",
     source: "src/core/forgiving-search-policy.ts",

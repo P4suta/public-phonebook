@@ -13,6 +13,8 @@ import {
   parseTestArguments,
   performanceCommand,
   performanceReport,
+  qualityCommand,
+  qualityReport,
   stageRunner,
 } from "../../tools/test.ts";
 import {
@@ -64,6 +66,12 @@ describe("test stages", () => {
     expect(parityCommand("/data/bundle")).toEqual([
       "tools/search-parity.ts",
       "/data/bundle",
+    ]);
+    expect(qualityCommand("/data/bundle")).toEqual([
+      "tools/search-ranking-contract.ts",
+      "quality",
+      "/data/bundle",
+      qualityReport,
     ]);
     expect(performanceCommand("/data/bundle")).toEqual([
       "tools/search-performance.ts",

@@ -1,0 +1,242 @@
+{"query":"東京都大学","targets":[507864],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"東京1大学","targets":[507864],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"東京大額","targets":[507864],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"東京だいがく","targets":[507864],"kind":"kana","source":"curated","split":"eval"}
+{"query":"大学 東京","targets":[507864],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"東京図書館","targets":[508388],"kind":"half_remembered","source":"curated","split":"eval"}
+{"query":"東京中央図書館","targets":[508388],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"東京都立中央図書感","targets":[508388],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"東京都立 中央 図書館","targets":[508388],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"東京都立中央としょかん","targets":[508388],"kind":"kana","source":"curated","split":"eval"}
+{"query":"国会図書館","targets":[410821],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"国立国会図書感","targets":[410821],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"国会 図書館","targets":[410821],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"国立国会図館","targets":[410821],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"横浜中央図書館","targets":[526153],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"横浜市中央図書感","targets":[526153],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"横浜 中央 図書館","targets":[526153],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"中央図書館 横浜","targets":[526153],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"東京国立博物舘","targets":[554711],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"東京国立博物館","targets":[554711],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"東京国立博物感","targets":[554711],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"国立博物館 東京","targets":[554711],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"千代田区約所","targets":[397626],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"千代田役所","targets":[397626],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"千代田区 役所","targets":[397626],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"千代田区役署","targets":[397626],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"札幌市役所","targets":[505630],"kind":"exact","source":"curated","split":"eval"}
+{"query":"さっぽろしやくしょ","targets":[505630],"kind":"kana","source":"curated","split":"eval"}
+{"query":"札幌役所","targets":[505630],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"札幌市約所","targets":[505630],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"世田谷区やくしょ","targets":[315067],"kind":"kana","source":"curated","split":"eval"}
+{"query":"世田谷役所","targets":[315067],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"世田谷区約所","targets":[315067],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"世田谷 区役所","targets":[315067],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"横浜市約所","targets":[526270],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"横浜役所","targets":[526270],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"横浜市役所所","targets":[526270],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"役所 横浜市","targets":[526270],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"大阪市役署","targets":[426950],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"大阪役所","targets":[426950],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"大阪 市役所","targets":[426950],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"大坂市役所","targets":[426950],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"福岡市約所","targets":[585550],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"福岡役所","targets":[585550],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"福岡 市役所","targets":[585550],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"福岡市役所所","targets":[585550],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"仙台役所","targets":[334332],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"仙台市役署","targets":[334332],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"仙台 市役所","targets":[334332],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"仙台市所役","targets":[334332],"kind":"transposition","source":"curated","split":"eval"}
+{"query":"名古屋役所","targets":[406131],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"名古屋市約所","targets":[406131],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"名古屋 市役所","targets":[406131],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"名古屋市役所所","targets":[406131],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"神戸役所","targets":[584081],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"神戸市役署","targets":[584081],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"神戸 市役所","targets":[584081],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"神戸市所役","targets":[584081],"kind":"transposition","source":"curated","split":"eval"}
+{"query":"那覇役所","targets":[643013],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"那覇市約所","targets":[643013],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"那覇 市役所","targets":[643013],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"那覇市役所所","targets":[643013],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"京都役所","targets":[323724],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"京都市役署","targets":[323724],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"京都 市役所","targets":[323724],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"京都市役役所","targets":[323724],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"東京都丁","targets":[508354],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"東京 都庁","targets":[508354],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"東京都庁庁","targets":[508354],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"都庁 東京","targets":[508354],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"大坂府庁","targets":[427409],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"大阪 府庁","targets":[427409],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"大阪府庁庁","targets":[427409],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"府庁 大阪","targets":[427409],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"神奈川 県庁","targets":[583485],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"神奈県庁","targets":[583485],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"神奈川県丁","targets":[583485],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"県庁 神奈川","targets":[583485],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"北海道丁","targets":[356159],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"北海道 庁","targets":[356159],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"北海道庁庁","targets":[356159],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"北海庁","targets":[356159],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"福岡県丁","targets":[585701],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"福岡 県庁","targets":[585701],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"福岡県庁庁","targets":[585701],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"県庁 福岡","targets":[585701],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"愛知県丁","targets":[478343],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"愛知 県庁","targets":[478343],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"愛知県庁庁","targets":[478343],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"県庁 愛知","targets":[478343],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"京都大額","targets":[323557],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"京都大學","targets":[323557],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"京都だいがく","targets":[323557],"kind":"kana","source":"curated","split":"eval"}
+{"query":"京都大大学","targets":[323557],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"大阪大額","targets":[426898],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"大坂大学","targets":[426898],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"大阪だいがく","targets":[426898],"kind":"kana","source":"curated","split":"eval"}
+{"query":"大学 大阪","targets":[426898],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"東北大額","targets":[508662],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"東北大學","targets":[508662],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"東北だいがく","targets":[508662],"kind":"kana","source":"curated","split":"eval"}
+{"query":"東北大大学","targets":[508662],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"名古屋大額","targets":[406017],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"名古屋だいがく","targets":[406017],"kind":"kana","source":"curated","split":"eval"}
+{"query":"名古大学","targets":[406017],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"大学 名古屋","targets":[406017],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"九州大額","targets":[320686],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"九州だいがく","targets":[320686],"kind":"kana","source":"curated","split":"eval"}
+{"query":"九州大大学","targets":[320686],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"大学 九州","targets":[320686],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"北海道大額","targets":[356131],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"北海道だいがく","targets":[356131],"kind":"kana","source":"curated","split":"eval"}
+{"query":"北海大学","targets":[356131],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"北海道大大学","targets":[356131],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"早稲田大額","targets":[494143],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"早稲田だいがく","targets":[494143],"kind":"kana","source":"curated","split":"eval"}
+{"query":"早稲田大學","targets":[494143],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"早稲大学","targets":[494143],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"慶応義塾大学","targets":[478948],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"慶應大学","targets":[478948],"kind":"middle_drop","source":"curated","split":"eval"}
+{"query":"慶應義塾だいがく","targets":[478948],"kind":"kana","source":"curated","split":"eval"}
+{"query":"慶應義塾大學","targets":[478948],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"東京都立大額","targets":[508401],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"東京都立だいがく","targets":[508401],"kind":"kana","source":"curated","split":"eval"}
+{"query":"東京都立大學","targets":[508401],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"東京都立大大学","targets":[508401],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"世田谷中央図書館","targets":[315081],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"世田谷区立中央図書感","targets":[315081],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"世田谷 中央図書館","targets":[315081],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"世田谷区立中央図館","targets":[315081],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"大阪中央図書館","targets":[426986],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"大阪市立中央図書感","targets":[426986],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"中央図書館 大阪","targets":[426986],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"大阪市立中央図館","targets":[426986],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"札幌中央図書館","targets":[505604],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"札幌市中央図書感","targets":[505604],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"札幌 中央 図書館","targets":[505604],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"札幌市中央図館","targets":[505604],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"名古屋鶴舞図書館","targets":[406564],"kind":"middle_drop","source":"curated","split":"eval"}
+{"query":"鶴舞中央図書館","targets":[406564],"kind":"region_drop","source":"curated","split":"eval"}
+{"query":"名古屋市鶴舞中央図書感","targets":[406564],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"鶴舞 図書館 名古屋","targets":[406564],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"福岡総合図書館","targets":[585620,585621],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"福岡市総合図書感","targets":[585620,585621],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"福岡 総合図書館","targets":[585620,585621],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"総合図書館 福岡","targets":[585620,585621],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"京都図書館","targets":[323892],"kind":"half_remembered","source":"curated","split":"eval"}
+{"query":"京都府立図書感","targets":[323892],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"京都 府立 図書館","targets":[323892],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"図書館 京都府立","targets":[323892],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"国立科学博物舘","targets":[410947],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"科学博物館","targets":[410947],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"国立科学博館","targets":[410947],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"国立 科学 博物館","targets":[410947],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"東京近代美術館","targets":[507834],"kind":"middle_drop","source":"curated","split":"eval"}
+{"query":"東京国立近代美術舘","targets":[507834],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"東京 国立 近代美術館","targets":[507834],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"近代美術館 東京","targets":[507834],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"江戸東京博物館","targets":[508376],"kind":"region_drop","source":"curated","split":"eval"}
+{"query":"江戸東京博物舘","targets":[508376],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"江戸東京 博物館","targets":[508376],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"江戸博物館","targets":[508376],"kind":"half_remembered","source":"curated","split":"eval"}
+{"query":"東京大学病院","targets":[507867],"kind":"middle_drop","source":"curated","split":"eval"}
+{"query":"東京大学医学部付属病院","targets":[507867],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"東京大学 医学部 病院","targets":[507867],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"東京大学医学部附属病員","targets":[507867],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"聖路加病院","targets":[599228],"kind":"middle_drop","source":"curated","split":"eval"}
+{"query":"聖路加国際病員","targets":[599228],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"聖路加 国際 病院","targets":[599228],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"聖路加国際病病院","targets":[599228],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"虎ノ門病院","targets":[610150],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"虎の門病員","targets":[610150],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"虎の門 病院","targets":[610150],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"虎の門病病院","targets":[610150],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"札幌医大病院","targets":[505552],"kind":"half_remembered","source":"curated","split":"eval"}
+{"query":"札幌医科大学付属病院","targets":[505552],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"札幌医科大学 病院","targets":[505552],"kind":"middle_drop","source":"curated","split":"eval"}
+{"query":"札幌医科大学附属病員","targets":[505552],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"上野警察所","targets":[314004],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"上野警察","targets":[314004],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"上野 警察署","targets":[314004],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"上野警察署署","targets":[314004],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"新宿警察所","targets":[489480],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"新宿警察","targets":[489480],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"新宿 警察署","targets":[489480],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"警察署 新宿","targets":[489480],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"渋谷警察所","targets":[539400],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"渋谷警察","targets":[539400],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"渋谷 警察署","targets":[539400],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"渋谷警察署署","targets":[539400],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"あま七宝小学校","targets":[30010],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"七宝小学校","targets":[30010],"kind":"region_drop","source":"curated","split":"eval"}
+{"query":"あま市立七宝小学工","targets":[30010],"kind":"substitution","source":"curated","split":"eval"}
+{"query":"あま 七宝 小学校","targets":[30010],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"うきは吉井小学校","targets":[38125],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"吉井小学校","targets":[38125],"kind":"region_drop","source":"curated","split":"eval"}
+{"query":"うきは市立吉井小校","targets":[38125],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"うきは 吉井 小学校","targets":[38125],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"あま甚目寺小学校","targets":[30021],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"甚目寺小学校","targets":[30021],"kind":"region_drop","source":"curated","split":"eval"}
+{"query":"あま市立甚目寺小学工","targets":[30021],"kind":"substitution","source":"curated","split":"eval"}
+{"query":"甚目寺 小学校 あま","targets":[30021],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"新宿御苑保育園","targets":[254051],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"ニチイキッズ新宿御苑保育円","targets":[254051],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"ニチイキッズ 新宿御苑 保育園","targets":[254051],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"ニチイキッズ新宿保育園","targets":[254051],"kind":"middle_drop","source":"curated","split":"eval"}
+{"query":"けやき台さくら保育円","targets":[57608],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"けやき台 さくら 保育園","targets":[57608],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"けやき台さくら保園","targets":[57608],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"けやき台さくら保育園園","targets":[57608],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"いなべひまわり保育円","targets":[35808],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"いなべ ひまわり 保育園","targets":[35808],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"いなべひまわり保園","targets":[35808],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"いなべひまわり保育園園","targets":[35808],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"さくら保育円","targets":[67790,67791,67792,67793,67794,67795,67796,67797,67798,67799,67800,67801,67802,67803,67804,67805,67806,67807,67808,67809,67810,67811,67812,67813,67814,67815,67816,67817,67818,67819,67820,67821,67822,67823,67824,67825,67826,67827,67828,67829,67830,67831,67832,67833,67834,67835,67836,67837,67838,67839,67840,67841,67842,67843,67844,67845,67846,67847,67848,67849,67850,67851,67852,67853,67854,67855,67856,67857,67858,67859,67860,67861,67862,67863,67864,67865,67866,67867,67868,67869,67870,67871,67872,67873,67874,67875,67876,67877,67878,67879,67880,67881,67882,67883,67884,67885],"kind":"wrong_kanji","source":"curated","split":"eval"}
+{"query":"さくら 保育園","targets":[67790,67791,67792,67793,67794,67795,67796,67797,67798,67799,67800,67801,67802,67803,67804,67805,67806,67807,67808,67809,67810,67811,67812,67813,67814,67815,67816,67817,67818,67819,67820,67821,67822,67823,67824,67825,67826,67827,67828,67829,67830,67831,67832,67833,67834,67835,67836,67837,67838,67839,67840,67841,67842,67843,67844,67845,67846,67847,67848,67849,67850,67851,67852,67853,67854,67855,67856,67857,67858,67859,67860,67861,67862,67863,67864,67865,67866,67867,67868,67869,67870,67871,67872,67873,67874,67875,67876,67877,67878,67879,67880,67881,67882,67883,67884,67885],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"さくら保育園園","targets":[67790,67791,67792,67793,67794,67795,67796,67797,67798,67799,67800,67801,67802,67803,67804,67805,67806,67807,67808,67809,67810,67811,67812,67813,67814,67815,67816,67817,67818,67819,67820,67821,67822,67823,67824,67825,67826,67827,67828,67829,67830,67831,67832,67833,67834,67835,67836,67837,67838,67839,67840,67841,67842,67843,67844,67845,67846,67847,67848,67849,67850,67851,67852,67853,67854,67855,67856,67857,67858,67859,67860,67861,67862,67863,67864,67865,67866,67867,67868,67869,67870,67871,67872,67873,67874,67875,67876,67877,67878,67879,67880,67881,67882,67883,67884,67885],"kind":"insertion","source":"curated","split":"eval"}
+{"query":"さくら保園","targets":[67790,67791,67792,67793,67794,67795,67796,67797,67798,67799,67800,67801,67802,67803,67804,67805,67806,67807,67808,67809,67810,67811,67812,67813,67814,67815,67816,67817,67818,67819,67820,67821,67822,67823,67824,67825,67826,67827,67828,67829,67830,67831,67832,67833,67834,67835,67836,67837,67838,67839,67840,67841,67842,67843,67844,67845,67846,67847,67848,67849,67850,67851,67852,67853,67854,67855,67856,67857,67858,67859,67860,67861,67862,67863,67864,67865,67866,67867,67868,67869,67870,67871,67872,67873,67874,67875,67876,67877,67878,67879,67880,67881,67882,67883,67884,67885],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"すこやか福祉会グループホームさくらの家","targets":[579372],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"グループホームさくらの家","targets":[579372],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"すこやか さくらの家","targets":[579372],"kind":"half_remembered","source":"curated","split":"eval"}
+{"query":"さくらの家 すこやか福祉会","targets":[579372],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"徳心会デイサービスセンターさくらえん","targets":[579922],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"デイサービスセンターさくらえん","targets":[579922],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"徳心会 さくらえん","targets":[579922],"kind":"half_remembered","source":"curated","split":"eval"}
+{"query":"さくらえん 徳心会","targets":[579922],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"聖隷訪問看護藤沢","targets":[599359],"kind":"middle_drop","source":"curated","split":"eval"}
+{"query":"聖隷 訪問看護 藤沢","targets":[599359],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"藤沢 聖隷訪問看護ステーション","targets":[599359],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"聖隷訪問看護ステーシン藤沢","targets":[599359],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"グリーンコープふくしサービスセンターさくらんぼ","targets":[580811],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"ふくしサービスセンターさくらんぼ","targets":[580811],"kind":"prefix_drop","source":"curated","split":"eval"}
+{"query":"グリーンコープ さくらんぼ","targets":[580811],"kind":"half_remembered","source":"curated","split":"eval"}
+{"query":"さくらんぼ グリーンコープ","targets":[580811],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"新宿税務所","targets":[489466],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"新宿 税務署","targets":[489466],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"新宿税務","targets":[489466],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"税務署 新宿","targets":[489466],"kind":"word_swap","source":"curated","split":"eval"}
+{"query":"渋谷税務所","targets":[539394],"kind":"same_reading","source":"curated","split":"eval"}
+{"query":"渋谷 税務署","targets":[539394],"kind":"spaced","source":"curated","split":"eval"}
+{"query":"渋谷税務","targets":[539394],"kind":"deletion","source":"curated","split":"eval"}
+{"query":"渋谷税務署署","targets":[539394],"kind":"insertion","source":"curated","split":"eval"}

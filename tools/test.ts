@@ -66,10 +66,15 @@ export function parseTestArguments(args: readonly string[]): TestArguments {
 /** The candidate's check stage runs the fast gate and the build checks that pull requests skip. */
 export const checkStageScripts = ["check", "check:build"] as const;
 export const performanceReport = ".local/search-performance.json";
+export const qualityReport = ".local/search-quality.json";
 
 /** Compares the device search with the API on the bundle, which the seeded local state must hold. */
 export function parityCommand(bundle: string): readonly string[] {
   return ["tools/search-parity.ts", bundle];
+}
+
+export function qualityCommand(bundle: string): readonly string[] {
+  return ["tools/search-ranking-contract.ts", "quality", bundle, qualityReport];
 }
 
 export function performanceCommand(bundle: string): readonly string[] {
@@ -96,7 +101,10 @@ export function stageRunner(
     data: async (): Promise<void> => {
       await checkedDataBundle(bundle);
     },
-    parity: () => requireCommand("node", parityCommand(bundle)),
+    parity: async (): Promise<void> => {
+      await requireCommand("node", parityCommand(bundle));
+      await requireCommand("node", qualityCommand(bundle));
+    },
     phones: () =>
       requireCommand("npm", [
         "run",
