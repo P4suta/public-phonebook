@@ -1,8 +1,25 @@
 import { requireCommand } from "./process.ts";
 
 const nativeTools = ["--manifest-path", "tools/ios-check/Cargo.toml"];
+const androidTools = ["--manifest-path", "tools/android-check/Cargo.toml"];
 
 export async function checkRust(): Promise<void> {
+  await requireCommand("cargo", ["fmt", ...androidTools, "--check"]);
+  await requireCommand("cargo", [
+    "clippy",
+    "--locked",
+    ...androidTools,
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings",
+  ]);
+  await requireCommand("cargo", ["test", "--locked", ...androidTools]);
+  await requireCommand("cargo", [
+    "audit",
+    "--file",
+    "tools/android-check/Cargo.lock",
+  ]);
   await requireCommand("cargo", ["fmt", ...nativeTools, "--all", "--check"]);
   await requireCommand("cargo", [
     "clippy",

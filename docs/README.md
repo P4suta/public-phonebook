@@ -1,5 +1,8 @@
 # Documentation
 
+[Build, verify, sign, and prepare the Android app for distribution](android.md).
+[Activate complete Android directory generations](adr/activate-complete-android-directory-generations.md).
+
 - [Run locally and understand environment boundaries](deployment.md).
 - [Download and verify the open data files](api.md).
 - [Review the Figma design and interface rules](design.md).

@@ -1,0 +1,75 @@
+<resources>
+    <string name="app_name">Public Phonebook</string>
+    <string name="search">施設を検索</string>
+    <string name="query_label">施設名・地域・電話番号</string>
+    <string name="settings">着信とデータ更新</string>
+    <string name="about">アプリ情報</string>
+    <string name="application_website">公式Webサイト</string>
+    <string name="privacy_policy">プライバシーポリシー</string>
+    <string name="software_licenses">オープンソースの利用条件</string>
+    <string name="licenses_unavailable">利用条件を読み込めませんでした。</string>
+    <string name="connection_metadata">データ更新の通信には、IPアドレスなどの接続情報を使います。</string>
+    <string name="back">戻る</string>
+    <string name="preparing">端末内の検索データを準備しています</string>
+    <string name="offline_setup">初回の準備には、アプリに含まれる全国の施設データを使います。</string>
+    <string name="retry">準備を再試行</string>
+    <string name="preparation_failed">検索データを準備できませんでした。
+端末の空き容量を確認して再試行してください。</string>
+    <string name="search_failed">検索できませんでした。
+検索をやり直してください。</string>
+    <string name="empty_query">施設名、地域名、カテゴリ名、電話番号から検索できます。
+複数の語は空白で区切ってください。</string>
+    <string name="no_matches">一致する施設がありません</string>
+    <string name="results">%1$d件</string>
+    <string name="more">続きの50件</string>
+    <string name="call">電話番号を開く</string>
+    <string name="map">地図を開く</string>
+    <string name="website">施設のWebサイト</string>
+    <string name="source">出典</string>
+    <string name="license">利用条件</string>
+    <string name="retrieved">取得日：%1$s</string>
+    <string name="external_title">外部アプリを開きます</string>
+    <string name="dial_confirmation">電話アプリに番号を渡します。
+発信は電話アプリで操作してください。
+%1$s</string>
+    <string name="map_confirmation">地図アプリに住所を渡します。
+%1$s</string>
+    <string name="web_confirmation">ブラウザでWebサイトを開きます。
+%1$s</string>
+    <string name="open">開く</string>
+    <string name="cancel">キャンセル</string>
+    <string name="no_external_app">対応するアプリを開けませんでした。</string>
+    <string name="caller_settings">着信時の施設名表示</string>
+    <string name="caller_explanation">着信情報を表示するアプリとしてPublic Phonebookを選ぶと、連絡先に登録されていない番号を端末内の施設データと照合します。
+施設名の表示を使わなくても施設検索は使えます。</string>
+    <string name="caller_active">着信情報の表示：選択済み</string>
+    <string name="caller_inactive">着信情報の表示：未選択</string>
+    <string name="caller_unavailable">端末は着信情報の表示に対応していません</string>
+    <string name="choose_caller">着信情報を表示するアプリを選ぶ</string>
+    <string name="update">データの更新を確認</string>
+    <string name="update_explanation">一覧の更新を約24時間ごとに確認します。
+自動取得は、従量制ではなく、データ節約の制限がない接続で行います。
+Androidの省電力設定によって更新時刻は変わります。</string>
+    <string name="updating">更新を確認しています</string>
+    <string name="update_done">更新の確認が終わりました。
+新しいデータの取得は回線の条件が整うまで待つ場合があります。</string>
+    <string name="update_failed">更新を確認できませんでした。
+保存済みの施設データを使えます。</string>
+    <string name="saved_count">保存済み：%1$d件</string>
+    <string name="privacy">検索語と着信番号は端末内だけで処理します。
+連絡先と通話履歴にはアクセスしません。
+通話の遮断は行いません。</string>
+    <string name="data_notice">施設の電話番号や住所は変わる場合があります。
+掲載情報の出典と取得日は施設詳細で確認できます。</string>
+    <string name="version">バージョン %1$s</string>
+    <string name="incoming">着信した施設</string>
+    <string name="close">閉じる</string>
+    <string name="verification_number">着信確認用の電話番号</string>
+    <string name="save_verification">確認用の番号を保存</string>
+    <string name="clear_verification">確認用の番号を削除</string>
+    <string name="verification_saved">確認用の番号を端末内に保存しました。</string>
+    <string name="verification_failed">確認用の番号を保存できませんでした。
+端末の空き容量を確認して再試行してください。</string>
+    <string name="verification_invalid">国内の電話番号を入力してください。</string>
+    <string name="verification_label">Public Phonebook 着信確認</string>
+</resources>

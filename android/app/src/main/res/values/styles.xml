@@ -1,0 +1,15 @@
+<resources>
+    <style name="Theme.PublicPhonebook" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="android:colorAccent">#000000</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+    <style name="Theme.PublicPhonebook.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#FFFFFF</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/phonebook_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.PublicPhonebook</item>
+    </style>
+</resources>

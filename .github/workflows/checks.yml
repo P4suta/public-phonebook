@@ -19,6 +19,7 @@ jobs:
       contents: read
     outputs:
       rust: ${{ steps.scope.outputs.rust }}
+      android: ${{ steps.scope.outputs.android }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -29,10 +30,14 @@ jobs:
           CHANGE_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         run: |
           git fetch --no-tags --depth=1 origin "${CHANGE_BASE}"
-          changed="$(git diff --name-only "${CHANGE_BASE}" HEAD -- tools/ios-check tools/check-rust.ts mise.toml ':(glob)**/rust-toolchain*' .github/actions/toolchain .github/workflows/checks.yml)"
+          changed="$(git diff --name-only "${CHANGE_BASE}" HEAD -- android tools/android-check tools/ios-check tools/check-rust.ts mise.toml ':(glob)**/rust-toolchain*' .github/actions/toolchain .github/workflows/checks.yml)"
           echo "Changed Rust inputs: ${changed:-none}"
           if [[ -n ${changed} ]]; then rust=true; else rust=false; fi
           echo "rust=${rust}" >>"${GITHUB_OUTPUT}"
+          android="$(git diff --name-only "${CHANGE_BASE}" HEAD -- android tools/android-check verification/android ios/Tests/PhonebookCoreTests/SearchContract.json ios/Tests/PhonebookKitTests/DirectoryContract.json src/core/kanji-variants.ts mise.toml .github/workflows/checks.yml)"
+          if [[ -n ${android} ]]; then android=true; else android=false; fi
+          echo "android=${android}" >>"${GITHUB_OUTPUT}"
+          if [[ ${android} == true ]]; then echo 'rust=true' >>"${GITHUB_OUTPUT}"; fi
   verify:
     name: Verify
     runs-on: ubuntu-24.04
@@ -70,7 +75,7 @@ jobs:
       - name: Check the build against its size budget
         run: mise x -- node tools/build-budget.ts
   rust:
-    name: Rust
+    name: Native checks
     needs: [scope]
     if: needs.scope.outputs.rust == 'true'
     runs-on: ubuntu-24.04
@@ -86,8 +91,13 @@ jobs:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
         with:
-          tools: rust just node github:rustsec/rustsec
+          tools: rust just node java gradle github:rustsec/rustsec
       - run: mise x -- just check-rust
+      - if: needs.scope.outputs.android == 'true'
+        name: Install the pinned Android SDK packages
+        run: sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0'
+      - if: needs.scope.outputs.android == 'true'
+        run: mise x -- just android-check
   gate:
     name: Checks
     if: always()
