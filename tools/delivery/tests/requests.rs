@@ -1,5 +1,5 @@
 mod support;
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use delivery::{
     model::{Digest, Operation, Target},
     repository::{plan, revision},
@@ -63,6 +63,21 @@ fn run(intent: &Intent) -> Value {
 }
 
 #[test]
+fn request_scenarios_run_without_concurrent_process_spawns() -> Result<()> {
+    // A fork in another test thread can hold a request lock until exec.
+    a_lost_dispatch_response_preserves_identity_and_never_resubmits()
+        .context("lost dispatch response")?;
+    stale_main_or_unselected_targets_cannot_submit().context("stale or unselected request")?;
+    ambiguous_or_mismatched_runs_cannot_claim_completion()
+        .context("ambiguous or mismatched run")?;
+    a_successful_run_requires_its_original_verified_plan().context("original verified plan")?;
+    every_android_file_needs_provenance_before_the_candidate_is_installed()
+        .context("Android candidate provenance")?;
+    failed_or_incomplete_runs_require_reconciliation_without_another_write()
+        .context("failed or incomplete run")?;
+    Ok(())
+}
+
 fn a_lost_dispatch_response_preserves_identity_and_never_resubmits() -> Result<()> {
     let repo = Repository::new()?;
     let source = revision(&repo.root, "HEAD")?;
@@ -131,7 +146,6 @@ fn a_lost_dispatch_response_preserves_identity_and_never_resubmits() -> Result<(
     Ok(())
 }
 
-#[test]
 fn stale_main_or_unselected_targets_cannot_submit() -> Result<()> {
     let repo = Repository::new()?;
     let record = plan(
@@ -164,7 +178,6 @@ fn stale_main_or_unselected_targets_cannot_submit() -> Result<()> {
     Ok(())
 }
 
-#[test]
 fn ambiguous_or_mismatched_runs_cannot_claim_completion() -> Result<()> {
     let repo = Repository::new()?;
     let source = revision(&repo.root, "HEAD")?;
@@ -253,7 +266,6 @@ fn completed_provider(intent: &Intent) -> Provider {
     }
 }
 
-#[test]
 fn a_successful_run_requires_its_original_verified_plan() -> Result<()> {
     let repo = Repository::new()?;
     let intent = android_intent(&repo)?;
@@ -268,7 +280,6 @@ fn a_successful_run_requires_its_original_verified_plan() -> Result<()> {
     Ok(())
 }
 
-#[test]
 fn every_android_file_needs_provenance_before_the_candidate_is_installed() -> Result<()> {
     let repo = Repository::new()?;
     let intent = android_intent(&repo)?;
@@ -296,7 +307,6 @@ fn every_android_file_needs_provenance_before_the_candidate_is_installed() -> Re
     Ok(())
 }
 
-#[test]
 fn failed_or_incomplete_runs_require_reconciliation_without_another_write() -> Result<()> {
     let repo = Repository::new()?;
     let intent = android_intent(&repo)?;
