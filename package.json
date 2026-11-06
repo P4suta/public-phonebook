@@ -69,10 +69,10 @@
   },
   "overrides": {
     "@google-automations/git-file-utils": {
-      "minimatch": "11.0.3"
+      "minimatch": "11.0.4"
     },
     "@ts-morph/common": {
-      "minimatch": "11.0.3"
+      "minimatch": "11.0.4"
     }
   },
   "allowScripts": {
