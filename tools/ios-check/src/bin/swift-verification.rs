@@ -206,14 +206,20 @@ fn escape(identifier: &str) -> String {
 
 /// Reads the first result line for `name`; a test without one is inconclusive.
 fn status(log: &str, name: &str) -> Status {
-    let passed = format!("✔ Test {name} passed after ");
-    let failed = format!("✘ Test {name} failed after ");
+    let passed = format!("✔ Test {name} ");
+    let failed = format!("✘ Test {name} ");
     let skipped = format!("➜ Test {name} skipped");
     log.lines()
         .find_map(|line| {
-            if line.starts_with(&passed) {
+            if line
+                .strip_prefix(&passed)
+                .is_some_and(|rest| ends(rest, "passed after "))
+            {
                 Some(Status::Passed)
-            } else if line.starts_with(&failed) {
+            } else if line
+                .strip_prefix(&failed)
+                .is_some_and(|rest| ends(rest, "failed after "))
+            {
                 Some(Status::Failed)
             } else if line.starts_with(&skipped) {
                 Some(Status::Skipped)
@@ -222,4 +228,18 @@ fn status(log: &str, name: &str) -> Status {
             }
         })
         .unwrap_or(Status::Inconclusive)
+}
+
+/// Whether `rest` reads `outcome`, directly or after the `with N test cases` count of a parameterized test.
+fn ends(rest: &str, outcome: &str) -> bool {
+    let rest = rest
+        .strip_prefix("with ")
+        .and_then(|counted| {
+            let (count, tail) = counted.split_once(' ')?;
+            count.parse::<u64>().ok()?;
+            tail.strip_prefix("test cases ")
+                .or_else(|| tail.strip_prefix("test case "))
+        })
+        .unwrap_or(rest);
+    rest.starts_with(outcome)
 }
