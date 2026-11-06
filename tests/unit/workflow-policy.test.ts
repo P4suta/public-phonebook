@@ -8,6 +8,7 @@ import {
   actionViolations,
   auditWorkflows,
   dopplerConfigFor,
+  effectConcurrencyGroup,
   interpolatesUntrustedContext,
   releaseEnvironments,
   requireWorkflowPolicy,
@@ -827,7 +828,7 @@ it("rejects a release job that runs before it checks the main branch", () => {
         releaseJob(
           environment,
           `    needs: [verify]
-${publication}
+${publication.replace("publication-production", effectConcurrencyGroup(environment))}
     steps:
       - uses: ${checkout}
 ${mainGuard}`,

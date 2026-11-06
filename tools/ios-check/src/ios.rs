@@ -357,6 +357,12 @@ pub enum Action {
         build_number: Option<u32>,
         #[arg(long, value_enum, default_value_t = Signing::Local)]
         signing: Signing,
+        #[arg(long)]
+        prepared: bool,
+    },
+    PrepareArchive {
+        #[arg(long)]
+        build_number: u32,
     },
     BuildNumber {
         #[arg(long)]
@@ -403,7 +409,7 @@ pub enum Action {
     },
 }
 
-const SECRET_ENVIRONMENT: [&str; 7] = [
+const SECRET_ENVIRONMENT: [&str; 16] = [
     signing::CERTIFICATE,
     signing::CERTIFICATE_PASSWORD,
     signing::APP_PROFILE,
@@ -411,6 +417,15 @@ const SECRET_ENVIRONMENT: [&str; 7] = [
     testflight::KEY_ID,
     testflight::ISSUER_ID,
     testflight::PRIVATE_KEY,
+    "DOPPLER_TOKEN",
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "CLOUDFLARE_API_TOKEN",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+    "ACTIONS_ID_TOKEN_REQUEST_URL",
+    "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+    "ACTIONS_RUNTIME_TOKEN",
 ];
 
 fn without_secrets(command: &mut Command) -> &mut Command {
@@ -449,6 +464,10 @@ fn logged_work(
 }
 
 fn generate(root: &Path) -> Result<()> {
+    fs::write(
+        root.join("ios/Config/GeneratedVersion.xcconfig"),
+        format!("MARKETING_VERSION = {}\n", marketing_version(root)?),
+    )?;
     let assets = root.join("ios/GeneratedAssets.xcassets");
     fs::create_dir_all(&assets)?;
     fs::write(
@@ -468,6 +487,18 @@ fn generate(root: &Path) -> Result<()> {
     bundled::prepare(root)?;
     println!("PASS: Xcode project generated from the shared Figma icon inventory");
     Ok(())
+}
+
+fn marketing_version(root: &Path) -> Result<String> {
+    let path = root.join("ios/version.txt");
+    ensure!(
+        fs::metadata(&path)?.len() <= (delivery_core::Version::MAXIMUM_BYTES + 1) as u64,
+        "Oversized iOS version input"
+    );
+    let bytes = fs::read(path)?;
+    let version = delivery_core::Version::parse(bytes.strip_suffix(b"\n").unwrap_or(&bytes))
+        .map_err(|error| anyhow::anyhow!("Invalid iOS version: {error:?}"))?;
+    Ok(version.to_string())
 }
 
 fn xcode(root: &Path) -> Result<()> {
@@ -1286,8 +1317,13 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         require_receipts,
         build_number,
         signing,
+        prepared,
     } = &action
     {
+        ensure!(
+            *signing != Signing::Ci || *prepared,
+            "CI signing requires an unsigned prepared archive"
+        );
         signing::admit_request(
             *signing,
             *require_receipts,
@@ -1335,6 +1371,23 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
     if matches!(action, Action::Testflight) {
         return testflight::run(root);
     }
+    if let Action::Archive {
+        require_receipts,
+        build_number,
+        signing,
+        prepared: true,
+    } = action
+    {
+        return distribution::archive(
+            root,
+            &distribution::ArchiveRequest {
+                signing,
+                require_receipts,
+                build: build_number.map(BuildNumber::new).transpose()?,
+                prepared: true,
+            },
+        );
+    }
     let unit_only = matches!(action, Action::UnitTest);
     if !unit_only {
         generate(root)?;
@@ -1344,14 +1397,19 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
             require_receipts,
             build_number,
             signing,
+            prepared,
         } => distribution::archive(
             root,
             &distribution::ArchiveRequest {
                 signing,
                 require_receipts,
                 build: build_number.map(BuildNumber::new).transpose()?,
+                prepared,
             },
         ),
+        Action::PrepareArchive { build_number } => {
+            distribution::prepare_archive(root, BuildNumber::new(build_number)?)
+        }
         Action::Screenshots { origin } => screenshots::capture(root, &origin),
         Action::Generate => Ok(()),
         Action::SearchMeasure => search_measurement::run(root),

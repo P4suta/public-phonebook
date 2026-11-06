@@ -2,7 +2,8 @@
 
 The iPhone app's name is Public Phonebook, identifier 6828899028, with Japanese as the primary language.
 Its production bundle identifier is page.dial.publicphonebook and its `SKU` is public-phonebook-ios.
-The version record is 1.0 in Prepare for Submission.
+The source display version comes from `ios/version.txt`.
+Match the selected display version with the intended App Store version before submission.
 App Review approval releases the version automatically, and the app requires no sign-in.
 Store metadata lives in `ios/AppStore/metadata.json`.
 Japanese customer-facing text is intentional.
@@ -10,11 +11,9 @@ Review instructions are English.
 
 ## Environments
 
-| Environment | Bundle suffix | Name | Icon | Default API |
-| --- | --- | --- | --- | --- |
-| Production | None | Public Phonebook | Unbadged | www.dial.page |
-| Development | .development | `Public Phonebook DEV` | `DEV` | 127.0.0.1:3100 |
-| Verification | .devicechecks | `Public Phonebook QA` | `QA` | www.dial.page |
+Production uses the unsuffixed bundle identifier, the name Public Phonebook, the unbadged icon, and `www.dial.page`.
+Development uses the `.development` suffix, the name `Public Phonebook DEV`, the `DEV` icon, and `127.0.0.1:3100`.
+Verification uses the `.devicechecks` suffix, the name `Public Phonebook QA`, the `QA` icon, and `www.dial.page`.
 
 Each environment derives its own App Group, extension identifiers, and background task identifier from the app bundle identifier.
 The environment and optimization are independent.
@@ -34,9 +33,10 @@ Configure the authorized team in the ignored `ios/Signing.local.xcconfig`.
 Run `mise x -- just ios-archive` to create a production Release archive and export a local App Store `.ipa` package.
 The command uses Xcode's existing account and automatic provisioning.
 It never uploads the package or submits a review.
-The command inspects the exported app and its embedded extension, verifies their signatures and distribution entitlements, and checks the production origin, shared group, version, build number, icon, privacy manifests, and bundled notices.
+The command inspects the exported app and its embedded extension and verifies their signatures and distribution entitlements.
+It checks the production origin, shared group, version, build number, icon, privacy manifests, and bundled notices.
 It also requires the exported app to hold the directory archive and entry that `ios/bundled-dataset.json` declares, and the extension to hold neither.
-The generator reads that archive from the release asset and the immutable dataset URL, so the hosted runners obtain it without credentials.
+The generator reads that archive from the release asset and the immutable dataset URL, so the hosted runners get it without credentials.
 The unsigned Release app measured 3,780,791 bytes before the bundled archive and 17,274,257 bytes with the 13,428,507-byte archive of snapshot `5bd74f20`.
 It preserves a SHA-256 digest, source-file hashes, selected Git revision, dirty-tree state, and a CycloneDX dependency inventory under a unique `target/ios/app-store-*` directory.
 `target/ios/app-store-candidate.json` points to the inspected export from the command's preceding successful run.
@@ -44,62 +44,67 @@ A local archive uses build number 1 unless `--build-number N` selects another.
 `--require-receipts` refuses to archive unless the native, sanitizer, mutation, and Lean receipts passed for the current sources.
 A private local archive is never eligible for release, and only the TestFlight workflow below produces a release-eligible package.
 
-## TestFlight delivery
+## Store build delivery
 
 The `TestFlight` workflow in `.github/workflows/ios.yml` delivers a signed production build to TestFlight.
-The owner starts it by hand on `main`, and its jobs fail on any other branch.
+Prepare an iOS plan and request `ios-testflight` through the [independent delivery command](delivery.md).
+Its controller refuses a source that differs from protected `main`, a changed plan, or another workflow identity.
+The shared dependency gate runs before the native jobs.
+A Linux job runs `just ios-prove`, and a macOS job runs `just ios-check`, `just ios-sanitize`, and `just ios-mutate` at the same commit.
+The unsigned job downloads their source-bound receipts and runs `just ios-prepare-archive N` without signing credentials or account provisioning.
+It preserves and attests the unsigned archive, source inventory, and receipts.
 
-1. A Linux job runs `just ios-prove`, and a macOS job runs `just ios-check`, `just ios-sanitize`, and `just ios-mutate` at the same commit.
-   Each job uploads only its source-bound receipts.
-2. The delivery job waits for the owner's review in the `testflight` environment.
-   It downloads the receipts and fetches the signing values from the Doppler `ci_testflight` config through GitHub OIDC.
-3. `just ios-archive --require-receipts --build-number N --signing ci` refuses a dirty checkout and any receipt that failed or verified other sources.
-   It checks both profiles for their identifiers, team, App Group, and App Store distribution type.
-   It creates a temporary keychain, imports the distribution certificate for `codesign` only, and installs the profiles.
-4. The command archives and exports with manual signing, removes the keychain and profiles, and verifies the export as the local command does.
-5. `just ios-testflight` uploads the verified package with `xcrun altool --upload-package` and waits until App Store Connect marks the build `VALID`.
-6. An `always()` step deletes the temporary keychain if the command didn't.
+The signing job waits for review in `testflight-signing` and verifies the unsigned artifact's source and controller attestation before fetching credentials from `ci_testflight_signing`.
+`just ios-archive --prepared --require-receipts --build-number N --signing ci` refuses a dirty checkout, mismatched archive bytes, or failed and stale receipts.
+It checks both profiles for their identifiers, team, App Group, and App Store distribution type.
+The helper imports the distribution identity into a temporary keychain and exports the already prepared archive with manual signing.
+It executes no project generation or archive build after importing that identity.
+It removes the keychain and profiles and verifies the exported signatures, entitlements, metadata, and bundled dataset.
+An `always()` step also attempts keychain cleanup.
+The job preserves the resulting `.ipa` package, dependency inventory, and candidate manifest as the signed candidate artifact.
 
-Rerunning all jobs or only the failed delivery job gives the delivery a new, larger build number.
+The upload job uses the separate `testflight-upload` environment and `ci_testflight_upload` identity.
+It verifies the original signed candidate's attestation before fetching the App Store Connect key.
+`just ios-testflight` records the upload attempt before invoking `xcrun altool --upload-package` and queries App Store Connect until the build is `VALID` or the bounded wait ends.
+The controller reconciles an already attempted build by app, version, build number, artifact digest, and source identity.
+The helper never sends another upload after an ambiguous response.
+
+Reruns preserve the original unsigned archive, signed `.ipa` package, and build number `run_number * 100 + 1`.
 The project's Info.plist files take `CFBundleVersion` from `CURRENT_PROJECT_VERSION`, which the archive command sets.
-No package, key, certificate, profile, or secret becomes an artifact.
-A failed delivery keeps only its command logs, and the commands that write logs never receive the signing values.
-The [build-number decision](adr/number-testflight-builds-from-the-workflow-run.md) explains the build numbers, the upload route, and the processing wait.
+Keys, private certificates, provisioning profiles, and secrets never become workflow artifacts.
+Original package and upload-attempt artifacts are essential retry evidence and remain available for seven days.
+Preserve them in the authorized owner archive before they expire.
+A missing original artifact or attempt record stops reconciliation rather than authorizing a replacement upload.
+The [delivery decision](adr/select-delivery-operations-independently-from-required-checks.md) records the changed retry contract and the counter's allocation assumptions.
 
 ### Doppler values
 
-The delivery job reads these keys from the `ci_testflight` config of the `public-phonebook` Doppler project.
+The signing job reads `APPLE_DISTRIBUTION_CERTIFICATE_BASE64`, `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD`, `APP_PROVISIONING_PROFILE_BASE64`, and `CALL_DIRECTORY_PROVISIONING_PROFILE_BASE64` from `ci_testflight_signing` in the `public-phonebook` Doppler project.
+The certificate value contains the Apple Distribution certificate and its private key as a password-protected `.p12` file.
+The app profile covers `page.dial.publicphonebook`, and the extension profile covers `page.dial.publicphonebook.CallDirectory`.
+Both profiles require the `group.page.dial.publicphonebook` App Group and the selected distribution certificate.
+
+The upload job reads `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, and `APP_STORE_CONNECT_PRIVATE_KEY_BASE64` from `ci_testflight_upload`.
+The key ID is the ten-character identifier of the App Manager API key, the issuer is the team issuer identifier, and the private-key value contains the downloaded `AuthKey_KEY_ID.p8` file.
 Store each file as standard base64 on one line, for example with `base64 -i FILE`, so that the log masks it whole.
-
-| Key | Value |
-| --- | --- |
-| `APP_STORE_CONNECT_KEY_ID` | The ten-character ID of the App Manager API key |
-| `APP_STORE_CONNECT_ISSUER_ID` | The issuer ID shown above the team keys |
-| `APP_STORE_CONNECT_PRIVATE_KEY_BASE64` | The downloaded `AuthKey_KEY_ID.p8` file |
-| `APPLE_DISTRIBUTION_CERTIFICATE_BASE64` | The Apple Distribution certificate and its private key, exported as a `.p12` file |
-| `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD` | The password of that `.p12` file |
-| `APP_PROVISIONING_PROFILE_BASE64` | The App Store profile for `page.dial.publicphonebook` |
-| `CALL_DIRECTORY_PROVISIONING_PROFILE_BASE64` | The App Store profile for `page.dial.publicphonebook.CallDirectory` |
-
-The commands refuse an empty value, an unresolved Doppler reference, and a value that isn't base64 where the table names a file.
+The commands refuse empty values, unresolved Doppler references, and malformed encoded files.
 
 ### Owner setup
 
-1. In App Store Connect, create a team API key with the App Manager role and download its `.p8` file.
-2. Create an Apple Distribution certificate and export it with its private key as a password-protected `.p12` file.
-3. Create an App Store provisioning profile with that certificate for each of the two App IDs.
-   Both App IDs need the `group.page.dial.publicphonebook` App Group.
-4. Fill the seven keys above in the Doppler `ci_testflight` config.
-5. Create a Doppler service account with read access to that config only.
-   Give it a GitHub OIDC identity for the subject `repo:P4suta@42543015/public-phonebook@1438449191:environment:testflight`.
-6. Store the identity's ID as the `DOPPLER_IDENTITY_ID` variable of the GitHub `testflight` environment.
-7. Start the `TestFlight` workflow on `main`, then review and approve its delivery job.
+Reuse the existing API key, certificate, and profiles when valid.
+Don't create another identity to recover an interrupted upload.
+Configure each protected environment with its own `DOPPLER_IDENTITY_ID`, subject, and read-only access to its matching secret configuration.
+The signing subject is `repo:P4suta@42543015/public-phonebook@1438449191:environment:testflight-signing`.
+The upload subject ends in `environment:testflight-upload`.
+Restrict both environments to `main`, require the owner's review, and turn off administrator bypass.
+Run the dedicated read-only credential transport workflow before an independently authorized signing or upload rehearsal.
+Local verification hasn't exercised the redesigned unsigned export and split credentialed jobs with live signing material or App Store Connect.
+The redesigned command doesn't migrate or delete the previous `testflight` environment and `ci_testflight` configuration.
 
 ### What stays manual
 
-- Adding the processed build to TestFlight testing groups.
-- App Store submission and review details.
-- Renewing the certificate, profiles, and API key before they expire, and updating the Doppler values.
+The owner assigns processed builds to TestFlight testing groups and supplies App Store submission and review details.
+Certificate, profile, and API-key renewal and the corresponding scoped Doppler updates remain owner operations.
 
 The package uses local PhonebookCore, PhonebookRanking, and PhonebookKit targets with no remote Swift package dependencies.
 Lucide and Feather-derived glyphs carry their original notices inside the app.
@@ -146,6 +151,6 @@ The prepared data passed integrity checks for 650933 contacts, 546133 phone numb
 Screenshot capture uses ProductionDebug with an explicit loopback service and Japanese locale.
 The distributed Release package uses the production HTTPS origin.
 Run `mise x -- just ios-screenshots ORIGIN` with a bare HTTPS or loopback HTTP origin that serves the versioned API.
-The command runs the live UI case on the erased check simulator and exports its three Japanese attachments as opaque RGB images.
-It rejects a failed case, a missing or repeated attachment, transparency, and any size other than 1206 x 2622.
+The command runs the live UI case on the erased check simulator and exports its three Japanese attachments as opaque images with red, green, and blue channels.
+It rejects a failed case, a missing or repeated attachment, transparency, and any size other than 1206 × 2622.
 `target/ios/app-store-screenshots.json` records each image digest with the origin, configuration, simulator, source revision, dirty-tree state, and source digests.

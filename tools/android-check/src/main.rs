@@ -22,6 +22,18 @@ mod device;
 mod distribution;
 mod mutation;
 
+const BUILD_INPUT_PATHS: &[&str] = &[
+    "android",
+    "tools/android-check",
+    "tools/delivery",
+    "ios/Tests/PhonebookCoreTests/SearchContract.json",
+    "ios/Tests/PhonebookKitTests/DirectoryContract.json",
+    "src/core/kanji-variants.ts",
+    "LICENSE-APACHE",
+    "mise.toml",
+    "mise.lock",
+];
+
 #[derive(Parser)]
 #[command(about = "Build and verify the offline Android directory")]
 struct Arguments {
@@ -53,7 +65,17 @@ enum Action {
     /// Create an owner-local upload key and store its password in macOS Keychain.
     SigningInit,
     /// Build and verify signed production artifacts without publishing them.
-    Distribution,
+    Distribution {
+        #[arg(long)]
+        build_number: u32,
+        #[arg(long)]
+        prepared: bool,
+    },
+    /// Prepare unsigned production artifacts without a signing identity.
+    Prepare {
+        #[arg(long)]
+        build_number: u32,
+    },
     /// Verify and prepare the pinned national archive and the development fixture.
     Bundle {
         #[arg(long)]
@@ -155,6 +177,7 @@ fn gradle(root: &Path, arguments: &[&str]) -> Result<()> {
         "Install Android SDK platform android-37.0 revision 2 and build-tools 36.0.0"
     );
     let mut command = Command::new("gradle");
+    without_credentials(&mut command);
     command
         .current_dir(root.join("android"))
         .args(arguments)
@@ -169,6 +192,28 @@ fn gradle(root: &Path, arguments: &[&str]) -> Result<()> {
     );
     println!("Android Gradle checks passed: {}", arguments.join(" "));
     Ok(())
+}
+
+fn without_credentials(command: &mut Command) -> &mut Command {
+    for name in [
+        "PHONEBOOK_KEY_PASSWORD",
+        "PHONEBOOK_ANDROID_KEYSTORE",
+        "PHONEBOOK_ANDROID_KEY_ALIAS",
+        "PHONEBOOK_ANDROID_STORE_PASSWORD",
+        "PHONEBOOK_ANDROID_KEY_PASSWORD",
+        "DOPPLER_TOKEN",
+        "GH_TOKEN",
+        "GITHUB_TOKEN",
+        "CLOUDFLARE_API_TOKEN",
+        "R2_ACCESS_KEY_ID",
+        "R2_SECRET_ACCESS_KEY",
+        "ACTIONS_ID_TOKEN_REQUEST_URL",
+        "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+        "ACTIONS_RUNTIME_TOKEN",
+    ] {
+        command.env_remove(name);
+    }
+    command
 }
 fn write_json(path: &Path, value: &impl Serialize) -> Result<()> {
     fs::write(path, format!("{}\n", serde_json::to_string_pretty(value)?))?;
@@ -668,25 +713,24 @@ fn prove(root: &Path) -> Result<()> {
 fn source_refinement_with_model(root: &Path) -> Result<BTreeMap<String, String>> {
     let mut sources = source_refinement(root)?;
     let mut listing = Command::new("git");
-    listing.current_dir(root).args([
-        "ls-files",
-        "--cached",
-        "--others",
-        "--exclude-standard",
-        "-z",
-        "--",
-        "android",
-        "tools/android-check",
-        "verification/android",
-        "mise.toml",
-        ".gitignore",
-        "justfile",
-        ".github/workflows/assurance.yml",
-        "ios/Tests/PhonebookCoreTests/SearchContract.json",
-        "ios/Tests/PhonebookKitTests/DirectoryContract.json",
-        "src/core/kanji-variants.ts",
-        "verification/ios/Dockerfile",
-    ]);
+    listing
+        .current_dir(root)
+        .args([
+            "ls-files",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+            "-z",
+            "--",
+        ])
+        .args(BUILD_INPUT_PATHS)
+        .args([
+            "verification/android",
+            ".gitignore",
+            "justfile",
+            ".github/workflows/assurance.yml",
+            "verification/ios/Dockerfile",
+        ]);
     let files = String::from_utf8(completed(listing)?.stdout)?;
     for required in [
         "verification/android/DirectoryPolicy.lean",
@@ -813,7 +857,11 @@ fn main() -> Result<()> {
             device::check(&root, &serial, fresh).map(|_| ())
         }
         Action::SigningInit => distribution::initialize(),
-        Action::Distribution => distribution::build(&root),
+        Action::Distribution {
+            build_number,
+            prepared,
+        } => distribution::build(&root, build_number, prepared),
+        Action::Prepare { build_number } => distribution::prepare(&root, build_number),
         Action::Bundle { source } => bundle(&root, source.as_deref()),
         Action::Check => {
             source_refinement(&root)?;
@@ -890,6 +938,42 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn gradle_never_inherits_delivery_capabilities() {
+        let mut command = Command::new("gradle");
+        for name in [
+            "PHONEBOOK_KEY_PASSWORD",
+            "PHONEBOOK_ANDROID_KEYSTORE",
+            "PHONEBOOK_ANDROID_KEY_ALIAS",
+            "PHONEBOOK_ANDROID_STORE_PASSWORD",
+            "PHONEBOOK_ANDROID_KEY_PASSWORD",
+            "DOPPLER_TOKEN",
+            "GH_TOKEN",
+            "GITHUB_TOKEN",
+            "CLOUDFLARE_API_TOKEN",
+            "R2_ACCESS_KEY_ID",
+            "R2_SECRET_ACCESS_KEY",
+            "ACTIONS_ID_TOKEN_REQUEST_URL",
+            "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+            "ACTIONS_RUNTIME_TOKEN",
+        ] {
+            command.env(name, "fixture credential");
+        }
+        command.env("ANDROID_HOME", "/fixture/sdk");
+        without_credentials(&mut command);
+        assert_eq!(
+            command
+                .get_envs()
+                .filter(|(name, value)| *name != "ANDROID_HOME" && value.is_none())
+                .count(),
+            14
+        );
+        assert!(
+            command
+                .get_envs()
+                .any(|(name, value)| name == "ANDROID_HOME" && value.is_some())
+        );
+    }
     #[test]
     fn identities_are_exact_and_path_safe() {
         assert!(hash_shape(&"a".repeat(64)));

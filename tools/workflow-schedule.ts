@@ -553,6 +553,8 @@ export const scheduleSpecifications: Readonly<
 > = {
   "release.yml": {
     properties: [
+      requires("candidate", ["delivery-checks"]),
+      requires("evidence", ["delivery-checks"]),
       requires("build", ["evidence"]),
       requires("stage", ["evidence", "build"]),
       requires("verify", ["stage"]),
@@ -580,6 +582,7 @@ export const scheduleSpecifications: Readonly<
       {
         inputs: { checks: "run" },
         runs: [
+          "delivery-checks",
           "candidate",
           "evidence",
           "build",
@@ -591,7 +594,155 @@ export const scheduleSpecifications: Readonly<
       },
       {
         inputs: { checks: "reuse" },
-        runs: ["evidence", "build", "stage", "verify", "promote", "record"],
+        runs: [
+          "delivery-checks",
+          "evidence",
+          "build",
+          "stage",
+          "verify",
+          "promote",
+          "record",
+        ],
+      },
+    ],
+  },
+  "ios.yml": {
+    properties: [
+      requires("proofs", ["delivery-checks"]),
+      requires("native", ["delivery-checks"]),
+      requires("unsigned", ["delivery-checks", "proofs", "native"]),
+      requires("signing", ["unsigned"]),
+      requires("upload", ["signing"]),
+    ],
+    promises: [
+      {
+        inputs: {},
+        runs: [
+          "delivery-checks",
+          "proofs",
+          "native",
+          "unsigned",
+          "signing",
+          "upload",
+        ],
+      },
+    ],
+  },
+  "android.yml": {
+    properties: [
+      requires("native", ["delivery-checks"]),
+      requires("candidate", ["delivery-checks", "native"]),
+    ],
+    promises: [
+      { inputs: {}, runs: ["delivery-checks", "native", "candidate"] },
+    ],
+  },
+  "versions.yml": {
+    properties: [requires("proposal", ["delivery-checks"])],
+    promises: [
+      {
+        inputs: { operation: "version-ios" },
+        runs: ["delivery-checks", "proposal"],
+      },
+      {
+        inputs: { operation: "version-android" },
+        runs: ["delivery-checks", "proposal"],
+      },
+    ],
+  },
+  "delivery-checks.yml": {
+    properties: [
+      requires("fast", ["plan"]),
+      requires("proofs", ["plan"]),
+      requires("worker", ["plan", "fast"]),
+      requires("ios", ["plan", "fast"]),
+      requires("android", ["plan", "fast"]),
+      {
+        name: "the admission gate runs even after failed or skipped prerequisites",
+        holds: ({ results }) => ran(results.gate),
+      },
+    ],
+    promises: [
+      {
+        inputs: {},
+        atoms: { "inputs.operation != 'version-ios'": false },
+        runs: ["plan", "fast", "gate"],
+      },
+      {
+        inputs: {},
+        atoms: { "inputs.operation != 'version-android'": false },
+        runs: ["plan", "fast", "gate"],
+      },
+    ],
+  },
+  "delivery-credentials.yml": {
+    properties: [
+      requires("version", ["context"]),
+      requires("signing", ["context"]),
+      requires("upload", ["context"]),
+      requires("preview", ["context"]),
+      requires("apply", ["context"]),
+      {
+        name: "credential transport selects only the requested role",
+        holds: ({ inputs, results }) => {
+          const roles: Readonly<Record<string, string>> = {
+            version: "version-preparation",
+            signing: "testflight-signing",
+            upload: "testflight-upload",
+            preview: "operations-preview",
+            apply: "operations-apply",
+          };
+          return Object.entries(roles).every(
+            ([job, target]) => !ran(results[job]) || inputs.target === target,
+          );
+        },
+      },
+    ],
+    promises: [
+      {
+        inputs: { target: "version-preparation" },
+        runs: ["context", "version"],
+      },
+      {
+        inputs: { target: "testflight-signing" },
+        runs: ["context", "signing"],
+      },
+      { inputs: { target: "testflight-upload" }, runs: ["context", "upload"] },
+      {
+        inputs: { target: "operations-preview" },
+        runs: ["context", "preview"],
+      },
+      { inputs: { target: "operations-apply" }, runs: ["context", "apply"] },
+    ],
+  },
+  "operations.yml": {
+    properties: [
+      requires("preview", ["delivery-checks"]),
+      requires("apply", ["preview"]),
+      {
+        name: "only explicit apply operations can write configuration",
+        holds: ({ inputs, results }) =>
+          !ran(results.apply) ||
+          inputs.operation === "cloudflare-alerts-apply" ||
+          inputs.operation === "monitors-apply",
+      },
+    ],
+    promises: [
+      {
+        inputs: { operation: "cloudflare-alerts-preview" },
+        runs: ["delivery-checks", "preview"],
+      },
+      {
+        inputs: { operation: "monitors-preview" },
+        runs: ["delivery-checks", "preview"],
+      },
+      {
+        inputs: { operation: "cloudflare-alerts-apply" },
+        runs: ["delivery-checks", "preview", "apply"],
+      },
+      {
+        inputs: { operation: "monitors-apply" },
+        runs: ["delivery-checks", "preview", "apply"],
       },
     ],
   },

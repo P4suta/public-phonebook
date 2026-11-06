@@ -220,16 +220,20 @@ Manual TalkBack reading and handset-specific lock-screen behavior also need phys
 Initialize an upload identity once, or configure an existing identity before building.
 The initializer writes an encrypted PKCS12 store and non-secret `signing.json` under the owner's `~/.config/public-phonebook/android/` directory.
 The password lives in macOS Keychain under `page.dial.publicphonebook.upload-key`.
-The build supplies the password to a short-lived Gradle process through environment variables and disables its configuration cache.
+Gradle prepares unsigned artifacts without signing credentials.
+The distribution command reads the password only after the candidate and required checks pass, then supplies it to the native signing tools.
 The repository contains neither the store nor its password.
 Back up the encrypted store through the owner's private backup process and keep the Keychain item.
 
 ```console
 mise x -- just android-signing-init
-mise x -- just android-distribution
+mise x -- just android-distribution BUILD_NUMBER
 ```
 
 The distribution command verifies the production release checks and builds an installable package and Android App Bundle (AAB).
+Replace `BUILD_NUMBER` with the allocated positive version code.
+For a preserved CI candidate, use the [Android handoff](delivery.md#android-handoff) and `just android-sign BUILD_NUMBER` to sign the original unsigned bytes.
+The canonical display version comes from `android/version.txt` through the checked Rust command, and the build refuses invalid display versions or version codes.
 The command requires a current `android-release-check` receipt for both emulator API levels and the exact verification packages.
 It verifies both signatures, exports the public signing certificate, and records final byte lengths and SHA-256 digests under `target/android/distribution/`.
 Keep the manifest, signature reports, certificate, proof receipt, device receipts, and dependency inventory with the exact candidate.
@@ -240,7 +244,7 @@ Before submission, build a replacement candidate from the committed source.
 Google Play App Signing distinguishes the upload key from the key used to sign installed Play releases under the [app-signing guidance](https://developer.android.com/studio/publish/app-signing).
 Never replace an existing upload identity merely to rerun a build.
 
-Install the signed package with `adb -s DEVICE_SERIAL install -r target/android/distribution/public-phonebook-1.0.0.apk`.
+Install the signed package with `adb -s DEVICE_SERIAL install -r target/android/distribution/public-phonebook-VERSION-BUILD_NUMBER.apk`, using the filename recorded in its distribution manifest.
 The production package can coexist with verification.
 Check offline preparation, search, details, and the version on the exact signed package.
 Keep a local rollback package and its certificate identity when testing upgrades.

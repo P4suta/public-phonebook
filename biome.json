@@ -4,6 +4,7 @@
     "includes": [
       "src/**",
       "tools/**",
+      "releases/**",
       "docs/*.json",
       "tests/**",
       "web/**",
@@ -18,7 +19,8 @@
       "*.json",
       "!!src/routeTree.gen.ts",
       "!!tools/ios-check/target/**",
-      "!!tools/android-check/target/**"
+      "!!tools/android-check/target/**",
+      "!!tools/delivery/target/**"
     ]
   },
   "formatter": { "indentStyle": "space" },

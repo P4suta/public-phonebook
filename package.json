@@ -7,7 +7,7 @@
     "preview": "node tools/built-worker-server.ts",
     "build": "node tools/build.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit --project tests/public/tsconfig.json",
-    "lint": "biome check src tools tests/unit tests/browser tests/public docs/*.json *.ts *.json && oxlint --type-aware --deny-warnings src tools tests/unit tests/browser tests/public *.ts",
+    "lint": "biome check src tools releases tests/unit tests/browser tests/public docs/*.json *.ts *.json && oxlint --type-aware --deny-warnings src tools tests/unit tests/browser tests/public *.ts",
     "test": "vitest run",
     "e2e": "playwright test",
     "browsers": "playwright install chromium firefox webkit",
@@ -60,6 +60,7 @@
     "oxlint-tsgolint": "7.0.2005",
     "pdfjs-dist": "6.4.299",
     "proper-lockfile": "4.1.2",
+    "release-please": "17.11.2",
     "typescript": "7.0.2",
     "vite": "8.3.5",
     "vitest": "5.0.5",
@@ -67,6 +68,9 @@
     "yaml": "2.9.1"
   },
   "overrides": {
+    "@google-automations/git-file-utils": {
+      "minimatch": "11.0.3"
+    },
     "@ts-morph/common": {
       "minimatch": "11.0.3"
     }

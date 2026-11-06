@@ -4,6 +4,8 @@ The application uses native Workers, D1, and R2.
 Production publishes only from the `Release` workflow on `main`, which checks the candidate version at 0% inside the production Worker and moves traffic after the owner approves it.
 Each release ends with an immutable GitHub release that holds its evidence, checksums, dataset identity, SBOM, provenance, and approval.
 Local commands prepare and inspect data, start a release, and withdraw or recover a publication.
+The [independent delivery runbook](delivery.md) provides the shared planning command for Worker deployment, native app distribution, version proposals, and separately managed configuration.
+Worker code and server configuration remain one deployment artifact.
 
 ## Install and verify
 

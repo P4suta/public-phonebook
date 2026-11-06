@@ -1,5 +1,17 @@
 export type PlanAction = "create" | "update" | "keep";
 
+export interface ApplyHooks<Declared, Existing> {
+  readonly beforeApply?: (
+    declared: readonly Declared[],
+    existing: readonly Existing[],
+  ) => Promise<void>;
+  readonly beforeWrite?: (
+    name: string,
+    action: "create" | "update",
+  ) => Promise<void>;
+  readonly acknowledged?: (name: string) => Promise<void>;
+}
+
 export function planAction(found: boolean, equal: boolean): PlanAction {
   if (!found) return "create";
   return equal ? "keep" : "update";

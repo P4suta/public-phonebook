@@ -69,6 +69,7 @@ struct TargetSettings {
 }
 
 fn validate(
+    root: &Path,
     settings: &TargetSettings,
     config: &str,
     environment: Environment,
@@ -85,7 +86,7 @@ fn validate(
             format!("{bundle}.CallDirectory"),
         ),
         ("ASSETCATALOG_COMPILER_APPICON_NAME", icon.to_owned()),
-        ("MARKETING_VERSION", "1.0".to_owned()),
+        ("MARKETING_VERSION", super::marketing_version(root)?),
         ("IPHONEOS_DEPLOYMENT_TARGET", "18.0".to_owned()),
         (
             "PHONEBOOK_BUNDLED_DATASET",
@@ -180,7 +181,7 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
         metadata["name"] == Environment::Production.identity().1
             && metadata["primaryLocale"] == "ja"
             && metadata["bundleId"] == Environment::Production.identity().0
-            && metadata["version"] == "1.0"
+            && metadata["version"] == super::marketing_version(root)?
             && metadata["releaseType"] == "AFTER_APPROVAL"
             && metadata["signInRequired"] == false,
         "Incorrect App Store identity or release policy"
@@ -259,12 +260,13 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
         );
         let mut visited = std::collections::BTreeSet::new();
         for mut target in targets {
-            validate(&target, config, environment, debug)?;
+            validate(root, &target, config, environment, debug)?;
             if !visited.insert(target.target.clone()) {
                 continue;
             }
             ensure!(
                 validate(
+                    root,
                     &flip_verification_tools(&target),
                     config,
                     environment,
@@ -288,12 +290,12 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
                     .build_settings
                     .insert(key.to_owned(), json!("incorrect-environment"));
                 ensure!(
-                    validate(&target, config, environment, debug).is_err(),
+                    validate(root, &target, config, environment, debug).is_err(),
                     "Configuration negative control was accepted: {key}"
                 );
                 target.build_settings.remove(key);
                 ensure!(
-                    validate(&target, config, environment, debug).is_err(),
+                    validate(root, &target, config, environment, debug).is_err(),
                     "Missing configuration field was accepted: {key}"
                 );
                 match previous {
@@ -346,7 +348,8 @@ fn verify_bundle(root: &Path, app: &Path, team: &str, build: BuildNumber) -> Res
             "Non-production service or extension configuration"
         );
         ensure!(
-            info["CFBundleShortVersionString"] == "1.0" && info["MinimumOSVersion"] == "18.0",
+            info["CFBundleShortVersionString"] == super::marketing_version(root)?
+                && info["MinimumOSVersion"] == "18.0",
             "Incorrect app version or deployment target"
         );
         ensure!(
@@ -438,6 +441,91 @@ pub(super) struct ArchiveRequest {
     pub signing: Signing,
     pub require_receipts: bool,
     pub build: Option<BuildNumber>,
+    pub prepared: bool,
+}
+
+const UNSIGNED_DIRECTORY: &str = "target/ios/unsigned-store";
+
+fn archive_files(directory: &Path) -> Result<BTreeMap<String, String>> {
+    fn visit(root: &Path, relative: &Path, hashes: &mut BTreeMap<String, String>) -> Result<()> {
+        for entry in fs::read_dir(root.join(relative))? {
+            let entry = entry?;
+            let path = relative.join(entry.file_name());
+            if entry.file_type()?.is_dir() {
+                visit(root, &path, hashes)?;
+            } else {
+                ensure!(
+                    entry.file_type()?.is_file(),
+                    "Unsigned archives admit only regular files and directories"
+                );
+                hashes.insert(
+                    path.to_string_lossy().into_owned(),
+                    crate::sha256_hex(fs::read(entry.path())?),
+                );
+            }
+        }
+        Ok(())
+    }
+    let mut hashes = BTreeMap::new();
+    visit(directory, Path::new(""), &mut hashes)?;
+    ensure!(!hashes.is_empty(), "Unsigned archive is empty");
+    Ok(hashes)
+}
+
+fn admit_prepared(
+    record: &Value,
+    build: BuildNumber,
+    version: &str,
+    sources: &BTreeMap<String, String>,
+    files: &BTreeMap<String, String>,
+) -> Result<()> {
+    let facts = delivery_core::ArchiveFacts {
+        format_matches: record["format"] == 1,
+        unsigned: record["signing"] == "unsigned",
+        build_matches: record["build"] == build.value(),
+        version_matches: record["version"] == version,
+        sources_match: record["sourceSha256"] == serde_json::to_value(sources)?,
+        files_match: record["files"] == serde_json::to_value(files)?,
+        nonempty: !files.is_empty(),
+    };
+    ensure!(
+        delivery_core::admit_archive(facts),
+        "The unsigned archive differs from the verified candidate"
+    );
+    Ok(())
+}
+
+pub(super) fn prepare_archive(root: &Path, build: BuildNumber) -> Result<()> {
+    ensure!(
+        build.is_ci(),
+        "Prepared store archives require an allocated CI build identity"
+    );
+    delivery::proof::require_current(root)?;
+    let sources = source_hashes(root)?;
+    receipts::require(root, &sources)?;
+    let directory = root.join(UNSIGNED_DIRECTORY);
+    ensure!(
+        !directory.exists(),
+        "Preserve the existing unsigned archive and use its original run"
+    );
+    fs::create_dir_all(&directory)?;
+    let mut command = archive_command(root, &directory, None, build, false);
+    command.args([
+        "CODE_SIGNING_ALLOWED=NO",
+        "CODE_SIGNING_REQUIRED=NO",
+        "CODE_SIGN_IDENTITY=",
+    ]);
+    logged(root, "unsigned-store-archive", &mut command)?;
+    let archive = directory.join("PublicPhonebook.xcarchive");
+    let files = archive_files(&archive)?;
+    require_current_sources(root, &sources)?;
+    fs::write(
+        directory.join("candidate.json"),
+        serde_json::to_vec_pretty(
+            &json!({"format":1,"signing":"unsigned","version":super::marketing_version(root)?,"build":build.value(),"sourceSha256":sources,"files":files}),
+        )?,
+    )?;
+    Ok(())
 }
 
 fn archive_command(
@@ -445,6 +533,7 @@ fn archive_command(
     directory: &Path,
     manual: Option<&ManualSigning>,
     build: BuildNumber,
+    allow_account: bool,
 ) -> Command {
     let mut command = Command::new("xcodebuild");
     command.current_dir(root).args([
@@ -462,7 +551,7 @@ fn archive_command(
         "-jobs",
         "2",
     ]);
-    if manual.is_none() {
+    if allow_account {
         command.arg("-allowProvisioningUpdates");
     }
     command
@@ -506,11 +595,31 @@ pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
         "CI signing requires a clean checkout of the verified revision"
     );
     let receipts = if request.require_receipts {
+        delivery::proof::require_current(root)?;
         receipts::require(root, &sources)?
     } else {
         Vec::new()
     };
     let bundle = Environment::Production.identity().0;
+    let prepared = if request.prepared {
+        let directory = root.join(UNSIGNED_DIRECTORY);
+        let archive = directory.join("PublicPhonebook.xcarchive");
+        let record: Value = serde_json::from_slice(&fs::read(directory.join("candidate.json"))?)?;
+        admit_prepared(
+            &record,
+            build,
+            &super::marketing_version(root)?,
+            &sources,
+            &archive_files(&archive)?,
+        )?;
+        Some(archive)
+    } else {
+        None
+    };
+    ensure!(
+        !ci || prepared.is_some(),
+        "CI signing cannot compile candidate-controlled build hooks"
+    );
     let ci_signing = if ci {
         Some(signing::prepare(bundle)?)
     } else {
@@ -522,12 +631,23 @@ pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
         .tempdir_in(root.join("target/ios"))?
         .keep();
     let archive = directory.join("PublicPhonebook.xcarchive");
-    logged(
-        root,
-        "app-store-archive",
-        &mut archive_command(root, &directory, manual, build),
-    )?;
-    let team = super::plist_string(&archive.join("Info.plist"), "ApplicationProperties.Team")?;
+    if let Some(prepared) = prepared {
+        logged(
+            root,
+            "copy-unsigned-archive",
+            Command::new("ditto").arg(prepared).arg(&archive),
+        )?;
+    } else {
+        logged(
+            root,
+            "app-store-archive",
+            &mut archive_command(root, &directory, manual, build, manual.is_none()),
+        )?;
+    }
+    let team = match manual {
+        Some(manual) if request.prepared => manual.team.clone(),
+        _ => super::plist_string(&archive.join("Info.plist"), "ApplicationProperties.Team")?,
+    };
     ensure!(
         manual.is_none_or(|manual| manual.team == team),
         "The archive was signed for another team"
@@ -573,9 +693,22 @@ pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
             .args(["rev-parse", "HEAD"]),
     )?;
     let sha256 = crate::sha256_hex(fs::read(ipa)?);
-    let sbom = json!({"bomFormat":"CycloneDX","specVersion":"1.6","version":1,"metadata":{"component":{"type":"application","name":Environment::Production.identity().1,"version":"1.0","hashes":[{"alg":"SHA-256","content":sha256}]}},"components":[{"type":"library","name":"PhonebookCore","version":"1.0","licenses":[{"expression":"MIT OR Apache-2.0"}],"scope":"required"},{"type":"library","name":"PhonebookKit","version":"1.0","licenses":[{"expression":"MIT OR Apache-2.0"}],"scope":"required"},{"type":"data","name":"Lucide icons","licenses":[{"license":{"id":"ISC"}}],"scope":"required"},{"type":"data","name":"Feather-derived icons","licenses":[{"license":{"id":"MIT"}}],"scope":"required"}],"properties":[{"name":"phonebook:platform-dependencies","value":"Apple iOS frameworks, Swift runtime, and SQLite are supplied by iOS; no third-party Swift packages are linked."}]});
+    let delivery = root.join("target/ios/store-delivery");
+    fs::create_dir_all(&delivery)?;
+    let preserved = delivery.join("PublicPhonebook.ipa");
+    ensure!(
+        !preserved.exists(),
+        "Preserve the original signed candidate instead of rebuilding it"
+    );
+    fs::copy(ipa, &preserved)?;
+    let version = super::marketing_version(root)?;
+    let sbom = json!({"bomFormat":"CycloneDX","specVersion":"1.6","version":1,"metadata":{"component":{"type":"application","name":Environment::Production.identity().1,"version":version,"hashes":[{"alg":"SHA-256","content":sha256}]}},"components":[{"type":"library","name":"PhonebookCore","version":version,"licenses":[{"expression":"MIT OR Apache-2.0"}],"scope":"required"},{"type":"library","name":"PhonebookKit","version":version,"licenses":[{"expression":"MIT OR Apache-2.0"}],"scope":"required"},{"type":"data","name":"Lucide icons","licenses":[{"license":{"id":"ISC"}}],"scope":"required"},{"type":"data","name":"Feather-derived icons","licenses":[{"license":{"id":"MIT"}}],"scope":"required"}],"properties":[{"name":"phonebook:platform-dependencies","value":"Apple iOS frameworks, Swift runtime, and SQLite are supplied by iOS; no third-party Swift packages are linked."}]});
     fs::write(
         directory.join("sbom.cdx.json"),
+        serde_json::to_vec_pretty(&sbom)?,
+    )?;
+    fs::write(
+        delivery.join("sbom.cdx.json"),
         serde_json::to_vec_pretty(&sbom)?,
     )?;
     let (purpose, signing_record, pending) = if ci {
@@ -600,7 +733,7 @@ pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
             ]),
         )
     };
-    let manifest = json!({"format":1,"purpose":purpose,"signing":signing_record,"source_revision":String::from_utf8(revision.stdout)?.trim(),"working_tree_dirty":dirty,"source_sha256":sources,"receipts":receipts,"version":"1.0","build":build.value(),"bundle":bundle,"archive":archive,"artifact":ipa,"sha256":sha256,"signature":"verified with production identities, app group, build number, and get-task-allow=false for the app and its extension","release_eligible":ci && !dirty && !receipts.is_empty(),"pending":pending});
+    let manifest = json!({"format":1,"purpose":purpose,"signing":signing_record,"source_revision":String::from_utf8(revision.stdout)?.trim(),"working_tree_dirty":dirty,"source_sha256":sources,"receipts":receipts,"version":version,"build":build.value(),"bundle":bundle,"archive":archive,"artifact":preserved.strip_prefix(root)?,"sha256":sha256,"signature":"verified with production identities, app group, build number, and get-task-allow=false for the app and its extension","release_eligible":ci && !dirty && !receipts.is_empty(),"pending":pending});
     fs::write(
         directory.join("candidate.json"),
         serde_json::to_vec_pretty(&manifest)?,
@@ -619,6 +752,35 @@ pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn signing_rejects_changed_unsigned_bytes_versions_builds_and_evidence() -> Result<()> {
+        let build = BuildNumber::new(4201)?;
+        let sources = BTreeMap::from([("App.swift".to_owned(), "source".to_owned())]);
+        let files = BTreeMap::from([("PublicPhonebook".to_owned(), "unsigned-bytes".to_owned())]);
+        let record = json!({"format":1,"signing":"unsigned","build":4201,"version":"1.0.0","sourceSha256":sources,"files":files});
+        admit_prepared(&record, build, "1.0.0", &sources, &files)?;
+        for property in [
+            "format",
+            "signing",
+            "build",
+            "version",
+            "sourceSha256",
+            "files",
+        ] {
+            let mut changed = record.clone();
+            changed[property] = Value::Null;
+            assert!(
+                admit_prepared(&changed, build, "1.0.0", &sources, &files).is_err(),
+                "{property}"
+            );
+        }
+        assert!(admit_prepared(&record, build, "1.0.1", &sources, &files).is_err());
+        assert!(
+            admit_prepared(&record, BuildNumber::new(4202)?, "1.0.0", &sources, &files).is_err()
+        );
+        Ok(())
+    }
     use std::path::PathBuf;
 
     fn rendered(command: &Command) -> Vec<String> {
@@ -694,6 +856,7 @@ mod tests {
             directory,
             Some(&manual),
             build,
+            false,
         ));
         assert!(
             !ci.iter()
@@ -709,9 +872,22 @@ mod tests {
             directory,
             None,
             BuildNumber::LOCAL,
+            true,
         ));
         assert!(
             local
+                .iter()
+                .any(|argument| argument == "-allowProvisioningUpdates")
+        );
+        let unsigned = rendered(&archive_command(
+            Path::new("/repo"),
+            directory,
+            None,
+            build,
+            false,
+        ));
+        assert!(
+            !unsigned
                 .iter()
                 .any(|argument| argument == "-allowProvisioningUpdates")
         );

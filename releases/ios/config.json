@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "separate-pull-requests": true,
+  "skip-github-release": true,
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "component": "ios",
+      "include-component-in-tag": true,
+      "version-file": "ios/version.txt",
+      "changelog-path": "ios/CHANGELOG.md",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "ios/AppStore/metadata.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    }
+  }
+}

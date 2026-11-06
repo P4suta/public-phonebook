@@ -46,7 +46,7 @@ jobs:
   proofs:
     name: Formal assurance
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     permissions:
       contents: read
     env:
@@ -57,6 +57,7 @@ jobs:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
       - run: mise x -- just prove
+      - run: mise x -- just delivery-prove
       - run: mise x -- just ios-prove
       - run: mise x -- just android-prove
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

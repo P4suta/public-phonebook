@@ -18,6 +18,7 @@ private final class ServerState: Sendable {
 final class HTTPTestServer: Sendable {
   private let listener: NWListener
   private let requests = ServerState()
+  private let stopped: AsyncStream<Void>
   let received: AsyncStream<Void>
   let origin: URL
 
@@ -30,6 +31,8 @@ final class HTTPTestServer: Sendable {
   ) async throws {
     let (received, continuation) = AsyncStream.makeStream(of: Void.self)
     self.received = received
+    let (stopped, stoppedSignal) = AsyncStream.makeStream(of: Void.self)
+    self.stopped = stopped
     let parameters = NWParameters.tcp
     parameters.allowLocalEndpointReuse = true
     parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: port)
@@ -58,6 +61,8 @@ final class HTTPTestServer: Sendable {
             defer { value = nil }
             return value
           }?.resume(throwing: error)
+        case .cancelled:
+          stoppedSignal.finish()
         default: break
         }
       }
@@ -104,6 +109,11 @@ final class HTTPTestServer: Sendable {
   /// Closes every connection that is still open.
   func close() {
     for connection in requests.value.withLock({ $0.connections }) { connection.cancel() }
+  }
+
+  func stopListening() async {
+    listener.cancel()
+    for await _ in stopped {}
   }
 
   deinit {

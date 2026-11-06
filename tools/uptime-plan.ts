@@ -69,6 +69,7 @@ export const ExistingCheck = v.object({
     required_keyword: v.nullable(v.string()),
     check_frequency: v.number(),
     email: v.boolean(),
+    team_name: v.optional(v.string()),
   }),
 });
 export type ExistingCheck = v.InferOutput<typeof ExistingCheck>;

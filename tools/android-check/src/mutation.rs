@@ -271,6 +271,7 @@ fn complete_campaign(expected: usize, executed: usize, all_killed: bool) -> bool
 
 fn command(root: &Path, args: &[&str]) -> Result<Command> {
     let mut command = Command::new("gradle");
+    crate::without_credentials(&mut command);
     command
         .current_dir(root.join("android"))
         .env("ANDROID_HOME", sdk()?)
@@ -291,22 +292,17 @@ fn execute(root: &Path, args: &[&str], log: &Path) -> Result<Output> {
 fn copy_inputs(root: &Path, checkout: &Path) -> Result<()> {
     fs::create_dir(checkout)?;
     let mut listing = Command::new("git");
-    listing.current_dir(root).args([
-        "ls-files",
-        "--cached",
-        "--others",
-        "--exclude-standard",
-        "-z",
-        "--",
-        "android",
-        "tools/android-check",
-        "ios/Tests/PhonebookCoreTests/SearchContract.json",
-        "ios/Tests/PhonebookKitTests/DirectoryContract.json",
-        "src/core/kanji-variants.ts",
-        "LICENSE-APACHE",
-        "mise.toml",
-        "mise.lock",
-    ]);
+    listing
+        .current_dir(root)
+        .args([
+            "ls-files",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+            "-z",
+            "--",
+        ])
+        .args(crate::BUILD_INPUT_PATHS);
     for file in String::from_utf8(completed(listing)?.stdout)?
         .split('\0')
         .filter(|file| !file.is_empty())
@@ -622,6 +618,56 @@ pub fn require_current(root: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn isolated_mutation_builds_keep_the_real_version_tool_and_its_dependencies() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let mut git = Command::new("git");
+        git.current_dir(root.path()).args(["init", "--quiet"]);
+        completed(git)?;
+        let hash = "a".repeat(64);
+        for (path, content) in [
+            (
+                "android/bundled-dataset.json".to_owned(),
+                json!({"sha256":hash}).to_string(),
+            ),
+            (
+                format!("target/android/cache/{hash}.br"),
+                "fixture archive".to_owned(),
+            ),
+            ("android/version.txt".to_owned(), "1.0.0".to_owned()),
+            (
+                "tools/delivery/Cargo.toml".to_owned(),
+                "[workspace]\nmembers = [\"core\"]".to_owned(),
+            ),
+            (
+                "tools/delivery/core/src/identities.rs".to_owned(),
+                "pub struct Version;".to_owned(),
+            ),
+            ("LICENSE-APACHE".to_owned(), "fixture license".to_owned()),
+            ("mise.lock".to_owned(), "fixture tool lock".to_owned()),
+        ] {
+            let path = root.path().join(path);
+            fs::create_dir_all(path.parent().context("Missing fixture parent")?)?;
+            fs::write(path, content)?;
+        }
+        let parent = tempfile::tempdir()?;
+        let checkout = parent.path().join("checkout");
+        copy_inputs(root.path(), &checkout)?;
+        for path in [
+            "android/version.txt",
+            "tools/delivery/Cargo.toml",
+            "tools/delivery/core/src/identities.rs",
+            "LICENSE-APACHE",
+            "mise.lock",
+        ] {
+            assert_eq!(
+                fs::read(root.path().join(path))?,
+                fs::read(checkout.join(path))?
+            );
+        }
+        Ok(())
+    }
 
     #[test]
     fn incomplete_or_aborted_executions_never_kill_a_mutant() {

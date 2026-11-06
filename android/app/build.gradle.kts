@@ -11,6 +11,48 @@ plugins {
 
 ktfmt { kotlinLangStyle() }
 
+val appVersion =
+    providers
+        .exec {
+            workingDir(rootProject.projectDir.parentFile)
+            commandLine(
+                "cargo",
+                "run",
+                "--quiet",
+                "--locked",
+                "--manifest-path",
+                "tools/delivery/Cargo.toml",
+                "--",
+                "version",
+                "android",
+            )
+        }
+        .standardOutput
+        .asText
+        .get()
+        .removeSuffix("\n")
+val appBuildNumber =
+    providers
+        .exec {
+            workingDir(rootProject.projectDir.parentFile)
+            commandLine(
+                "cargo",
+                "run",
+                "--quiet",
+                "--locked",
+                "--manifest-path",
+                "tools/delivery/Cargo.toml",
+                "--",
+                "store-build-number",
+                providers.environmentVariable("PHONEBOOK_ANDROID_VERSION_CODE").orElse("1").get(),
+            )
+        }
+        .standardOutput
+        .asText
+        .get()
+        .trim()
+        .toInt()
+
 detekt {
     debug.set(providers.gradleProperty("analysisDiagnostics").isPresent)
     buildUponDefaultConfig.set(true)
@@ -21,14 +63,13 @@ tasks.named<org.cyclonedx.gradle.CyclonedxDirectTask>("cyclonedxDirectBom") {
     includeConfigs.set(listOf("productionReleaseRuntimeClasspath"))
     projectType.set(org.cyclonedx.model.Component.Type.APPLICATION)
     componentName.set("Public Phonebook")
-    componentVersion.set("1.0.0")
+    componentVersion.set(appVersion)
 }
 
 afterEvaluate {
     tasks.named<dev.detekt.gradle.Detekt>("detektVerificationDebug") {
         val generated = tasks.named<JavaCompile>("compileVerificationDebugJavaWithJavac")
         dependsOn(generated)
-        // Resolving the classpath here would need the module jars before a clean build makes them.
         classpath.from(generated.flatMap { it.destinationDirectory })
     }
 }
@@ -44,8 +85,8 @@ android {
         minSdk = 29
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appBuildNumber
+        versionName = appVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("boolean", "QA_ENABLED", "false")
         buildConfigField("boolean", "SYNC_ENABLED", "true")
@@ -89,18 +130,6 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
-    }
-    providers.environmentVariable("PHONEBOOK_ANDROID_KEYSTORE").orNull?.let { location ->
-        val upload =
-            signingConfigs.create("upload") {
-                storeFile = file(location)
-                storeType = "PKCS12"
-                keyAlias = providers.environmentVariable("PHONEBOOK_ANDROID_KEY_ALIAS").get()
-                storePassword =
-                    providers.environmentVariable("PHONEBOOK_ANDROID_STORE_PASSWORD").get()
-                keyPassword = providers.environmentVariable("PHONEBOOK_ANDROID_KEY_PASSWORD").get()
-            }
-        buildTypes.getByName("release").signingConfig = upload
     }
 }
 

@@ -1,8 +1,38 @@
 name: Release
+run-name: Delivery ${{ inputs.operation }} ${{ inputs.request }}
 
 on:
   workflow_dispatch:
     inputs:
+      operation:
+        description: Worker publication operation
+        type: choice
+        options: [worker]
+        default: worker
+      source:
+        description: Exact protected main candidate commit
+        type: string
+        required: true
+      controller:
+        description: Exact protected main controller commit
+        type: string
+        required: true
+      plan:
+        description: Saved delivery plan digest
+        type: string
+        required: true
+      request:
+        description: Saved delivery request identity
+        type: string
+        required: true
+      base:
+        description: Explicit comparison commit
+        type: string
+        default: ""
+      targets:
+        description: Explicit target selection, or empty for suggestions
+        type: string
+        default: ""
       dataset:
         description: SHA-256 of the dataset's ready manifest
         type: string
@@ -22,9 +52,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  delivery-checks:
+    name: Dependency checks
+    permissions:
+      contents: read
+    uses: ./.github/workflows/delivery-checks.yml # zizmor: ignore[self-repository] actionlint 1.7.12 can't read a `$/` reusable workflow call.
+    with:
+      operation: ${{ inputs.operation }}
+      source: ${{ inputs.source }}
+      controller: ${{ inputs.controller }}
+      plan: ${{ inputs.plan }}
+      request: ${{ inputs.request }}
+      base: ${{ inputs.base }}
+      targets: ${{ inputs.targets }}
+      dataset: ${{ inputs.dataset }}
   candidate:
     name: Candidate checks
     if: inputs.checks == 'run'
+    needs: [delivery-checks]
     permissions:
       contents: read
       id-token: write # Lets the called evidence job exchange its OIDC token for the Doppler ci_candidate config.
@@ -33,8 +78,8 @@ jobs:
       dataset: ${{ inputs.dataset }}
   evidence:
     name: Admit the candidate evidence
-    needs: [candidate]
-    if: always() && (needs.candidate.result == 'success' || needs.candidate.result == 'skipped')
+    needs: [delivery-checks, candidate]
+    if: always() && needs.delivery-checks.result == 'success' && (needs.candidate.result == 'success' || needs.candidate.result == 'skipped')
     runs-on: ubuntu-24.04
     environment: observe
     timeout-minutes: 15
