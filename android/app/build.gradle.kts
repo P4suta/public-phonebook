@@ -28,8 +28,7 @@ afterEvaluate {
     tasks.named<dev.detekt.gradle.Detekt>("detektVerificationDebug") {
         val generated = tasks.named<JavaCompile>("compileVerificationDebugJavaWithJavac")
         dependsOn(generated)
-        val compileDependencies = classpath.files.toList()
-        classpath.setFrom(compileDependencies)
+        // Resolving the classpath here would need the module jars before a clean build makes them.
         classpath.from(generated.flatMap { it.destinationDirectory })
     }
 }
