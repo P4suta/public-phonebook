@@ -126,6 +126,48 @@ fn text<'a>(value: &'a Value, pointer: &str) -> &'a str {
     value.pointer(pointer).and_then(Value::as_str).unwrap_or("")
 }
 
+/// Whether `device` is a physical iPhone that matches the requested identifier or UDID, if any.
+fn listed_iphone(device: &Value, requested: Option<&str>) -> bool {
+    text(device, "/properties/hardware/reality") == "physical"
+        && text(device, "/properties/hardware/platform") == "iOS"
+        && text(device, "/properties/hardware/deviceType") == "iPhone"
+        && requested.is_none_or(|wanted| {
+            text(device, "/identifier") == wanted
+                || text(device, "/properties/hardware/udid") == wanted
+        })
+}
+
+/// The CoreDevice identifiers of the requested iPhones whose connection isn't open.
+fn idle_iphones(report: &Value, requested: Option<&str>) -> Vec<String> {
+    report
+        .pointer("/result/devices")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|device| {
+            listed_iphone(device, requested)
+                && text(device, "/properties/connection/state") != "connected"
+        })
+        .map(|device| text(device, "/identifier").to_owned())
+        .collect()
+}
+
+/// Picks the connected iPhone, after asking CoreDevice once to open each idle iPhone's connection.
+fn select_from(
+    mut list: impl FnMut() -> Result<Value>,
+    mut wake: impl FnMut(&str),
+    requested: Option<&str>,
+) -> Result<Device> {
+    let report = list()?;
+    if let Ok(device) = connected_iphone(&report, requested) {
+        return Ok(device);
+    }
+    for identifier in idle_iphones(&report, requested) {
+        wake(&identifier);
+    }
+    connected_iphone(&list()?, requested)
+}
+
 /// Picks the one connected iPhone in a `devicectl list devices` report, or refuses with what's missing.
 fn connected_iphone(report: &Value, requested: Option<&str>) -> Result<Device> {
     let devices = report
@@ -134,17 +176,7 @@ fn connected_iphone(report: &Value, requested: Option<&str>) -> Result<Device> {
         .context("devicectl reported no device list")?;
     let phones = devices
         .iter()
-        .filter(|device| {
-            text(device, "/properties/hardware/reality") == "physical"
-                && text(device, "/properties/hardware/platform") == "iOS"
-                && text(device, "/properties/hardware/deviceType") == "iPhone"
-        })
-        .filter(|device| {
-            requested.is_none_or(|wanted| {
-                text(device, "/identifier") == wanted
-                    || text(device, "/properties/hardware/udid") == wanted
-            })
-        })
+        .filter(|device| listed_iphone(device, requested))
         .collect::<Vec<_>>();
     let Some(first) = phones.first() else {
         anyhow::bail!(
@@ -161,7 +193,7 @@ fn connected_iphone(report: &Value, requested: Option<&str>) -> Result<Device> {
         .collect::<Vec<_>>();
     ensure!(
         !connected.is_empty(),
-        "No iPhone is connected. {} is paired but {}, so unlock it, keep it connected, and run `just ios-device-record` again.",
+        "No iPhone is connected. {} is paired but {} after a request to open its connection, so unlock it, keep it near this Mac, and run `just ios-device-record` again.",
         text(first, "/properties/hardware/marketingName"),
         match text(first, "/properties/connection/state") {
             "" => "unavailable",
@@ -603,8 +635,7 @@ fn record_inputs(root: &Path) -> Result<DeltaInput> {
     Ok(delta)
 }
 
-fn select(root: &Path, requested: Option<&str>) -> Result<Device> {
-    fs::create_dir_all(root.join("target/ios/device"))?;
+fn list(root: &Path) -> Result<Value> {
     logged(
         root,
         "device-list",
@@ -619,8 +650,33 @@ fn select(root: &Path, requested: Option<&str>) -> Result<Device> {
             ])
             .arg(root.join(DEVICES)),
     )?;
-    let device = connected_iphone(
-        &serde_json::from_slice(&fs::read(root.join(DEVICES))?)?,
+    Ok(serde_json::from_slice(&fs::read(root.join(DEVICES))?)?)
+}
+
+/// Reading the details makes CoreDevice open an idle connection; a failed request leaves the phone idle for the next listing to report.
+fn wake(root: &Path, identifier: &str) {
+    if let Err(error) = logged(
+        root,
+        "device-wake",
+        Command::new("xcrun").args([
+            "devicectl",
+            "device",
+            "info",
+            "details",
+            "--quiet",
+            "--device",
+            identifier,
+        ]),
+    ) {
+        eprintln!("Opening the connection of {identifier} failed: {error:#}");
+    }
+}
+
+fn select(root: &Path, requested: Option<&str>) -> Result<Device> {
+    fs::create_dir_all(root.join("target/ios/device"))?;
+    let device = select_from(
+        || list(root),
+        |identifier| wake(root, identifier),
         requested,
     )?;
     println!(
@@ -959,12 +1015,12 @@ mod tests {
             (
                 vec![phone("disconnected", true, "a")],
                 None,
-                "is paired but disconnected",
+                "is paired but disconnected after a request to open its connection",
             ),
             (
                 vec![phone("", true, "a")],
                 None,
-                "is paired but unavailable",
+                "is paired but unavailable after a request to open its connection",
             ),
             (
                 vec![phone("connected", false, "a")],
@@ -1012,6 +1068,86 @@ mod tests {
             "a"
         );
         Ok(())
+    }
+
+    #[test]
+    fn idle_iphones_name_listed_phones_without_a_connection() {
+        let mut idle_simulator = simulator();
+        idle_simulator["properties"]["connection"]["state"] = json!("disconnected");
+        let mut watch = phone("disconnected", true, "w");
+        watch["properties"]["hardware"]["platform"] = json!("watchOS");
+        let mut pad = phone("disconnected", true, "p");
+        pad["properties"]["hardware"]["deviceType"] = json!("iPad");
+        let listed = report(vec![
+            idle_simulator,
+            watch,
+            pad,
+            phone("connected", true, "b"),
+            phone("disconnected", true, "a"),
+            phone("", true, "c"),
+        ]);
+        assert_eq!(idle_iphones(&listed, None), ["core-a", "core-c"]);
+        assert_eq!(idle_iphones(&listed, Some("a")), ["core-a"]);
+        assert_eq!(idle_iphones(&listed, Some("core-c")), ["core-c"]);
+        assert!(idle_iphones(&listed, Some("b")).is_empty());
+        assert!(idle_iphones(&json!({}), None).is_empty());
+    }
+
+    #[test]
+    fn an_idle_iphone_is_woken_once_and_then_selected() -> Result<()> {
+        let mut reports = vec![
+            report(vec![phone("connected", true, "a")]),
+            report(vec![phone("disconnected", true, "a")]),
+        ];
+        let mut woken = Vec::new();
+        let device = select_from(
+            || reports.pop().context("listed too often"),
+            |identifier| woken.push(identifier.to_owned()),
+            None,
+        )?;
+        assert_eq!(device.udid, "a");
+        assert_eq!(woken, ["core-a"]);
+        assert!(reports.is_empty());
+        let mut ready = vec![report(vec![phone("connected", true, "b")])];
+        let mut untouched = Vec::new();
+        let device = select_from(
+            || ready.pop().context("listed too often"),
+            |identifier| untouched.push(identifier.to_owned()),
+            None,
+        )?;
+        assert_eq!(device.udid, "b");
+        assert!(untouched.is_empty() && ready.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn a_phone_that_stays_idle_after_its_wake_is_refused() {
+        let mut reports = vec![
+            report(vec![phone("disconnected", true, "a")]),
+            report(vec![phone("disconnected", true, "a")]),
+        ];
+        let mut woken = Vec::new();
+        let refusal = select_from(
+            || reports.pop().context("listed too often"),
+            |identifier| woken.push(identifier.to_owned()),
+            None,
+        );
+        assert!(refusal.is_err_and(|error| {
+            error
+                .to_string()
+                .contains("after a request to open its connection")
+        }));
+        assert_eq!(woken, ["core-a"]);
+        let mut failing = vec![
+            Err(anyhow::anyhow!("devicectl stopped")),
+            Ok(report(vec![phone("disconnected", true, "a")])),
+        ];
+        let stopped = select_from(
+            || -> Result<Value> { failing.pop().context("listed too often")? },
+            |_| {},
+            None,
+        );
+        assert!(stopped.is_err_and(|error| error.to_string().contains("devicectl stopped")));
     }
 
     const BUNDLED: &str = "5bd74f209c80bf850edeced4031076ba3924713f6f7f5f3209503276bccc3814";
