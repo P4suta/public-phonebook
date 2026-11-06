@@ -21,6 +21,7 @@ The Android Gradle plugin uses its [built-in Kotlin integration](https://develop
 The [plugin compatibility matrix](https://developer.android.com/build/releases/agp-9-3-0-release-notes) governs Gradle and SDK compatibility.
 Install `platforms;android-37.0` revision 2 and `build-tools;36.0.0` with the Android SDK tools.
 The SDK platform package name includes `.0`.
+Workflows install both packages through `.github/actions/android-sdk`, which calls `sdkmanager` under `ANDROID_HOME` because hosted runners keep it off `PATH`.
 Dependency locks and `android/gradle/verification-metadata.xml` bind dependency versions and SHA-256 checksums.
 
 ```console

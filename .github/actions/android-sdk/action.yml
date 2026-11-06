@@ -1,0 +1,9 @@
+name: Android SDK packages
+description: Install the pinned Android SDK platform and build tools through the manager under ANDROID_HOME, which hosted runners keep off PATH.
+
+runs:
+  using: composite
+  steps:
+    - name: Install the pinned Android SDK packages
+      shell: bash
+      run: '"${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0"'
