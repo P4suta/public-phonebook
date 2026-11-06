@@ -107,6 +107,11 @@ The owner assigns processed builds to TestFlight testing groups and supplies App
 Certificate, profile, and API-key renewal and the corresponding scoped Doppler updates remain owner operations.
 
 The package uses local PhonebookCore, PhonebookRanking, and PhonebookKit targets with no remote Swift package dependencies.
+The archive step derives the inventory's library components from the generated Xcode project and `swift package dump-package`.
+It follows the package products that the app and its embedded extension link through their target dependencies.
+It lists each linked regular target once and omits system library targets, whose libraries the iOS SDK supplies.
+It refuses package dependencies, products from another package, conditional dependencies, and linked executable or test targets.
+The unsigned job records the derived targets in its candidate record, so the signing job never evaluates the package manifest.
 Lucide and Feather-derived glyphs carry their original notices inside the app.
 Foundation, SwiftUI, CallKit, BackgroundTasks, Compression, SQLite, and the Swift runtime come from the Apple platform.
 The privacy manifest declares app-owned UserDefaults use with CA92.1.
