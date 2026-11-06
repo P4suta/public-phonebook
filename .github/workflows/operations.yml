@@ -62,7 +62,7 @@ jobs:
   preview:
     name: Read the provider and preserve the preview
     needs: [delivery-checks]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: operations-preview
     timeout-minutes: 15
     permissions:
@@ -107,7 +107,7 @@ jobs:
     name: Apply the reviewed provider snapshot
     needs: [preview]
     if: inputs.operation == 'cloudflare-alerts-apply' || inputs.operation == 'monitors-apply'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: operations-apply
     timeout-minutes: 15
     concurrency:

@@ -12,7 +12,7 @@ concurrency:
 jobs:
   collect:
     name: Collect and replay
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 120
     permissions:
       contents: read
@@ -58,7 +58,7 @@ jobs:
   store:
     name: Prepare and store
     needs: [collect]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: data
     timeout-minutes: 60
     permissions:

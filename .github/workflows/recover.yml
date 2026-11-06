@@ -21,7 +21,7 @@ jobs:
   withdraw:
     name: Withdraw the candidate
     if: inputs.operation == 'withdraw'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: release-candidate
     timeout-minutes: 20
     concurrency:
@@ -60,7 +60,7 @@ jobs:
   inspect:
     name: Show what a restore would change
     if: inputs.operation == 'restore'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: observe
     timeout-minutes: 15
     permissions:
@@ -96,7 +96,7 @@ jobs:
   restore:
     name: Restore the verified predecessor
     needs: [inspect]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: production
     timeout-minutes: 90
     concurrency:
