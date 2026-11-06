@@ -109,7 +109,7 @@ fn refused(output: &Output) -> String {
 #[test]
 fn reports_every_requested_test_that_passed() {
     let swift = Swift::new(&Script::passing(
-        "◇ Test run started.\n✔ Test alpha() passed after 0.001 seconds.\n✔ Test beta(value:) passed after 0.002 seconds with 2 test cases.\n✔ Test run with 2 tests in 1 suite passed after 0.003 seconds.\n",
+        "◇ Test run started.\n✔ Test alpha() passed after 0.001 seconds.\n◇ Test case passing 1 argument value → 2 to beta(value:) started.\n✔ Test beta(value:) with 16 test cases passed after 0.002 seconds.\n✔ Test run with 2 tests in 1 suite passed after 0.003 seconds.\n",
     ));
     let output = swift.produce(&["--scope", "affected", BETA, ALPHA]);
     assert_eq!(output.status.code(), Some(0));
@@ -182,6 +182,39 @@ fn reports_a_failed_test_with_a_failing_status() {
             outcome(ALPHA, "passed", [1, 0, 0, 0]),
             outcome(BETA, "failed", [1, 1, 0, 0])
         ])
+    );
+}
+
+#[test]
+fn reports_a_parameterized_failure_as_failed() {
+    let swift = Swift::new(&Script {
+        run: (
+            "✔ Test alpha() with 1 test case passed after 0.001 seconds.\n✘ Test beta(value:) with 1 test case failed after 0.002 seconds with 1 issue.\n",
+            1,
+        ),
+        ..Script::passing("")
+    });
+    let output = swift.produce(&["--scope", "affected", ALPHA, BETA]);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        report(&output)["results"],
+        json!([
+            outcome(ALPHA, "passed", [1, 0, 0, 0]),
+            outcome(BETA, "failed", [1, 1, 0, 0])
+        ])
+    );
+}
+
+#[test]
+fn reads_the_result_line_after_issue_lines() {
+    let swift = Swift::new(&Script::passing(
+        "✘ Test alpha() recorded a known issue at Core.swift:4:3: Expectation failed\n✔ Test alpha() passed after 0.001 seconds with 1 known issue.\n",
+    ));
+    let output = swift.produce(&["--scope", "affected", ALPHA]);
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        report(&output)["results"],
+        json!([outcome(ALPHA, "passed", [1, 0, 0, 0])])
     );
 }
 
