@@ -1406,7 +1406,16 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
     }
     let unit_only = matches!(action, Action::UnitTest);
     if !unit_only {
+        let sources = matches!(
+            &action,
+            Action::Check | Action::PrepareArchive { .. } | Action::Archive { .. }
+        )
+        .then(|| source_hashes(root))
+        .transpose()?;
         generate(root)?;
+        if let Some(sources) = sources {
+            require_current_sources(root, &sources)?;
+        }
     }
     match action {
         Action::Archive {
