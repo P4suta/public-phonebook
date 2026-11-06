@@ -95,7 +95,7 @@ jobs:
       - run: mise x -- just check-rust
       - if: needs.scope.outputs.android == 'true'
         name: Install the pinned Android SDK packages
-        run: sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0'
+        run: '"${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0"'
       - if: needs.scope.outputs.android == 'true'
         run: mise x -- just android-check
   gate:
