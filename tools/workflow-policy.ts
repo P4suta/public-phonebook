@@ -73,7 +73,7 @@ const changeEvents = [
 const releaseGateRecipes = ["assurance", "check-build", "prove", "e2e", "test"];
 const linuxRunner = /^ubuntu-/u;
 const releaseGateCommand = new RegExp(
-  `\\bjust\\s+(?:${releaseGateRecipes.join("|")}|ios-[a-z-]+)(?![\\w-])|\\bplaywright\\s+install\\b`,
+  `\\bjust\\s+(?:${releaseGateRecipes.join("|")}|ios-[a-z-]+|android-(?:prove|release-check))(?![\\w-])|\\bplaywright\\s+install\\b`,
   "u",
 );
 const releaseGateWorkflow =

@@ -26,3 +26,12 @@
 /ios/Signing.local.xcconfig
 /ios/.swift-mutation-testing-cache/
 /tools/ios-check/target/
+/tools/android-check/target/
+/android/.gradle/
+/android/.kotlin/
+/android/**/build/
+/android/local.properties
+/android/app/src/*/assets/directory.tsv.br
+/android/app/src/*/assets/directory.json
+/android/app/src/*/assets/OSS-NOTICES.txt
+/android/signing.local.properties

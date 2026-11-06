@@ -47,7 +47,35 @@ check-build:
 check-rust:
     node tools/check-rust.ts
 
-assurance: check-build prove ios-prove ios-check
+assurance: check-build prove ios-prove ios-check android-prove android-check android-mutate
+
+android-check:
+    cargo run --locked --manifest-path tools/android-check/Cargo.toml -- check
+
+android-prove:
+    cargo run --locked --manifest-path tools/android-check/Cargo.toml -- prove
+
+[positional-arguments]
+android-mutate *args:
+    cargo run --locked --manifest-path tools/android-check/Cargo.toml -- mutate "$@"
+
+[positional-arguments]
+android-release-check *args:
+    cargo run --locked --manifest-path tools/android-check/Cargo.toml -- release-check "$@"
+
+[positional-arguments]
+android-install *args:
+    cargo run --locked --manifest-path tools/android-check/Cargo.toml -- install "$@"
+
+[positional-arguments]
+android-device-check *args:
+    cargo run --locked --manifest-path tools/android-check/Cargo.toml -- device-check "$@"
+
+android-signing-init:
+    cargo run --locked --manifest-path tools/android-check/Cargo.toml -- signing-init
+
+android-distribution:
+    cargo run --locked --manifest-path tools/android-check/Cargo.toml -- distribution
 
 [positional-arguments]
 test *args:

@@ -1,0 +1,61 @@
+{
+  "version": "1.0.0",
+  "applicationId": "page.dial.publicphonebook",
+  "appSourceCommit": "953e4917a50eba9bde8813c80e7ae35c9f37af92",
+  "publication": "not-published",
+  "apk": {
+    "name": "public-phonebook-1.0.0.apk",
+    "sha256": "ac923e9ee3062dff0a0efffb44a032ed6a8e66f75fd5bfd2f761e7ffa30f6dda",
+    "bytes": 16252287,
+    "signature": "verified"
+  },
+  "aab": {
+    "name": "public-phonebook-1.0.0.aab",
+    "sha256": "bc6dfbee9b5cc24b528d0a00212a5f94c3fb633fea06d47a320e356b6e1400e8",
+    "bytes": 17252412,
+    "signature": "verified"
+  },
+  "certificateSha256": "0944ac8d25550f491f60a0212569842c9d20ef229b2bdadcffb2c06ccc40e427",
+  "assurance": {
+    "baselineJvmTests": 64,
+    "runnerTests": 6,
+    "formalTheorems": 31,
+    "reviewedKotlinFunctions": 13,
+    "reviewedRustFunctions": 2,
+    "kernelReplay": "passed",
+    "negativeControl": "rejected",
+    "mutationGate": "required-before-distribution",
+    "mutationResult": "passed",
+    "policyMutations": 59,
+    "sourceMutations": 58,
+    "mutationReceiptSha256": "b264cbbd78ed2460758d8ee08f9944a45803f933525e3292eff62655e6965f96",
+    "emulatorApis": [29, 37],
+    "testsPerEmulator": 2,
+    "releaseChecks": "passed",
+    "proofReceiptSha256": "9b022c413271683bfb2b07c55feda213770575b0c0fa6b7f8916220bd41683a4",
+    "verificationApkSha256": "2d5c6845f9e11d7934bba2f7f293c5f5d48a70aee74427f2d299e64d01462ebc",
+    "callerIdentification": "unverified",
+    "physicalHandset": "deferred"
+  },
+  "productionSmoke": {
+    "apkSha256": "ac923e9ee3062dff0a0efffb44a032ed6a8e66f75fd5bfd2f761e7ffa30f6dda",
+    "sdk": 37,
+    "pageBytes": 16384,
+    "physicalDevice": false,
+    "freshOfflinePreparation": "passed",
+    "offlineSearch": "passed",
+    "facilityDetails": "passed",
+    "confirmedDialIntent": "phone-app-observed",
+    "mapConfirmation": "passed",
+    "packageAlignment": "passed"
+  },
+  "screenshots": {
+    "build": "productionRelease",
+    "apkSha256": "ac923e9ee3062dff0a0efffb44a032ed6a8e66f75fd5bfd2f761e7ffa30f6dda",
+    "sdk": 37,
+    "fontScale": 1.0,
+    "darkMode": false,
+    "network": "offline",
+    "files": ["screenshots/search.png", "screenshots/details.png", "screenshots/about.png"]
+  }
+}

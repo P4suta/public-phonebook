@@ -1,0 +1,10 @@
+pub const SHA256_HEX_CHARACTERS: usize = 64;
+pub const IO_BUFFER_BYTES: usize = 65_536;
+pub const MAXIMUM_TRANSFER_BYTES: u64 = 268_435_456;
+pub const MAXIMUM_CONTACTS: u64 = 5_000_000;
+pub const MINIMUM_ANDROID_API: u32 = 29;
+pub const TARGET_ANDROID_API: u32 = 36;
+pub const COMPILE_ANDROID_API: u32 = 37;
+pub const TIMEOUT_EXIT_CODE: i32 = 124;
+pub const SERVICE_ORIGIN: &str = "https://www.dial.page";
+pub const BROTLI_PROJECT_URL: &str = "https://github.com/google/brotli";
