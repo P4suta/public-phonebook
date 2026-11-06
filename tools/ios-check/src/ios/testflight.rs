@@ -24,7 +24,6 @@ const PEM_BEGIN: &str = "-----BEGIN ";
 const PRIVATE_KEY_LABEL: &str = "PRIVATE KEY-----";
 const KEY_ID_LENGTH: usize = 10;
 const APP_APPLE_ID: &str = "6828899028";
-const MARKETING_VERSION: &str = "1.0";
 const POLL_INTERVAL: Duration = Duration::from_secs(60);
 const MAXIMUM_POLLS: u32 = 60;
 const MAXIMUM_CONSECUTIVE_TRANSIENT_FAILURES: u32 = 5;
@@ -161,9 +160,9 @@ fn redacted(text: &str) -> String {
         .collect()
 }
 
-fn builds_url(build: BuildNumber) -> String {
+fn builds_url(build: BuildNumber, version: &str) -> String {
     format!(
-        "{APP_STORE_CONNECT_BUILDS}?filter%5Bapp%5D={APP_APPLE_ID}&filter%5Bversion%5D={build}&filter%5BpreReleaseVersion.version%5D={MARKETING_VERSION}&filter%5BpreReleaseVersion.platform%5D=IOS&fields%5Bbuilds%5D=version,processingState&limit=2"
+        "{APP_STORE_CONNECT_BUILDS}?filter%5Bapp%5D={APP_APPLE_ID}&filter%5Bversion%5D={build}&filter%5BpreReleaseVersion.version%5D={version}&filter%5BpreReleaseVersion.platform%5D=IOS&fields%5Bbuilds%5D=version,processingState&limit=2"
     )
 }
 
@@ -297,8 +296,8 @@ fn query(url: &str, token: &str, build: BuildNumber) -> Result<Poll> {
     poll(code, &output.stdout, build)
 }
 
-fn wait_for_processing(key: &ApiKey, build: BuildNumber) -> Result<u32> {
-    let url = builds_url(build);
+fn wait_for_processing(key: &ApiKey, build: BuildNumber, version: &str) -> Result<u32> {
+    let url = builds_url(build, version);
     let mut transient = 0;
     for attempt in 1..=MAXIMUM_POLLS {
         match query(&url, &key.token()?, build)? {
@@ -332,6 +331,28 @@ struct Candidate {
     revision: String,
 }
 
+fn upload_outcome(
+    attempt: Option<&Value>,
+    expected: &Value,
+    state: &BuildState,
+) -> Result<delivery_core::ProviderOutcome> {
+    use delivery_core::ProviderOutcome;
+    if let Some(attempt) = attempt {
+        ensure!(
+            attempt == expected,
+            "The saved TestFlight upload belongs to another candidate"
+        );
+        return Ok(match state {
+            BuildState::Valid => ProviderOutcome::AcceptedMatch,
+            BuildState::Processing | BuildState::NotVisible => ProviderOutcome::Unknown,
+        });
+    }
+    Ok(match state {
+        BuildState::NotVisible => ProviderOutcome::NotAttempted,
+        BuildState::Valid | BuildState::Processing => ProviderOutcome::AcceptedOther,
+    })
+}
+
 fn admit_candidate(record: &Value) -> Result<(PathBuf, BuildNumber, String)> {
     ensure!(
         record["signing"] == "ci" && record["release_eligible"] == true,
@@ -362,6 +383,11 @@ fn candidate(root: &Path) -> Result<Candidate> {
             .context("Run `archive --signing ci` before `testflight`")?,
     )?;
     let (package, build, sha256) = admit_candidate(&record)?;
+    let package = root.join(package);
+    ensure!(
+        record["version"] == super::marketing_version(root)?,
+        "The archive carries another app version"
+    );
     ensure!(
         crate::sha256_hex(fs::read(&package)?) == sha256,
         "The archived package changed after verification"
@@ -403,20 +429,64 @@ pub(super) fn run(root: &Path) -> Result<()> {
     }
     let candidate = candidate(root)?;
     let key = ApiKey::from_environment()?;
-    logged(
-        root,
-        "testflight-upload",
-        Command::new("xcrun").args(key.upload_arguments(&candidate.package)),
-    )?;
-    println!(
-        "TestFlight upload accepted for build {}; waiting for processing",
-        candidate.build
-    );
-    let polls = wait_for_processing(&key, candidate.build)?;
+    let version = super::marketing_version(root)?;
+    let attempt_path = root.join("target/ios/testflight-attempt.json");
+    let expected = json!({"format":1,"appAppleId":APP_APPLE_ID,"version":version,"build":candidate.build.value(),"sha256":candidate.sha256,"sourceRevision":candidate.revision});
+    let attempt: Option<Value> = if attempt_path.exists() {
+        Some(serde_json::from_slice(&fs::read(&attempt_path)?)?)
+    } else {
+        None
+    };
+    let state = match query(
+        &builds_url(candidate.build, &version),
+        &key.token()?,
+        candidate.build,
+    )? {
+        Poll::Observed(state) => state,
+        Poll::Transient(reason) => bail!(
+            "Reconcile TestFlight before upload; the provider query is inconclusive: {reason}"
+        ),
+    };
+    let provider = upload_outcome(attempt.as_ref(), &expected, &state)?;
+    let decision = delivery_core::admission(delivery_core::Facts {
+        requested: true,
+        candidate_matches: true,
+        checks_passed: true,
+        approved: true,
+        provider,
+    });
+    match decision {
+        delivery_core::Admission::Ready => {
+            let mut file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&attempt_path)?;
+            file.write_all(&serde_json::to_vec_pretty(&expected)?)?;
+            file.sync_all()?;
+            if let Err(error) = logged(
+                root,
+                "testflight-upload",
+                Command::new("xcrun").args(key.upload_arguments(&candidate.package)),
+            ) {
+                eprintln!(
+                    "TestFlight upload outcome is unknown; querying the original build without retransmission: {error}"
+                );
+            }
+        }
+        delivery_core::Admission::Completed | delivery_core::Admission::Reconcile => {}
+        _ => bail!(
+            "TestFlight build identity conflicts with the saved candidate; another upload is refused"
+        ),
+    }
+    let polls = if decision == delivery_core::Admission::Completed {
+        0
+    } else {
+        wait_for_processing(&key, candidate.build, &version)?
+    };
     fs::write(
         &receipt,
         serde_json::to_vec_pretty(&json!({
-            "format":1,"result":"passed","app_apple_id":APP_APPLE_ID,"version":MARKETING_VERSION,
+            "format":1,"result":"passed","app_apple_id":APP_APPLE_ID,"version":version,
             "build":candidate.build.value(),"sha256":candidate.sha256,"source_revision":candidate.revision,
             "upload":"xcrun altool --upload-package with an App Store Connect API key",
             "processing_state":"VALID","processing_polls":polls,
@@ -433,6 +503,33 @@ pub(super) fn run(root: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn upload_retries_require_the_original_bytes_and_reconcile_unknown_outcomes() -> Result<()> {
+        use delivery_core::ProviderOutcome;
+        let expected = json!({"source":"candidate","sha256":"original","build":4201});
+        assert_eq!(
+            upload_outcome(None, &expected, &BuildState::NotVisible)?,
+            ProviderOutcome::NotAttempted
+        );
+        assert_eq!(
+            upload_outcome(None, &expected, &BuildState::Valid)?,
+            ProviderOutcome::AcceptedOther
+        );
+        assert_eq!(
+            upload_outcome(Some(&expected), &expected, &BuildState::Valid)?,
+            ProviderOutcome::AcceptedMatch
+        );
+        for state in [BuildState::NotVisible, BuildState::Processing] {
+            assert_eq!(
+                upload_outcome(Some(&expected), &expected, &state)?,
+                ProviderOutcome::Unknown
+            );
+        }
+        let different = json!({"source":"candidate","sha256":"rebuilt","build":4201});
+        assert!(upload_outcome(Some(&different), &expected, &BuildState::Valid).is_err());
+        Ok(())
+    }
 
     const ISSUER: &str = "57246542-96fe-1a63-e053-0824d011072a";
     const TOKEN: &str = "eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJ4In0.c2lnbmF0dXJl";
@@ -528,14 +625,14 @@ mod tests {
     fn the_build_query_is_scoped_to_the_app_version_platform_and_build() -> Result<()> {
         let build = BuildNumber::from_run(42, 3)?;
         assert_eq!(
-            builds_url(build),
+            builds_url(build, "1.0.0"),
             format!(
-                "{APP_STORE_CONNECT_BUILDS}?filter%5Bapp%5D=6828899028&filter%5Bversion%5D=4203&filter%5BpreReleaseVersion.version%5D=1.0&filter%5BpreReleaseVersion.platform%5D=IOS&fields%5Bbuilds%5D=version,processingState&limit=2"
+                "{APP_STORE_CONNECT_BUILDS}?filter%5Bapp%5D=6828899028&filter%5Bversion%5D=4201&filter%5BpreReleaseVersion.version%5D=1.0.0&filter%5BpreReleaseVersion.platform%5D=IOS&fields%5Bbuilds%5D=version,processingState&limit=2"
             )
         );
-        let configuration = curl_configuration(&builds_url(build), TOKEN);
+        let configuration = curl_configuration(&builds_url(build, "1.0.0"), TOKEN);
         assert!(configuration.contains(&format!("header = \"Authorization: Bearer {TOKEN}\"\n")));
-        assert!(configuration.contains(&format!("url = \"{}\"\n", builds_url(build))));
+        assert!(configuration.contains(&format!("url = \"{}\"\n", builds_url(build, "1.0.0"))));
         assert!(
             curl_arguments()
                 .iter()
@@ -560,7 +657,7 @@ mod tests {
     #[test]
     fn processing_ends_only_when_the_exact_build_is_valid() -> Result<()> {
         let build = BuildNumber::from_run(42, 3)?;
-        let record = |state: &str| json!({"data":[{"type":"builds","id":"1","attributes":{"version":"4203","processingState":state}}]});
+        let record = |state: &str| json!({"data":[{"type":"builds","id":"1","attributes":{"version":"4201","processingState":state}}]});
         assert_eq!(
             processing(&json!({"data":[]}), build)?,
             BuildState::NotVisible
@@ -589,7 +686,7 @@ mod tests {
     #[test]
     fn authorization_failures_stop_and_throttling_or_outages_retry() -> Result<()> {
         let build = BuildNumber::from_run(42, 3)?;
-        let body = br#"{"data":[{"attributes":{"version":"4203","processingState":"VALID"}}]}"#;
+        let body = br#"{"data":[{"attributes":{"version":"4201","processingState":"VALID"}}]}"#;
         assert_eq!(
             poll(Some(HTTP_OK), body, build)?,
             Poll::Observed(BuildState::Valid)

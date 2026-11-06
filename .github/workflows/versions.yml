@@ -1,0 +1,108 @@
+name: Version proposals
+run-name: Delivery ${{ inputs.operation }} ${{ inputs.request }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Prepare one app's version proposal without publication
+        type: choice
+        options: [version-ios, version-android]
+        required: true
+      source:
+        description: Exact protected main candidate commit
+        type: string
+        required: true
+      controller:
+        description: Exact protected main controller commit
+        type: string
+        required: true
+      plan:
+        description: Saved delivery plan digest
+        type: string
+        required: true
+      request:
+        description: Saved delivery request identity
+        type: string
+        required: true
+      base:
+        description: Explicit comparison commit
+        type: string
+        default: ""
+      targets:
+        description: Explicit target selection, or empty for suggestions
+        type: string
+        default: ""
+      dataset:
+        description: Optional immutable Worker dataset dependency
+        type: string
+        default: ""
+
+permissions: {}
+
+concurrency:
+  group: version-proposal-${{ inputs.operation }}
+  cancel-in-progress: false
+
+jobs:
+  delivery-checks:
+    name: Validate version preparation
+    permissions:
+      contents: read
+    uses: ./.github/workflows/delivery-checks.yml # zizmor: ignore[self-repository] actionlint 1.7.12 can't read a `$/` reusable workflow call.
+    with:
+      operation: ${{ inputs.operation }}
+      source: ${{ inputs.source }}
+      controller: ${{ inputs.controller }}
+      plan: ${{ inputs.plan }}
+      request: ${{ inputs.request }}
+      base: ${{ inputs.base }}
+      targets: ${{ inputs.targets }}
+      dataset: ${{ inputs.dataset }}
+  proposal:
+    name: Create or update a version proposal
+    needs: [delivery-checks]
+    runs-on: ubuntu-24.04
+    environment: version-preparation
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # Fetches only the version proposal App's private key.
+    steps:
+      - name: Require the main branch
+        run: test "$GITHUB_REF" = refs/heads/main
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: $/.github/actions/toolchain
+        with:
+          tools: rust node just
+      - name: Compile the controller before fetching credentials
+        run: mise x -- cargo build --locked --manifest-path tools/delivery/Cargo.toml
+      - id: doppler
+        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
+          doppler-project: public-phonebook
+          doppler-config: ci_version_preparation
+          inject-env-vars: "false"
+      - id: app
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ steps.doppler.outputs.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+          owner: P4suta
+          repositories: public-phonebook
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+      - name: Prepare the selected app's proposal
+        env:
+          OPERATION: ${{ inputs.operation }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          app=${OPERATION#version-}
+          tools/delivery/target/debug/delivery version-proposal "$app"
+          node tools/version-proposals.ts target/delivery/version-request.json

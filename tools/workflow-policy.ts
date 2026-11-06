@@ -17,6 +17,7 @@ export const allowedActions: readonly string[] = [
   "jdx/mise-action",
   "actions/attest-build-provenance",
   "actions/attest",
+  "actions/create-github-app-token",
 ];
 
 export type WorkflowRule =
@@ -398,12 +399,26 @@ export const releaseEnvironments: readonly string[] = [
   "release-candidate",
   "observe",
   "production",
+  "testflight-signing",
+  "testflight-upload",
+  "version-preparation",
+  "operations-preview",
+  "operations-apply",
 ];
 const publishingEnvironments: readonly string[] = [
   "release-candidate",
   "production",
+  "testflight-signing",
+  "testflight-upload",
+  "operations-apply",
 ];
 export const publicationGroup = "publication-production";
+export function effectConcurrencyGroup(environment: string): string {
+  if (environment === "testflight-signing") return "testflight-delivery";
+  if (environment === "testflight-upload") return "testflight-upload";
+  if (environment === "operations-apply") return "configuration-production";
+  return publicationGroup;
+}
 const mainBranchGuard = 'test "$GITHUB_REF" = refs/heads/main';
 const dopplerAction = "dopplerhq/secrets-fetch-action@";
 const dopplerConfigPrefix = "ci_";
@@ -419,10 +434,6 @@ const ReleaseJobSchema = v.looseObject({
   needs: v.optional(v.union([v.string(), v.array(v.string())])),
   concurrency: v.optional(v.unknown()),
   steps: v.optional(v.array(ReleaseStepSchema)),
-});
-const PublicationConcurrencySchema = v.looseObject({
-  group: v.literal(publicationGroup),
-  "cancel-in-progress": v.literal(false),
 });
 
 function environmentName(environment: unknown): string | null {
@@ -458,7 +469,13 @@ function releaseJobViolations(
   if (
     environment !== null &&
     publishingEnvironments.includes(environment) &&
-    !v.is(PublicationConcurrencySchema, job.concurrency)
+    !v.is(
+      v.looseObject({
+        group: v.literal(effectConcurrencyGroup(environment)),
+        "cancel-in-progress": v.literal(false),
+      }),
+      job.concurrency,
+    )
   )
     violations.push({ file, location, rule: "publication-concurrency" });
   for (const [index, step] of steps.entries()) {

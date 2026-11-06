@@ -912,7 +912,7 @@ mod tests {
         let build = BuildNumber::from_run(42, 3)?;
         assert_eq!(
             archive_settings(None, build),
-            ["CURRENT_PROJECT_VERSION=4203"]
+            ["CURRENT_PROJECT_VERSION=4201"]
         );
         let signing = ManualSigning {
             team: TEAM.to_owned(),
@@ -924,7 +924,7 @@ mod tests {
         assert_eq!(
             archive_settings(Some(&signing), build),
             [
-                "CURRENT_PROJECT_VERSION=4203".to_owned(),
+                "CURRENT_PROJECT_VERSION=4201".to_owned(),
                 "CODE_SIGN_STYLE=Manual".to_owned(),
                 format!("DEVELOPMENT_TEAM={TEAM}"),
                 format!("CODE_SIGN_IDENTITY=Apple Distribution: Example & Owner ({TEAM})"),

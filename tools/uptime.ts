@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import type { ApplyHooks } from "./declared-plan.ts";
 import {
   CheckPage,
   type ExistingCheck,
@@ -23,7 +24,10 @@ function headers(token: string): Record<string, string> {
   };
 }
 
-export async function existingChecks(token: string): Promise<ExistingCheck[]> {
+export async function existingChecks(
+  token: string,
+  team?: string,
+): Promise<ExistingCheck[]> {
   const checks: ExistingCheck[] = [];
   let next: string | null = monitorsApi;
   for (let page = 0; next !== null; page += 1) {
@@ -36,7 +40,9 @@ export async function existingChecks(token: string): Promise<ExistingCheck[]> {
       throw new Error(
         "Better Stack sent a pagination link outside the monitors API.",
       );
-    const response: Response = await fetch(next, {
+    const url = new URL(next);
+    if (team !== undefined) url.searchParams.set("team_name", team);
+    const response: Response = await fetch(url.href, {
       headers: headers(token),
       signal: AbortSignal.timeout(requestTimeoutMs),
     });
@@ -48,6 +54,11 @@ export async function existingChecks(token: string): Promise<ExistingCheck[]> {
       CheckPage,
       await response.json(),
     );
+    if (
+      team !== undefined &&
+      body.data.some((check) => check.attributes.team_name !== team)
+    )
+      throw new Error("Better Stack returned monitors from another team");
     checks.push(...body.data);
     next = body.pagination.next;
   }
@@ -59,11 +70,14 @@ async function send(
   method: "POST" | "PATCH",
   url: string,
   check: UptimeCheck,
+  team?: string,
 ): Promise<void> {
   const response = await fetch(url, {
     method,
     headers: headers(token),
-    body: JSON.stringify(check),
+    body: JSON.stringify(
+      team === undefined ? check : { ...check, team_name: team },
+    ),
     signal: AbortSignal.timeout(requestTimeoutMs),
   });
   if (!response.ok)
@@ -85,13 +99,46 @@ export function planLines(plan: UptimePlan): string[] {
   return lines;
 }
 
-async function apply(token: string, plan: UptimePlan): Promise<void> {
+export interface MonitorPort {
+  list(): Promise<ExistingCheck[]>;
+  create(check: UptimeCheck): Promise<void>;
+  update(id: string, check: UptimeCheck): Promise<void>;
+}
+
+export function monitorPort(token: string, team?: string): MonitorPort {
+  return {
+    list: () => existingChecks(token, team),
+    create: (check) => send(token, "POST", monitorsApi, check, team),
+    update: (id, check) =>
+      send(token, "PATCH", `${monitorsApi}/${id}`, check, team),
+  };
+}
+
+export async function applyMonitors(
+  port: MonitorPort,
+  declared: readonly UptimeCheck[],
+  applying: boolean,
+  hooks: ApplyHooks<UptimeCheck, ExistingCheck> = {},
+): Promise<string[]> {
+  const existing = await port.list();
+  const plan = uptimePlan(declared, existing);
+  const lines = planLines(plan);
+  if (!applying) return lines;
+  await hooks.beforeApply?.(declared, existing);
   for (const planned of plan.checks) {
-    if (planned.action === "create")
-      await send(token, "POST", monitorsApi, planned.check);
-    if (planned.action === "update")
-      await send(token, "PATCH", `${monitorsApi}/${planned.id}`, planned.check);
+    if (planned.action === "keep") continue;
+    await hooks.beforeWrite?.(planned.check.pronounceable_name, planned.action);
+    if (planned.action === "create") await port.create(planned.check);
+    else await port.update(planned.id, planned.check);
+    await hooks.acknowledged?.(planned.check.pronounceable_name);
   }
+  const after = uptimePlan(declared, await port.list());
+  const pending = after.checks.filter((planned) => planned.action !== "keep");
+  if (pending.length > 0)
+    throw new Error(
+      `Better Stack still differs after the update: ${pending.map((planned) => planned.check.pronounceable_name).join(", ")}.`,
+    );
+  return [...lines, "Better Stack matches the declared checks."];
 }
 
 async function main(argv: readonly string[]): Promise<void> {
@@ -103,17 +150,12 @@ async function main(argv: readonly string[]): Promise<void> {
     throw new Error(
       "Store BETTER_STACK_API_TOKEN in the Doppler prd config, and run this through `just monitors`.",
     );
-  const plan = uptimePlan(uptimeChecks, await existingChecks(token));
-  for (const line of planLines(plan)) console.log(line);
-  if (!applying) return;
-  await apply(token, plan);
-  const after = uptimePlan(uptimeChecks, await existingChecks(token));
-  const pending = after.checks.filter((planned) => planned.action !== "keep");
-  if (pending.length > 0)
-    throw new Error(
-      `Better Stack still differs after the update: ${pending.map((planned) => planned.check.pronounceable_name).join(", ")}.`,
-    );
-  console.log("Better Stack matches the declared checks.");
+  for (const line of await applyMonitors(
+    monitorPort(token, process.env.BETTER_STACK_TEAM),
+    uptimeChecks,
+    applying,
+  ))
+    console.log(line);
 }
 
 if (import.meta.main) await main(process.argv.slice(firstArgument));

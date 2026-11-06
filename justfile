@@ -47,7 +47,14 @@ check-build:
 check-rust:
     node tools/check-rust.ts
 
-assurance: check-build prove ios-prove ios-check android-prove android-check android-mutate
+assurance: check-build prove delivery-prove ios-prove ios-check ios-sanitize ios-mutate android-prove android-check android-mutate
+
+[positional-arguments]
+delivery *args:
+    cargo run --locked --manifest-path tools/delivery/Cargo.toml -- "$@"
+
+delivery-prove:
+    cargo run --locked --manifest-path tools/delivery/Cargo.toml -- prove
 
 android-check:
     cargo run --locked --manifest-path tools/android-check/Cargo.toml -- check
@@ -74,8 +81,14 @@ android-device-check *args:
 android-signing-init:
     cargo run --locked --manifest-path tools/android-check/Cargo.toml -- signing-init
 
-android-distribution:
-    cargo run --locked --manifest-path tools/android-check/Cargo.toml -- distribution
+android-distribution build_number:
+    cargo run --locked --manifest-path tools/android-check/Cargo.toml -- distribution --build-number {{ quote(build_number) }}
+
+android-sign build_number:
+    cargo run --locked --manifest-path tools/android-check/Cargo.toml -- distribution --build-number {{ quote(build_number) }} --prepared
+
+android-prepare build_number:
+    cargo run --locked --manifest-path tools/android-check/Cargo.toml -- prepare --build-number {{ quote(build_number) }}
 
 [positional-arguments]
 test *args:
@@ -107,6 +120,9 @@ ios-generate:
 [positional-arguments]
 ios-archive *args:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- archive "$@"
+
+ios-prepare-archive build_number:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- prepare-archive --build-number {{ quote(build_number) }}
 
 ios-build-number run attempt output:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- build-number --run-number {{ quote(run) }} --run-attempt {{ quote(attempt) }} --output {{ quote(output) }}

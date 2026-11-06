@@ -27,6 +27,10 @@
 /ios/.swift-mutation-testing-cache/
 /tools/ios-check/target/
 /tools/android-check/target/
+/tools/delivery/target/
+/tools/delivery/fuzz/target/
+/tools/delivery/fuzz/artifacts/
+/ios/Config/GeneratedVersion.xcconfig
 /android/.gradle/
 /android/.kotlin/
 /android/**/build/

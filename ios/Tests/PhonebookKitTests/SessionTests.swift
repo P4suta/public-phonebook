@@ -90,8 +90,9 @@ func requestsOfOneClientShareOneSessionForJSONAndOneForEachTransferOrigin()
 func aPersonsTransferWaitsWhileJSONRequestsAndAutomaticTransfersFailAtOnce()
   async throws
 {
-  // A listener that stopped leaves its port refusing connections.
-  let origin = try await HTTPTestServer { _ in Data() }.origin
+  let unavailable = try await HTTPTestServer { _ in Data() }
+  let origin = unavailable.origin
+  await unavailable.stopListening()
   let api = try APIClient(origin: origin)
   // A JSON request that waited would end with a timeout instead.
   let refused = await #expect(throws: URLError.self) { try await api.get("/api/datasets") }

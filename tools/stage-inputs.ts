@@ -35,7 +35,14 @@ export const iosCheckScope = [
 ] as const;
 
 /** Paths that only the native app and its checks read. */
-const nativeOnly = ["ios", "verification/ios", "tools/ios-check"] as const;
+const nativeOnly = [
+  "ios",
+  "verification/ios",
+  "tools/ios-check",
+  "android",
+  "verification/android",
+  "tools/android-check",
+] as const;
 
 export interface StageInputs {
   /** Path prefixes of the tracked files the stage reads, or `tree` for every tracked file. */

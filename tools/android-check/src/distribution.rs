@@ -20,6 +20,73 @@ const PRIVATE_FILE_MODE: u32 = 0o600;
 const MINIMUM_DEPENDENCY_QUERIES: usize = 21;
 const OSV_API_URL: &str = "https://api.osv.dev/v1/querybatch";
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn candidate_identity_and_each_artifact_are_required_before_signing() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        for name in UNSIGNED_FILES {
+            fs::write(directory.path().join(name), name)?;
+        }
+        let files = unsigned_files(directory.path())?;
+        let sources = BTreeMap::from([("android/version.txt".to_owned(), "a".repeat(64))]);
+        let candidate = serde_json::to_value(UnsignedCandidate {
+            format: 1,
+            source_commit: "a".repeat(40),
+            version: "1.0.0".to_owned(),
+            version_code: 101,
+            signed: false,
+            release_eligible: false,
+            source_inputs: sources.clone(),
+            artifacts: files.clone(),
+        })?;
+        let parsed = serde_json::from_value(candidate.clone())?;
+        admit_unsigned(&parsed, &"a".repeat(40), "1.0.0", 101, &sources, &files)?;
+        for (field, value) in [
+            ("format", json!(2)),
+            ("sourceCommit", json!("b".repeat(40))),
+            ("version", json!("2.0.0")),
+            ("versionCode", json!(102)),
+            ("signed", json!(true)),
+            ("releaseEligible", json!(true)),
+            ("sourceInputs", json!({})),
+            ("artifacts", json!([])),
+        ] {
+            let mut changed = candidate.clone();
+            changed[field] = value;
+            assert!(
+                admit_unsigned(
+                    &serde_json::from_value(changed)?,
+                    &"a".repeat(40),
+                    "1.0.0",
+                    101,
+                    &sources,
+                    &files
+                )
+                .is_err()
+            );
+        }
+        fs::write(directory.path().join("unsigned.apk"), "different bytes")?;
+        assert!(
+            admit_unsigned(
+                &parsed,
+                &"a".repeat(40),
+                "1.0.0",
+                101,
+                &sources,
+                &unsigned_files(directory.path())?
+            )
+            .is_err()
+        );
+        fs::write(directory.path().join("unsigned.apk"), "")?;
+        assert!(unsigned_files(directory.path()).is_err());
+        Ok(())
+    }
+}
+
 pub fn store_assets(project: &Path, check: bool) -> Result<()> {
     for name in ["icon", "feature-graphic"] {
         let source = project.join(format!("android/store/{name}.svg"));
@@ -55,12 +122,140 @@ struct Signing {
     keychain_service: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ArtifactReceipt {
     name: String,
     sha256: String,
     bytes: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct UnsignedCandidate {
+    format: u32,
+    source_commit: String,
+    version: String,
+    version_code: u32,
+    signed: bool,
+    release_eligible: bool,
+    source_inputs: std::collections::BTreeMap<String, String>,
+    artifacts: Vec<ArtifactReceipt>,
+}
+
+const UNSIGNED_FILES: [&str; 3] = ["unsigned.apk", "unsigned.aab", "sbom.cdx.json"];
+
+fn unsigned_files(directory: &Path) -> Result<Vec<ArtifactReceipt>> {
+    UNSIGNED_FILES
+        .iter()
+        .map(|name| {
+            let path = directory.join(name);
+            let metadata = fs::symlink_metadata(&path)?;
+            ensure!(
+                metadata.is_file() && metadata.len() > 0,
+                "Unsigned artifacts must be nonempty ordinary files"
+            );
+            ArtifactReceipt::read(&path)
+        })
+        .collect()
+}
+
+pub fn prepare(project: &Path, build_number: u32) -> Result<()> {
+    let destination = project.join("target/android/candidate");
+    ensure!(
+        !destination.exists(),
+        "Preserve the existing Android candidate and use its original run"
+    );
+    delivery::proof::require_current(project)?;
+    crate::require_current_proof(project)?;
+    crate::mutation::require_current(project)?;
+    let build_number = delivery_core::BuildNumber::new(build_number)
+        .context("The build number is outside the Android store range")?;
+    let sources = crate::source_refinement_with_model(project)?;
+    let mut command = Command::new("gradle");
+    crate::without_credentials(&mut command);
+    command
+        .current_dir(project.join("android"))
+        .env("PHONEBOOK_ANDROID_VERSION_CODE", build_number.to_string())
+        .args([
+            "--no-daemon",
+            ":app:assembleProductionRelease",
+            ":app:bundleProductionRelease",
+            ":app:cyclonedxDirectBom",
+            "--console=plain",
+        ]);
+    run(command)?;
+    let parent = destination.parent().context("Missing candidate parent")?;
+    fs::create_dir_all(parent)?;
+    let temporary = tempfile::tempdir_in(parent)?;
+    let directory = temporary.path();
+    for (source, name) in [
+        (
+            "android/app/build/outputs/apk/production/release/app-production-release-unsigned.apk",
+            "unsigned.apk",
+        ),
+        (
+            "android/app/build/outputs/bundle/productionRelease/app-production-release.aab",
+            "unsigned.aab",
+        ),
+        (
+            "android/app/build/reports/cyclonedx-direct/bom.json",
+            "sbom.cdx.json",
+        ),
+    ] {
+        fs::copy(project.join(source), directory.join(name))?;
+    }
+    let mut git = Command::new("git");
+    git.current_dir(project).args(["rev-parse", "HEAD"]);
+    let source_commit = String::from_utf8(completed(git)?.stdout)?.trim().to_owned();
+    ensure!(
+        crate::source_refinement_with_model(project)? == sources,
+        "Android inputs changed while preparing the candidate"
+    );
+    write_json(
+        &directory.join("manifest.json"),
+        &UnsignedCandidate {
+            format: 1,
+            source_commit,
+            version: app_version(project)?,
+            version_code: build_number.value(),
+            signed: false,
+            release_eligible: false,
+            source_inputs: sources,
+            artifacts: unsigned_files(directory)?,
+        },
+    )?;
+    fs::rename(directory, &destination)?;
+    println!(
+        "Prepared unsigned Android candidate: {}",
+        destination.display()
+    );
+    Ok(())
+}
+
+fn admit_unsigned(
+    record: &UnsignedCandidate,
+    revision: &str,
+    version: &str,
+    build: u32,
+    sources: &std::collections::BTreeMap<String, String>,
+    artifacts: &[ArtifactReceipt],
+) -> Result<()> {
+    let facts = delivery_core::ArchiveFacts {
+        format_matches: record.format == 1,
+        unsigned: !record.signed && !record.release_eligible,
+        build_matches: record.version_code == build,
+        version_matches: record.version == version,
+        sources_match: record.source_commit == revision && &record.source_inputs == sources,
+        files_match: record.artifacts == artifacts,
+        nonempty: artifacts.len() == UNSIGNED_FILES.len()
+            && artifacts.iter().all(|artifact| artifact.bytes > 0),
+    };
+    ensure!(
+        delivery_core::admit_archive(facts),
+        "The unsigned Android candidate differs from the verified source or bytes"
+    );
+    Ok(())
 }
 
 impl ArtifactReceipt {
@@ -83,7 +278,8 @@ struct DistributionManifest {
     repository: &'static str,
     source_commit: String,
     working_tree_dirty: bool,
-    version: &'static str,
+    version: String,
+    version_code: u32,
     application_id: &'static str,
     minimum_sdk: u32,
     target_sdk: u32,
@@ -213,7 +409,25 @@ fn private(_: &Path, _: bool) -> Result<()> {
     anyhow::bail!("Signing initialization requires macOS")
 }
 
-pub fn build(project: &Path) -> Result<()> {
+fn app_version(project: &Path) -> Result<String> {
+    let path = project.join("android/version.txt");
+    ensure!(
+        fs::metadata(&path)?.len() <= (delivery_core::Version::MAXIMUM_BYTES + 1) as u64,
+        "Oversized Android version input"
+    );
+    let bytes = fs::read(path)?;
+    Ok(
+        delivery_core::Version::parse(bytes.strip_suffix(b"\n").unwrap_or(&bytes))
+            .map_err(|error| anyhow::anyhow!("Invalid Android version: {error:?}"))?
+            .to_string(),
+    )
+}
+
+pub fn build(project: &Path, build_number: u32, prepared: bool) -> Result<()> {
+    delivery::proof::require_current(project)?;
+    let build_number = delivery_core::BuildNumber::new(build_number)
+        .context("The Android build number is outside the store range")?;
+    let version = app_version(project)?;
     crate::require_current_release(project)?;
     let signing: Signing = serde_json::from_slice(
         &fs::read(location()?.join("signing.json"))
@@ -223,7 +437,6 @@ pub fn build(project: &Path) -> Result<()> {
         signing.key_alias == KEY_ALIAS && signing.keychain_service == SERVICE,
         "Unrecognized local signing configuration"
     );
-    let secret = password(&signing)?;
     gradle(
         project,
         &[
@@ -239,37 +452,66 @@ pub fn build(project: &Path) -> Result<()> {
             ":app:cyclonedxDirectBom",
         ],
     )?;
-    let mut build = Command::new("gradle");
-    build
-        .current_dir(project.join("android"))
-        .env("PHONEBOOK_ANDROID_KEYSTORE", &signing.key_store)
-        .env("PHONEBOOK_ANDROID_KEY_ALIAS", &signing.key_alias)
-        .env("PHONEBOOK_ANDROID_STORE_PASSWORD", &secret)
-        .env("PHONEBOOK_ANDROID_KEY_PASSWORD", &secret)
-        .args([
-            "--no-configuration-cache",
-            "--no-daemon",
-            ":app:assembleProductionRelease",
-            ":app:bundleProductionRelease",
-            "--console=plain",
-        ]);
-    run(build)?;
+    if !prepared {
+        prepare(project, build_number.value())?;
+    }
+    let directory = project.join("target/android/candidate");
+    let candidate: UnsignedCandidate =
+        serde_json::from_slice(&fs::read(directory.join("manifest.json"))?)?;
+    let mut git = Command::new("git");
+    git.current_dir(project).args(["rev-parse", "HEAD"]);
+    let revision = String::from_utf8(completed(git)?.stdout)?;
+    admit_unsigned(
+        &candidate,
+        revision.trim(),
+        &version,
+        build_number.value(),
+        &crate::source_refinement_with_model(project)?,
+        &unsigned_files(&directory)?,
+    )?;
     let destination = project.join("target/android/distribution");
     fs::create_dir_all(&destination)?;
-    let sbom = project.join("android/app/build/reports/cyclonedx-direct/bom.json");
-    audit_dependencies(&sbom, &destination)?;
+    let sbom = directory.join("sbom.cdx.json");
+    audit_dependencies(&sbom, &destination, &version)?;
     fs::copy(&sbom, destination.join("sbom.cdx.json"))?;
-    let apk = destination.join("public-phonebook-1.0.0.apk");
-    let aab = destination.join("public-phonebook-1.0.0.aab");
-    fs::copy(
-        project.join("android/app/build/outputs/apk/production/release/app-production-release.apk"),
-        &apk,
-    )?;
-    fs::copy(
-        project
-            .join("android/app/build/outputs/bundle/productionRelease/app-production-release.aab"),
-        &aab,
-    )?;
+    let apk = destination.join(format!("public-phonebook-{version}-{build_number}.apk"));
+    let aab = destination.join(format!("public-phonebook-{version}-{build_number}.aab"));
+    let secret = password(&signing)?;
+    let mut sign_apk = Command::new(sdk()?.join("build-tools/36.0.0/apksigner"));
+    sign_apk
+        .env("PHONEBOOK_KEY_PASSWORD", &secret)
+        .args(["sign", "--ks"])
+        .arg(&signing.key_store)
+        .args([
+            "--ks-key-alias",
+            &signing.key_alias,
+            "--ks-pass",
+            "env:PHONEBOOK_KEY_PASSWORD",
+            "--key-pass",
+            "env:PHONEBOOK_KEY_PASSWORD",
+            "--out",
+        ])
+        .arg(&apk)
+        .arg(directory.join("unsigned.apk"));
+    run(sign_apk)?;
+    let mut sign_aab = Command::new("jarsigner");
+    sign_aab
+        .env("PHONEBOOK_KEY_PASSWORD", &secret)
+        .args(["-keystore"])
+        .arg(&signing.key_store)
+        .args([
+            "-storetype",
+            "PKCS12",
+            "-storepass:env",
+            "PHONEBOOK_KEY_PASSWORD",
+            "-keypass:env",
+            "PHONEBOOK_KEY_PASSWORD",
+            "-signedjar",
+        ])
+        .arg(&aab)
+        .arg(directory.join("unsigned.aab"))
+        .arg(&signing.key_alias);
+    run(sign_aab)?;
     let mut verify = Command::new(sdk()?.join("build-tools/36.0.0/apksigner"));
     verify
         .args([
@@ -336,7 +578,8 @@ pub fn build(project: &Path) -> Result<()> {
             repository: "P4suta/public-phonebook",
             source_commit: revision,
             working_tree_dirty: dirty,
-            version: "1.0.0",
+            version,
+            version_code: build_number.value(),
             application_id: "page.dial.publicphonebook",
             minimum_sdk: MINIMUM_ANDROID_API,
             target_sdk: TARGET_ANDROID_API,
@@ -354,11 +597,11 @@ pub fn build(project: &Path) -> Result<()> {
     Ok(())
 }
 
-fn audit_dependencies(sbom: &Path, destination: &Path) -> Result<()> {
+fn audit_dependencies(sbom: &Path, destination: &Path, version: &str) -> Result<()> {
     let document: serde_json::Value = serde_json::from_slice(&fs::read(sbom)?)?;
     ensure!(
         document["bomFormat"] == "CycloneDX"
-            && document["metadata"]["component"]["version"] == "1.0.0",
+            && document["metadata"]["component"]["version"] == version,
         "Dependency inventory identifies another product"
     );
     let components = document["components"]

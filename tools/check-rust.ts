@@ -4,6 +4,34 @@ const nativeTools = ["--manifest-path", "tools/ios-check/Cargo.toml"];
 const androidTools = ["--manifest-path", "tools/android-check/Cargo.toml"];
 
 export async function checkRust(): Promise<void> {
+  const delivery = ["--manifest-path", "tools/delivery/Cargo.toml"];
+  await requireCommand("cargo", ["fmt", ...delivery, "--all", "--check"]);
+  await requireCommand("cargo", [
+    "clippy",
+    "--locked",
+    ...delivery,
+    "--workspace",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings",
+  ]);
+  await requireCommand("cargo", [
+    "test",
+    "--locked",
+    ...delivery,
+    "--workspace",
+  ]);
+  await requireCommand("cargo", [
+    "audit",
+    "--file",
+    "tools/delivery/Cargo.lock",
+  ]);
+  await requireCommand("cargo", [
+    "audit",
+    "--file",
+    "tools/delivery/fuzz/Cargo.lock",
+  ]);
   await requireCommand("cargo", ["fmt", ...androidTools, "--check"]);
   await requireCommand("cargo", [
     "clippy",

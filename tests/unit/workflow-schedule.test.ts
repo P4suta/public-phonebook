@@ -66,11 +66,12 @@ describe("workflow schedules", () => {
       expect(() => parseCondition(condition), condition).toThrow();
   });
 
-  it("reproduces which jobs ran in release run 41600886131", async () => {
+  it("keeps publication skipped after a failed build and successful dependency checks", async () => {
     const schedule = workflowSchedule(parse(await workflowText("release.yml")));
     expect(
       followRun(schedule, { checks: "run" }, { build: "failure" }),
     ).toEqual({
+      "delivery-checks": "success",
       candidate: "success",
       evidence: "success",
       build: "failure",
@@ -82,7 +83,7 @@ describe("workflow schedules", () => {
     });
   });
 
-  it("reproduces release run 41599950592 on the workflow that preceded pull request 140", async () => {
+  it("detects the implicit skip regression when the optional candidate job is skipped", async () => {
     let text = await workflowText("release.yml");
     for (const guard of text.match(
       /^ {4}if: \$\{\{ !cancelled\(\) && .*\}\}\n/gmu,
@@ -90,6 +91,7 @@ describe("workflow schedules", () => {
       text = text.replace(guard, "");
     const schedule = workflowSchedule(parse(text));
     expect(followRun(schedule, { checks: "reuse" })).toEqual({
+      "delivery-checks": "success",
       candidate: "skipped",
       evidence: "success",
       build: "skipped",
@@ -100,7 +102,7 @@ describe("workflow schedules", () => {
       record: "skipped",
     });
     expect(findings("release.yml", text)).toContain(
-      'a successful run with {"checks":"reuse"} runs evidence, build, stage, verify, promote, record',
+      'a successful run with {"checks":"reuse"} runs delivery-checks, evidence, build, stage, verify, promote, record',
     );
   });
 
@@ -115,6 +117,28 @@ describe("workflow schedules", () => {
   });
 
   it("finds a planted defect in each release-path workflow", async () => {
+    expect(
+      findings(
+        "delivery-checks.yml",
+        planted(
+          await workflowText("delivery-checks.yml"),
+          "    if: always()\n",
+          "",
+        ),
+      ),
+    ).toContain(
+      "the admission gate runs even after failed or skipped prerequisites",
+    );
+    expect(
+      findings(
+        "delivery-credentials.yml",
+        planted(
+          await workflowText("delivery-credentials.yml"),
+          "    if: inputs.target == 'testflight-upload'\n",
+          "    if: always()\n",
+        ),
+      ),
+    ).toContain("credential transport selects only the requested role");
     const release = await workflowText("release.yml");
     expect(
       findings(

@@ -1,0 +1,8 @@
+**
+!tools/delivery/core/Cargo.toml
+!tools/delivery/core/src/**
+!tools/delivery/fuzz/Cargo.toml
+!tools/delivery/fuzz/Cargo.lock
+!tools/delivery/fuzz/contract.rs
+!tools/delivery/fuzz/fuzz_targets/**
+!tools/delivery/fuzz/corpus/**

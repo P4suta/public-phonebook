@@ -1,0 +1,161 @@
+name: Configuration operations
+run-name: Delivery ${{ inputs.operation }} ${{ inputs.request }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Preview or apply one independently managed configuration
+        type: choice
+        options: [cloudflare-alerts-preview, cloudflare-alerts-apply, monitors-preview, monitors-apply]
+        required: true
+      source:
+        description: Exact protected main candidate commit
+        type: string
+        required: true
+      controller:
+        description: Exact protected main controller commit
+        type: string
+        required: true
+      plan:
+        description: Saved delivery plan digest
+        type: string
+        required: true
+      request:
+        description: Saved delivery request identity
+        type: string
+        required: true
+      base:
+        description: Explicit comparison commit
+        type: string
+        default: ""
+      targets:
+        description: Explicit target selection, or empty for suggestions
+        type: string
+        default: ""
+      dataset:
+        description: Optional immutable Worker dataset dependency
+        type: string
+        default: ""
+
+permissions: {}
+
+concurrency:
+  group: configuration-${{ inputs.operation }}
+  cancel-in-progress: false
+
+jobs:
+  delivery-checks:
+    name: Dependency checks
+    permissions:
+      contents: read
+    uses: ./.github/workflows/delivery-checks.yml # zizmor: ignore[self-repository] actionlint 1.7.12 can't read a `$/` reusable workflow call.
+    with:
+      operation: ${{ inputs.operation }}
+      source: ${{ inputs.source }}
+      controller: ${{ inputs.controller }}
+      plan: ${{ inputs.plan }}
+      request: ${{ inputs.request }}
+      base: ${{ inputs.base }}
+      targets: ${{ inputs.targets }}
+      dataset: ${{ inputs.dataset }}
+  preview:
+    name: Read the provider and preserve the preview
+    needs: [delivery-checks]
+    runs-on: ubuntu-24.04
+    environment: operations-preview
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # Fetches the read-only configuration tokens for the preview.
+    steps:
+      - name: Require the main branch
+        run: test "$GITHUB_REF" = refs/heads/main
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/toolchain
+        with:
+          tools: node just
+      - id: doppler
+        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
+          doppler-project: public-phonebook
+          doppler-config: ci_operations_preview
+          inject-env-vars: "false"
+      - name: Preview the selected provider without writes
+        env:
+          OPERATION: ${{ inputs.operation }}
+          CLOUDFLARE_API_TOKEN: ${{ steps.doppler.outputs.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ALERT_EMAIL: ${{ steps.doppler.outputs.CLOUDFLARE_ALERT_EMAIL }}
+          BETTER_STACK_API_TOKEN: ${{ steps.doppler.outputs.BETTER_STACK_API_TOKEN }}
+          BETTER_STACK_TEAM: ${{ steps.doppler.outputs.BETTER_STACK_TEAM }}
+        run: |
+          service=${OPERATION%-*}
+          node tools/configuration.ts preview "$service" "$RUNNER_TEMP/configuration-preview.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: configuration-preview
+          path: ${{ runner.temp }}/configuration-preview.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
+  apply:
+    name: Apply the reviewed provider snapshot
+    needs: [preview]
+    if: inputs.operation == 'cloudflare-alerts-apply' || inputs.operation == 'monitors-apply'
+    runs-on: ubuntu-24.04
+    environment: operations-apply
+    timeout-minutes: 15
+    concurrency:
+      group: configuration-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write # Fetches the write-capable configuration tokens after preview approval.
+    steps:
+      - name: Require the main branch
+        run: test "$GITHUB_REF" = refs/heads/main
+      - name: Reconcile an existing attempt instead of repeating a write
+        run: test "$GITHUB_RUN_ATTEMPT" = 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/toolchain
+        with:
+          tools: rust node just
+      - name: Compile the admission controller before fetching credentials
+        run: mise x -- cargo build --locked --manifest-path tools/delivery/Cargo.toml
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: configuration-preview
+          path: ${{ runner.temp }}
+      - id: doppler
+        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
+          doppler-project: public-phonebook
+          doppler-config: ci_operations_apply
+          inject-env-vars: "false"
+      - name: Refuse a changed plan and record each attempted effect
+        env:
+          OPERATION: ${{ inputs.operation }}
+          CLOUDFLARE_API_TOKEN: ${{ steps.doppler.outputs.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ALERT_EMAIL: ${{ steps.doppler.outputs.CLOUDFLARE_ALERT_EMAIL }}
+          BETTER_STACK_API_TOKEN: ${{ steps.doppler.outputs.BETTER_STACK_API_TOKEN }}
+          BETTER_STACK_TEAM: ${{ steps.doppler.outputs.BETTER_STACK_TEAM }}
+        run: |
+          service=${OPERATION%-*}
+          node tools/configuration.ts apply "$service" "$RUNNER_TEMP/configuration-preview.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: configuration-effects
+          path: ${{ runner.temp }}/configuration-preview.json.journal.json
+          if-no-files-found: ignore
+          retention-days: 7

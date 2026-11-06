@@ -7,7 +7,7 @@ import {
   type ExistingPolicy,
   PolicyList,
 } from "./cloudflare-alerts-plan.ts";
-import type { DeclaredPlan } from "./declared-plan.ts";
+import type { ApplyHooks, DeclaredPlan } from "./declared-plan.ts";
 
 // Pads the action to the width of "update", so the names line up.
 const actionWidth = "update".length;
@@ -66,14 +66,20 @@ export async function applyAlerts(
   port: PolicyPort,
   declared: readonly AlertPolicy[],
   applying: boolean,
+  hooks: ApplyHooks<AlertPolicy, ExistingPolicy> = {},
 ): Promise<string[]> {
-  const plan = alertPlan(declared, await port.list());
+  const existing = await port.list();
+  const plan = alertPlan(declared, existing);
   const lines = alertPlanLines(plan);
   if (!applying) return lines;
+  await hooks.beforeApply?.(declared, existing);
   for (const planned of plan.planned) {
+    if (planned.action === "keep") continue;
+    await hooks.beforeWrite?.(planned.declared.name, planned.action);
     if (planned.action === "create") await port.create(planned.declared);
     if (planned.action === "update")
       await port.update(planned.id, planned.declared);
+    await hooks.acknowledged?.(planned.declared.name);
   }
   const after = alertPlan(declared, await port.list());
   const pending = after.planned.filter((planned) => planned.action !== "keep");
