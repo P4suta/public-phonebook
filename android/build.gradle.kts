@@ -1,8 +1,8 @@
 plugins {
-    id("com.android.application") version "9.3.3" apply false
-    id("com.android.library") version "9.3.3" apply false
-    kotlin("jvm") version "2.4.10" apply false
-    id("org.jetbrains.kotlin.plugin.compose") version "2.4.10" apply false
+    id("com.android.application") version "9.5.0" apply false
+    id("com.android.library") version "9.5.0" apply false
+    kotlin("jvm") version "2.4.21" apply false
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.21" apply false
     id("com.ncorti.ktfmt.gradle") version "0.27.0" apply false
     id("dev.detekt") version "2.0.0-alpha.6" apply false
     id("org.cyclonedx.bom") version "3.5.1" apply false
