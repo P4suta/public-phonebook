@@ -8,6 +8,7 @@ App Review approval releases the version automatically, and the app requires no 
 Store metadata lives in `ios/AppStore/metadata.json`.
 Japanese customer-facing text is intentional.
 Review instructions are English.
+The [accessibility evaluation](ios-accessibility.md) defines common tasks, feature criteria, automated audits, device evidence, and the boundary for declaring Accessibility Nutrition Labels.
 
 ## Environments
 

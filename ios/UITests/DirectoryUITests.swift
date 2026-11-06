@@ -625,6 +625,130 @@ final class DirectoryUITests: XCTestCase {
     capture(app, name: "landscape-large-settings")
   }
 
+  func testCommonTasksPassAccessibilityAudits() throws {
+    _ = try auditCommonTasks()
+  }
+
+  func testCommonTasksPassAccessibilityAuditsAtLargestTextSize() throws {
+    let enlarged = try auditCommonTasks(textSize: "UICTContentSizeCategoryAccessibilityXXXL")
+    let app = prepared()
+    search("試験", in: app)
+    app.buttons["contact-detail"].firstMatch.tap()
+    let map = app.buttons["map-button"]
+    reveal(map, in: app)
+    map.tap()
+    let confirmation = app.alerts["マップで開きます"]
+    XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+    let regular = mapConfirmationSize(in: confirmation)
+    XCTAssertGreaterThan(regular.message, 0)
+    XCTAssertGreaterThan(regular.actions, 0)
+    XCTAssertGreaterThan(enlarged.message, regular.message * 2)
+    XCTAssertGreaterThan(enlarged.actions, regular.actions * 2)
+    capture(app, name: "accessibility-map-default-text")
+    confirmation.buttons["キャンセル"].tap()
+  }
+
+  func testCommonTasksPassAccessibilityAuditsInDarkAppearance() throws {
+    _ = try auditCommonTasks()
+  }
+
+  private func auditCommonTasks(textSize: String = "UICTContentSizeCategoryL") throws
+    -> (message: CGFloat, actions: CGFloat)
+  {
+    let app = application(textSize: textSize)
+    app.launchEnvironment["PHONEBOOK_CALLER_STATUS"] = "off"
+    app.launch()
+    let start = app.buttons["onboarding-start"]
+    XCTAssertTrue(start.waitForExistence(timeout: 15))
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-onboarding")
+    start.tap()
+    let later = app.buttons["onboarding-later"]
+    XCTAssertTrue(later.waitForExistence(timeout: 10))
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-caller-onboarding")
+    reveal(later, in: app)
+    later.tap()
+    let finish = app.buttons["onboarding-finish"]
+    XCTAssertTrue(finish.waitForExistence(timeout: 10))
+    waitUntilSaved(finish, in: app, timeout: 60)
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-directory-ready")
+    reveal(finish, in: app)
+    finish.tap()
+
+    openSettings(in: app)
+    let caller = app.buttons["caller-settings"]
+    reveal(caller, in: app)
+    XCTAssertEqual(caller.label, "iPhoneの設定を開く")
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-settings")
+    goBack(app)
+
+    search("試験", in: app)
+    let detail = app.buttons["contact-detail"].firstMatch
+    XCTAssertTrue(detail.waitForExistence(timeout: 15))
+    let call = app.buttons["03-0000-0000に電話をかける"].firstMatch
+    reveal(call, in: app)
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-name-search")
+    reveal(detail, in: app, towardTop: true)
+    detail.tap()
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    reveal(call, in: app)
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-contact")
+
+    let map = app.buttons["map-button"]
+    reveal(map, in: app)
+    map.tap()
+    let confirmation = app.alerts["マップで開きます"]
+    XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+    let confirmationSize = mapConfirmationSize(in: confirmation)
+    XCTAssertTrue(confirmation.buttons["キャンセル"].isHittable)
+    XCTAssertTrue(confirmation.buttons["開く"].isHittable)
+    // The largest-text scenario checks the system confirmation's message and action growth.
+    try app.performAccessibilityAudit(for: .all.subtracting(.dynamicType))
+    capture(app, name: "accessibility-map-confirmation")
+    confirmation.buttons["キャンセル"].tap()
+    XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
+    let source = app.buttons["source-link"]
+    reveal(source, in: app)
+    source.tap()
+    XCTAssertTrue(app.navigationBars["電話番号のもとの情報"].waitForExistence(timeout: 10))
+    reveal(app.staticTexts["source-license"], in: app)
+    XCTAssertEqual(
+      app.staticTexts["source-license"].label,
+      "使うときの決まり：Creative Commons CC0 1.0 Universal")
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-source")
+    reveal(app.buttons["もとの資料を開く"], in: app)
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-source-actions")
+    goBack(app)
+    goBack(app)
+
+    search("03-0000-0000", in: app)
+    waitForGroup("library", "147件", in: app)
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-number-search")
+    app.terminate()
+    return confirmationSize
+  }
+
+  private func mapConfirmationSize(in confirmation: XCUIElement)
+    -> (message: CGFloat, actions: CGFloat)
+  {
+    let disclosure = confirmation.staticTexts.matching(
+      NSPredicate(format: "label CONTAINS %@", "名前と住所をAppleに送ります。")
+    ).firstMatch
+    XCTAssertTrue(disclosure.waitForExistence(timeout: 5))
+    return (
+      disclosure.frame.height,
+      min(confirmation.buttons["キャンセル"].frame.height, confirmation.buttons["開く"].frame.height)
+    )
+  }
+
   func testAboutStaysInTheAppAndLicenseIsReadable() throws {
     let app = prepared()
     let date = dataDate(in: app)
