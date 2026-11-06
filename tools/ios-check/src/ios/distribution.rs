@@ -10,6 +10,8 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs, path::Path, process::Command};
 
+mod linked_targets;
+
 const STORE_TEXT_LIMITS: [(&str, usize); 6] = [
     ("name", 30),
     ("subtitle", 30),
@@ -495,6 +497,60 @@ fn admit_prepared(
     Ok(())
 }
 
+/// The unsigned job's record, which carries the linked targets because the signing job never evaluates the package manifest.
+fn prepared_record(
+    version: &str,
+    build: BuildNumber,
+    sources: &BTreeMap<String, String>,
+    files: &BTreeMap<String, String>,
+    targets: &[String],
+) -> Value {
+    json!({"format":1,"signing":"unsigned","version":version,"build":build.value(),"sourceSha256":sources,"files":files,"linkedTargets":targets})
+}
+
+fn recorded_targets(record: &Value) -> Result<Vec<String>> {
+    let targets = record["linkedTargets"]
+        .as_array()
+        .filter(|targets| !targets.is_empty())
+        .context("The unsigned archive record names no linked targets")?
+        .iter()
+        .map(|target| {
+            target
+                .as_str()
+                .map(str::to_owned)
+                .with_context(|| format!("Recorded linked target {target} isn't a name"))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    ensure!(
+        targets.windows(2).all(|pair| pair[0] < pair[1]),
+        "Recorded linked targets must be sorted and unique"
+    );
+    for target in &targets {
+        let mut characters = target.chars();
+        ensure!(
+            characters
+                .next()
+                .is_some_and(|first| first.is_ascii_alphabetic() || first == '_')
+                && characters
+                    .all(|character| character.is_ascii_alphanumeric() || character == '_'),
+            "Recorded linked target {target:?} isn't a Swift target name"
+        );
+    }
+    Ok(targets)
+}
+
+/// The CycloneDX SBOM of the signed package, with one library component for each linked local target.
+fn sbom(version: &str, sha256: &str, targets: &[String]) -> Value {
+    let libraries = targets.iter().map(|name| {
+        json!({"type":"library","name":name,"version":version,"licenses":[{"expression":"MIT OR Apache-2.0"}],"scope":"required"})
+    });
+    let notices = [
+        json!({"type":"data","name":"Lucide icons","licenses":[{"license":{"id":"ISC"}}],"scope":"required"}),
+        json!({"type":"data","name":"Feather-derived icons","licenses":[{"license":{"id":"MIT"}}],"scope":"required"}),
+    ];
+    json!({"bomFormat":"CycloneDX","specVersion":"1.6","version":1,"metadata":{"component":{"type":"application","name":Environment::Production.identity().1,"version":version,"hashes":[{"alg":"SHA-256","content":sha256}]}},"components":libraries.chain(notices).collect::<Vec<_>>(),"properties":[{"name":"phonebook:platform-dependencies","value":"Apple iOS frameworks, Swift runtime, and SQLite are supplied by iOS; no third-party Swift packages are linked."}]})
+}
+
 pub(super) fn prepare_archive(root: &Path, build: BuildNumber) -> Result<()> {
     ensure!(
         build.is_ci(),
@@ -518,12 +574,17 @@ pub(super) fn prepare_archive(root: &Path, build: BuildNumber) -> Result<()> {
     logged(root, "unsigned-store-archive", &mut command)?;
     let archive = directory.join("PublicPhonebook.xcarchive");
     let files = archive_files(&archive)?;
+    let targets = linked_targets::read(root)?;
     require_current_sources(root, &sources)?;
     fs::write(
         directory.join("candidate.json"),
-        serde_json::to_vec_pretty(
-            &json!({"format":1,"signing":"unsigned","version":super::marketing_version(root)?,"build":build.value(),"sourceSha256":sources,"files":files}),
-        )?,
+        serde_json::to_vec_pretty(&prepared_record(
+            &super::marketing_version(root)?,
+            build,
+            &sources,
+            &files,
+            &targets,
+        ))?,
     )?;
     Ok(())
 }
@@ -601,7 +662,7 @@ pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
         Vec::new()
     };
     let bundle = Environment::Production.identity().0;
-    let prepared = if request.prepared {
+    let (prepared, recorded) = if request.prepared {
         let directory = root.join(UNSIGNED_DIRECTORY);
         let archive = directory.join("PublicPhonebook.xcarchive");
         let record: Value = serde_json::from_slice(&fs::read(directory.join("candidate.json"))?)?;
@@ -612,9 +673,9 @@ pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
             &sources,
             &archive_files(&archive)?,
         )?;
-        Some(archive)
+        (Some(archive), Some(recorded_targets(&record)?))
     } else {
-        None
+        (None, None)
     };
     ensure!(
         !ci || prepared.is_some(),
@@ -702,7 +763,11 @@ pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
     );
     fs::copy(ipa, &preserved)?;
     let version = super::marketing_version(root)?;
-    let sbom = json!({"bomFormat":"CycloneDX","specVersion":"1.6","version":1,"metadata":{"component":{"type":"application","name":Environment::Production.identity().1,"version":version,"hashes":[{"alg":"SHA-256","content":sha256}]}},"components":[{"type":"library","name":"PhonebookCore","version":version,"licenses":[{"expression":"MIT OR Apache-2.0"}],"scope":"required"},{"type":"library","name":"PhonebookKit","version":version,"licenses":[{"expression":"MIT OR Apache-2.0"}],"scope":"required"},{"type":"data","name":"Lucide icons","licenses":[{"license":{"id":"ISC"}}],"scope":"required"},{"type":"data","name":"Feather-derived icons","licenses":[{"license":{"id":"MIT"}}],"scope":"required"}],"properties":[{"name":"phonebook:platform-dependencies","value":"Apple iOS frameworks, Swift runtime, and SQLite are supplied by iOS; no third-party Swift packages are linked."}]});
+    let targets = match recorded {
+        Some(targets) => targets,
+        None => linked_targets::read(root)?,
+    };
+    let sbom = sbom(&version, &sha256, &targets);
     fs::write(
         directory.join("sbom.cdx.json"),
         serde_json::to_vec_pretty(&sbom)?,
@@ -780,6 +845,111 @@ mod tests {
             admit_prepared(&record, BuildNumber::new(4202)?, "1.0.0", &sources, &files).is_err()
         );
         Ok(())
+    }
+
+    fn targets(names: &[&str]) -> Vec<String> {
+        names.iter().map(|name| (*name).to_owned()).collect()
+    }
+
+    #[test]
+    fn the_sbom_lists_one_library_for_each_linked_target() {
+        let linked = targets(&["PhonebookCore", "PhonebookKit", "PhonebookRanking"]);
+        let document = sbom("1.2.0", "package-digest", &linked);
+        let components = document["components"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let libraries = components
+            .iter()
+            .filter(|component| component["type"] == "library")
+            .collect::<Vec<_>>();
+        assert_eq!(
+            libraries
+                .iter()
+                .map(|component| component["name"].clone())
+                .collect::<Vec<_>>(),
+            linked.iter().map(|name| json!(name)).collect::<Vec<_>>()
+        );
+        for library in libraries {
+            assert_eq!(library["version"], "1.2.0");
+            assert_eq!(library["scope"], "required");
+            assert_eq!(
+                library["licenses"],
+                json!([{"expression":"MIT OR Apache-2.0"}])
+            );
+        }
+        assert_eq!(
+            components
+                .iter()
+                .filter(|component| component["type"] == "data")
+                .map(|component| (component["name"].clone(), component["licenses"].clone()))
+                .collect::<Vec<_>>(),
+            [
+                (json!("Lucide icons"), json!([{"license":{"id":"ISC"}}])),
+                (
+                    json!("Feather-derived icons"),
+                    json!([{"license":{"id":"MIT"}}])
+                ),
+            ]
+        );
+        assert_eq!(components.len(), 5);
+        assert_eq!(
+            document["metadata"]["component"],
+            json!({"type":"application","name":"Public Phonebook","version":"1.2.0","hashes":[{"alg":"SHA-256","content":"package-digest"}]})
+        );
+        assert_eq!(document["bomFormat"], "CycloneDX");
+        assert_eq!(document["specVersion"], "1.6");
+        assert_eq!(
+            sbom("1.2.0", "package-digest", &targets(&["PhonebookCore"]))["components"]
+                .as_array()
+                .map(Vec::len),
+            Some(3)
+        );
+    }
+
+    #[test]
+    fn prepared_archives_carry_their_linked_targets_to_signing() -> Result<()> {
+        let build = BuildNumber::new(4201)?;
+        let sources = BTreeMap::from([("App.swift".to_owned(), "source".to_owned())]);
+        let files = BTreeMap::from([("PublicPhonebook".to_owned(), "unsigned-bytes".to_owned())]);
+        let linked = targets(&[
+            "PhonebookCore",
+            "PhonebookKit",
+            "PhonebookRanking",
+            "_Private",
+        ]);
+        let record = prepared_record("1.0.0", build, &sources, &files, &linked);
+        admit_prepared(&record, build, "1.0.0", &sources, &files)?;
+        assert_eq!(recorded_targets(&record)?, linked);
+        Ok(())
+    }
+
+    #[test]
+    fn malformed_recorded_targets_are_refused() {
+        for (linked, reason) in [
+            (Value::Null, "names no linked targets"),
+            (json!("PhonebookCore"), "names no linked targets"),
+            (json!([]), "names no linked targets"),
+            (json!(["PhonebookCore", 1]), "isn't a name"),
+            (
+                json!(["PhonebookKit", "PhonebookCore"]),
+                "sorted and unique",
+            ),
+            (
+                json!(["PhonebookCore", "PhonebookCore"]),
+                "sorted and unique",
+            ),
+            (json!(["Phonebook Core"]), "isn't a Swift target name"),
+            (json!(["1Core"]), "isn't a Swift target name"),
+            (json!([""]), "isn't a Swift target name"),
+            (json!(["Core-Kit"]), "isn't a Swift target name"),
+        ] {
+            let record = json!({"linkedTargets": linked});
+            let error = recorded_targets(&record)
+                .err()
+                .unwrap_or_else(|| panic!("expected a refusal for {linked}"));
+            assert!(error.to_string().contains(reason), "{linked}: {error}");
+        }
     }
     use std::path::PathBuf;
 
