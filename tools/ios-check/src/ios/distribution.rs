@@ -977,7 +977,7 @@ mod tests {
     }
 
     #[test]
-    fn both_bundles_take_their_build_number_from_the_build_setting() -> Result<()> {
+    fn both_bundles_take_their_versions_from_build_settings() -> Result<()> {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         for file in [
             "ios/Config/App-Info.plist",
@@ -997,15 +997,16 @@ mod tests {
                     .first_element_child()
                     .context("The property list is empty")?,
             )?;
-            let version = properties
-                .get("CFBundleVersion")
-                .copied()
-                .with_context(|| format!("{file} has no CFBundleVersion"))?;
-            assert_eq!(
-                signing::text(version)?,
-                "$(CURRENT_PROJECT_VERSION)",
-                "{file}"
-            );
+            for (key, setting) in [
+                ("CFBundleVersion", "$(CURRENT_PROJECT_VERSION)"),
+                ("CFBundleShortVersionString", "$(MARKETING_VERSION)"),
+            ] {
+                let version = properties
+                    .get(key)
+                    .copied()
+                    .with_context(|| format!("{file} has no {key}"))?;
+                assert_eq!(signing::text(version)?, setting, "{file}: {key}");
+            }
         }
         Ok(())
     }
