@@ -1,5 +1,6 @@
 import Foundation
 import PhonebookCore
+import PhonebookRanking
 import Synchronization
 import Testing
 

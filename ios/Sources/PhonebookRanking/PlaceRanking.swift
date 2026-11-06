@@ -1,4 +1,5 @@
 import Foundation
+import PhonebookCore
 
 struct RankingCondition: Sendable {
   let word: String

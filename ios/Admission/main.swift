@@ -1,6 +1,7 @@
 import Foundation
 import PhonebookCore
 import PhonebookKit
+import PhonebookRanking
 
 /// Admits the archive that the build bundles with the app's own checks, and writes the entry that the app reads beside it.
 /// Usage: BundledAdmission ARCHIVE EXPECTED_ENTRY OUTPUT_ENTRY

@@ -1,4 +1,5 @@
 import Foundation
+import PhonebookCore
 
 public enum RankingText {
   public static func compact(_ text: String) -> String {

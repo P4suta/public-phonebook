@@ -11,10 +11,14 @@ let package = Package(
   targets: [
     .target(name: "PhonebookCore"),
     .systemLibrary(name: "CSQLite"),
-    .target(name: "PhonebookKit", dependencies: ["PhonebookCore", "CSQLite"]),
+    // Forgiving ranking runs only in QA builds, so it stays outside the shipped core mutation scope.
+    .target(name: "PhonebookRanking", dependencies: ["PhonebookCore"]),
+    .target(name: "PhonebookKit", dependencies: ["PhonebookCore", "PhonebookRanking", "CSQLite"]),
     // The build runs this tool to admit the bundled archive, and the app never links it.
     .executableTarget(
-      name: "BundledAdmission", dependencies: ["PhonebookCore", "PhonebookKit"], path: "Admission"),
+      name: "BundledAdmission",
+      dependencies: ["PhonebookCore", "PhonebookRanking", "PhonebookKit"],
+      path: "Admission"),
     .testTarget(
       name: "PhonebookCoreTests", dependencies: ["PhonebookCore"],
       resources: [
@@ -22,7 +26,7 @@ let package = Package(
         .copy("UpdateContract.json"), .copy("SearchContract.json"),
       ]),
     .testTarget(
-      name: "PhonebookKitTests", dependencies: ["PhonebookKit"],
+      name: "PhonebookKitTests", dependencies: ["PhonebookKit", "PhonebookRanking"],
       resources: [.copy("DirectoryContract.json")]),
   ],
   swiftLanguageModes: [.v6]

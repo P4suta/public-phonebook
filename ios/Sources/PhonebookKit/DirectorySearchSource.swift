@@ -1,5 +1,6 @@
 import Foundation
 import PhonebookCore
+import PhonebookRanking
 
 public protocol DirectorySearchSource: Sendable {
   func header(generation: UUID) async throws -> ArchiveHeader

@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import PhonebookCore
+import PhonebookRanking
 
 public struct SearchArtifactIdentity: Codable, Sendable {
   public let bytes: Int

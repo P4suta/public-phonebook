@@ -101,7 +101,7 @@ The commands refuse an empty value, an unresolved Doppler reference, and a value
 - App Store submission and review details.
 - Renewing the certificate, profiles, and API key before they expire, and updating the Doppler values.
 
-The package uses local PhonebookCore and PhonebookKit targets with no remote Swift package dependencies.
+The package uses local PhonebookCore, PhonebookRanking, and PhonebookKit targets with no remote Swift package dependencies.
 Lucide and Feather-derived glyphs carry their original notices inside the app.
 Foundation, SwiftUI, CallKit, BackgroundTasks, Compression, SQLite, and the Swift runtime come from the Apple platform.
 The privacy manifest declares app-owned UserDefaults use with CA92.1.

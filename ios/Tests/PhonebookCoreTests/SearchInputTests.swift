@@ -18,6 +18,19 @@ private let phoneTable: [(text: String, phone: String?)] = [
   (String(repeating: "0", count: 81), nil),
 ]
 
+/// Every ECMAScript white space and line terminator, which the website's `trim` removes around a number.
+@Test func phoneQueriesTrimEveryEdgeThatTheWebsiteTrims() {
+  let spaces = (UInt32(0x2000)...0x200A).compactMap(Unicode.Scalar.init).map(String.init)
+  let edges =
+    ["\t", "\n", "\u{0B}", "\u{0C}", "\r", " ", "\u{A0}", "\u{1680}", "\u{2028}", "\u{2029}"]
+    + ["\u{202F}", "\u{205F}", "\u{3000}", "\u{FEFF}"] + spaces
+  for edge in edges {
+    let scalars = edge.unicodeScalars.map(\.value)
+    #expect(
+      SearchInput.normalizedPhone(edge + "03-1234-5678" + edge) == "+81312345678", "\(scalars)")
+  }
+}
+
 @Test func phoneQueriesMatchTheWebNormalizer() {
   for row in phoneTable {
     #expect(SearchInput.normalizedPhone(row.text) == row.phone, "\(row.text.debugDescription)")

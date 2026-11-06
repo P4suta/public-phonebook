@@ -242,7 +242,14 @@ pub(super) fn run(root: &Path) -> Result<()> {
         "search-swift-version",
         Command::new("xcrun").args(["swiftc", "--version"]),
     )?;
-    for module in ["PhonebookCore", "PhonebookKit"] {
+    for (module, links) in [
+        ("PhonebookCore", &[][..]),
+        ("PhonebookRanking", &["-lPhonebookCore"][..]),
+        (
+            "PhonebookKit",
+            &["-lPhonebookCore", "-lPhonebookRanking", "-lsqlite3"][..],
+        ),
+    ] {
         let library = format!("lib{module}.dylib");
         let mut command = compiler(root, &directory, &sdk);
         command
@@ -263,10 +270,8 @@ pub(super) fn run(root: &Path) -> Result<()> {
                 "-o",
             ])
             .arg(directory.join(&library))
-            .args(sources(root, module)?);
-        if module == "PhonebookKit" {
-            command.args(["-lPhonebookCore", "-lsqlite3"]);
-        }
+            .args(sources(root, module)?)
+            .args(links);
         logged(root, &format!("search-compile-{module}"), &mut command)?;
     }
     let binary = directory.join("search-measurements");
@@ -276,6 +281,7 @@ pub(super) fn run(root: &Path) -> Result<()> {
         compiler(root, &directory, &sdk)
             .args([
                 "-lPhonebookCore",
+                "-lPhonebookRanking",
                 "-lPhonebookKit",
                 "-lsqlite3",
                 "-Xlinker",

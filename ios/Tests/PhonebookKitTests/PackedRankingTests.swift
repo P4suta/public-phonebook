@@ -1,8 +1,9 @@
 import Foundation
+import PhonebookCore
 import Testing
 
-@testable import PhonebookCore
 @testable import PhonebookKit
+@testable import PhonebookRanking
 
 private struct PackedTestSource: SearchArtifactSource {
   let value: SearchArtifactFiles

@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import PhonebookCore
+import PhonebookRanking
 
 @Observable @MainActor
 public final class DirectoryModel {

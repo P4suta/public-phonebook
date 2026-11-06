@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import PhonebookCore
+@testable import PhonebookRanking
 
 private func packedWords(_ words: [UInt32]) -> PackedBytes {
   var data = Data()

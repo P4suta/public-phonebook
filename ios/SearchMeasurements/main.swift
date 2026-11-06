@@ -2,6 +2,7 @@ import Darwin
 import Foundation
 import PhonebookCore
 import PhonebookKit
+import PhonebookRanking
 
 private struct Fixture: Decodable {
   struct Query: Decodable {

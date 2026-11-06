@@ -45,7 +45,8 @@ A failure, including one that iOS reports through `requestFailed(for:withError:)
 The app's trace events stay at the info level with an operation identifier, a phase, an outcome, a snapshot identifier, a count, and a duration.
 No log line marks a telephone number, a label, a search query, or an error description as public.
 
-`mise x -- just ios-search-measure` replays the shared 2,200-query national fixture through the Swift ranking core and the saved generation, and compares every row and integer score.
+The forgiving ranking code lives in the `PhonebookRanking` target, so the core mutation profile covers only the shipped `PhonebookCore`, as the [module decision](adr/keep-forgiving-ranking-outside-the-shipped-core.md) records.
+`mise x -- just ios-search-measure` replays the shared 2,200-query national fixture through `PhonebookRanking` and the saved generation, and compares every row and integer score.
 The unit tests check the ranking readers on synthetic fixtures, because loading the national artifacts starved the hosted runner's other unit tests and forgiving search ships only in QA builds.
 The fixture binds the snapshot, contact count, and decoded artifact digests.
 The artifact readers reject truncated and noncanonical varints, out-of-range postings, trailing bytes, and mismatched identities.
@@ -67,8 +68,8 @@ The proof trusts the reviewed translation and Swift integer semantics.
 Unicode normalization, candidate retrieval, sorting, lexical readings, and future search quality remain native-test and empirical boundaries.
 The directory model tests exercise the real saved scorer across categories, written-form changes, all-page order, and complete telephone matching.
 Controlled asynchronous reads establish that an older query can't replace a newer result or clear its page operation.
-The UI scenarios check kana and misspelled names, metadata at the largest Dynamic Type setting, the single result list, and its explicit page action.
-The screenshot selector requires the ranked result capture rather than the earlier category layout.
+The UI scenarios check kana and misspelled names, metadata at the largest Dynamic Type setting, three previews per category, and each category's continuation.
+The screenshot selector requires the live directory search capture.
 A planted defect that keeps a changed label must fail inside the two theorems that characterize the change decision and nowhere else.
 It also rejects three planted defects in the wait model inside the theorems that they break: a rising countdown, a line that changes within a second, and a countdown that reaches zero.
 A fourth wait defect that makes a waiting transfer also wait for the stall time must fail inside the waiting lemma and nowhere else.

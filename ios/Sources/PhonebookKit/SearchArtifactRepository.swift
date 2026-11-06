@@ -1,5 +1,6 @@
 import Foundation
 import PhonebookCore
+import PhonebookRanking
 
 public protocol SearchArtifactSource: Sendable {
   func transferBytes(snapshot: SnapshotID, contacts: Int, paths: NetworkPaths) async throws -> Int

@@ -89,12 +89,12 @@ const THEOREMS: [&str; 79] = [
 ];
 const UPDATE_SOURCE: &str = include_str!("../../../../ios/Sources/PhonebookCore/UpdateCheck.swift");
 const RANKING_SOURCE: &str =
-    include_str!("../../../../ios/Sources/PhonebookCore/RankingPolicy.swift");
+    include_str!("../../../../ios/Sources/PhonebookRanking/RankingPolicy.swift");
 const SEARCH_ACTIVATION_SOURCE: &str =
     include_str!("../../../../ios/Sources/PhonebookCore/SearchActivation.swift");
 const SEARCH_ACTIVATION_REFINEMENT: &str = "publicenumSearchActivation{publicstaticfuncpermits(required:Bool,ready:Bool)->Bool{!required||ready}}";
 const PACKED_SOURCE: &str =
-    include_str!("../../../../ios/Sources/PhonebookCore/PackedRankingPolicy.swift");
+    include_str!("../../../../ios/Sources/PhonebookRanking/PackedRankingPolicy.swift");
 const PACKED_REFINEMENT: &str = "publicenumPackedRankingPolicy{publicstaticletmaximumBytes=268_435_456publicstaticfuncscratchSum(total:UInt32,increment:UInt32)->UInt32{total+increment}publicstaticfuncreadingKey(row:Int,contacts:Int,frequency:UInt32)->UInt32{UInt32((6-Int(frequency))*contacts+row)}publicstaticfuncfits(offset:Int,length:Int,size:Int)->Bool{guardoffset>=0,length>=0,size>=0,offset<=maximumBytes,length<=maximumBytes,size<=maximumByteselse{returnfalse}returnoffset<=size&&length<=size-offset}publicstaticfuncmidpoint(low:Int,high:Int)->Int{guardlow>=0,low<high,high<=maximumByteselse{return0}returnlow+(high-low)/2}}";
 const RESULT_PAGE_SOURCE: &str =
     include_str!("../../../../ios/Sources/PhonebookCore/ResultPage.swift");
@@ -732,7 +732,7 @@ pub fn run(root: &Path) -> Result<()> {
     }
     let sources = source_hashes(root)?;
     let packed =
-        fs::read_to_string(root.join("ios/Sources/PhonebookCore/PackedRankingPolicy.swift"))?;
+        fs::read_to_string(root.join("ios/Sources/PhonebookRanking/PackedRankingPolicy.swift"))?;
     ensure!(
         whitespace_free(&packed) == whitespace_free(PACKED_SOURCE)
             && whitespace_free(&packed) == PACKED_REFINEMENT,
@@ -751,7 +751,8 @@ pub fn run(root: &Path) -> Result<()> {
             && whitespace_free(&search_activation) == SEARCH_ACTIVATION_REFINEMENT,
         "The search activation proof covers another Swift decision"
     );
-    let ranking = fs::read_to_string(root.join("ios/Sources/PhonebookCore/RankingPolicy.swift"))?;
+    let ranking =
+        fs::read_to_string(root.join("ios/Sources/PhonebookRanking/RankingPolicy.swift"))?;
     ensure!(
         ranking == RANKING_SOURCE && crate::sha256_hex(&ranking) == RANKING_REFINEMENT_SHA256,
         "The ranking proof covers a different Swift implementation; recheck verification/ios/RankingPolicy.lean"
