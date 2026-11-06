@@ -104,7 +104,7 @@ const SANITIZED_CONTRACTS: [&str; 4] = [
     "cancellationBeforeAndDuringRealRequestsAlwaysCompletes",
     "firstRunAppliesTheListedDeltaToTheBundleOnce",
 ];
-const UI_TESTS: [&str; 24] = [
+const UI_TESTS: [&str; 27] = [
     "testRankedMetadataRemainsReadableAtLargestTextSize",
     "testOnboardingSavesTheDirectoryBeforeSearch",
     "testSearchGroupsRankedResultsAndShowsMore",
@@ -129,9 +129,15 @@ const UI_TESTS: [&str; 24] = [
     "testDarkAppearanceSwapsBlackAndWhite",
     "testLargestTextScalesIconsBesideTheirLabels",
     "testSearchFieldShowsOneClearControl",
+    "testCommonTasksPassAccessibilityAudits",
+    "testCommonTasksPassAccessibilityAuditsAtLargestTextSize",
+    "testCommonTasksPassAccessibilityAuditsInDarkAppearance",
 ];
 /// The UI scenarios that run with the simulator in the dark appearance.
-const DARK_UI_TESTS: [&str; 1] = ["testDarkAppearanceSwapsBlackAndWhite"];
+const DARK_UI_TESTS: [&str; 2] = [
+    "testDarkAppearanceSwapsBlackAndWhite",
+    "testCommonTasksPassAccessibilityAuditsInDarkAppearance",
+];
 const REQUIRED_TESTS: [&str; 99] = [
     "resultPagesStayWithinBoundsAtSignedExtremes",
     "anOlderSearchCannotReplaceTheCurrentQuery",
