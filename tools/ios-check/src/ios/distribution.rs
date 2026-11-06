@@ -981,6 +981,7 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         for file in [
             "ios/Config/App-Info.plist",
+            "ios/Config/App-Info-LocalNetworking.plist",
             "ios/Config/CallDirectory-Info.plist",
         ] {
             let xml = fs::read_to_string(root.join(file))?;
@@ -1006,6 +1007,33 @@ mod tests {
                     .copied()
                     .with_context(|| format!("{file} has no {key}"))?;
                 assert_eq!(signing::text(version)?, setting, "{file}: {key}");
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn generation_preserves_both_bundle_version_settings() -> Result<()> {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let directory = tempfile::tempdir()?;
+        let output = directory.path().join("spec.json");
+        crate::checked(
+            Command::new("xcodegen")
+                .current_dir(root.join("ios"))
+                .args(["dump", "--type", "json", "--quiet", "--file"])
+                .arg(&output),
+        )?;
+        let specification: Value = serde_json::from_slice(&fs::read(output)?)?;
+        for target in ["PublicPhonebook", "CallDirectory"] {
+            for (key, setting) in [
+                ("CFBundleVersion", "$(CURRENT_PROJECT_VERSION)"),
+                ("CFBundleShortVersionString", "$(MARKETING_VERSION)"),
+            ] {
+                assert_eq!(
+                    specification["targets"][target]["info"]["properties"][key], setting,
+                    "{target}: {key}"
+                );
             }
         }
         Ok(())

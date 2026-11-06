@@ -120,6 +120,7 @@ targets:
       properties:
         CFBundleDisplayName: $(PHONEBOOK_DISPLAY_NAME)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleDevelopmentRegion: ja
         CFBundleLocalizations: [ja]
         PhonebookAppGroup: $(PHONEBOOK_APP_GROUP)
@@ -148,6 +149,7 @@ targets:
       properties:
         CFBundleDisplayName: $(PHONEBOOK_DISPLAY_NAME)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.callkit.call-directory
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).CallDirectoryHandler
