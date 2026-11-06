@@ -655,6 +655,7 @@ pub(super) fn check_built(root: &Path, app: &Path, configuration: &str) -> Resul
 mod tests {
     use super::*;
 
+    #[cfg(target_os = "macos")]
     #[test]
     fn application_package_contains_no_experimental_ranking_target() -> Result<()> {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
