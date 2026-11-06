@@ -73,7 +73,7 @@ final class DirectoryUITests: XCTestCase {
     let app = prepared()
     search("facility", in: app)
     waitForGroup("library", "件", in: app)
-    XCTAssertTrue(app.staticTexts["search-limit"].exists)
+    XCTAssertFalse(app.staticTexts["search-limit"].exists)
     XCTAssertTrue(app.staticTexts["contact-region"].firstMatch.exists)
     let more = app.buttons["more-library"]
     reveal(more, in: app)
@@ -115,23 +115,9 @@ final class DirectoryUITests: XCTestCase {
     }
   }
 
-  func testForgivingNamesFindTheSavedFacility() throws {
-    let app = prepared()
-    for query in ["こうかいとしょかん", "公開図書官", "コウカイトショカン"] {
-      search(query, in: app)
-      let name = app.staticTexts["contact-name"].firstMatch
-      XCTAssertTrue(name.waitForExistence(timeout: 10))
-      XCTAssertEqual(name.label, "公開図書館")
-      XCTAssertTrue(app.descendants(matching: .any)["group-library"].exists)
-      XCTAssertEqual(
-        app.staticTexts["contact-region"].firstMatch.label, "Test prefecture 13Test city 13")
-    }
-    capture(app, name: "forgiving-facility-name")
-  }
-
   func testRankedMetadataRemainsReadableAtLargestTextSize() throws {
     let app = prepared(textSize: "UICTContentSizeCategoryAccessibilityXXXL")
-    search("こうかいとしょかん", in: app)
+    search("公開図書館", in: app)
     XCTAssertEqual(app.staticTexts["contact-name"].firstMatch.label, "公開図書館")
     let heading = app.descendants(matching: .any)["group-library"]
     reveal(heading, in: app)
@@ -693,7 +679,7 @@ final class DirectoryUITests: XCTestCase {
     let hint = app.descendants(matching: .any)["search-hint"]
     XCTAssertTrue(hint.waitForExistence(timeout: 180))
     let options = XCTMeasureOptions()
-    options.iterationCount = 3
+    options.iterationCount = 5
     options.invocationOptions = [.manuallyStart, .manuallyStop]
     measure(
       metrics: [
@@ -710,7 +696,7 @@ final class DirectoryUITests: XCTestCase {
     }
     search("市立図書館", in: app, timeout: 180)
     XCTAssertTrue(groupHeading(in: app).exists)
-    capture(app, name: "measured-national-ranked-results")
+    capture(app, name: "measured-national-literal-results")
   }
 
   func testBundledSearchMemoryMeasurement() throws {
@@ -722,7 +708,7 @@ final class DirectoryUITests: XCTestCase {
     let options = XCTMeasureOptions()
     options.iterationCount = 3
     measure(metrics: [XCTMemoryMetric(application: app)], options: options) {
-      for query in ["国立国会図書館", "としょかん", "東京都大学", "市立図書館"] {
+      for query in ["国立国会図書館", "図書館", "大学", "市立図書館"] {
         search(query, in: app, timeout: 180)
         XCTAssertTrue(groupHeading(in: app).exists)
       }

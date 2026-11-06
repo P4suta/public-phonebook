@@ -117,6 +117,78 @@ private func footprint() -> UInt64 {
   return result == KERN_SUCCESS ? info.phys_footprint : 0
 }
 
+private func callerDiffFootprintStaysFlatWhenRunAlone() throws {
+  let url = temporaryFile()
+  let changed = temporaryFile("relabeled")
+  defer {
+    try? FileManager.default.removeItem(at: url)
+    try? FileManager.default.removeItem(at: changed)
+  }
+  try autoreleasepool { try writeLargeCallerFile(to: url) }
+  try autoreleasepool {
+    let writer = try CallerFile.Writer(url: changed)
+    for index in 1...600_000 {
+      try writer.append(number: 81_100_000_000 + Int64(index) * 7, label: "別館\(index)")
+    }
+    try writer.finish()
+  }
+  try autoreleasepool {
+    let base = footprint()
+    var removed = 0
+    var added = 0
+    var peak = base
+    let wanted = { CallerFile.Merged(national: try CallerFile.Reader(url: url), loaded: nil) }
+    try CallerFile.changes(
+      held: wanted, wanted: wanted,
+      remove: { _ in removed += 1 }, add: { _, _ in added += 1 })
+    peak = max(peak, footprint())
+    print("caller.memory path=unchanged growthKB=\((peak - min(base, peak)) / 1024)")
+    #expect(removed == 0 && added == 0)
+    #expect(peak - min(base, peak) < 4 * 1_048_576)
+  }
+  let extra = CallerFile.Loaded.Extra(number: 81_100_000_001, label: "確認用")
+  let scenarios: [(String, URL?, URL?, CallerFile.Loaded.Extra?, Int)] = [
+    ("unchanged", url, url, nil, 0),
+    ("extra", url, url, extra, 1),
+    ("remove", url, nil, nil, 0),
+    ("add", nil, url, nil, 600_000),
+    ("relabel", url, changed, nil, 600_000),
+    ("empty", nil, nil, nil, 0),
+  ]
+  for (name, heldFile, wantedFile, wantedExtra, expected) in scenarios {
+    try autoreleasepool {
+      let base = footprint()
+      var peak = base
+      var added = 0
+      var previous: Int64 = 0
+      var removed = 0
+      var cleared = 0
+      let plan = try CallerFile.load(
+        held: {
+          CallerFile.Merged(
+            national: try heldFile.map { try CallerFile.Reader(url: $0) }, loaded: nil)
+        },
+        wanted: {
+          CallerFile.Merged(
+            national: try wantedFile.map { try CallerFile.Reader(url: $0) }, loaded: wantedExtra)
+        },
+        removeAll: { cleared += 1 }, remove: { _ in removed += 1 },
+        add: { number, _ in
+          #expect(number > previous)
+          previous = number
+          added += 1
+          if added % 1000 == 0 { peak = max(peak, footprint()) }
+        })
+      peak = max(peak, footprint())
+      let growth = peak - min(base, peak)
+      print("caller.memory path=\(name) plan=\(plan.rawValue) growthKB=\(growth / 1024)")
+      #expect(added == expected && removed == 0)
+      #expect(cleared == (plan == .full ? 1 : 0))
+      #expect(growth < 4 * 1_048_576)
+    }
+  }
+}
+
 /// Writes more caller entries than the national directory's 561,495 numbers.
 private func writeLargeCallerFile(to url: URL) throws {
   let writer = try CallerFile.Writer(url: url)
@@ -175,6 +247,7 @@ func readerFootprintStaysFlatWhenRunAlone() throws {
   #expect(entries == 600_000)
   #expect(last == 81_100_000_000 + 600_000 * 7)
   #expect(peak - base < 1_048_576)
+  try callerDiffFootprintStaysFlatWhenRunAlone()
 }
 
 @Test func recordsTheGenerationThatIOSAcceptedAndFindsTheActiveFile() throws {

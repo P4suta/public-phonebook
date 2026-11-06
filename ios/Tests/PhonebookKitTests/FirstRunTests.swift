@@ -1,5 +1,6 @@
 import Foundation
 import PhonebookCore
+import Synchronization
 import Testing
 
 @testable import PhonebookKit
@@ -7,6 +8,7 @@ import Testing
 /// The provider's updated revision as a first run from the baseline bundle meets it, with one fault at most.
 private enum FirstRunMode: CaseIterable {
   case delta, namesBundled, noDelta, unreachable, wrongBaseDigest, wrongDeltaDigest, cutTransfer
+  case unrelatedBase, unrelatedTarget, unrelatedArchive
 }
 
 private func head(_ entry: CorpusEntry, length: Int) -> Data {
@@ -70,12 +72,44 @@ private func withoutDeltas(_ entries: [CorpusEntry]) throws -> [CorpusEntry] {
   }
 }
 
+private func unrelatedDelta(_ mode: FirstRunMode, entries: [CorpusEntry]) throws -> [CorpusEntry] {
+  try entries.map { entry in
+    guard entry.path.hasPrefix("/api/dataset-deltas?") else { return entry }
+    var object = try #require(try JSONSerialization.jsonObject(with: entry.data) as? [String: Any])
+    var deltas = try #require(object["deltas"] as? [[String: Any]])
+    let foreign = String(repeating: "e", count: 64)
+    if mode == .unrelatedTarget { object["snapshot"] = foreign }
+    if mode == .unrelatedArchive { object["archiveSha256"] = foreign }
+    let snapshot = try #require(object["snapshot"] as? String)
+    for index in deltas.indices {
+      if mode == .unrelatedBase {
+        deltas[index]["base"] = foreign
+        deltas[index]["file"] = "directory-delta-\(foreign).tsv.br"
+      }
+      let digest = try #require(deltas[index]["sha256"] as? String)
+      let file = try #require(deltas[index]["file"] as? String)
+      deltas[index]["url"] = "/api/datasets/\(snapshot)/\(digest)/\(file)"
+    }
+    object["deltas"] = deltas
+    let changed = replacing(entry, body: try JSONSerialization.data(withJSONObject: object))
+    var headers = changed.headers
+    if let key = headers.keys.first(where: { $0.lowercased() == "x-dataset-snapshot" }) {
+      headers[key] = snapshot
+    }
+    return CorpusEntry(
+      revision: changed.revision, path: changed.path, status: changed.status, headers: headers,
+      body: changed.body, encoding: changed.encoding)
+  }
+}
+
 private func entries(_ mode: FirstRunMode, in root: URL) async throws -> [CorpusEntry] {
   let updated = try corpus("updated")
   switch mode {
   case .delta, .cutTransfer: return updated
   case .namesBundled: return try corpus("baseline")
   case .noDelta: return try withoutDeltas(updated)
+  case .unrelatedBase, .unrelatedTarget, .unrelatedArchive:
+    return try unrelatedDelta(mode, entries: updated)
   case .unreachable: return []
   case .wrongBaseDigest: return try await wrongBaseDigest(updated, in: root)
   case .wrongDeltaDigest:
@@ -107,7 +141,7 @@ private func server(_ mode: FirstRunMode, entries: [CorpusEntry], requests: Requ
   }
 }
 
-private func run(_ mode: FirstRunMode) async throws -> (
+private func run(_ mode: FirstRunMode, createScratch: Bool = true) async throws -> (
   result: FirstRunResult, plan: FirstRunPlan, store: SnapshotStore, root: URL, scratch: URL,
   requests: Set<String>, updated: [CorpusEntry]
 ) {
@@ -120,11 +154,25 @@ private func run(_ mode: FirstRunMode) async throws -> (
   let server = try await server(mode, entries: served, requests: requests)
   let store = try SnapshotStore(root: root.appendingPathComponent("store"))
   let scratch = root.appendingPathComponent("scratch")
-  try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
+  if createScratch {
+    try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
+  }
+  let trace = RecordingTrace()
   let engine = SyncEngine(
-    api: try APIClient(origin: server.origin), store: store, temporaryDirectory: scratch)
+    api: try APIClient(origin: server.origin), store: store, trace: trace,
+    temporaryDirectory: scratch)
   let plan = try await engine.planFirstRun(bundle: bundle)
   let result = try await engine.firstRun(bundle: bundle, progress: { _ in })
+  let events = trace.events.withLock { $0.filter { [.discovery, .delta].contains($0.phase) } }
+  var expected = ["discovery.started", "discovery.completed"]
+  switch mode {
+  case .unreachable, .unrelatedTarget: expected[1] = "discovery.deferred"
+  case .delta: expected += ["delta.started", "delta.completed"]
+  case .wrongBaseDigest, .wrongDeltaDigest, .cutTransfer:
+    expected += ["delta.started", "delta.rejected"]
+  default: break
+  }
+  #expect(events.map { $0.phase.rawValue + "." + $0.outcome.rawValue } == expected)
   return (result, plan, store, root, scratch, requests.received, try corpus("updated"))
 }
 
@@ -170,6 +218,13 @@ private func run(_ mode: FirstRunMode) async throws -> (
   #expect(try FileManager.default.contentsOfDirectory(atPath: run.scratch.path).isEmpty)
 }
 
+@Test func firstRunCreatesMissingScratchParents() async throws {
+  let result = try await run(.delta, createScratch: false)
+  defer { try? FileManager.default.removeItem(at: result.root) }
+  #expect(result.plan.transfer == .delta && result.result.outcome == .listed)
+  #expect(try FileManager.default.contentsOfDirectory(atPath: result.scratch.path).isEmpty)
+}
+
 @Test(.timeLimit(.minutes(1))) func firstRunStagesACurrentBundleWithoutATransfer() async throws {
   let run = try await run(.namesBundled)
   defer { try? FileManager.default.removeItem(at: run.root) }
@@ -189,6 +244,19 @@ private func run(_ mode: FirstRunMode) async throws -> (
   #expect(try FileManager.default.contentsOfDirectory(atPath: run.scratch.path).isEmpty)
 }
 
+@Test(arguments: [FirstRunMode.unrelatedBase, .unrelatedTarget, .unrelatedArchive])
+private func firstRunIgnoresDeltasOutsideTheBundledArchiveIdentity(_ mode: FirstRunMode)
+  async throws
+{
+  let result = try await run(mode)
+  defer { try? FileManager.default.removeItem(at: result.root) }
+  #expect(result.plan.transfer == (mode == .unrelatedTarget ? .none : .archive))
+  #expect(result.result.outcome == (mode == .unrelatedTarget ? .bundled : .listed))
+  #expect(
+    result.requests.contains { $0.hasSuffix("/directory.tsv.br") } == (mode != .unrelatedTarget))
+  #expect(!result.requests.contains { $0.contains("/directory-delta-") })
+}
+
 /// Every failure after a readable bundle saves the bundled snapshot alone and leaves no temporary file.
 @Test(
   .timeLimit(.minutes(1)),
@@ -206,6 +274,109 @@ private func failedFirstRunsSaveTheBundledSnapshot(_ mode: FirstRunMode) async t
   #expect(run.result.manifest.snapshot == baseline.snapshot)
   #expect(try await run.store.manifest()?.snapshot == baseline.snapshot)
   #expect(try FileManager.default.contentsOfDirectory(atPath: run.scratch.path).isEmpty)
+}
+
+private enum EngineEntry: CaseIterable, Sendable {
+  case bundled, discovered, listed
+}
+
+private func synchronize(
+  _ entry: EngineEntry, engine: SyncEngine, bundle: BundledDataset, listing: DatasetListing,
+  progress: @escaping @Sendable (SyncProgress) async -> Void
+) async throws -> SnapshotManifest {
+  switch entry {
+  case .bundled: try await engine.firstRun(bundle: bundle, progress: progress).manifest
+  case .discovered: try await engine.synchronize(progress: progress)
+  case .listed: try await engine.synchronize(listing: listing, paths: .every, progress: progress)
+  }
+}
+
+@Test(arguments: EngineEntry.allCases)
+private func synchronizationRejectsOverlapAndReleasesItsGuard(_ entry: EngineEntry) async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let fixture = try bundledFixture(in: root)
+  let bundle = try await BundledDataset.open(
+    archive: fixture.archive, entry: writeEntry(fixture.entry, in: root))
+  let origin = try await server(
+    .namesBundled, entries: try corpus("baseline"), requests: RequestLog())
+  let api = try APIClient(origin: origin.origin)
+  let listing = try await api.datasets()
+  let engine = SyncEngine(
+    api: api, store: try SnapshotStore(root: root.appendingPathComponent("store")))
+  let (events, signal) = AsyncStream.makeStream(of: Bool.self)
+  let (release, resume) = AsyncStream.makeStream(of: Void.self)
+  let entered = Mutex(false)
+  defer {
+    resume.yield()
+    resume.finish()
+    signal.finish()
+  }
+  let active = Task {
+    do {
+      let result = try await synchronize(entry, engine: engine, bundle: bundle, listing: listing) {
+        _ in
+        let first = entered.withLock { value in
+          if value { return false }
+          value = true
+          return true
+        }
+        if first {
+          signal.yield(true)
+          for await _ in release { break }
+        }
+      }
+      signal.yield(false)
+      return result
+    } catch {
+      signal.yield(false)
+      throw error
+    }
+  }
+  var iterator = events.makeAsyncIterator()
+  try #require(await iterator.next() == true)
+  await #expect(throws: ImportError.alreadyUpdating) {
+    try await synchronize(
+      entry, engine: engine, bundle: bundle, listing: listing, progress: { _ in })
+  }
+  resume.yield()
+  let first = try await active.value
+  let second = try await synchronize(
+    entry, engine: engine, bundle: bundle, listing: listing, progress: { _ in })
+  #expect(first.snapshot == second.snapshot && first.generation != second.generation)
+}
+
+private struct FailedPlanningTransport: HTTPTransport {
+  enum Failure: CaseIterable, Sendable { case unavailable, cancelled, cancelledTask }
+  let failure: Failure
+  func send(_ request: URLRequest) async throws -> HTTPResult {
+    switch failure {
+    case .unavailable: throw URLError(.notConnectedToInternet)
+    case .cancelled: throw CancellationError()
+    case .cancelledTask:
+      withUnsafeCurrentTask { $0?.cancel() }
+      throw URLError(.networkConnectionLost)
+    }
+  }
+}
+
+@Test(arguments: FailedPlanningTransport.Failure.allCases)
+private func planningWithoutABundleDistinguishesOfflineAndCancellation(
+  _ failure: FailedPlanningTransport.Failure
+) async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let api = try APIClient(
+    origin: try #require(URL(string: "https://dial.page")),
+    transport: FailedPlanningTransport(failure: failure))
+  let engine = SyncEngine(api: api, store: try SnapshotStore(root: root))
+  let operation = Task { try await engine.planFirstRun(bundle: nil) }
+  if failure == .unavailable {
+    let plan = try await operation.value
+    #expect(plan == FirstRunPlan.decide(bundle: .missing, listing: .unreachable))
+  } else {
+    await #expect(throws: CancellationError.self) { try await operation.value }
+  }
 }
 
 @Test(.timeLimit(.minutes(1))) func firstRunWithoutABundleDownloadsTheArchive() async throws {
@@ -250,12 +421,18 @@ private func failedFirstRunsSaveTheBundledSnapshot(_ mode: FirstRunMode) async t
   let store = try SnapshotStore(root: root.appendingPathComponent("store"))
   let scratch = root.appendingPathComponent("scratch")
   try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
+  let trace = RecordingTrace()
   let engine = SyncEngine(
-    api: try APIClient(origin: server.origin), store: store, temporaryDirectory: scratch)
+    api: try APIClient(origin: server.origin), store: store, trace: trace,
+    temporaryDirectory: scratch)
   let task = Task { try await engine.firstRun(bundle: bundle, progress: { _ in }) }
   for await _ in held { break }
   task.cancel()
   await #expect(throws: CancellationError.self) { _ = try await task.value }
+  #expect(
+    trace.events.withLock {
+      $0.filter { $0.phase == .delta }.map(\.outcome)
+    } == [.started, .cancelled])
   #expect(try await store.manifest() == nil)
   #expect(try FileManager.default.contentsOfDirectory(atPath: scratch.path).isEmpty)
 }

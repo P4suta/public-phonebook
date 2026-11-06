@@ -1,7 +1,6 @@
 import Foundation
 import Observation
 import PhonebookCore
-import PhonebookRanking
 
 @Observable @MainActor
 public final class DirectoryModel {
@@ -22,9 +21,7 @@ public final class DirectoryModel {
   public private(set) var shown: [Int: Int] = [:]
   private var contacts: [Int64: Contact] = [:]
   @ObservationIgnored private let store: any DirectorySearchSource
-  @ObservationIgnored private let allowsForgivingSearch: Bool
   @ObservationIgnored private var index: LocalSearch?
-  @ObservationIgnored private var scorer: SavedRankedSearch?
   @ObservationIgnored private var manifest: SnapshotManifest?
   @ObservationIgnored private var operation: Task<Void, Never>?
   @ObservationIgnored private var paging: Task<Void, Never>?
@@ -33,12 +30,11 @@ public final class DirectoryModel {
   @ObservationIgnored private var pageRun: Run?
   @ObservationIgnored private var searched: String?
 
-  public init(store: any DirectorySearchSource, allowsForgivingSearch: Bool = false) {
+  public init(store: any DirectorySearchSource) {
     self.store = store
-    self.allowsForgivingSearch = allowsForgivingSearch
   }
 
-  public var ready: Bool { scorer != nil || index != nil }
+  public var ready: Bool { index != nil }
 
   public func visible(_ group: ResultGroup) -> [Contact] {
     group.ids.prefix(shown[group.category] ?? Self.previewSize).compactMap { contacts[$0] }
@@ -63,7 +59,6 @@ public final class DirectoryModel {
     self.manifest = manifest
     generation = manifest?.generation
     index = nil
-    scorer = nil
     contacts = [:]
     categories = []
     results = nil
@@ -75,9 +70,7 @@ public final class DirectoryModel {
     guard let generation else { return }
     do {
       let header = try await store.header(generation: generation)
-      let scorer =
-        allowsForgivingSearch ? try await store.rankedSearch(generation: generation) : nil
-      let index = scorer == nil ? try await store.searchIndex(generation: generation) : nil
+      let index = try await store.searchIndex(generation: generation)
       try Task.checkCancellation()
       guard loadRun === run else { return }
       categories = header.categories.map {
@@ -86,7 +79,6 @@ public final class DirectoryModel {
           licenseURL: $0.licenseUrl)
       }
       self.index = index
-      self.scorer = scorer
       loading = false
       searched = nil
       search()
@@ -108,10 +100,15 @@ public final class DirectoryModel {
     pageRun = nil
     shown = [:]
     results = nil
+    contacts = [:]
     let run = Run()
     searchRun = run
     failed = false
-    guard !RankingText.compact(query).isEmpty, ready, let generation else {
+    guard
+      SearchInput.foldedCharacters(query).unicodeScalars.contains(where: {
+        !$0.properties.isWhitespace
+      }), ready, let generation
+    else {
       operation = nil
       searching = false
       return nil
@@ -119,12 +116,14 @@ public final class DirectoryModel {
     searching = true
     failed = false
     let store = store
-    let scorer = scorer
     let index = index
     let categories = categories
     let typed = query
     let phone = SearchInput.normalizedPhone(typed).flatMap { try? CanonicalPhone($0) }
     let task = Task {
+      defer {
+        if searchRun === run { searching = false }
+      }
       do {
         let groups: [ResultGroup]
         var loaded: [Int64: Contact] = [:]
@@ -132,11 +131,6 @@ public final class DirectoryModel {
           let matches = try await store.contactIDs(generation: generation, number: phone.number)
           let names = try await store.searchIndex(generation: generation)
           groups = Self.groups(try names.exact(matches), index: names, categories: categories)
-        } else if let scorer {
-          let ids = try await Self.detached { try scorer.search(typed).map(\.id) }
-          // A ranked search returns at most one page of candidates, so their records decide the categories.
-          loaded = try await Self.fetch(ids, generation: generation, store: store, cached: [:])
-          groups = Self.groups(ids, contacts: loaded, categories: categories)
         } else if let index {
           let words = SearchInput.words(typed)
           let matches = try await Self.detached { try index.search(words) }
@@ -150,29 +144,27 @@ public final class DirectoryModel {
         try Task.checkCancellation()
         guard searchRun === run else { return }
         contacts = loaded
-        let total = groups.reduce(0) { $0 + $1.total }
         results = SearchResults(
           input: typed, groups: groups,
-          limited: scorer != nil && phone == nil && total == RankingPolicy.results)
+          limited: false)
         failed = false
-        searching = false
       } catch {
-        guard searchRun === run, !(error is CancellationError) else { return }
+        guard searchRun === run else { return }
         results = nil
-        failed = true
-        searching = false
+        failed = !(error is CancellationError)
       }
     }
     operation = task
     return task
   }
 
-  public func retry() {
+  @discardableResult
+  public func retry() -> Task<Void, Never>? {
     if ready {
       searched = nil
-      search()
+      return search()
     } else {
-      Task { await activate(manifest) }
+      return Task { await activate(manifest) }
     }
   }
 
@@ -240,26 +232,6 @@ public final class DirectoryModel {
       return ResultGroup(
         category: category, key: categories[category].id, label: categories[category].label,
         ids: group.map(\.id))
-    }
-  }
-
-  /// Groups ranked records by category, placing each category where its first record appears.
-  private nonisolated static func groups(
-    _ ids: [Int64], contacts: [Int64: Contact], categories: [CategoryInfo]
-  ) -> [ResultGroup] {
-    var order: [Int] = []
-    var members: [Int: [Int64]] = [:]
-    for id in ids {
-      guard let key = contacts[id]?.categoryKey,
-        let category = categories.firstIndex(where: { $0.id == key })
-      else { continue }
-      if members[category] == nil { order.append(category) }
-      members[category, default: []].append(id)
-    }
-    return order.map {
-      ResultGroup(
-        category: $0, key: categories[$0].id, label: categories[$0].label,
-        ids: members[$0] ?? [])
     }
   }
 

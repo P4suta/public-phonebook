@@ -8,6 +8,36 @@ struct DecodedIdentity: Sendable, Equatable {
   let sha256: SnapshotID
 }
 
+struct ArchiveBuffer {
+  static let flushBytes = 1_048_576
+  private let write: (Data) throws -> Void
+  private var buffer = Data()
+  private var hasher = SHA256()
+  private(set) var bytes = 0
+
+  init(write: @escaping (Data) throws -> Void) { self.write = write }
+
+  mutating func append(_ line: some Collection<UInt8>) throws {
+    buffer.append(contentsOf: line)
+    buffer.append(0x0A)
+    bytes += line.count + 1
+    if buffer.count >= Self.flushBytes { try flush() }
+  }
+
+  mutating func flush() throws {
+    guard !buffer.isEmpty else { return }
+    try write(buffer)
+    hasher.update(data: buffer)
+    buffer.removeSubrange(buffer.startIndex..<buffer.endIndex)
+  }
+
+  mutating func finish() throws -> DecodedIdentity {
+    try flush()
+    let digest = hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    return DecodedIdentity(bytes: bytes, sha256: try SnapshotID(digest))
+  }
+}
+
 /// The saved generation or decoded archive that a delta copies rows from, in archive order.
 struct DeltaBase: Sendable {
   let snapshot: SnapshotID
@@ -37,7 +67,6 @@ extension DeltaBase {
 /// A Brotli archive decoded into a plain file, with the offset of every row, which a delta copies rows from.
 struct DecodedArchive: Sendable {
   private static let lineFeed = UInt8(ascii: "\n")
-  private static let flushBytes = 1_048_576
 
   let url: URL
   let header: ArchiveHeader
@@ -53,17 +82,10 @@ struct DecodedArchive: Sendable {
     }
     let writer = try FileHandle(forWritingTo: url)
     defer { try? writer.close() }
-    var hasher = SHA256()
-    var buffer = Data()
-    var written = 0
+    var output = ArchiveBuffer { try writer.write(contentsOf: $0) }
     var line = 0
     var header: ArchiveHeader?
     var offsets: [Int] = []
-    func flush() throws {
-      hasher.update(data: buffer)
-      try writer.write(contentsOf: buffer)
-      buffer.removeAll(keepingCapacity: true)
-    }
     try await BrotliLines(url: archive).eachLine { data, _ in
       defer { line += 1 }
       switch line {
@@ -73,20 +95,16 @@ struct DecodedArchive: Sendable {
         header = try JSONDecoder().decode(ArchiveHeader.self, from: data).validated()
       default:
         try Task.checkCancellation()
-        offsets.append(written)
+        offsets.append(output.bytes)
       }
-      buffer.append(data)
-      buffer.append(lineFeed)
-      written += data.count + 1
-      if buffer.count >= flushBytes { try flush() }
+      try output.append(data)
     }
-    try flush()
+    let identity = try output.finish()
     guard let header, offsets.count == header.contacts else { throw ImportError.unexpectedCount }
-    offsets.append(written)
-    let digest = hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    offsets.append(identity.bytes)
     return DecodedArchive(
       url: url, header: header,
-      identity: DecodedIdentity(bytes: written, sha256: try SnapshotID(digest)), offsets: offsets)
+      identity: identity, offsets: offsets)
   }
 
   /// A delta base that reads rows from the decoded file and names its identity.
@@ -97,19 +115,23 @@ struct DecodedArchive: Sendable {
       snapshot: header.snapshot, contacts: header.contacts, categories: header.categories.count,
       provenances: header.provenances.count, links: header.links.count, decoded: identity,
       rows: { start, count in
-        guard start >= 0, count >= 0, start + count < offsets.count else {
+        guard offsets.indices.contains(start), count >= 0, count < offsets.count - start else {
           throw ImportError.invalidSnapshot
         }
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
         try handle.seek(toOffset: UInt64(offsets[start]))
-        let data = try handle.read(upToCount: offsets[start + count] - offsets[start]) ?? Data()
+        let bytes = offsets[start + count] - offsets[start]
+        let data =
+          try autoreleasepool {
+            try handle.read(upToCount: bytes)
+          } ?? Data()
+        guard data.count == bytes else { throw ImportError.invalidSnapshot }
         var rows: [Data] = []
-        rows.reserveCapacity(count)
         var lineStart = data.startIndex
         for index in 0..<count {
           let end = data.startIndex + offsets[start + index + 1] - offsets[start] - 1
-          guard end < data.endIndex, data[end] == Self.lineFeed else {
+          guard data.indices.contains(end), data[end] == Self.lineFeed else {
             throw ImportError.invalidSnapshot
           }
           rows.append(data[lineStart..<end])
@@ -186,6 +208,11 @@ struct DirectoryDeltaApplier {
       targetArchive: delta.archiveSha256)
   }
 
+  static func copiedWordCount(_ contacts: Int) -> Int {
+    let (words, remainder) = contacts.quotientAndRemainder(dividingBy: 64)
+    return words + (remainder == 0 ? 0 : 1)
+  }
+
   /// Streams the delta into `output`, hashing the rebuilt archive as it writes it, and returns the verdict.
   nonisolated(nonsending) func rebuild(
     from base: DeltaBase, into output: URL, progress: (Double) async -> Void = { _ in }
@@ -210,8 +237,6 @@ struct DirectoryDeltaApplier {
 /// The state of one rebuild, which reads the delta once and holds at most one batch of base rows.
 private final class DeltaRebuild {
   private static let signature = Data("public-phonebook-directory-delta\t1".utf8)
-  private static let flushBytes = 1_048_576
-  private static let lineFeed = UInt8(ascii: "\n")
   private static let tab = UInt8(ascii: "\t")
   private static let listSeparator = UInt8(0x1F)
   private static let confirmedWithoutLink = Data("*".utf8)
@@ -227,22 +252,16 @@ private final class DeltaRebuild {
   private static let startField = 1
   private static let countField = 2
   private static let leadingLines = 3
-  private static let maximumDigits = 9
-  private static let decimalRadix = 10
-  private static let digits = UInt8(ascii: "0")...UInt8(ascii: "9")
   private static let bitsPerWord = 64
 
   private let applier: DirectoryDeltaApplier
   private let base: DeltaBase
-  private let writer: FileHandle
+  private var writer: ArchiveBuffer
   private var header: DirectoryDeltaHeader?
   private var sizes = (categories: 0, provenances: 0, links: 0)
   private var copied: [UInt64] = []
-  private var hasher = SHA256()
-  private var buffer = Data()
   private var line = 0
   private var decoded = 0
-  private var bytes = 0
   private var rows = 0
   private var kept = 0
   private var added = 0
@@ -250,7 +269,7 @@ private final class DeltaRebuild {
   init(applier: DirectoryDeltaApplier, base: DeltaBase, writer: FileHandle) {
     self.applier = applier
     self.base = base
-    self.writer = writer
+    self.writer = ArchiveBuffer { try writer.write(contentsOf: $0) }
   }
 
   nonisolated(nonsending) func accept(_ data: Data, progress: (Double) async -> Void)
@@ -270,13 +289,12 @@ private final class DeltaRebuild {
 
   func finish() throws -> DeltaAdmission {
     guard let header, line >= Self.leadingLines else { return .malformed }
-    try flush()
-    let digest = hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    let identity = try writer.finish()
     return DeltaAdmission.decide(
       baseMatches: true,
       wellFormed: kept == header.kept && added == header.added && decoded == applier.decodedBytes,
-      rows: rows, expectedRows: header.target.contacts, bytes: bytes,
-      expectedBytes: header.target.bytes, digestMatches: digest == header.target.sha256.rawValue)
+      rows: rows, expectedRows: header.target.contacts, bytes: identity.bytes,
+      expectedBytes: header.target.bytes, digestMatches: identity.sha256 == header.target.sha256)
   }
 
   private func admitHeader(_ data: Data) throws -> DirectoryDeltaHeader {
@@ -293,7 +311,7 @@ private final class DeltaRebuild {
       })
         ?? true
     else { throw DeltaRejection(admission: .baseMismatch) }
-    copied = Array(repeating: 0, count: (base.contacts + Self.bitsPerWord - 1) / Self.bitsPerWord)
+    copied = Array(repeating: 0, count: DirectoryDeltaApplier.copiedWordCount(base.contacts))
     return header
   }
 
@@ -331,8 +349,8 @@ private final class DeltaRebuild {
     }
     let fields = data.split(separator: Self.tab, omittingEmptySubsequences: false)
     guard fields.count == Self.copyFields, fields[Self.markerField] == Self.copyMarker,
-      let start = Self.decimal(fields[Self.startField], positive: false),
-      let count = Self.decimal(fields[Self.countField], positive: true),
+      let start = DeltaIndex.decimal(fields[Self.startField]),
+      let count = DeltaIndex.decimal(fields[Self.countField]),
       DeltaAdmission.admitsCopy(start: start, count: count, baseRows: base.contacts)
     else { throw DeltaRejection(admission: .malformed) }
     for position in start..<(start + count) {
@@ -362,19 +380,21 @@ private final class DeltaRebuild {
     guard let header else { return nil }
     var fields = row.split(separator: Self.tab, omittingEmptySubsequences: false).map { Data($0) }
     guard fields.count == Self.rowFields,
-      let category = Self.map(fields[Self.categoryField], header.categories, sizes.categories),
-      let provenance = Self.map(fields[Self.provenanceField], header.provenances, sizes.provenances)
+      let category = DeltaIndex.map(
+        fields[Self.categoryField], header.categories, sizes.categories),
+      let provenance = DeltaIndex.map(
+        fields[Self.provenanceField], header.provenances, sizes.provenances)
     else { return nil }
     var origin: [Data] = []
     for item in fields[Self.originField].split(
       separator: Self.listSeparator, omittingEmptySubsequences: false)
     {
-      guard let link = Self.map(item, header.links, sizes.links) else { return nil }
+      guard let link = DeltaIndex.map(item, header.links, sizes.links) else { return nil }
       origin.append(link)
     }
     let confirmation = fields[Self.confirmationField]
     if !confirmation.isEmpty, confirmation != Self.confirmedWithoutLink {
-      guard let link = Self.map(confirmation, header.links, sizes.links) else { return nil }
+      guard let link = DeltaIndex.map(confirmation, header.links, sizes.links) else { return nil }
       fields[Self.confirmationField] = link
     }
     fields[Self.categoryField] = category
@@ -383,38 +403,33 @@ private final class DeltaRebuild {
     return Data(fields.joined(separator: [Self.tab]))
   }
 
-  private static func map(_ text: some Collection<UInt8>, _ map: [Int?], _ size: Int) -> Data? {
-    guard let index = decimal(text, positive: false), index < map.count, let mapped = map[index],
-      mapped < size
-    else { return nil }
-    return Data(String(mapped).utf8)
-  }
-
-  /// Parses a decimal without a sign or leading zeros, as `decimalIndex` and `decimalCount` admit.
-  private static func decimal(_ text: some Collection<UInt8>, positive: Bool) -> Int? {
-    guard (1...maximumDigits).contains(text.count), text.allSatisfy({ digits.contains($0) }),
-      text.count == 1 || text.first != digits.lowerBound
-    else { return nil }
-    let value = text.reduce(0) { $0 * decimalRadix + Int($1 - digits.lowerBound) }
-    return positive && value == 0 ? nil : value
-  }
-
   private func writeRow(_ row: some Collection<UInt8>, _ header: DirectoryDeltaHeader) throws {
     rows += 1
     guard rows <= header.target.contacts else { throw DeltaRejection(admission: .malformed) }
     try write(row)
   }
 
-  private func write(_ line: some Collection<UInt8>) throws {
-    buffer.append(contentsOf: line)
-    buffer.append(Self.lineFeed)
-    bytes += line.count + 1
-    if buffer.count >= Self.flushBytes { try flush() }
+  private func write(_ line: some Collection<UInt8>) throws { try writer.append(line) }
+}
+
+enum DeltaIndex {
+  private static let maximumDigits = 9
+  private static let decimalRadix = 10
+  private static let digits = UInt8(ascii: "0")...UInt8(ascii: "9")
+
+  static func map(_ text: some Collection<UInt8>, _ map: [Int?], _ size: Int) -> Data? {
+    guard let index = decimal(text), index < map.count, let mapped = map[index],
+      mapped < size
+    else { return nil }
+    return Data(String(mapped).utf8)
   }
 
-  private func flush() throws {
-    hasher.update(data: buffer)
-    try writer.write(contentsOf: buffer)
-    buffer.removeAll(keepingCapacity: true)
+  /// Parses canonical unsigned decimals; copy admission requires a positive count.
+  static func decimal(_ text: some Collection<UInt8>) -> Int? {
+    guard (1...maximumDigits).contains(text.count), text.allSatisfy({ digits.contains($0) }),
+      text.count == 1 || text.first != digits.lowerBound
+    else { return nil }
+    return text.reduce(0) { $0 * decimalRadix + Int($1 - digits.lowerBound) }
   }
+
 }

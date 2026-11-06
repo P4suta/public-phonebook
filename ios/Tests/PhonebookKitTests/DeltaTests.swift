@@ -1,5 +1,6 @@
 import Foundation
 import PhonebookCore
+import Synchronization
 import Testing
 
 @testable import PhonebookKit
@@ -144,11 +145,204 @@ private func rebuild(
   #expect(rebuilt == fixture.targetText)
 }
 
+@Test func deltaHeaderChecksIndependentCountAndDictionaryLimits() throws {
+  func admitted(_ fixture: DeltaFixture) throws -> Bool {
+    try JSONDecoder().decode(
+      DirectoryDeltaHeader.self,
+      from: JSONSerialization.data(withJSONObject: fixture.header)
+    ).accountsForEveryRow
+  }
+  let valid = try DeltaFixture()
+  #expect(try admitted(valid))
+  for side in ["base", "target"] {
+    for value in [-1, DatasetDelta.maximumDecodedBytes + 1, Int.max] {
+      var fixture = valid
+      fixture.set(side, "bytes", value)
+      #expect(try !admitted(fixture), "\(side) bytes=\(value)")
+    }
+  }
+  for key in ["kept", "added", "removed"] {
+    for value in [-1, 5_000_001, Int.max] {
+      var fixture = valid
+      fixture.header[key] = value
+      #expect(try !admitted(fixture), "\(key)=\(value)")
+    }
+  }
+  for (key, maximum) in [("categories", 256), ("provenances", 65_536), ("links", 65_536)] {
+    var fixture = valid
+    fixture.header[key] = Array(repeating: NSNull(), count: maximum)
+    #expect(try admitted(fixture), "\(key) at its maximum")
+    fixture.header[key] = Array(repeating: NSNull(), count: maximum + 1)
+    #expect(try !admitted(fixture), "\(key) above its maximum")
+    fixture.header[key] = [-1]
+    #expect(try !admitted(fixture), "\(key) has a negative index")
+  }
+  var maximum = valid
+  for side in ["base", "target"] {
+    maximum.set(side, "contacts", 5_000_000)
+    maximum.set(side, "bytes", DatasetDelta.maximumDecodedBytes)
+  }
+  maximum.header["kept"] = 5_000_000
+  maximum.header["added"] = 0
+  maximum.header["removed"] = 0
+  #expect(try admitted(maximum))
+  for side in ["base", "target"] {
+    var fixture = maximum
+    fixture.set(side, "contacts", 5_000_001)
+    #expect(try !admitted(fixture))
+  }
+}
+
+@Test func decodedArchivesPreserveEveryByteAndAdmitOnlyCompleteRowSlices() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let lines = (0..<128).map {
+    ArchiveLine(name: String(format: "%03d", $0), address: String(repeating: "x", count: 8192))
+  }
+  let text = try archiveText(header: sampleHeaderObject(counts: ["13": lines.count]), lines: lines)
+  let expected = text.split(separator: 0x0A, omittingEmptySubsequences: false).dropFirst(2)
+    .dropLast()
+    .map { Data($0) }
+  let compressed = try writeArchive(text, in: root)
+  let output = root.appendingPathComponent("decoded")
+  let archive = try await DecodedArchive.decode(compressed, into: output)
+  #expect(try Data(contentsOf: output) == text)
+  #expect(archive.identity.bytes == text.count)
+  #expect(archive.identity.sha256.rawValue == sha256Hex(text))
+  #expect(archive.offsets.count == lines.count + 1)
+  #expect(try await archive.base.rows(0, lines.count) == expected)
+  #expect(try await archive.base.rows(0, 0).isEmpty)
+  #expect(try await archive.base.rows(lines.count, 0).isEmpty)
+  #expect(try await archive.base.rows(1, 2) == Array(expected[1...2]))
+  for (start, count) in [
+    (-1, 1), (0, -1), (128, 1), (0, 129), (129, 0), (Int.max, 0), (Int.max, 1), (1, Int.max),
+  ] {
+    await #expect(throws: ImportError.invalidSnapshot, "start=\(start), count=\(count)") {
+      try await archive.base.rows(start, count)
+    }
+  }
+  try text.dropLast().write(to: output)
+  await #expect(throws: ImportError.invalidSnapshot) { try await archive.base.rows(127, 1) }
+  var damaged = text
+  damaged[damaged.index(before: damaged.endIndex)] = 0x78
+  try damaged.write(to: output)
+  await #expect(throws: ImportError.invalidSnapshot) { try await archive.base.rows(127, 1) }
+}
+
+@Test func archiveBufferFlushesAtItsLimitAndHashesOnlySuccessfullyWrittenBytes() throws {
+  enum WriteFailure: Error { case interrupted }
+  var writes: [Data] = []
+  var output = ArchiveBuffer { writes.append($0) }
+  let first = Data(repeating: 0x61, count: ArchiveBuffer.flushBytes - 2)
+  try output.append(first)
+  #expect(writes.isEmpty)
+  try output.append(Data())
+  #expect(writes.map(\.count) == [1_048_576])
+  try output.append(Data("tail".utf8))
+  let identity = try output.finish()
+  let expected = first + Data("\n\ntail\n".utf8)
+  #expect(Data(writes.joined()) == expected)
+  #expect(identity.bytes == expected.count)
+  #expect(identity.sha256.rawValue == sha256Hex(expected))
+  try output.flush()
+  #expect(writes.map(\.count) == [1_048_576, 5])
+
+  writes = []
+  var failed = true
+  var retry = ArchiveBuffer { data in
+    if failed { throw WriteFailure.interrupted }
+    writes.append(data)
+  }
+  let oversized = Data(repeating: 0x62, count: ArchiveBuffer.flushBytes)
+  #expect(throws: WriteFailure.interrupted) { try retry.append(oversized) }
+  #expect(writes.isEmpty)
+  failed = false
+  let retried = try retry.finish()
+  let complete = oversized + Data([0x0A])
+  #expect(writes == [complete])
+  #expect(retried.bytes == complete.count)
+  #expect(retried.sha256.rawValue == sha256Hex(complete))
+  writes = []
+  var empty = ArchiveBuffer { writes.append($0) }
+  let emptyIdentity = try empty.finish()
+  #expect(writes.isEmpty && emptyIdentity.bytes == 0)
+  #expect(emptyIdentity.sha256.rawValue == sha256Hex(Data()))
+}
+
+@Test func deltaIndicesUseCanonicalDecimalsAndStayInsideBothDictionaries() {
+  for (text, value) in [("0", 0), ("1", 1), ("9", 9), ("10", 10), ("999999999", 999_999_999)] {
+    #expect(DeltaIndex.decimal(text.utf8) == value)
+  }
+  for text in ["", "00", "01", "-1", "+1", "1.0", " 1", "1 ", "１２", "1000000000"] {
+    #expect(DeltaIndex.decimal(text.utf8) == nil, "\(text)")
+  }
+  let map: [Int?] = [2, nil, 0]
+  #expect(DeltaIndex.map("0".utf8, map, 3) == Data("2".utf8))
+  #expect(DeltaIndex.map("2".utf8, map, 3) == Data("0".utf8))
+  for text in ["1", "3", "4", "-1", "00", ""] {
+    #expect(DeltaIndex.map(text.utf8, map, 3) == nil)
+  }
+  #expect(DeltaIndex.map("0".utf8, [3], 3) == nil)
+  #expect(DeltaIndex.map("0".utf8, [0], 0) == nil)
+  for (rows, words) in [(0, 0), (1, 1), (63, 1), (64, 1), (65, 2), (5_000_000, 78_125)] {
+    #expect(DirectoryDeltaApplier.copiedWordCount(rows) == words)
+  }
+}
+
+@Test func deltasCanRemoveEveryRowWithoutCopyInstructionsOrDictionaryMappings() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  var fixture = try DeltaFixture()
+  let target = try archiveText(header: sampleHeaderObject(snapshot: "b", counts: [:]), lines: [])
+  fixture.targetHeaderLine = Data(target.split(separator: 0x0A)[1])
+  fixture.header["target"] = identity(currentSnapshot, target)
+  fixture.set("target", "contacts", 0)
+  fixture.header["kept"] = 0
+  fixture.header["added"] = 0
+  fixture.header["removed"] = 4
+  fixture.header["categories"] = [NSNull(), NSNull()]
+  fixture.header["provenances"] = [NSNull()]
+  fixture.header["links"] = [NSNull(), NSNull()]
+  fixture.instructions = []
+  let (admission, rebuilt) = try await rebuild(fixture, in: root)
+  #expect(admission == .apply)
+  #expect(rebuilt == target)
+  for (key, size) in [("categories", 2), ("provenances", 1), ("links", 2)] {
+    var invalid = fixture
+    var map = [Any](repeating: NSNull(), count: size)
+    map[0] = size
+    invalid.header[key] = map
+    let result = try await rebuild(invalid, in: root)
+    #expect(result.0 == .malformed, "unused \(key) index at its upper bound")
+  }
+}
+
+@Test func deltaCopiesRejectEmptyOriginIndicesFromTheirSavedRows() async throws {
+  for origin in ["\u{1F}0\u{1F}1", "0\u{1F}\u{1F}1", "0\u{1F}1\u{1F}"] {
+    let root = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let fixture = try DeltaFixture()
+    var lines = baseLines
+    lines[3].origin = origin
+    let rows = lines.map { Data($0.text.utf8) }
+    let base = DeltaBase(
+      snapshot: try SnapshotID(savedSnapshot), contacts: 4, categories: 2, provenances: 1, links: 2,
+      rows: { start, count in Array(rows[start..<(start + count)]) })
+    let delta = try writeArchive(fixture.text, in: root)
+    let applier = DirectoryDeltaApplier(
+      url: delta, decodedBytes: try fixture.text.count, target: try SnapshotID(currentSnapshot),
+      targetArchive: try SnapshotID(listedArchive))
+    let admission = try await applier.rebuild(
+      from: base, into: root.appendingPathComponent("rebuilt"))
+    #expect(admission == .malformed)
+  }
+}
+
 private enum DeltaFault: CaseIterable, Sendable {
   case signature, targetDigest, targetLength, baseSnapshot, baseRows, baseDictionary,
     sameSnapshots, targetHeaderSnapshot, listedTarget, instructionCounts, extraInstruction,
     copyOutOfRange, copyOverlap, nullIndex, outOfRangeIndex, malformedInstruction,
-    decodedLength, unterminated, truncated
+    decodedLength, unterminated, truncated, leadingCopyField, trailingCopyField, zeroCopy
 
   var admission: DeltaAdmission? {
     switch self {
@@ -190,6 +384,9 @@ private enum DeltaFault: CaseIterable, Sendable {
     case .nullIndex: fixture.header["categories"] = [NSNull(), 0]
     case .outOfRangeIndex: fixture.header["links"] = [2, 0]
     case .malformedInstruction: fixture.instructions[2] = "=\t00\t1"
+    case .leadingCopyField: fixture.instructions[2] = "\t=\t0\t1"
+    case .trailingCopyField: fixture.instructions[2] = "=\t0\t1\t"
+    case .zeroCopy: fixture.instructions[2] = "=\t0\t0"
     case .unterminated: fixture.terminated = false
     case .decodedLength, .truncated: break
     }
@@ -220,7 +417,33 @@ private func everyDeltaFaultIsRejectedBeforeStaging(_ fault: DeltaFault) async t
 
 private enum DeltaSync: CaseIterable, Sendable {
   case applied, rejectedDelta, unlistedBase, unknownFormat, unlinked, unsaved, completeAlsoFails,
-    cancelled
+    cancelled, cancelledListing, manifestReadFailure
+}
+
+private struct CancelledDeltaListing: HTTPTransport {
+  private let fallback = URLSessionTransport()
+  func send(_ request: URLRequest) async throws -> HTTPResult {
+    if request.url?.path == "/api/dataset-deltas" { throw CancellationError() }
+    return try await fallback.send(request)
+  }
+}
+
+private final class FailFirstManifestRead: SnapshotFiles {
+  private let first = Mutex(true)
+  func readManifest(at url: URL) throws -> Data {
+    if first.withLock({ value in
+      let result = value
+      value = false
+      return result
+    }) {
+      throw ImportError.invalidSnapshot
+    }
+    return try LocalSnapshotFiles().readManifest(at: url)
+  }
+  func activateManifest(_ data: Data, at url: URL) throws {
+    try LocalSnapshotFiles().activateManifest(data, at: url)
+  }
+  func removeGeneration(at url: URL) throws { try LocalSnapshotFiles().removeGeneration(at: url) }
 }
 
 private let unknownDeltaFormat = "public-phonebook-directory-delta/2"
@@ -297,19 +520,38 @@ private func synchronizationAppliesDeltasAndFallsBackToTheCompleteArchive(_ mode
   let original =
     mode == .unsaved
     ? nil : try await publish(sorted(baseLines), to: store, snapshot: "a", counts: rowCounts)
+  let selected =
+    mode == .manifestReadFailure
+    ? try SnapshotStore(root: root, files: FailFirstManifestRead()) : store
   let requests = RequestLog()
   let (server, routes) = try await deltaServer(mode, requests: requests)
-  let engine = SyncEngine(api: try APIClient(origin: server.origin), store: store)
+  let trace = RecordingTrace()
+  let transport: any HTTPTransport =
+    mode == .cancelledListing ? CancelledDeltaListing() : URLSessionTransport()
+  let engine = SyncEngine(
+    api: try APIClient(origin: server.origin, transport: transport), store: selected, trace: trace)
+  defer {
+    let expected: [TraceEvent.Outcome]
+    switch mode {
+    case .applied: expected = [.started, .completed]
+    case .rejectedDelta, .completeAlsoFails: expected = [.started, .rejected]
+    case .unlistedBase, .unknownFormat: expected = [.started, .deferred]
+    case .manifestReadFailure: expected = [.deferred]
+    case .cancelled, .cancelledListing: expected = [.started, .cancelled]
+    case .unlinked, .unsaved: expected = []
+    }
+    #expect(trace.events.withLock { $0.filter { $0.phase == .delta }.map(\.outcome) } == expected)
+  }
   let operation = Task {
     try await engine.synchronize { value in
       if mode == .cancelled, value.fraction > 0 { withUnsafeCurrentTask { $0?.cancel() } }
     }
   }
   let requested = { requests.received }
-  if [.completeAlsoFails, .cancelled].contains(mode) {
+  if [.completeAlsoFails, .cancelled, .cancelledListing].contains(mode) {
     await #expect(throws: (any Error).self) { try await operation.value }
     #expect(try await store.manifest()?.generation == original?.generation)
-    #expect(requested().contains(routes.delta))
+    #expect(requested().contains(routes.delta) == (mode != .cancelledListing))
     #expect(requested().contains(routes.archive) == (mode == .completeAlsoFails))
     return
   }

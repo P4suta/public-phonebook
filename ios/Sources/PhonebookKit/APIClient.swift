@@ -62,7 +62,9 @@ public struct DatasetArchive: DatasetFile, Equatable {
     let handle = try FileHandle(forReadingFrom: url)
     defer { try? handle.close() }
     var hasher = SHA256()
-    while let chunk = try handle.read(upToCount: 1_048_576), !chunk.isEmpty {
+    while let chunk = try autoreleasepool(invoking: { try handle.read(upToCount: 1_048_576) }),
+      !chunk.isEmpty
+    {
       hasher.update(data: chunk)
     }
     return hasher.finalize().map { String(format: "%02x", $0) }.joined()
@@ -131,7 +133,7 @@ public struct APIClient: Sendable {
 
   public func validateLink(_ link: String, snapshot: SnapshotID) throws {
     let url = try resolve(link)
-    let items = URLComponents(url: url, resolvingAgainstBaseURL: true)?.queryItems ?? []
+    let items = URLComponents(string: url.absoluteString)?.queryItems ?? []
     let identities = items.filter { $0.name == "snapshot" }
     guard identities.count == 1, identities.first?.value == snapshot.rawValue else {
       throw ServiceError.snapshotChanged
@@ -206,7 +208,7 @@ public struct APIClient: Sendable {
       throw ServiceError.invalidResponse
     }
     if let url = response.url {
-      let items = URLComponents(url: url, resolvingAgainstBaseURL: true)?.queryItems ?? []
+      let items = URLComponents(string: url.absoluteString)?.queryItems ?? []
       if items.contains(where: { $0.name == "snapshot" }) {
         try validateLink(url.absoluteString, snapshot: snapshot)
       }
@@ -364,10 +366,7 @@ public struct APIClient: Sendable {
         try Data().write(to: partial)
         offset = 0
       }
-      var request = URLRequest(url: requested)
-      request.setValue(DatasetArchive.mimeType, forHTTPHeaderField: "Accept")
-      if offset > 0 { request.setValue("bytes=\(offset)-", forHTTPHeaderField: "Range") }
-      paths.apply(to: &request)
+      let request = Self.downloadRequest(url: requested, offset: offset, paths: paths)
       let transfer = DatasetTransfer(
         partial: partial, offset: offset, expected: archive.bytes, snapshot: archive.snapshot,
         progress: progress)
@@ -395,6 +394,14 @@ public struct APIClient: Sendable {
       throw failure
     }
   }
+
+  static func downloadRequest(url: URL, offset: Int, paths: NetworkPaths) -> URLRequest {
+    var request = URLRequest(url: url)
+    request.setValue(DatasetArchive.mimeType, forHTTPHeaderField: "Accept")
+    if offset > 0 { request.setValue("bytes=\(offset)-", forHTTPHeaderField: "Range") }
+    paths.apply(to: &request)
+    return request
+  }
 }
 
 /// Holds an exclusive advisory lock on one transfer directory, so two downloads never write the same partial file.
@@ -405,7 +412,7 @@ private final class TransferLock: ReleasableLock {
 
   init(url: URL) throws {
     let descriptor = open(url.path, O_CREAT | O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR)
-    guard descriptor >= 0 else { throw ImportError.unavailableStorage }
+    guard descriptor != -1 else { throw ImportError.unavailableStorage }
     guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else {
       close(descriptor)
       throw ImportError.alreadyUpdating
@@ -416,7 +423,6 @@ private final class TransferLock: ReleasableLock {
   func release() {
     descriptor.withLock { descriptor in
       guard let open = descriptor else { return }
-      flock(open, LOCK_UN)
       close(open)
       descriptor = nil
     }
