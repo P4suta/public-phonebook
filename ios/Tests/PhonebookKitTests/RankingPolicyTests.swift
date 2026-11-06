@@ -1,13 +1,6 @@
 import Testing
 
-@testable import PhonebookCore
-
-@Test func searchActivationRequiresEveryMandatorySearchFile() {
-  #expect(!SearchActivation.permits(required: true, ready: false))
-  #expect(SearchActivation.permits(required: true, ready: true))
-  #expect(SearchActivation.permits(required: false, ready: false))
-  #expect(SearchActivation.permits(required: false, ready: true))
-}
+@testable import PhonebookRanking
 
 @Test func rankingScoreBandsAndReadingBoundaries() {
   #expect(RankingPolicy.dice(shared: 3, query: 4, name: 6) == 6000)

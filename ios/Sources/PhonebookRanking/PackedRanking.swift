@@ -1,4 +1,5 @@
 import Foundation
+import PhonebookCore
 import Synchronization
 
 private struct PackedPair<A: Decodable, B: Decodable>: Decodable {

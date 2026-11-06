@@ -1,5 +1,6 @@
 import Foundation
 import PhonebookCore
+import PhonebookRanking
 
 /// One progress report of a synchronization, in the stages that the first download's steps name.
 public struct SyncProgress: Sendable, Equatable {

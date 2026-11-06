@@ -1,6 +1,7 @@
 import Compression
 import Foundation
 import PhonebookCore
+import PhonebookRanking
 
 public enum SearchArtifactError: Error {
   case header

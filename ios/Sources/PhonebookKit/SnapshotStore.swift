@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import PhonebookCore
+import PhonebookRanking
 
 public struct SnapshotManifest: Codable, Sendable {
   public static let currentFormat = 4
