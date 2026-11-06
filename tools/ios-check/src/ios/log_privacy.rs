@@ -25,7 +25,7 @@ enum Kind {
 
 /// Every expression that a log line may mark `.public`, with its kind.
 /// A new public field needs an entry here, so its review names what kind of value it is.
-const PUBLIC_VALUES: [(&str, Kind); 15] = [
+const PUBLIC_VALUES: [(&str, Kind); 17] = [
     ("key.phase.rawValue", Kind::RawValue),
     ("point.phase.rawValue", Kind::RawValue),
     (
@@ -36,6 +36,8 @@ const PUBLIC_VALUES: [(&str, Kind); 15] = [
     ("removed", Kind::Count),
     ("peak / 1024", Kind::Count),
     ("expired", Kind::Code),
+    ("plan.rawValue", Kind::RawValue),
+    ("expired ? \"expired\" : \"complete\"", Kind::Code),
     ("failure.domain", Kind::Code),
     ("failure.code", Kind::Code),
     ("event.operation.uuidString", Kind::Identifier),

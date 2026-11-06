@@ -508,117 +508,8 @@ pub(super) fn prepare(root: &Path) -> Result<()> {
         };
         require_controls(dataset, &source)?;
         install(root, dataset, &source.entry, &source.archive)?;
-        prepare_search(root, dataset, &source.entry)?;
         compare_search_forms(root, dataset)?;
     }
-    Ok(())
-}
-
-fn search_files(manifest: &Value, files: &[(&str, &[u8])]) -> Result<()> {
-    ensure!(
-        manifest["format"] == "public-phonebook-bundled-search/1",
-        "Unsupported bundled search format"
-    );
-    for (kind, bytes) in files {
-        let entry = &manifest[*kind];
-        ensure!(
-            entry["bytes"].as_u64() == Some(bytes.len() as u64),
-            "Search {kind} length mismatch"
-        );
-        ensure!(
-            entry["sha256"].as_str() == Some(crate::sha256_hex(bytes).as_str()),
-            "Search {kind} digest mismatch"
-        );
-    }
-    Ok(())
-}
-
-fn prepare_search(root: &Path, dataset: Dataset, archive: &Entry) -> Result<()> {
-    let (manifest, index, ranking) = match dataset {
-        Dataset::National => (
-            serde_json::from_slice::<Value>(&fs::read(
-                root.join("ios/SearchData/national-packed.json"),
-            )?)?,
-            fs::read(root.join("ios/SearchData/search-index.br"))?,
-            fs::read(root.join("ios/SearchData/search-ranking-packed.br"))?,
-        ),
-        Dataset::Fixture => {
-            let declaration: FixtureDeclaration = read_declaration(root, FIXTURE)?;
-            let corpus: Vec<CorpusResponse> =
-                serde_json::from_slice(&fs::read(root.join(declaration.corpus))?)?;
-            let response = |path: &str| -> Result<&CorpusResponse> {
-                corpus
-                    .iter()
-                    .find(|entry| entry.revision == declaration.revision && entry.path == path)
-                    .with_context(|| format!("The provider corpus has no {path}"))
-            };
-            let index: Value = serde_json::from_str(&response("/api/search-index")?.body)?;
-            let ranking: Value = serde_json::from_str(&response("/api/search-ranking")?.body)?;
-            ensure!(
-                index["snapshot"] == archive.snapshot && ranking["snapshot"] == archive.snapshot,
-                "Fixture search snapshot mismatch"
-            );
-            let bytes = |entry: &Value| -> Result<Vec<u8>> {
-                let url = entry["url"]
-                    .as_str()
-                    .context("Search artifact has no URL")?;
-                let response = response(&format!("{url}/download"))?;
-                ensure!(
-                    response.encoding.as_deref() == Some("base64"),
-                    "Search artifact isn't base64"
-                );
-                Ok(base64::engine::general_purpose::STANDARD.decode(&response.body)?)
-            };
-            let index_bytes = bytes(&index)?;
-            let ranking_bytes = bytes(&ranking)?;
-            (
-                json!({"format":"public-phonebook-bundled-search/1", "snapshot":archive.snapshot, "contacts":archive.contacts, "index":index, "ranking":ranking}),
-                index_bytes,
-                ranking_bytes,
-            )
-        }
-    };
-    ensure!(
-        manifest["snapshot"] == archive.snapshot && manifest["contacts"] == archive.contacts,
-        "The bundled search artifacts differ from the archive"
-    );
-    search_files(&manifest, &[("index", &index), ("ranking", &ranking)])?;
-    let scratch = root
-        .join(ADMISSION_SCRATCH)
-        .join(format!("search-{}", dataset.name()));
-    fs::create_dir_all(&scratch)?;
-    fs::write(scratch.join("search-index.br"), &index)?;
-    fs::write(scratch.join("search-ranking.br"), &ranking)?;
-    fs::write(
-        scratch.join("search.json"),
-        serde_json::to_vec_pretty(&manifest)?,
-    )?;
-    logged(
-        root,
-        &format!("bundled-search-{}", dataset.name()),
-        Command::new("xcrun")
-            .current_dir(root)
-            .args([
-                "swift",
-                "run",
-                "--package-path",
-                "ios",
-                "--configuration",
-                "release",
-                "--jobs",
-                "2",
-                "BundledAdmission",
-                "--search-bundle",
-            ])
-            .arg(&scratch)
-            .arg(&archive.snapshot)
-            .arg(archive.contacts.to_string()),
-    )?;
-    let output = root.join(OUTPUT).join(dataset.name());
-    for name in SEARCH_FILES {
-        fs::rename(scratch.join(name), output.join(name))?;
-    }
-    fs::remove_dir(&scratch)?;
     Ok(())
 }
 
@@ -696,7 +587,6 @@ fn require_built(
     archive: &[u8],
     entry: &[u8],
     admitted_entry: &[u8],
-    search: bool,
 ) -> Result<()> {
     admit_bytes(declaration, archive, declared)?;
     let entry: Value = serde_json::from_slice(entry)?;
@@ -707,9 +597,6 @@ fn require_built(
     );
     let files = bundle_files(app)?;
     let mut expected = vec![app.join(ENTRY_FILE), app.join(ARCHIVE_FILE)];
-    if search {
-        expected.extend(SEARCH_FILES.map(|name| app.join(name)));
-    }
     expected.sort();
     ensure!(
         files == expected,
@@ -747,37 +634,13 @@ pub(super) fn check_built(root: &Path, app: &Path, configuration: &str) -> Resul
     let entry = fs::read(app.join(ENTRY_FILE))
         .with_context(|| format!("{configuration}: the built app holds no {ENTRY_FILE}"))?;
     let admitted = fs::read(root.join(OUTPUT).join(dataset.name()).join(ENTRY_FILE))?;
-    let search = matches!(configuration, "VerificationDebug" | "VerificationRelease");
-    require_built(
-        declaration,
-        app,
-        &declared,
-        &archive,
-        &entry,
-        &admitted,
-        search,
-    )?;
-    let prepared = root.join(OUTPUT).join(dataset.name());
-    for name in SEARCH_FILES.into_iter().filter(|_| search) {
-        ensure!(
-            fs::read(app.join(name))? == fs::read(prepared.join(name))?,
-            "{configuration}: built search artifact {name} differs from admission"
-        );
-    }
+    require_built(declaration, app, &declared, &archive, &entry, &admitted)?;
     let mut changed = archive.clone();
     let last = changed.len() - 1;
     changed[last] ^= 1;
     ensure!(
-        require_built(
-            declaration,
-            app,
-            &declared,
-            &changed,
-            &entry,
-            &admitted,
-            search
-        )
-        .is_err_and(|error| error.to_string().contains("differs in sha256")),
+        require_built(declaration, app, &declared, &changed, &entry, &admitted,)
+            .is_err_and(|error| error.to_string().contains("differs in sha256")),
         "{configuration}: the built-app check accepted an archive with one changed byte"
     );
     println!(
@@ -791,6 +654,32 @@ pub(super) fn check_built(root: &Path, app: &Path, configuration: &str) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn application_package_contains_no_experimental_ranking_target() -> Result<()> {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let output = crate::checked(Command::new("xcrun").current_dir(root).args([
+            "swift",
+            "package",
+            "describe",
+            "--package-path",
+            "ios",
+            "--type",
+            "json",
+        ]))?;
+        let package: Value = serde_json::from_slice(&output.stdout)?;
+        let targets = package["targets"]
+            .as_array()
+            .context("Missing Swift package targets")?;
+        assert!(!targets.is_empty());
+        assert!(
+            targets
+                .iter()
+                .all(|target| target["name"] != "PhonebookRanking")
+        );
+        Ok(())
+    }
 
     fn declared() -> Declared {
         Declared {
@@ -910,23 +799,17 @@ mod tests {
         let entry = serde_json::to_vec(&json!({"snapshot": declared.snapshot}))?;
         fs::write(app.path().join(ARCHIVE_FILE), b"abc")?;
         fs::write(app.path().join(ENTRY_FILE), &entry)?;
+        require_built("d", app.path(), &declared, b"abc", &entry, &entry)?;
         for name in SEARCH_FILES {
             fs::write(app.path().join(name), b"fixture")?;
+            assert!(require_built("d", app.path(), &declared, b"abc", &entry, &entry).is_err());
+            fs::remove_file(app.path().join(name))?;
         }
-        require_built("d", app.path(), &declared, b"abc", &entry, &entry, true)?;
-        assert!(require_built("d", app.path(), &declared, b"abc", &entry, &entry, false).is_err());
-        assert!(require_built("d", app.path(), &declared, b"abc", &entry, b"{}", true).is_err());
+        assert!(require_built("d", app.path(), &declared, b"abc", &entry, b"{}").is_err());
         let extension = app.path().join("PlugIns/CallDirectory.appex");
         fs::create_dir_all(&extension)?;
-        for name in SEARCH_FILES {
-            fs::write(extension.join(name), b"fixture")?;
-            assert!(
-                require_built("d", app.path(), &declared, b"abc", &entry, &entry, true).is_err()
-            );
-            fs::remove_file(extension.join(name))?;
-        }
         fs::write(extension.join(ARCHIVE_FILE), b"abc")?;
-        assert!(require_built("d", app.path(), &declared, b"abc", &entry, &entry, true).is_err());
+        assert!(require_built("d", app.path(), &declared, b"abc", &entry, &entry).is_err());
         Ok(())
     }
 }

@@ -11,10 +11,10 @@ Create the ignored `ios/Signing.local.xcconfig` with DEVELOPMENT_TEAM set to an 
 `mise x -- just ios-qa-install` builds and installs Public Phonebook QA on one connected, unlocked iPhone with Developer Mode.
 The command requires that local signing file and uses the verification scheme's optimized `VerificationRelease` configuration.
 If you connect two or more iPhones, pass `--device` and the selected device's identifier.
-The tool verifies the QA bundle identity, national archive and search companions, QA controls, and code signature before installation.
+The tool verifies the QA bundle identity, national archive, QA controls, and code signature before installation.
 It then confirms the installed bundle on the selected iPhone and writes `target/ios/qa-install/receipt.json`.
 Open Public Phonebook QA on the iPhone and complete setup if needed.
-The bundled national search needs no new files on the production site.
+The bundled national directory needs no new files on the production site.
 The command preserves existing QA app data and runs no measurement tests, TestFlight workflow, or App Store Connect operation.
 Xcode, code signing, and the device service are external verification boundaries.
 Rust tests cover the command plan, device refusal paths, and installed bundle identity checks.
@@ -67,49 +67,20 @@ The gate compares the VerificationDebug and Release apps and the exported TestFl
 The fast gate refuses a national declaration whose dataset `sources/shipped-snapshots.json` lacks, because preparation writes deltas only from listed datasets.
 The fixture never ships, so the list never names it.
 
-Only VerificationDebug and VerificationRelease bundle the name index, ranking companion, and `search.json` declaration for that archive.
-The `PHONEBOOK_VERIFICATION_TOOLS` compilation condition controls resource copying, companion discovery, search migration, and scorer selection.
-Debug, DevRelease, ProductionDebug, and Release use literal matching and receive no search companions.
-Non-QA foreground and background startup remove search files retained by earlier builds without removing the saved directory or caller data.
-The [distribution decision](adr/keep-forgiving-search-in-qa-and-local-development.md) records the measured resource costs and the QA boundary.
-The declaration under `ios/SearchData` binds the national pair's compressed and decoded lengths and SHA-256 digests.
-`national-packed.json` selects `search-ranking-packed.br` for national builds.
-The original format 1 companion and declaration remain inputs to the unchanged Swift contract test, and the app stages only the selected companion.
-The generator admits the pair through PhonebookKit and requires the archive's snapshot and contact count.
-The VerificationRelease build needs no new files on the production site to use the national search.
-The extension carries no search artifacts.
-[The search-generation decision](adr/activate-ios-search-artifacts-with-directory-generations.md) records the mapping, limits, migration, and cleanup contract.
+All configurations use the same literal facility-name and telephone-number search.
+The QA compilation condition adds verification controls without selecting a different search implementation.
+The app bundles, installs, and downloads no name-index or ranking companions, and startup performs no search-artifact hashing or migration.
+Dataset checks use `/api/datasets` without a request to `/api/search-ranking`.
+The [retirement decision](adr/keep-qa-search-aligned-with-the-release-app.md) replaces the earlier iOS search experiments, whose implementation remains in Git history.
 
-Every ranked generation saves the pair and a hash-bound mapping from name-index positions to archive identifiers before activation.
-A complete download or delta update must admit the matching companions before replacing the active manifest.
-Each companion uses a separate resumable transfer directory and the same network-path restrictions as the archive.
-The first-run size notice includes required companion transfers.
-The current and previous generations keep their own search files, and failed staging and obsolete generations use the existing cleanup path.
-An installation with an earlier generation prepares a replacement from its saved rows without downloading the archive again.
-A failed migration preserves the saved generation.
-
-Saved-search format 2 writes decoded `search-index` and `search-ranking` files, checked line offsets, and the row mapping with the generation.
-Later launches hash those files through 64 KiB buffers and request Foundation's mapped reading option.
-The packed scorer reads immutable tables directly and constructs no national posting maps or reading trie.
-The [mapped-generation decision](adr/map-verified-search-files-from-saved-generations.md) defines the storage and verification boundary.
-The format 1 saved reader remains available during migration.
-Import and verification run on the storage actor while the existing progress interface stays available.
-
-`mise x -- just ios-search-measure` measures optimized production search and a bundled offline import on the checkout's iOS Simulator.
-The report at `target/ios/search-measurements/report.json` binds the source, compiler, SDK, runtime, fixture, timings, resident peaks, and stored bytes.
-The core and saved-generation runs compare all 2,200 complete national rankings and report p50, p95, p99, and peak query latency.
-Import, core admission, and saved reopening run in separate processes, and resident peaks include the ranking fixture and mapping validation.
-Search construction time excludes the simulator boot and compiler.
-The command also measures three process relaunches of the installed VerificationRelease app from its saved national generation.
-The readiness timer ends when the search hint replaces search preparation, and first-run setup stays outside that timer.
-XCTest records elapsed time, launch metrics, and target-app physical memory under `installedApp`.
-`installedAppSearch` records three memory measurements that each search four national queries.
-The report compares saved reopening and app launch with a 1,000 ms budget and searching memory with 250,000,000 bytes.
-The saved query p95 baseline is 19.133292 ms.
-The app memory verdict conservatively interprets each reported `kB` as 1,024 bytes.
-The verdict uses peak physical memory, while change measurements remain separate deltas.
-Unknown units and missing measurements produce no passing budget verdict.
-Filesystem caches remain uncontrolled, and physical iPhone performance remains unmeasured.
+`mise x -- just ios-search-measure` runs the installed VerificationRelease app's startup measurement on the checkout's iOS Simulator.
+The scenario measures five process relaunches from a saved national generation with clock, launch, and physical-memory metrics.
+First-run setup stays outside the measured launches, and each launch must reach the search hint.
+The scenario then checks a literal national query.
+XCTest retains the measurements in the result bundle under `target/ios`.
+The memory scenario measures three repetitions of four literal national queries.
+`target/ios/search-measurements/report.json` records the measured units and budget verdicts for both scenarios.
+Simulator measurements don't establish physical iPhone performance.
 
 The app keeps the whole national directory on the device.
 The first launch opens a setup flow that starts the first run when the reader presses the start button, explains caller identification, and then waits for the data.
@@ -204,9 +175,8 @@ A cut transfer keeps its received bytes in the store's `transfers` directory, as
 Progress reports keep the three stages, so `WaitDisplay` and its proof stay unchanged.
 
 Search runs on the device and sends no query to the service.
-Facility names use the [frozen forgiving scorer](search-ranking.md) from the saved generation.
-The scorer protects complete written names, compares spelling variants, combines lexical and kana evidence, and prefers explicit place conditions within its candidate pool.
-It returns at most 100 candidates in one relevance order and keeps alternatives without an automatic single-result mode.
+Facility names use literal matching with the saved normalized comparison names.
+Results keep their deterministic name order and category previews.
 Changing the original written input starts a fresh search even when its folded key stays unchanged.
 Complete Japanese telephone numbers keep their existing exact matching path and name order.
 The start screen asks for a facility name with `施設の名前を入れてください。`.
@@ -220,11 +190,10 @@ The app reads the state again whenever it returns to the foreground.
 The simulator reports no extension state, so debug builds read `PHONEBOOK_CALLER_STATUS` for the UI scenario that draws the on and off states.
 Results appear under category headings while the reader types, and each heading names the category and its count.
 A category shows up to three results, and its `もっと見る` button loads the next 20 in the same order.
-Once a category is expanded, reaching its last card loads the next 20.
-A category's position follows its first result, and a 100-candidate QA name result explains its limit.
+After the reader expands a category, reaching its last card loads the next 20.
+A category's position follows its first result.
 A replacement query or generation discards late search and page completions.
 VoiceOver announces the returned count once, 0.6 seconds after the results stop changing.
-An earlier saved generation without companions keeps its literal matcher until migration succeeds.
 The [category preview decision](adr/group-ranked-results-into-category-previews.md) records the presentation.
 Empty results show `あてはまる施設は0件です` and suggest part of a name or another word.
 Every result card shows the facility name as a heading, its prefecture and municipality, and each telephone number.
@@ -252,14 +221,19 @@ Under that condition, the app menu adds `QA用の確認`, a screen for one test 
 The [Figma QA section](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=563-2290) holds its design.
 The screen reads the number in any spelling that search accepts, and the label starts as `確認用の番号`.
 The app saves both in `verification-number.json` in the App Group container, excludes the file from backups, and protects it until the first unlock.
-The app writes neither value to a log or a request.
+The app keeps both values out of logs and requests.
 A search that matches the label or the complete number shows the entry under a `QA用` heading with the standard call button.
 That button opens the iOS call confirmation, so the owner can check calling with their own number instead of a facility's.
 The Call Directory extension reads the file and merges the entry into the national caller numbers in ascending order while it loads them.
 After iOS accepts a load, the extension records the generation and the test entry that iOS holds in `callers-loaded`.
 An [incremental](https://developer.apple.com/documentation/callkit/cxcalldirectoryextensioncontext/isincremental) load checks whether the record names a caller file that the store still keeps.
 When the file exists, the extension streams the named file and the active file together.
-It removes every number that left or changed its label, and then adds every new or changed entry, each in ascending order.
+It counts removals and additions before changing the CallKit context.
+`CallerLoadPlan` permits at most 1,000 individual operations, using subtraction after validating nonnegative counts to avoid overflow.
+Within that limit, the extension removes every number that left or changed its label, and then adds every new or changed entry, each in ascending order.
+When the changes exceed the limit, an incremental request clears identification entries once and streams the complete target.
+File reads and CallKit operations drain autorelease pools during each bounded unit of work.
+The [caller-load decision](adr/bound-incremental-caller-identification-work.md) separates host memory evidence from the framework's device boundary.
 `PhonebookCore.CallerChange` holds the step decision, and `verification/ios/CallerDelta.lean` proves that the changes turn the held entries into the wanted ones.
 Any other record, a record from an earlier app version, or a full request loads every entry as before.
 When the national data lists the same number, the test label replaces the national label, because CallKit takes each number once.
@@ -269,12 +243,13 @@ A reload that meets `currentlyLoading` waits 3 seconds and asks again, up to fou
 The screen never asks the owner to press the button again.
 The screen also shows the saved data date, the last answered check, the next check time, a waiting transfer, and any problem.
 Its `いま受け取る` button starts a transfer as the person, which may use any path, or the first download before any data exists.
-The gate in `ios-check` scans every file of the unsigned Release app and extension for seven markers of QA code and fails on any of them.
-The markers include the verification screen's type name, filename, identifier, three phrases, and the forgiving-search preparation task name.
+The gate in `ios-check` scans every file of the unsigned Release app and extension for six markers of QA code and fails on any of them.
+The markers include the verification screen's type name, filename, identifier, and three phrases.
 The gate rejects name-index, ranking, packed-search, mapping, and search declaration resources by filename, including empty resources.
-The gate requires all seven markers in the VerificationDebug build, which establishes the scan's detection control.
+The gate requires all six markers in the VerificationDebug build, which establishes the scan's detection control.
 `mise x -- cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- store-build-control` builds Release with the condition defined.
-It passes when the scan rejects that build with all seven markers and the QA resources.
+It passes when the scan rejects that build with all six markers.
+The control plants empty forbidden search resources in its own build and requires filename detection before removing each fixture.
 The normal `ios-check` gate runs the negative control, and App Store export runs the same absence check.
 The about screens, privacy notes, data sources, and licenses are part of the app, and only facility, map, and source pages open in the browser after a confirmation.
 
@@ -290,7 +265,7 @@ Run `mise x -- just ios-unit-test` for all compiled Swift package tests, strict 
 Run `mise x -- just ios-check` for those checks, unsigned simulator and device builds, and the complete isolated simulator UI inventory.
 Run `mise x -- just ios-prove`, `mise x -- just ios-sanitize`, and `mise x -- just ios-mutate` for the heavier assurance checks.
 Run `mise x -- just ios-device-record` with one iPhone connected to measure the first run and walk the manual checks, as [device verification](ios-device-verification.md#measured-first-run) describes.
-`just ios-prove` compiles the eight Lean modules and two generated trace modules, and replays two generated roots, `PublicationModels` and `OmegaModels`, with `leanchecker --fresh`.
+`just ios-prove` compiles the retained Lean models and two generated trace modules, and replays two generated roots, `PublicationModels` and `OmegaModels`, with `leanchecker --fresh`.
 `--fresh` replays every constant of a root's import closure, and the roots import each module exactly once, so they replay every constant that one run per module would.
 `PublicationModel` and `WaitDisplay` both declare `Phonebook.step`, so one root can't import every module.
 Each iOS command prints a final JSON line with the step record that [verification](verification.md#required-fast-gate) describes, and `ownInstructions` for the checker's own work.

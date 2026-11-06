@@ -229,25 +229,6 @@ final class IntegrationModel {
         lastFailure = String(describing: error)
       }
     }
-    #if PHONEBOOK_VERIFICATION_TOOLS
-      let mappedSearch: Bool
-      if let saved = manifest {
-        mappedSearch = await store.searchUsesMappedFiles(generation: saved.generation)
-      } else {
-        mappedSearch = false
-      }
-      if let saved = manifest, !busy, saved.rankedSearch != true || !mappedSearch {
-        busy = true
-        do {
-          manifest = try await BackgroundTimeRunner.run(
-            ApplicationBackgroundTime(), name: "prepare-forgiving-search"
-          ) { [sync] in
-            try await sync.upgradeSearch()
-          }
-        } catch { lastFailure = String(describing: error) }
-        busy = false
-      }
-    #endif
     if let manifest, !busy {
       await notifyExtensions(manifest)
     } else {

@@ -38,7 +38,7 @@ It checks the production origin, shared group, version, build number, icon, priv
 It also requires the exported app to hold the directory archive and entry that `ios/bundled-dataset.json` declares, and the extension to hold neither.
 The generator reads that archive from the release asset and the immutable dataset URL, so the hosted runners get it without credentials.
 The unsigned Release app measured 3,780,791 bytes before the bundled archive and 17,274,257 bytes with the 13,428,507-byte archive of snapshot `5bd74f20`.
-It preserves a SHA-256 digest, source-file hashes, selected Git revision, dirty-tree state, and a CycloneDX dependency inventory under a unique `target/ios/app-store-*` directory.
+It preserves the SHA-256 digest, source-file hashes, selected Git revision, dirty-tree state, and a CycloneDX dependency inventory under a unique `target/ios/app-store-*` directory.
 `target/ios/app-store-candidate.json` points to the inspected export from the command's preceding successful run.
 A local archive uses build number 1 unless `--build-number N` selects another.
 `--require-receipts` refuses to archive unless the native, sanitizer, mutation, and Lean receipts passed for the current sources.
@@ -106,7 +106,7 @@ The redesigned command doesn't migrate or delete the previous `testflight` envir
 The owner assigns processed builds to TestFlight testing groups and supplies App Store submission and review details.
 Certificate, profile, and API-key renewal and the corresponding scoped Doppler updates remain owner operations.
 
-The package uses local PhonebookCore, PhonebookRanking, and PhonebookKit targets with no remote Swift package dependencies.
+The package uses local PhonebookCore and PhonebookKit targets with no remote Swift package dependencies.
 The archive step derives the inventory's library components from the generated Xcode project and `swift package dump-package`.
 It follows the package products that the app and its embedded extension link through their target dependencies.
 It lists each linked regular target once and omits system library targets, whose libraries the iOS SDK supplies.

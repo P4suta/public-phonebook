@@ -6,25 +6,10 @@ use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fmt::Write as _, fs, path::Path, process::Command};
 
-const THEOREMS: [&str; 79] = [
-    "packedReadingBucketBounds",
-    "packedScratchFitsUInt32",
-    "packedBoundsEquivalent",
-    "packedMidpointProgress",
-    "packedArithmeticFitsInt64",
+const THEOREMS: [&str; 72] = [
     "resultPageBounds",
     "resultPageAdvances",
     "resultPageArithmeticFitsInt64",
-    "requiredSearchIsReady",
-    "unrequiredSearchKeepsReadableStorage",
-    "rankingDiceBound",
-    "rankingMixtureBound",
-    "rankingReadingBands",
-    "rankingPreferenceBands",
-    "rankingSignalProtectsExact",
-    "rankingGateBoundaries",
-    "rankingConservativeHanAnchor",
-    "rankingArithmeticFitsInt64",
     "activeAbsorbsEveryEvent",
     "activeSurvivesEveryFiniteTrace",
     "uncertainAbortRetainsData",
@@ -86,21 +71,19 @@ const THEOREMS: [&str; 79] = [
     "automaticTransferStartsOnAnInexpensivePath",
     "personTransfersUseEveryPath",
     "unchangedListingsStartNothing",
+    "incrementalCallerWorkIsBounded",
+    "invalidCallerCountsUseFull",
+    "callerLoadSubtractionFitsInt64",
+    "noCallerChangesAreIncremental",
+    "finishedDecodeOnlyAfterEnd",
+    "unfinishedDecodeMakesProgress",
+    "stalledDecodeAtEOFIsTruncated",
+    "stalledDecodeBeforeEOFIsCorrupt",
 ];
 const UPDATE_SOURCE: &str = include_str!("../../../../ios/Sources/PhonebookCore/UpdateCheck.swift");
-const RANKING_SOURCE: &str =
-    include_str!("../../../../ios/Sources/PhonebookRanking/RankingPolicy.swift");
-const SEARCH_ACTIVATION_SOURCE: &str =
-    include_str!("../../../../ios/Sources/PhonebookCore/SearchActivation.swift");
-const SEARCH_ACTIVATION_REFINEMENT: &str = "publicenumSearchActivation{publicstaticfuncpermits(required:Bool,ready:Bool)->Bool{!required||ready}}";
-const PACKED_SOURCE: &str =
-    include_str!("../../../../ios/Sources/PhonebookRanking/PackedRankingPolicy.swift");
-const PACKED_REFINEMENT: &str = "publicenumPackedRankingPolicy{publicstaticletmaximumBytes=268_435_456publicstaticfuncscratchSum(total:UInt32,increment:UInt32)->UInt32{total+increment}publicstaticfuncreadingKey(row:Int,contacts:Int,frequency:UInt32)->UInt32{UInt32((6-Int(frequency))*contacts+row)}publicstaticfuncfits(offset:Int,length:Int,size:Int)->Bool{guardoffset>=0,length>=0,size>=0,offset<=maximumBytes,length<=maximumBytes,size<=maximumByteselse{returnfalse}returnoffset<=size&&length<=size-offset}publicstaticfuncmidpoint(low:Int,high:Int)->Int{guardlow>=0,low<high,high<=maximumByteselse{return0}returnlow+(high-low)/2}}";
 const RESULT_PAGE_SOURCE: &str =
     include_str!("../../../../ios/Sources/PhonebookCore/ResultPage.swift");
 const RESULT_PAGE_REFINEMENT: &str = "publicenumResultPage{publicstaticletsize=20publicstaticfuncend(shown:Int,total:Int)->Int{guardshown>=0,total>=shownelse{return0}returnshown+min(size,total-shown)}}";
-const RANKING_REFINEMENT_SHA256: &str =
-    "b2d210611c5341414f56000f649e02ce5c3eff96c80cdb02ddf6c06c7a176fb7";
 /// The SHA-256 of the whitespace-free Swift decision that `verification/ios/UpdateCheck.lean` models function for function.
 /// Recheck the Lean model against the Swift file before changing this digest.
 const UPDATE_REFINEMENT_SHA256: &str =
@@ -165,28 +148,24 @@ const CALLER_DELTA_SOURCE: &str =
 /// The Swift change decision that `verification/ios/CallerDelta.lean` models, without whitespace.
 /// Swift compares the labels' UTF-8 bytes, which Lean's string equality matches because UTF-8 encodes each string one way.
 const CALLER_DELTA_REFINEMENT: &str = "publicenumCallerChange:String,CaseIterable,Sendable{caseremove,add,keep,replacepublicstaticfuncdecide(held:Int64,heldLabel:String,wanted:Int64,wantedLabel:String)->Self{ifheld<wanted{return.remove}ifwanted<held{return.add}ifheldLabel.utf8.elementsEqual(wantedLabel.utf8){return.keep}return.replace}}";
+const CALLER_LOAD_SOURCE: &str =
+    include_str!("../../../../ios/Sources/PhonebookCore/CallerLoadPlan.swift");
+const CALLER_LOAD_REFINEMENT: &str = "publicenumCallerLoadPlan:String,CaseIterable,Sendable{caseincremental,fullpublicstaticfuncdecide(removals:Int,additions:Int,limit:Int)->Self{guardremovals>=0,additions>=0,limit>=0,removals<=limitelse{return.full}returnadditions<=limit-removals?.incremental:.full}}";
+const DECODE_SOURCE: &str =
+    include_str!("../../../../ios/Sources/PhonebookCore/DecodeProgress.swift");
+const DECODE_REFINEMENT: &str = "publicenumDecodeProgress:Equatable,CaseIterable,Sendable{casemore,finished,corrupt,truncatedpublicstaticfuncdecide(consumed:Int,produced:Int,ended:Bool,exhausted:Bool)->Self{ifended{return.finished}ifconsumed>0||produced>0{return.more}returnexhausted?.truncated:.corrupt}}";
 /// Each planted defect changes one place in its model and must fail inside every theorem it names and nowhere else.
-const DELTA_DEFECTS: [(&str, &str, &str, &str, &[&str]); 10] = [
+const DELTA_DEFECTS: [(&str, &str, &str, &str, &[&str]); 8] = [
     (
-        "PackedReadingLosesItsRow",
-        "PackedRankingPolicy",
-        "def packedReadingKey (row contacts frequency : Int) : Int := (6 - frequency) * contacts + row",
-        "def packedReadingKey (row contacts frequency : Int) : Int := (6 - frequency) * contacts + row + 1",
-        &["packedReadingBucketBounds"],
-    ),
-    (
-        "PackedScratchOverflows",
-        "PackedRankingPolicy",
-        "def packedScratchSum (total increment : Int) : Int := total + increment",
-        "def packedScratchSum (total increment : Int) : Int := total + increment + 1",
-        &["packedScratchFitsUInt32"],
-    ),
-    (
-        "PackedMidpointStopsAdvancing",
-        "PackedRankingPolicy",
-        "then low + (high - low) / 2",
-        "then high",
-        &["packedMidpointProgress"],
+        "DecodeAcceptsNoProgress",
+        "DecodeProgress",
+        "else if 0 < consumed ∨ 0 < produced then .more",
+        "else if 0 ≤ consumed ∨ 0 < produced then .more",
+        &[
+            "unfinishedDecodeMakesProgress",
+            "stalledDecodeAtEOFIsTruncated",
+            "stalledDecodeBeforeEOFIsCorrupt",
+        ],
     ),
     (
         "CallerDeltaKeepsAChangedLabel",
@@ -238,11 +217,8 @@ const DELTA_DEFECTS: [(&str, &str, &str, &str, &[&str]); 10] = [
         &["choose_waiting"],
     ),
 ];
-const PROOF_MODULES: [&str; 11] = [
-    "PackedRankingPolicy",
+const PROOF_MODULES: [&str; 10] = [
     "ResultPage",
-    "SearchActivation",
-    "RankingPolicy",
     "Publication",
     "ReceiveBudget",
     "DeltaAdmission",
@@ -250,6 +226,8 @@ const PROOF_MODULES: [&str; 11] = [
     "CallerMerge",
     "CallerDelta",
     "UpdateCheck",
+    "CallerLoadPlan",
+    "DecodeProgress",
 ];
 const PUBLICATION_MODEL: &str = "PublicationModel";
 /// `leanchecker --fresh` replays every constant of a module's import closure into an empty environment.
@@ -260,15 +238,14 @@ const REPLAY_ROOTS: [(&str, &[&str]); 2] = [
     (
         "OmegaModels",
         &[
-            "PackedRankingPolicy",
             "ResultPage",
-            "SearchActivation",
-            "RankingPolicy",
             "ReceiveBudget",
             "DeltaAdmission",
             "WaitDisplay",
             "CallerMerge",
             "CallerDelta",
+            "CallerLoadPlan",
+            "DecodeProgress",
             WAIT_TRACES,
             "UpdateCheck",
             UPDATE_TRACES,
@@ -278,26 +255,16 @@ const REPLAY_ROOTS: [(&str, &[&str]); 2] = [
 const COMPILE_WORK: [(&str, u64); 2] = [("lean compiles", 1), ("container runs", 1)];
 const REPLAY_WORK: [(&str, u64); 2] = [("kernel replays", 1), ("container runs", 1)];
 /// Each false claim must fail at its proof on line 2, which shows that the kernel checks that model.
-const FALSE_CLAIMS: [(&str, &str, &str); 9] = [
+const FALSE_CLAIMS: [(&str, &str, &str); 8] = [
     (
-        "FalsePackedBounds",
-        "import PackedRankingPolicy\nexample : Phonebook.packedFits 4 5 8 = true := by rfl\n",
-        "false section admission beyond the file extent",
+        "FalseDecodeProgressClaim",
+        "import DecodeProgress\nexample : Phonebook.decodeProgress 0 0 false true = .more := by rfl\n",
+        "false continuation without input consumption or output",
     ),
     (
         "FalseResultPage",
         "import ResultPage\nexample : Phonebook.pageEnd 20 21 = 40 := by rfl\n",
         "false page growth beyond the result count",
-    ),
-    (
-        "FalseSearchActivation",
-        "import SearchActivation\nexample : Phonebook.admitsSearch true false = true := by rfl\n",
-        "false activation without mandatory search files",
-    ),
-    (
-        "FalseRankingGate",
-        "import RankingPolicy\nexample : Phonebook.rankGate 1250 501 false false = true := by rfl\n",
-        "false reading admission at the strict ratio boundary",
     ),
     (
         "FalseUpdateClaim",
@@ -323,6 +290,11 @@ const FALSE_CLAIMS: [(&str, &str, &str); 9] = [
         "FalseCallerDeltaClaim",
         "import CallerDelta\nexample : Phonebook.decideChange (1, \"a\") (2, \"a\") = .add := by rfl\n",
         "false addition of a number that leaves",
+    ),
+    (
+        "FalseCallerLoadClaim",
+        "import CallerLoadPlan\nexample : Phonebook.decideCallerLoad 1 1 1 = .incremental := by rfl\n",
+        "false caller work admission above the combined limit",
     ),
 ];
 const IDENTIFIER_LIMIT: usize = 32;
@@ -731,31 +703,11 @@ pub fn run(root: &Path) -> Result<()> {
         fs::remove_file(&receipt)?;
     }
     let sources = source_hashes(root)?;
-    let packed =
-        fs::read_to_string(root.join("ios/Sources/PhonebookRanking/PackedRankingPolicy.swift"))?;
-    ensure!(
-        whitespace_free(&packed) == whitespace_free(PACKED_SOURCE)
-            && whitespace_free(&packed) == PACKED_REFINEMENT,
-        "The packed search proof covers another Swift arithmetic implementation"
-    );
     let page = fs::read_to_string(root.join("ios/Sources/PhonebookCore/ResultPage.swift"))?;
     ensure!(
         whitespace_free(&page) == whitespace_free(RESULT_PAGE_SOURCE)
             && whitespace_free(&page) == RESULT_PAGE_REFINEMENT,
         "The result page proof covers another Swift decision"
-    );
-    let search_activation =
-        fs::read_to_string(root.join("ios/Sources/PhonebookCore/SearchActivation.swift"))?;
-    ensure!(
-        whitespace_free(&search_activation) == whitespace_free(SEARCH_ACTIVATION_SOURCE)
-            && whitespace_free(&search_activation) == SEARCH_ACTIVATION_REFINEMENT,
-        "The search activation proof covers another Swift decision"
-    );
-    let ranking =
-        fs::read_to_string(root.join("ios/Sources/PhonebookRanking/RankingPolicy.swift"))?;
-    ensure!(
-        ranking == RANKING_SOURCE && crate::sha256_hex(&ranking) == RANKING_REFINEMENT_SHA256,
-        "The ranking proof covers a different Swift implementation; recheck verification/ios/RankingPolicy.lean"
     );
     let receive = fs::read_to_string(root.join("ios/Sources/PhonebookCore/ReceiveBudget.swift"))?;
     let normalize = whitespace_free;
@@ -785,6 +737,17 @@ pub fn run(root: &Path) -> Result<()> {
         normalize(&delta_decision) == normalize(CALLER_DELTA_SOURCE)
             && normalize(&delta_decision) == CALLER_DELTA_REFINEMENT,
         "The caller delta proof covers a different implementation"
+    );
+    let load = fs::read_to_string(root.join("ios/Sources/PhonebookCore/CallerLoadPlan.swift"))?;
+    ensure!(
+        normalize(&load) == normalize(CALLER_LOAD_SOURCE)
+            && normalize(&load) == CALLER_LOAD_REFINEMENT,
+        "The caller load proof covers a different implementation"
+    );
+    let decode = fs::read_to_string(root.join("ios/Sources/PhonebookCore/DecodeProgress.swift"))?;
+    ensure!(
+        normalize(&decode) == normalize(DECODE_SOURCE) && normalize(&decode) == DECODE_REFINEMENT,
+        "The decoder progress proof covers a different implementation"
     );
     let wait = fs::read_to_string(root.join("ios/Sources/PhonebookCore/WaitDisplay.swift"))?;
     ensure!(
@@ -1203,8 +1166,8 @@ mod tests {
     fn delta_defects_change_one_place_and_fail_only_inside_their_theorems() -> Result<()> {
         for (_, name, original, defect, theorems) in DELTA_DEFECTS {
             let model = match name {
-                "PackedRankingPolicy" => {
-                    include_str!("../../../../verification/ios/PackedRankingPolicy.lean")
+                "DecodeProgress" => {
+                    include_str!("../../../../verification/ios/DecodeProgress.lean")
                 }
                 "CallerDelta" => include_str!("../../../../verification/ios/CallerDelta.lean"),
                 "UpdateCheck" => include_str!("../../../../verification/ios/UpdateCheck.lean"),

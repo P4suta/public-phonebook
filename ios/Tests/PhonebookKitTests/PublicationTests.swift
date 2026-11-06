@@ -1,6 +1,5 @@
 import Foundation
 import PhonebookCore
-import PhonebookRanking
 import Synchronization
 import Testing
 
@@ -50,10 +49,14 @@ private final class FaultSnapshotFiles: SnapshotFiles {
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }
   let files = FaultSnapshotFiles()
-  let store = try SnapshotStore(root: root, files: files)
+  let trace = RecordingTrace()
+  let store = try SnapshotStore(root: root, files: files, trace: trace)
   try await stage(store, id: "uncertain")
   files.failNext(.unreadableAfterActivation)
   await #expect(throws: ImportError.activationUncertain) { try await commit(store) }
+  #expect(
+    trace.events.withLock { $0.filter { $0.phase == .activation }.map(\.outcome) }
+      == [.started, .deferred])
   try await store.abort()
   files.recover()
   let active = try #require(try await store.manifest())
@@ -79,115 +82,23 @@ private func firstName(_ store: SnapshotStore, _ generation: UUID) async throws 
   try await store.contacts(generation: generation, ids: [1]).first?.name
 }
 
-@Test func interruptedSearchRemovalKeepsTheDirectoryAndRetries() async throws {
-  for fault: FileFault in [
-    .beforeActivation, .afterActivation, .unreadableAfterActivation, .cleanup,
-  ] {
-    let root = try temporaryDirectory()
-    defer { try? FileManager.default.removeItem(at: root) }
-    let files = FaultSnapshotFiles()
-    let store = try SnapshotStore(root: root.appendingPathComponent("store"), files: files)
-    let header = try sampleHeader()
-    let lines = [ArchiveLine(name: "Saved")]
-    let artifacts = try searchFixture(in: root, header: header, lines: lines)
-    try await store.begin(header: header, requiresRankedSearch: true)
-    try await store.append(records(lines, header: header))
-    try await store.installSearch(artifacts)
-    let saved = try await store.publish(at: Date())
-    files.failNext(fault)
-    await #expect(throws: (any Error).self) { try await store.removeSearchArtifacts() }
-    files.recover()
-    #expect(try await store.manifest()?.generation == saved.generation)
-    try await store.removeSearchArtifacts()
-    #expect(try await store.manifest()?.rankedSearch == nil)
-    #expect(try await firstName(store, saved.generation) == "Saved")
-    #expect(try await CallerFile.active(in: store.root)?.generation == saved.generation)
-  }
-}
-
-@Test func literalSearchCleanupDoesNotContendWithAnotherImport() async throws {
-  let root = try temporaryDirectory()
-  defer { try? FileManager.default.removeItem(at: root) }
-  let store = try SnapshotStore(root: root)
-  let saved = try await publish([ArchiveLine(name: "Saved")], to: store)
-  let importing = try SnapshotStore(root: root)
-  try await importing.begin(header: sampleHeader(snapshot: "b"))
-  do {
-    try await store.removeSearchArtifacts()
-  } catch {
-    try await importing.abort()
-    throw error
-  }
-  try await importing.abort()
-  #expect(try await store.manifest()?.generation == saved.generation)
-}
-
-@Test func failedRankedActivationKeepsThePreviousSearchAndCallerGeneration() async throws {
-  let root = try temporaryDirectory()
-  defer { try? FileManager.default.removeItem(at: root) }
-  let files = FaultSnapshotFiles()
-  let directory = root.appendingPathComponent("store")
-  let store = try SnapshotStore(root: directory, files: files)
-  func stageRanked(_ name: String) async throws {
-    let header = try sampleHeader()
-    let lines = [ArchiveLine(name: name)]
-    let artifacts = try searchFixture(in: root, header: header, lines: lines)
-    try await store.begin(header: header, requiresRankedSearch: true)
-    try await store.append(records(lines, header: header))
-    try await store.installSearch(artifacts)
-  }
-  try await stageRanked("Saved")
-  let original = try await commit(store)
-  try await stageRanked("Rejected")
-  files.failNext(.beforeActivation)
-  await #expect(throws: FileFault.self) { try await commit(store) }
-  try await store.abort()
-  #expect(try await store.manifest()?.generation == original.generation)
-  #expect(try CallerFile.active(in: directory)?.generation == original.generation)
-  let search = try #require(try await store.rankedSearch(generation: original.generation))
-  #expect(try search.search("Saved").map(\.id) == [1])
-  let remaining = try FileManager.default.contentsOfDirectory(atPath: directory.path)
-    .filter { $0.hasSuffix(".search.json") }
-  #expect(remaining == [original.generation.uuidString + ".search.json"])
-}
-
-@Test func cancelledSearchAdmissionKeepsTheActiveGenerationAndRemovesTheDraft() async throws {
-  let root = try temporaryDirectory()
-  defer { try? FileManager.default.removeItem(at: root) }
-  let directory = root.appendingPathComponent("store")
-  let store = try SnapshotStore(root: directory)
-  let original = try await publish([ArchiveLine(name: "Saved")], to: store)
-  let header = try sampleHeader(snapshot: "b")
-  let lines = [ArchiveLine(name: "Staging")]
-  let artifacts = try searchFixture(in: root, header: header, lines: lines)
-  try await store.begin(header: header, requiresRankedSearch: true)
-  try await store.append(records(lines, header: header))
-  let operation = Task {
-    withUnsafeCurrentTask { $0?.cancel() }
-    try await store.installSearch(artifacts)
-  }
-  await #expect(throws: CancellationError.self) { try await operation.value }
-  try await store.abort()
-  #expect(try await store.manifest()?.generation == original.generation)
-  #expect(try await firstName(store, original.generation) == "Saved")
-  #expect(
-    try FileManager.default.contentsOfDirectory(atPath: directory.path).allSatisfy {
-      !$0.hasSuffix(".search.json")
-    })
-}
-
 @Test func failedActivationKeepsBothReadableGenerationsAndAllowsRecovery() async throws {
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }
   let files = FaultSnapshotFiles()
-  let store = try SnapshotStore(root: root, files: files)
+  let trace = RecordingTrace()
+  let store = try SnapshotStore(root: root, files: files, trace: trace)
   try await stage(store, id: "first")
   let first = try await commit(store)
   try await stage(store, id: "second")
   let second = try await commit(store)
   try await stage(store, id: "failed")
+  trace.events.withLock { $0.removeAll() }
   files.failNext(.beforeActivation)
   await #expect(throws: FileFault.self) { try await commit(store) }
+  #expect(
+    trace.events.withLock { $0.filter { $0.phase == .activation }.map(\.outcome) }
+      == [.started, .rejected])
   try await store.abort()
   #expect(try await store.manifest()?.generation == second.generation)
   #expect(
@@ -204,10 +115,14 @@ private func firstName(_ store: SnapshotStore, _ generation: UUID) async throws 
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }
   let files = FaultSnapshotFiles()
-  let store = try SnapshotStore(root: root, files: files)
+  let trace = RecordingTrace()
+  let store = try SnapshotStore(root: root, files: files, trace: trace)
   try await stage(store, id: "committed")
   files.failNext(.afterActivation)
   let active = try await commit(store)
+  #expect(
+    trace.events.withLock { $0.filter { $0.phase == .activation }.map(\.outcome) }
+      == [.started, .completed])
   try await store.abort()
   #expect(try await store.manifest()?.generation == active.generation)
   #expect(
@@ -219,7 +134,8 @@ private func firstName(_ store: SnapshotStore, _ generation: UUID) async throws 
   let root = try temporaryDirectory()
   defer { try? FileManager.default.removeItem(at: root) }
   let files = FaultSnapshotFiles()
-  let store = try SnapshotStore(root: root, files: files)
+  let trace = RecordingTrace()
+  let store = try SnapshotStore(root: root, files: files, trace: trace)
   for id in ["first", "second"] {
     try await stage(store, id: id)
     _ = try await commit(store)
@@ -227,10 +143,36 @@ private func firstName(_ store: SnapshotStore, _ generation: UUID) async throws 
   try await stage(store, id: "committed")
   files.failNext(.cleanup)
   let active = try await commit(store)
+  #expect(await store.cleanupPending)
+  #expect(trace.events.withLock { $0.last { $0.phase == .cleanup }?.outcome } == .deferred)
   #expect(try await store.manifest()?.generation == active.generation)
   try await stage(store, id: "next")
+  #expect(await store.cleanupPending == false)
   _ = try await commit(store)
+  #expect(await store.cleanupPending == false)
   let databases = try FileManager.default.contentsOfDirectory(atPath: root.path)
     .filter { $0.hasSuffix(".sqlite") && $0 != "writer.sqlite" }
   #expect(databases.count == 2)
+}
+
+@Test func failedBeginCleanupKeepsStagingAvailableAndRecoversOnTheNextAttempt() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let files = FaultSnapshotFiles()
+  let trace = RecordingTrace()
+  let store = try SnapshotStore(root: root, files: files, trace: trace)
+  try await stage(store, id: "active")
+  _ = try await commit(store)
+  let orphan = root.appendingPathComponent(UUID().uuidString + ".names")
+  try Data([0]).write(to: orphan)
+  trace.events.withLock { $0.removeAll() }
+  files.failNext(.cleanup)
+  try await stage(store, id: "pending")
+  #expect(await store.cleanupPending)
+  #expect(trace.events.withLock { $0.filter { $0.phase == .stage }.map(\.outcome) } == [.started])
+  try await store.abort()
+  try await stage(store, id: "recovered")
+  #expect(await store.cleanupPending == false)
+  #expect(!FileManager.default.fileExists(atPath: orphan.path))
+  _ = try await commit(store)
 }

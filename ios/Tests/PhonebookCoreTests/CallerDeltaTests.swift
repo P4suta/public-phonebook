@@ -153,6 +153,135 @@ func streamedChangesMatchTheLeanModelOnSeededInputs(seed: Int) throws {
   #expect(zip(actual.0, actual.0.dropFirst()).allSatisfy { $0 < $1 })
 }
 
+@Test func callerLoadPlanRespectsTheCombinedBoundAtSignedExtremes() {
+  let values = [Int.min, -1, 0, 1, 2, 999, 1000, 1001, Int.max]
+  for removals in values {
+    for additions in values {
+      for limit in values {
+        let admitted =
+          removals >= 0 && additions >= 0 && limit >= 0
+          && UInt64(removals) + UInt64(additions) <= UInt64(limit)
+        #expect(
+          CallerLoadPlan.decide(removals: removals, additions: additions, limit: limit)
+            == (admitted ? .incremental : .full))
+      }
+    }
+  }
+}
+
+@Test(arguments: 0..<200)
+func callerLoadMatchesWantedEntriesOnSeededInputs(seed: Int) throws {
+  var random = SplitMix64(seed: UInt64(seed))
+  let labels = ["図書館", "公民館", "\u{30AC}", "\u{30AB}\u{3099}"]
+  let held = entries(&random, labels: labels)
+  let wanted = entries(&random, labels: labels)
+  let directory = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: directory) }
+  let heldFile = directory.appendingPathComponent("held.callers")
+  let wantedFile = directory.appendingPathComponent("wanted.callers")
+  try write(held, to: heldFile)
+  try write(wanted, to: wantedFile)
+  let extra = CallerFile.Loaded.Extra(number: 81_300_000_010, label: "確認用")
+  let heldExtra = seed % 2 == 0 ? extra : nil
+  let wantedExtra = seed % 3 == 0 ? extra : nil
+  let heldEntries = try merged(held, heldExtra)
+  let wantedEntries = try merged(wanted, wantedExtra)
+  let heldReader = {
+    CallerFile.Merged(national: try CallerFile.Reader(url: heldFile), loaded: heldExtra)
+  }
+  let wantedReader = {
+    CallerFile.Merged(national: try CallerFile.Reader(url: wantedFile), loaded: wantedExtra)
+  }
+  let difference = model(heldEntries, wantedEntries)
+  let counts = try CallerFile.countChanges(held: heldReader, wanted: wantedReader, batch: seed % 5)
+  #expect(counts.removals == difference.0.count)
+  #expect(counts.additions == difference.1.count)
+  for limit in [0, 1, 2, 10, 1000] {
+    var actual = Dictionary(uniqueKeysWithValues: heldEntries)
+    var cleared = 0
+    var removed: [Int64] = []
+    var added: [Int64] = []
+    let plan = try CallerFile.load(
+      held: heldReader, wanted: wantedReader, limit: limit,
+      removeAll: {
+        cleared += 1
+        actual.removeAll()
+      },
+      remove: {
+        removed.append($0)
+        actual[$0] = nil
+      },
+      add: { number, label in
+        #expect(actual[number] == nil)
+        added.append(number)
+        actual[number] = label
+      })
+    #expect(actual.count == wantedEntries.count)
+    for (number, label) in wantedEntries {
+      #expect(actual[number]?.utf8.elementsEqual(label.utf8) == true)
+    }
+    #expect(zip(removed, removed.dropFirst()).allSatisfy { $0 < $1 })
+    #expect(zip(added, added.dropFirst()).allSatisfy { $0 < $1 })
+    if difference.0.count + difference.1.count <= limit {
+      #expect(plan == .incremental && cleared == 0)
+      #expect(removed == difference.0 && added == difference.1.map(\.0))
+    } else {
+      #expect(plan == .full && cleared == 1 && removed.isEmpty)
+      #expect(added == wantedEntries.map(\.0))
+    }
+  }
+}
+
+@Test func callerLoadRejectsBrokenFilesBeforeChangingEntries() throws {
+  let directory = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: directory) }
+  let file = directory.appendingPathComponent("broken.callers")
+  let broken: [[UInt8]] = [[], CallerFile.header + [0x80], CallerFile.header + [0, 1, 0x41]]
+  for bytes in broken {
+    try Data(bytes).write(to: file)
+    var effects = 0
+    #expect(throws: (any Error).self) {
+      try CallerFile.load(
+        held: { CallerFile.Merged(national: nil, loaded: nil) },
+        wanted: { CallerFile.Merged(national: try CallerFile.Reader(url: file), loaded: nil) },
+        removeAll: { effects += 1 }, remove: { _ in effects += 1 },
+        add: { _, _ in effects += 1 })
+    }
+    #expect(effects == 0)
+  }
+}
+
+@Test func callerLoadWithoutAHeldRecordClearsOnceAndStreamsTheTarget() throws {
+  let extra = CallerFile.Loaded.Extra(number: 1, label: "確認用")
+  var cleared = 0
+  var removed = 0
+  var added: [Int64] = []
+  let plan = try CallerFile.load(
+    held: nil, wanted: { CallerFile.Merged(national: nil, loaded: extra) },
+    removeAll: { cleared += 1 }, remove: { _ in removed += 1 },
+    add: { number, _ in added.append(number) })
+  #expect(plan == .full && cleared == 1 && removed == 0 && added == [1])
+}
+
+private enum BatchReadFailure: Error, Equatable {
+  case afterEnd, source
+}
+
+@Test func callerBatchesStopAtTheFirstEndAndPropagateReadFailures() throws {
+  for batches in [[0], [1, 0], [1000, 1000, 1, 0]] {
+    var calls = 0
+    try CallerFile.readBatches {
+      guard calls < batches.count else { throw BatchReadFailure.afterEnd }
+      defer { calls += 1 }
+      return batches[calls]
+    }
+    #expect(calls == batches.count)
+  }
+  #expect(throws: BatchReadFailure.source) {
+    try CallerFile.readBatches { throw BatchReadFailure.source }
+  }
+}
+
 @Test func aChangedTestEntryAloneCostsAtMostTwoRemovalsAndTwoAdditions() throws {
   let national: [(Int64, String)] = [(81_300_000_001, "図書館"), (81_300_000_005, "公民館")]
   let pairs: [(CallerFile.Loaded.Extra?, CallerFile.Loaded.Extra?)] = [
