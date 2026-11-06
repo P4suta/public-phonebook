@@ -80,7 +80,7 @@ jobs:
     name: Admit the candidate evidence
     needs: [delivery-checks, candidate]
     if: always() && needs.delivery-checks.result == 'success' && (needs.candidate.result == 'success' || needs.candidate.result == 'skipped')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: observe
     timeout-minutes: 15
     permissions:
@@ -121,7 +121,7 @@ jobs:
     name: Build and attest the Worker
     needs: [evidence]
     if: ${{ !cancelled() && needs.evidence.result == 'success' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: candidate
     timeout-minutes: 20
     permissions:
@@ -175,7 +175,7 @@ jobs:
     name: Prepare the data and deploy the candidate at 0%
     needs: [evidence, build]
     if: ${{ !cancelled() && needs.evidence.result == 'success' && needs.build.result == 'success' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: release-candidate
     timeout-minutes: 120
     concurrency:
@@ -248,7 +248,7 @@ jobs:
     name: Check the candidate through the version override
     needs: [stage]
     if: ${{ !cancelled() && needs.stage.result == 'success' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: observe
     timeout-minutes: 90
     concurrency:
@@ -297,7 +297,7 @@ jobs:
     name: Withdraw the failed candidate
     needs: [stage, verify]
     if: always() && needs.stage.result == 'success' && (needs.verify.result == 'failure' || needs.verify.result == 'cancelled')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: release-candidate
     timeout-minutes: 20
     concurrency:
@@ -337,7 +337,7 @@ jobs:
     name: Move traffic to the approved candidate
     needs: [stage, verify]
     if: ${{ !cancelled() && needs.stage.result == 'success' && needs.verify.result == 'success' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: production
     timeout-minutes: 90
     concurrency:
@@ -387,7 +387,7 @@ jobs:
     name: Publish the release record
     needs: [promote]
     if: ${{ !cancelled() && needs.promote.result == 'success' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: observe
     timeout-minutes: 30
     permissions:

@@ -33,7 +33,7 @@ permissions: {}
 jobs:
   plan:
     name: Validate candidate identity and dependencies
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -73,7 +73,7 @@ jobs:
   fast:
     name: Fast candidate checks
     needs: [plan]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 25
     permissions:
       contents: read
@@ -90,7 +90,7 @@ jobs:
     name: Delivery and affected platform proofs
     needs: [plan]
     if: inputs.operation != 'version-ios' && inputs.operation != 'version-android'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -136,7 +136,7 @@ jobs:
     name: Affected Worker contracts
     needs: [plan, fast]
     if: needs.plan.outputs.worker == 'true' && inputs.operation != 'worker' && inputs.operation != 'version-ios' && inputs.operation != 'version-android'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 25
     permissions:
       contents: read
@@ -175,7 +175,7 @@ jobs:
     name: Affected installed Android client
     needs: [plan, fast]
     if: needs.plan.outputs.android == 'true' && inputs.operation != 'android-artifacts' && inputs.operation != 'version-ios' && inputs.operation != 'version-android'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     permissions:
       contents: read
@@ -198,7 +198,7 @@ jobs:
     name: Required delivery checks
     needs: [plan, fast, proofs, worker, ios, android]
     if: always()
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read

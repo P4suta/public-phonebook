@@ -13,7 +13,7 @@ concurrency:
 jobs:
   scope:
     name: Scope
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -40,7 +40,7 @@ jobs:
           if [[ ${android} == true ]]; then echo 'rust=true' >>"${GITHUB_OUTPUT}"; fi
   verify:
     name: Verify
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -57,7 +57,7 @@ jobs:
       - run: mise x -- just check
   build:
     name: Build budget
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -78,7 +78,7 @@ jobs:
     name: Native checks
     needs: [scope]
     if: needs.scope.outputs.rust == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 25
     permissions:
       contents: read
@@ -102,7 +102,7 @@ jobs:
     name: Checks
     if: always()
     needs: [scope, verify, build, rust]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 1
     permissions: {}
     steps:
