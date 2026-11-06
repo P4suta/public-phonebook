@@ -85,6 +85,11 @@ The manual Assurance workflow runs that set on hosted runners, and its `campaign
 The TestFlight workflow runs the native checks, the Lean proofs, and the sanitizer and mutation checks before every delivery.
 No personal credentials or connected phone are prerequisites of these hosted checks.
 
+`just verification --scope affected <identifier>...` reports named Swift Testing functions to the owner's request-bound `dotfiles verify run` as structured JSON.
+It refuses an identifier that `swift test list` doesn't name once, or whose printed name another listed test shares.
+A test without a result line counts as inconclusive.
+The recipe serves local change contracts, and `just ios-unit-test` with its required inventory stays the native gate.
+
 Physical-device search, forced background callbacks, natural OS scheduling, and real incoming calls are distinct observations.
 A debugger-triggered BGTask callback doesn't establish natural scheduler delivery.
 A foreground/background round trip doesn't establish a background download.

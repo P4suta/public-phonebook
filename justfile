@@ -98,6 +98,11 @@ icons-check:
 ios-unit-test:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- unit-test
 
+# Reports the named Swift tests to `dotfiles verify run` as structured JSON, while `ios-unit-test` stays the gate.
+[positional-arguments]
+verification *args:
+    cargo run --locked --quiet --manifest-path tools/ios-check/Cargo.toml --bin swift-verification -- "$@"
+
 ios-search-measure:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- search-measure
 
