@@ -56,6 +56,9 @@ The unsigned job downloads their source-bound receipts and runs `just ios-prepar
 It preserves and attests the unsigned archive, source inventory, and receipts.
 
 The signing job waits for review in `testflight-signing` and verifies the unsigned artifact's source and controller attestation before fetching credentials from `ci_testflight_signing`.
+Before importing a private key, the controller copies the original archive and gives both bundles an ad hoc signature containing the declared App Group request.
+That signature uses no certificate or private key and preserves the request that Xcode needs during export.
+The original attested archive stays unchanged.
 `just ios-archive --prepared --require-receipts --build-number N --signing ci` refuses a dirty checkout, mismatched archive bytes, or failed and stale receipts.
 It checks both profiles for their identifiers, team, App Group, and App Store distribution type.
 The helper imports the distribution identity into a temporary keychain and exports the already prepared archive with manual signing.
@@ -99,7 +102,7 @@ The signing subject is `repo:P4suta@42543015/public-phonebook@1438449191:environ
 The upload subject ends in `environment:testflight-upload`.
 Restrict both environments to `main`, require the owner's review, and turn off administrator bypass.
 Run the dedicated read-only credential transport workflow before an independently authorized signing or upload rehearsal.
-Local verification hasn't exercised the redesigned unsigned export and split credentialed jobs with live signing material or App Store Connect.
+A private export rehearsal preserved the declared App Group and production identity in both bundles without uploading a package.
 The redesigned command doesn't migrate or delete the previous `testflight` environment and `ci_testflight` configuration.
 
 ### What stays manual
