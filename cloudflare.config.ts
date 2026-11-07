@@ -39,11 +39,19 @@ export default defineConfig(({ mode }) => {
         ),
       },
       limits: { cpuMs: workerCpuLimitMs },
+      logpush: false,
+      tailConsumers: [],
       observability: {
-        enabled: true,
+        enabled: false,
         redactQueryString: true,
-        logs: { enabled: true, invocationLogs: false },
-        traces: { enabled: false },
+        issues: { enabled: false },
+        logs: {
+          enabled: false,
+          invocationLogs: false,
+          persist: false,
+          destinations: [],
+        },
+        traces: { enabled: false, persist: false, destinations: [] },
       },
     },
   };
