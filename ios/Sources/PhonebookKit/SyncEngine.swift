@@ -1,6 +1,5 @@
 import Foundation
 import PhonebookCore
-import PhonebookRanking
 
 /// One progress report of a synchronization, in the stages that the first download's steps name.
 public struct SyncProgress: Sendable, Equatable {
@@ -30,6 +29,22 @@ public struct SyncProgress: Sendable, Equatable {
   public static let transfer = 0
   public static let prepare = 1
   public static let identify = 2
+
+  static func receiving(_ part: TransferProgress, rows: Int, share: Double) -> Self {
+    Self(
+      stage: transfer, done: part.received, total: part.total - part.resumed, rows: rows,
+      fraction: Double(part.resumed + part.received) / Double(max(part.total, 1)) * share,
+      waiting: part.waiting)
+  }
+
+  static func rebuilding(_ fraction: Double, rows: Int) -> Self {
+    let share = min(max(fraction, 0), 1)
+    let transfer = SyncEngine.deltaDownloadShare
+    return Self(
+      stage: Self.transfer, done: Int(share * Double(SyncEngine.rebuildSteps)),
+      total: SyncEngine.rebuildSteps, rows: rows,
+      fraction: transfer + share * (SyncEngine.downloadShare - transfer))
+  }
 }
 
 public actor SyncEngine {
@@ -38,6 +53,7 @@ public actor SyncEngine {
   static let saveShare = 0.55
   /// The part of the download share that a delta's own transfer takes before its rows are rebuilt.
   static let deltaTransferShare = 0.5
+  static var deltaDownloadShare: Double { downloadShare * deltaTransferShare }
   /// The rebuild of a delta reports its share in thousandths.
   static let rebuildSteps = 1_000
 
@@ -45,23 +61,24 @@ public actor SyncEngine {
   private let store: SnapshotStore
   private let now: @Sendable () -> Date
   private let trace: any TraceSink
-  private let searchArtifacts: (any SearchArtifactSource)?
   /// Holds the decoded base and the rebuilt archive of a delta, which leave with their run.
   private let temporaryDirectory: URL
   private var updating = false
 
+  private static func wasCancelled(_ error: any Error) -> Bool {
+    Task.isCancelled || error is CancellationError
+  }
+
   public init(
     api: APIClient, store: SnapshotStore, now: @escaping @Sendable () -> Date = Date.init,
     trace: any TraceSink = DiscardingTraceSink(),
-    temporaryDirectory: URL = FileManager.default.temporaryDirectory,
-    searchArtifacts: (any SearchArtifactSource)? = nil
+    temporaryDirectory: URL = FileManager.default.temporaryDirectory
   ) {
     self.api = api
     self.store = store
     self.now = now
     self.trace = trace
     self.temporaryDirectory = temporaryDirectory
-    self.searchArtifacts = searchArtifacts
   }
 
   /// Reads the listing and plans a first run from `bundle`, so the welcome notice names what the run receives.
@@ -72,13 +89,10 @@ public actor SyncEngine {
     guard let bundle else {
       do {
         let archive = try await api.datasets(paths: paths).archive
-        let extra =
-          try await searchArtifacts?.transferBytes(
-            snapshot: archive.snapshot, contacts: archive.contacts, paths: paths) ?? 0
         return FirstRunPlan.decide(
-          bundle: .missing, listing: .noDeltaFromBundled(archiveBytes: archive.bytes + extra))
+          bundle: .missing, listing: .noDeltaFromBundled(archiveBytes: archive.bytes))
       } catch {
-        if Task.isCancelled || error is CancellationError { throw CancellationError() }
+        if Self.wasCancelled(error) { throw CancellationError() }
         return FirstRunPlan.decide(bundle: .missing, listing: .unreachable)
       }
     }
@@ -141,7 +155,7 @@ public actor SyncEngine {
       // The store couldn't remove the unfinished generation, so it can't stage another one.
       throw failure
     } catch {
-      if Task.isCancelled || error is CancellationError { throw CancellationError() }
+      if Self.wasCancelled(error) { throw CancellationError() }
       return FirstRunResult(
         manifest: try await stage(bundle: bundle, progress: progress), outcome: .bundled)
     }
@@ -160,9 +174,6 @@ public actor SyncEngine {
           plan: .decide(bundle: .readable, listing: .namesBundled(archiveBytes: archive.bytes)),
           archive: archive, delta: nil)
       }
-      let extra =
-        try await searchArtifacts?.transferBytes(
-          snapshot: archive.snapshot, contacts: archive.contacts, paths: paths) ?? 0
       if let link = listing.deltas,
         let delta = try await api.directoryDeltas(link: link, paths: paths).first(where: {
           $0.base == bundled && $0.snapshot == archive.snapshot
@@ -173,15 +184,15 @@ public actor SyncEngine {
           plan: .decide(
             bundle: .readable,
             listing: .deltaFromBundled(
-              deltaBytes: delta.bytes + extra, archiveBytes: archive.bytes + extra)),
+              deltaBytes: delta.bytes, archiveBytes: archive.bytes)),
           archive: archive, delta: delta)
       }
       return FirstRunListing(
         plan: .decide(
-          bundle: .readable, listing: .noDeltaFromBundled(archiveBytes: archive.bytes + extra)),
+          bundle: .readable, listing: .noDeltaFromBundled(archiveBytes: archive.bytes)),
         archive: archive, delta: nil)
     } catch {
-      if Task.isCancelled || error is CancellationError { throw CancellationError() }
+      if Self.wasCancelled(error) { throw CancellationError() }
       return FirstRunListing(
         plan: .decide(bundle: .readable, listing: .unreachable), archive: nil, delta: nil)
     }
@@ -197,16 +208,12 @@ public actor SyncEngine {
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: directory) }
     do {
-      let transfer = Self.downloadShare * Self.deltaTransferShare
+      let transfer = Self.deltaDownloadShare
       let rows = archive.contacts
       let file = try await api.download(delta, paths: paths, partials: store.transfers) { part in
         Task {
           await progress(
-            SyncProgress(
-              stage: SyncProgress.transfer, done: part.received, total: part.total - part.resumed,
-              rows: rows,
-              fraction: Double(part.resumed + part.received) / Double(max(part.total, 1))
-                * transfer, waiting: part.waiting))
+            .receiving(part, rows: rows, share: transfer))
         }
       }
       defer { try? FileManager.default.removeItem(at: file) }
@@ -216,12 +223,7 @@ public actor SyncEngine {
       let admission = try await DirectoryDeltaApplier(url: file, delta: delta).rebuild(
         from: base.base, into: rebuilt
       ) { fraction in
-        let share = min(max(fraction, 0), 1)
-        await progress(
-          SyncProgress(
-            stage: SyncProgress.transfer, done: Int(share * Double(Self.rebuildSteps)),
-            total: Self.rebuildSteps, rows: rows,
-            fraction: transfer + share * (Self.downloadShare - transfer)))
+        await progress(.rebuilding(fraction, rows: rows))
       }
       guard admission == .apply else { throw DeltaRejection(admission: admission) }
       try await stage(
@@ -231,7 +233,7 @@ public actor SyncEngine {
     } catch {
       trace.record(
         TraceEvent(
-          phase: .delta, outcome: Task.isCancelled ? .cancelled : .rejected,
+          phase: .delta, outcome: Self.wasCancelled(error) ? .cancelled : .rejected,
           snapshot: archive.snapshot))
       throw error
     }
@@ -246,11 +248,7 @@ public actor SyncEngine {
     let file = try await api.download(archive, paths: paths, partials: store.transfers) { part in
       Task {
         await progress(
-          SyncProgress(
-            stage: SyncProgress.transfer, done: part.received, total: part.total - part.resumed,
-            rows: rows,
-            fraction: Double(part.resumed + part.received) / Double(max(part.total, 1))
-              * Self.downloadShare, waiting: part.waiting))
+          .receiving(part, rows: rows, share: Self.downloadShare))
       }
     }
     defer { try? FileManager.default.removeItem(at: file) }
@@ -329,11 +327,7 @@ public actor SyncEngine {
     let file = try await api.download(archive, paths: paths, partials: store.transfers) { part in
       Task {
         await progress(
-          SyncProgress(
-            stage: SyncProgress.transfer, done: part.received, total: part.total - part.resumed,
-            rows: rows,
-            fraction: Double(part.resumed + part.received) / Double(max(part.total, 1))
-              * Self.downloadShare, waiting: part.waiting))
+          .receiving(part, rows: rows, share: Self.downloadShare))
       }
     }
     try await stage(
@@ -366,16 +360,12 @@ public actor SyncEngine {
         return false
       }
       let base = try await DeltaBase(store: store, manifest: saved)
-      let transfer = Self.downloadShare * Self.deltaTransferShare
+      let transfer = Self.deltaDownloadShare
       let rows = archive.contacts
       let file = try await api.download(delta, paths: paths, partials: store.transfers) { part in
         Task {
           await progress(
-            SyncProgress(
-              stage: SyncProgress.transfer, done: part.received, total: part.total - part.resumed,
-              rows: rows,
-              fraction: Double(part.resumed + part.received) / Double(max(part.total, 1))
-                * transfer, waiting: part.waiting))
+            .receiving(part, rows: rows, share: transfer))
         }
       }
       defer { try? FileManager.default.removeItem(at: file) }
@@ -384,12 +374,7 @@ public actor SyncEngine {
       let admission = try await DirectoryDeltaApplier(url: file, delta: delta).rebuild(
         from: base, into: rebuilt
       ) { fraction in
-        let share = min(max(fraction, 0), 1)
-        await progress(
-          SyncProgress(
-            stage: SyncProgress.transfer, done: Int(share * Double(Self.rebuildSteps)),
-            total: Self.rebuildSteps, rows: rows,
-            fraction: transfer + share * (Self.downloadShare - transfer)))
+        await progress(.rebuilding(fraction, rows: rows))
       }
       guard admission == .apply else { throw DeltaRejection(admission: admission) }
       try await stage(
@@ -398,8 +383,11 @@ public actor SyncEngine {
       trace.record(TraceEvent(phase: .delta, outcome: .completed, snapshot: archive.snapshot))
       return true
     } catch {
-      if Task.isCancelled { throw CancellationError() }
-      trace.record(TraceEvent(phase: .delta, outcome: .rejected, snapshot: archive.snapshot))
+      let cancelled = Self.wasCancelled(error)
+      trace.record(
+        TraceEvent(
+          phase: .delta, outcome: cancelled ? .cancelled : .rejected, snapshot: archive.snapshot))
+      if cancelled { throw CancellationError() }
       return false
     }
   }
@@ -423,9 +411,6 @@ public actor SyncEngine {
           fraction: Self.downloadShare + fraction * Self.saveShare))
     }
     do {
-      let artifacts = try await searchArtifacts?.files(
-        snapshot: archive.snapshot, contacts: archive.contacts, paths: paths,
-        partials: store.searchTransfers)
       await progress(
         SyncProgress(
           stage: SyncProgress.prepare, done: 0, total: rows, rows: rows,
@@ -437,7 +422,7 @@ public actor SyncEngine {
               throw ImportError.invalidSnapshot
             }
             try await store.begin(
-              header: header, origin: api.origin, requiresRankedSearch: artifacts != nil)
+              header: header, origin: api.origin)
           },
           records: { records, _ in
             // Waiting for the batch in flight keeps the saves in order and holds two batches at most.
@@ -450,7 +435,6 @@ public actor SyncEngine {
           })
         while let batch = try await saving.next() { await report(batch) }
       }
-      if let artifacts { try await store.installSearch(artifacts) }
       trace.record(TraceEvent(phase: .decode, outcome: .completed, snapshot: archive.snapshot))
       await progress(
         SyncProgress(
@@ -467,7 +451,6 @@ public actor SyncEngine {
     do {
       try Task.checkCancellation()
       let manifest = try await store.publish(at: now())
-      await releaseSearch(snapshot: snapshot)
       await progress(
         SyncProgress(stage: SyncProgress.identify, done: 1, total: 1, rows: rows, fraction: 1))
       return manifest
@@ -476,50 +459,10 @@ public actor SyncEngine {
     }
   }
 
-  private func releaseSearch(snapshot: SnapshotID) async {
-    do {
-      try await searchArtifacts?.release(snapshot: snapshot, partials: store.searchTransfers)
-    } catch {
-      trace.record(TraceEvent(phase: .cleanup, outcome: .deferred, snapshot: snapshot))
-    }
-  }
-
-  public func upgradeSearch(paths: NetworkPaths = .inexpensive) async throws -> SnapshotManifest {
-    guard !updating else { throw ImportError.alreadyUpdating }
-    updating = true
-    defer { updating = false }
-    guard let saved = try await store.manifest() else { throw ImportError.unavailableStorage }
-    if saved.rankedSearch == true, await store.searchUsesMappedFiles(generation: saved.generation) {
-      return saved
-    }
-    guard let searchArtifacts else { throw ImportError.invalidSnapshot }
-    let header = try await store.header(generation: saved.generation)
-    let artifacts = try await searchArtifacts.files(
-      snapshot: saved.snapshot, contacts: saved.records, paths: paths,
-      partials: store.searchTransfers)
-    do {
-      try await store.begin(
-        header: header, origin: saved.origin.flatMap(URL.init(string:)), requiresRankedSearch: true)
-      for start in stride(from: 0, to: saved.records, by: SnapshotStore.archiveRowBatch) {
-        try Task.checkCancellation()
-        let lines = try await store.archiveRows(
-          generation: saved.generation, from: start,
-          count: min(SnapshotStore.archiveRowBatch, saved.records - start))
-        try await store.append(lines.map { try ArchiveRecord(line: $0, header: header) })
-      }
-      try await store.installSearch(artifacts)
-      let manifest = try await store.publish(at: now())
-      await releaseSearch(snapshot: saved.snapshot)
-      return manifest
-    } catch {
-      try await discard(after: error, snapshot: saved.snapshot)
-    }
-  }
-
   private func discard(after error: any Error, snapshot: SnapshotID) async throws -> Never {
     trace.record(
       TraceEvent(
-        phase: .stage, outcome: error is CancellationError ? .cancelled : .rejected,
+        phase: .stage, outcome: Self.wasCancelled(error) ? .cancelled : .rejected,
         snapshot: snapshot))
     do { try await store.abort() } catch let cleanupError {
       throw SyncFailure(primary: error, cleanup: cleanupError)

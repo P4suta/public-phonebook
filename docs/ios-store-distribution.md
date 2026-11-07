@@ -8,6 +8,7 @@ App Review approval releases the version automatically, and the app requires no 
 Store metadata lives in `ios/AppStore/metadata.json`.
 Japanese customer-facing text is intentional.
 Review instructions are English.
+The [accessibility evaluation](ios-accessibility.md) defines common tasks, feature criteria, automated audits, device evidence, and the boundary for declaring Accessibility Nutrition Labels.
 
 ## Environments
 
@@ -38,7 +39,7 @@ It checks the production origin, shared group, version, build number, icon, priv
 It also requires the exported app to hold the directory archive and entry that `ios/bundled-dataset.json` declares, and the extension to hold neither.
 The generator reads that archive from the release asset and the immutable dataset URL, so the hosted runners get it without credentials.
 The unsigned Release app measured 3,780,791 bytes before the bundled archive and 17,274,257 bytes with the 13,428,507-byte archive of snapshot `5bd74f20`.
-It preserves a SHA-256 digest, source-file hashes, selected Git revision, dirty-tree state, and a CycloneDX dependency inventory under a unique `target/ios/app-store-*` directory.
+It preserves the SHA-256 digest, source-file hashes, selected Git revision, dirty-tree state, and a CycloneDX dependency inventory under a unique `target/ios/app-store-*` directory.
 `target/ios/app-store-candidate.json` points to the inspected export from the command's preceding successful run.
 A local archive uses build number 1 unless `--build-number N` selects another.
 `--require-receipts` refuses to archive unless the native, sanitizer, mutation, and Lean receipts passed for the current sources.
@@ -55,6 +56,9 @@ The unsigned job downloads their source-bound receipts and runs `just ios-prepar
 It preserves and attests the unsigned archive, source inventory, and receipts.
 
 The signing job waits for review in `testflight-signing` and verifies the unsigned artifact's source and controller attestation before fetching credentials from `ci_testflight_signing`.
+Before importing a private key, the controller copies the original archive and gives both bundles an ad hoc signature containing the declared App Group request.
+That signature uses no certificate or private key and preserves the request that Xcode needs during export.
+The original attested archive stays unchanged.
 `just ios-archive --prepared --require-receipts --build-number N --signing ci` refuses a dirty checkout, mismatched archive bytes, or failed and stale receipts.
 It checks both profiles for their identifiers, team, App Group, and App Store distribution type.
 The helper imports the distribution identity into a temporary keychain and exports the already prepared archive with manual signing.
@@ -98,7 +102,7 @@ The signing subject is `repo:P4suta@42543015/public-phonebook@1438449191:environ
 The upload subject ends in `environment:testflight-upload`.
 Restrict both environments to `main`, require the owner's review, and turn off administrator bypass.
 Run the dedicated read-only credential transport workflow before an independently authorized signing or upload rehearsal.
-Local verification hasn't exercised the redesigned unsigned export and split credentialed jobs with live signing material or App Store Connect.
+A private export rehearsal preserved the declared App Group and production identity in both bundles without uploading a package.
 The redesigned command doesn't migrate or delete the previous `testflight` environment and `ci_testflight` configuration.
 
 ### What stays manual
@@ -106,7 +110,7 @@ The redesigned command doesn't migrate or delete the previous `testflight` envir
 The owner assigns processed builds to TestFlight testing groups and supplies App Store submission and review details.
 Certificate, profile, and API-key renewal and the corresponding scoped Doppler updates remain owner operations.
 
-The package uses local PhonebookCore, PhonebookRanking, and PhonebookKit targets with no remote Swift package dependencies.
+The package uses local PhonebookCore and PhonebookKit targets with no remote Swift package dependencies.
 The archive step derives the inventory's library components from the generated Xcode project and `swift package dump-package`.
 It follows the package products that the app and its embedded extension link through their target dependencies.
 It lists each linked regular target once and omits system library targets, whose libraries the iOS SDK supplies.

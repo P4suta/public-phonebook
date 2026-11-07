@@ -85,36 +85,20 @@ targets:
         product: PhonebookKit
       - target: CallDirectory
         embed: true
-    # `ios-check generate` admits each archive, and only QA configurations copy search companions.
+    # `ios-check generate` admits the archive that every configuration bundles.
     postBuildScripts:
       - name: Bundle the declared directory archive
         basedOnDependencyAnalysis: true
         inputFiles:
           - $(SRCROOT)/../target/ios/bundled-dataset/$(PHONEBOOK_BUNDLED_DATASET)/directory.tsv.br
           - $(SRCROOT)/../target/ios/bundled-dataset/$(PHONEBOOK_BUNDLED_DATASET)/directory.json
-          - $(SRCROOT)/../target/ios/bundled-dataset/$(PHONEBOOK_BUNDLED_DATASET)/search-index.br
-          - $(SRCROOT)/../target/ios/bundled-dataset/$(PHONEBOOK_BUNDLED_DATASET)/search-ranking.br
-          - $(SRCROOT)/../target/ios/bundled-dataset/$(PHONEBOOK_BUNDLED_DATASET)/search.json
         outputFiles:
           - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/directory.tsv.br
           - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/directory.json
-          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/search-index.br
-          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/search-ranking.br
-          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/search.json
         script: |
           set -eu
           cp "$SCRIPT_INPUT_FILE_0" "$SCRIPT_OUTPUT_FILE_0"
           cp "$SCRIPT_INPUT_FILE_1" "$SCRIPT_OUTPUT_FILE_1"
-          case " ${SWIFT_ACTIVE_COMPILATION_CONDITIONS:-} " in
-            *" PHONEBOOK_VERIFICATION_TOOLS "*)
-              cp "$SCRIPT_INPUT_FILE_2" "$SCRIPT_OUTPUT_FILE_2"
-              cp "$SCRIPT_INPUT_FILE_3" "$SCRIPT_OUTPUT_FILE_3"
-              cp "$SCRIPT_INPUT_FILE_4" "$SCRIPT_OUTPUT_FILE_4"
-              ;;
-            *)
-              rm -f "$SCRIPT_OUTPUT_FILE_2" "$SCRIPT_OUTPUT_FILE_3" "$SCRIPT_OUTPUT_FILE_4"
-              ;;
-          esac
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_BUNDLE_ID)
@@ -136,6 +120,7 @@ targets:
       properties:
         CFBundleDisplayName: $(PHONEBOOK_DISPLAY_NAME)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleDevelopmentRegion: ja
         CFBundleLocalizations: [ja]
         PhonebookAppGroup: $(PHONEBOOK_APP_GROUP)
@@ -164,6 +149,7 @@ targets:
       properties:
         CFBundleDisplayName: $(PHONEBOOK_DISPLAY_NAME)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.callkit.call-directory
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).CallDirectoryHandler

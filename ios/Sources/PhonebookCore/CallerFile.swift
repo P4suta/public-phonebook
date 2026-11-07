@@ -129,7 +129,9 @@ public enum CallerFile {
       buffer.removeSubrange(0..<position)
       position = 0
       while buffer.count < bytes, !ended {
-        guard let data = try handle.read(upToCount: chunk), !data.isEmpty else {
+        guard let data = try autoreleasepool(invoking: { try handle.read(upToCount: chunk) }),
+          !data.isEmpty
+        else {
           ended = true
           break
         }
@@ -345,6 +347,56 @@ public enum CallerFile {
   ) throws {
     try walk(held: held(), wanted: wanted(), batch: batch, remove: remove, add: { _, _ in })
     try walk(held: held(), wanted: wanted(), batch: batch, remove: { _ in }, add: add)
+  }
+
+  public struct ChangeCounts: Equatable, Sendable {
+    public let removals: Int
+    public let additions: Int
+  }
+
+  public static func countChanges(
+    held: () throws -> Merged, wanted: () throws -> Merged, batch: Int = 1000
+  ) throws -> ChangeCounts {
+    var removals = 0
+    var additions = 0
+    try walk(
+      held: held(), wanted: wanted(), batch: batch,
+      remove: { _ in removals += 1 }, add: { _, _ in additions += 1 })
+    return ChangeCounts(removals: removals, additions: additions)
+  }
+
+  /// Preflights an incremental request before sending changes, or replaces all entries above the limit.
+  /// The caller must make `removeAll` a no-op when the platform requests a full load.
+  @discardableResult
+  public static func load(
+    held: (() throws -> Merged)?, wanted: () throws -> Merged, limit: Int = 1000,
+    removeAll: () -> Void, remove: (Int64) -> Void, add: (Int64, String) -> Void
+  ) throws -> CallerLoadPlan {
+    if let held {
+      let counts = try countChanges(held: held, wanted: wanted)
+      let plan = CallerLoadPlan.decide(
+        removals: counts.removals, additions: counts.additions, limit: limit)
+      if plan == .incremental {
+        try changes(
+          held: held, wanted: wanted,
+          remove: { number in autoreleasepool { remove(number) } },
+          add: { number, label in autoreleasepool { add(number, label) } })
+        return .incremental
+      }
+    }
+    let reader = try wanted()
+    removeAll()
+    try readBatches { try autoreleasepool { try reader.read(upTo: 1000, add) } }
+    return .full
+  }
+
+  static func readBatches(_ read: () throws -> Int) rethrows {
+    while true {
+      switch try read() {
+      case 1...: continue
+      default: return
+      }
+    }
   }
 
   /// A UInt64 has at most ten 7-bit groups, so the loop ends after ten bytes whatever its exit test says.

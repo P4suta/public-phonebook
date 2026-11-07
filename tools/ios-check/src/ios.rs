@@ -96,6 +96,7 @@ fn scenario_outcome(passed: bool, hung: bool) -> &'static str {
 }
 /// Measures the process footprint, so it runs in its own invocation where no concurrent test allocates.
 const ISOLATED_FOOTPRINT_TEST: &str = "readerFootprintStaysFlatWhenRunAlone";
+const ARCHIVE_FOOTPRINT_TEST: &str = "archiveDigestUsesBoundedMemory";
 const ISOLATED_FOOTPRINT_VARIABLE: &str = "PHONEBOOK_ISOLATED_FOOTPRINT";
 const SANITIZED_CONTRACTS: [&str; 4] = [
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
@@ -103,8 +104,7 @@ const SANITIZED_CONTRACTS: [&str; 4] = [
     "cancellationBeforeAndDuringRealRequestsAlwaysCompletes",
     "firstRunAppliesTheListedDeltaToTheBundleOnce",
 ];
-const UI_TESTS: [&str; 25] = [
-    "testForgivingNamesFindTheSavedFacility",
+const UI_TESTS: [&str; 27] = [
     "testRankedMetadataRemainsReadableAtLargestTextSize",
     "testOnboardingSavesTheDirectoryBeforeSearch",
     "testSearchGroupsRankedResultsAndShowsMore",
@@ -129,31 +129,21 @@ const UI_TESTS: [&str; 25] = [
     "testDarkAppearanceSwapsBlackAndWhite",
     "testLargestTextScalesIconsBesideTheirLabels",
     "testSearchFieldShowsOneClearControl",
+    "testCommonTasksPassAccessibilityAudits",
+    "testCommonTasksPassAccessibilityAuditsAtLargestTextSize",
+    "testCommonTasksPassAccessibilityAuditsInDarkAppearance",
 ];
 /// The UI scenarios that run with the simulator in the dark appearance.
-const DARK_UI_TESTS: [&str; 1] = ["testDarkAppearanceSwapsBlackAndWhite"];
-const REQUIRED_TESTS: [&str; 111] = [
-    "packedLexiconPrefixesUseScalarBoundaries",
-    "packedReadingOverlapPreservesScalarGramsInsideGraphemeClusters",
-    "savedSearchVerifiesDecodedFilesAndLineOffsets",
-    "compressedSavedSearchRemainsReadableAndUpgradesAtomically",
+const DARK_UI_TESTS: [&str; 2] = [
+    "testDarkAppearanceSwapsBlackAndWhite",
+    "testCommonTasksPassAccessibilityAuditsInDarkAppearance",
+];
+const REQUIRED_TESTS: [&str; 99] = [
     "resultPagesStayWithinBoundsAtSignedExtremes",
-    "directoryModelGroupsRankedResultsByCategory",
-    "directoryModelPreservesWrittenExactQueriesBeforeFolding",
     "anOlderSearchCannotReplaceTheCurrentQuery",
     "anOlderPageCannotClearTheCurrentPageOperation",
     "searchPreparationUsesTheLatestTypedInputAndRejectsMissingContacts",
     "telephoneResultsGroupEveryCategoryInNameOrder",
-    "rankedResultPagingPreservesTheFrozenOrder",
-    "searchActivationRequiresEveryMandatorySearchFile",
-    "searchArtifactsMustMapEverySavedRecordBeforeActivation",
-    "rejectedSearchMappingsAndCorruptFilesKeepTheActiveGeneration",
-    "upgradingSearchRetainsTheSavedDirectoryAndNeedsNoArchiveDownload",
-    "rankedGenerationsKeepDuplicatesAndCleanOnlyTheObsoleteFiles",
-    "bundledSearchWorksWithoutAnyPublishedSearchFilesOrConnection",
-    "completeAndDeltaUpdatesActivateTheMatchingSearchPair",
-    "failedRankedActivationKeepsThePreviousSearchAndCallerGeneration",
-    "cancelledSearchAdmissionKeepsTheActiveGenerationAndRemovesTheDraft",
     "currentProviderArchiveImportsTheNationalDirectory",
     "providerArchiveSavesTheExpectedGenerationContent",
     "byteParserMatchesTheStringParserOnEveryMutatedLine",
@@ -244,6 +234,10 @@ const REQUIRED_TESTS: [&str; 111] = [
     "theWeakSignalFollowsTheWaitingAndTheStallOnEveryLine",
     "eachTransferOriginTakesItsOwnSession",
     "aRefusedAutomaticTransferFailsAtOnceAndWaitsAgain",
+    "savedLiteralDirectoryOpensWithoutExperimentalCompanions",
+    "callerLoadPlanRespectsTheCombinedBoundAtSignedExtremes",
+    "callerLoadMatchesWantedEntriesOnSeededInputs",
+    "callerLoadRejectsBrokenFilesBeforeChangingEntries",
 ];
 const SCOPE: [&str; 20] = [
     "tests/fixtures/search-ranking.json",
@@ -304,8 +298,13 @@ fn source_hashes(root: &Path) -> Result<BTreeMap<String, String>> {
     }
     let mut hashes = BTreeMap::new();
     for path in paths {
-        let bytes =
-            fs::read(root.join(&path)).with_context(|| format!("Read iOS check input {path}"))?;
+        let bytes = match fs::read(root.join(&path)) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => {
+                return Err(error).with_context(|| format!("Read iOS check input {path}"));
+            }
+        };
         hashes.insert(path, crate::sha256_hex(bytes));
     }
     ensure!(
@@ -384,7 +383,14 @@ pub enum Action {
     SearchMeasure,
     Prove,
     Sanitize,
-    Mutate,
+    Mutate {
+        #[arg(long)]
+        affected: bool,
+        #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u16).range(1..=4))]
+        jobs: u16,
+        #[arg(long, requires = "affected")]
+        profile: Option<String>,
+    },
     UiTest {
         #[arg(long = "test")]
         tests: Vec<String>,
@@ -911,15 +917,20 @@ fn require_isolated_footprint(main: &str, isolated: &str) -> Result<()> {
         !main.lines().any(|line| line.contains(&name)),
         "The main Swift test run included {ISOLATED_FOOTPRINT_TEST}, which shares its process with concurrent tests"
     );
+    require_single_test(isolated, ISOLATED_FOOTPRINT_TEST)
+}
+
+fn require_single_test(output: &str, test: &str) -> Result<()> {
+    let name = format!("Test {test}()");
     ensure!(
-        isolated
+        output
             .lines()
             .any(|line| line.starts_with(&format!("✔ {name} passed after ")))
-            && isolated
+            && output
                 .lines()
                 .any(|line| line.contains("Test run with 1 test ")
                     && line.contains(" passed after ")),
-        "The isolated Swift test run did not pass {ISOLATED_FOOTPRINT_TEST} alone"
+        "The isolated Swift test run did not pass {test} alone"
     );
     Ok(())
 }
@@ -1345,7 +1356,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
     let checkout_lock = match &action {
         Action::Prove => Some("target/ios/proof.lock"),
         Action::Sanitize => Some("target/ios/sanitizer.lock"),
-        Action::Mutate => Some("target/ios/mutation.lock"),
+        Action::Mutate { .. } => Some("target/ios/mutation.lock"),
         Action::UnitTest => Some("target/ios/unit-command.lock"),
         _ => None,
     };
@@ -1359,9 +1370,14 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         xcode(root)?;
         return sanitize(root);
     }
-    if matches!(action, Action::Mutate) {
+    if let Action::Mutate {
+        affected,
+        jobs,
+        profile,
+    } = action
+    {
         xcode(root)?;
-        return mutation::run(root);
+        return mutation::run(root, affected, jobs, profile.as_deref());
     }
     let receipt = root.join("target/ios/receipt.json");
     if matches!(&action, Action::Check) && receipt.exists() {
@@ -1390,7 +1406,16 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
     }
     let unit_only = matches!(action, Action::UnitTest);
     if !unit_only {
+        let sources = matches!(
+            &action,
+            Action::Check | Action::PrepareArchive { .. } | Action::Archive { .. }
+        )
+        .then(|| source_hashes(root))
+        .transpose()?;
         generate(root)?;
+        if let Some(sources) = sources {
+            require_current_sources(root, &sources)?;
+        }
     }
     match action {
         Action::Archive {
@@ -1455,7 +1480,6 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "ios/Native",
                     "ios/CallDirectory",
                     "ios/DeviceMeasurements",
-                    "ios/SearchMeasurements",
                     "ios/Sources",
                     "ios/Tests",
                     "ios/UITests",
@@ -1509,6 +1533,34 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
             );
             require_isolated_footprint(&log, &isolated_log)?;
             log.push_str(&isolated_log);
+            let archive = logged(
+                root,
+                "unit-archive-footprint",
+                Command::new("xcrun")
+                    .current_dir(root)
+                    .env(ISOLATED_FOOTPRINT_VARIABLE, "1")
+                    .env(
+                        "LLVM_PROFILE_FILE",
+                        root.join("target/ios/unit-archive-footprint-%p.profraw"),
+                    )
+                    .args([
+                        "swift",
+                        "test",
+                        "--package-path",
+                        "ios",
+                        "--skip-build",
+                        "--filter",
+                        ARCHIVE_FOOTPRINT_TEST,
+                    ]),
+            )?;
+            require_single_test(
+                &format!(
+                    "{}{}",
+                    String::from_utf8_lossy(&archive.stdout),
+                    String::from_utf8_lossy(&archive.stderr)
+                ),
+                ARCHIVE_FOOTPRINT_TEST,
+            )?;
             for harness in REQUIRED_TESTS {
                 ensure!(
                     log.lines()
@@ -1547,6 +1599,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                 serde_json::to_vec_pretty(&json!({
                     "result":"passed","unit_tests":unit_tests,"required_contracts":REQUIRED_TESTS.as_slice(),
                     "coverage":coverage,"source_sha256":source_records(&sources),
+                    "isolated_memory_tests":[ISOLATED_FOOTPRINT_TEST, ARCHIVE_FOOTPRINT_TEST],
                     "scope":"strict Swift lints and all compiled macOS Swift package tests; excludes app and extension execution"
                 }))?,
             )?;
@@ -1656,7 +1709,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "source_sha256":source_records(&sources),
                     "swift_language_mode":"6", "deployment_target":"iOS 18.0",
                     "device_build":"Release, unsigned",
-                    "store_build":format!("Release app and extension contain no forgiving-search resources or {} QA markers; VerificationDebug and the rejected condition-defined Release contain every marker and companion", store_build::MARKERS.len()),
+                    "store_build":format!("Release app and extension contain no forgiving-search resources or {} QA markers; VerificationDebug and the rejected condition-defined Release contain every QA marker", store_build::MARKERS.len()),
                     "simulator_runtime":RUNTIME, "simulator_device":DEVICE_TYPE,
                     "device_validation":"not run", "ios_18_runtime_validation":"not run"
                 }))?,
@@ -1671,7 +1724,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         Action::Testflight => bail!("The TestFlight delivery was not handled"),
         Action::Prove => bail!("The iOS proof gate was not handled"),
         Action::Sanitize => bail!("The iOS sanitizer gate was not handled"),
-        Action::Mutate => bail!("The iOS mutation gate was not handled"),
+        Action::Mutate { .. } => bail!("The iOS mutation gate was not handled"),
         Action::Icons { .. } => bail!("The shared icon gate was not handled"),
         Action::Audit => bail!("The dependency audit was not handled"),
     }
@@ -1797,6 +1850,34 @@ fn coverage(root: &Path) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mutation_workers_stay_within_the_native_capacity() {
+        for jobs in ["1", "4"] {
+            assert!(
+                <crate::Arguments as clap::Parser>::try_parse_from([
+                    "ios-check",
+                    "mutate",
+                    "--affected",
+                    "--jobs",
+                    jobs,
+                ])
+                .is_ok()
+            );
+        }
+        for jobs in ["0", "5"] {
+            assert!(
+                <crate::Arguments as clap::Parser>::try_parse_from([
+                    "ios-check",
+                    "mutate",
+                    "--affected",
+                    "--jobs",
+                    jobs,
+                ])
+                .is_err()
+            );
+        }
+    }
 
     #[test]
     fn each_checkout_names_its_own_simulator() {
@@ -2022,10 +2103,16 @@ mod tests {
         let modified = source_hashes(root)?;
         let added = root.join("ios/Sources/Adapter.swift");
         fs::write(&added, "struct Adapter {}")?;
+        super::super::checked(
+            Command::new("git")
+                .current_dir(root)
+                .args(["add", "ios/Sources/Adapter.swift"]),
+        )?;
         assert!(require_current_sources(root, &modified).is_err());
         let expanded = source_hashes(root)?;
         fs::remove_file(added)?;
         assert!(require_current_sources(root, &expanded).is_err());
+        assert!(!source_hashes(root)?.contains_key("ios/Sources/Adapter.swift"));
         Ok(())
     }
 }

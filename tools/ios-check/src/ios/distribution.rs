@@ -641,6 +641,38 @@ fn export_command(directory: &Path, root: &Path, manual: Option<&ManualSigning>)
     command
 }
 
+fn prepare_requested_entitlements(root: &Path, archive: &Path) -> Result<()> {
+    const GROUPS: &str = "com.apple.security.application-groups";
+    let template = plist(root, &root.join("ios/Config/Shared.entitlements"))?;
+    ensure!(
+        template == json!({GROUPS: ["$(PHONEBOOK_APP_GROUP)"]}),
+        "Unexpected archive entitlement request"
+    );
+    let bundle = Environment::Production.identity().0;
+    let request = json!({GROUPS: [format!("group.{bundle}")]});
+    let directory = archive.parent().context("The archive has no parent")?;
+    let path = directory.join("requested-entitlements.plist");
+    fs::write(&path, serde_json::to_vec(&request)?)?;
+    logged(
+        root,
+        "requested-entitlements-plist",
+        Command::new("plutil").args(["-convert", "xml1"]).arg(&path),
+    )?;
+    let app = archive.join("Products/Applications/PublicPhonebook.app");
+    for target in [app.join("PlugIns/CallDirectory.appex"), app] {
+        logged(
+            root,
+            "requested-entitlements-signature",
+            Command::new("codesign")
+                .args(["--force", "--sign", "-", "--entitlements"])
+                .arg(&path)
+                .arg("--generate-entitlement-der")
+                .arg(target),
+        )?;
+    }
+    Ok(())
+}
+
 pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
     let build = signing::admit_request(request.signing, request.require_receipts, request.build)?;
     let ci = request.signing == Signing::Ci;
@@ -681,24 +713,27 @@ pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
         !ci || prepared.is_some(),
         "CI signing cannot compile candidate-controlled build hooks"
     );
+    let directory = tempfile::Builder::new()
+        .prefix("app-store-")
+        .tempdir_in(root.join("target/ios"))?
+        .keep();
+    let archive = directory.join("PublicPhonebook.xcarchive");
+    if let Some(prepared) = &prepared {
+        logged(
+            root,
+            "copy-unsigned-archive",
+            Command::new("ditto").arg(prepared).arg(&archive),
+        )?;
+        prepare_requested_entitlements(root, &archive)?;
+    }
+    require_current_sources(root, &sources)?;
     let ci_signing = if ci {
         Some(signing::prepare(bundle)?)
     } else {
         None
     };
     let manual: Option<&ManualSigning> = ci_signing.as_ref().map(|prepared| &prepared.manual);
-    let directory = tempfile::Builder::new()
-        .prefix("app-store-")
-        .tempdir_in(root.join("target/ios"))?
-        .keep();
-    let archive = directory.join("PublicPhonebook.xcarchive");
-    if let Some(prepared) = prepared {
-        logged(
-            root,
-            "copy-unsigned-archive",
-            Command::new("ditto").arg(prepared).arg(&archive),
-        )?;
-    } else {
+    if prepared.is_none() {
         logged(
             root,
             "app-store-archive",
@@ -977,10 +1012,11 @@ mod tests {
     }
 
     #[test]
-    fn both_bundles_take_their_build_number_from_the_build_setting() -> Result<()> {
+    fn both_bundles_take_their_versions_from_build_settings() -> Result<()> {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         for file in [
             "ios/Config/App-Info.plist",
+            "ios/Config/App-Info-LocalNetworking.plist",
             "ios/Config/CallDirectory-Info.plist",
         ] {
             let xml = fs::read_to_string(root.join(file))?;
@@ -997,14 +1033,124 @@ mod tests {
                     .first_element_child()
                     .context("The property list is empty")?,
             )?;
-            let version = properties
-                .get("CFBundleVersion")
-                .copied()
-                .with_context(|| format!("{file} has no CFBundleVersion"))?;
+            for (key, setting) in [
+                ("CFBundleVersion", "$(CURRENT_PROJECT_VERSION)"),
+                ("CFBundleShortVersionString", "$(MARKETING_VERSION)"),
+            ] {
+                let version = properties
+                    .get(key)
+                    .copied()
+                    .with_context(|| format!("{file} has no {key}"))?;
+                assert_eq!(signing::text(version)?, setting, "{file}: {key}");
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn generation_preserves_both_bundle_version_settings() -> Result<()> {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let directory = tempfile::tempdir()?;
+        let output = directory.path().join("spec.json");
+        crate::checked(
+            Command::new("xcodegen")
+                .current_dir(root.join("ios"))
+                .args(["dump", "--type", "json", "--quiet", "--file"])
+                .arg(&output),
+        )?;
+        let specification: Value = serde_json::from_slice(&fs::read(output)?)?;
+        for target in ["PublicPhonebook", "CallDirectory"] {
+            for (key, setting) in [
+                ("CFBundleVersion", "$(CURRENT_PROJECT_VERSION)"),
+                ("CFBundleShortVersionString", "$(MARKETING_VERSION)"),
+            ] {
+                assert_eq!(
+                    specification["targets"][target]["info"]["properties"][key], setting,
+                    "{target}: {key}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn prepared_copies_carry_the_requested_app_group_without_private_keys() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let config = root.path().join("ios/Config");
+        fs::create_dir_all(&config)?;
+        let source_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        fs::copy(
+            source_root.join("ios/Config/Shared.entitlements"),
+            config.join("Shared.entitlements"),
+        )?;
+        let archive = root.path().join("PublicPhonebook.xcarchive");
+        let app = archive.join("Products/Applications/PublicPhonebook.app");
+        let extension = app.join("PlugIns/CallDirectory.appex");
+        fs::create_dir_all(&extension)?;
+        let source = root.path().join("fixture.c");
+        fs::write(&source, "int main(void) { return 0; }\n")?;
+        for (target, name, package) in [
+            (&app, "PublicPhonebook", "APPL"),
+            (&extension, "CallDirectory", "XPC!"),
+        ] {
+            fs::write(
+                target.join("Info.plist"),
+                format!(
+                    "<?xml version=\"1.0\"?><plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>page.dial.fixture.{name}</string><key>CFBundleExecutable</key><string>{name}</string><key>CFBundlePackageType</key><string>{package}</string></dict></plist>"
+                ),
+            )?;
+            crate::checked(
+                Command::new("xcrun")
+                    .arg("clang")
+                    .arg(&source)
+                    .arg("-o")
+                    .arg(target.join(name)),
+            )?;
+        }
+        let original = archive_files(&archive)?;
+        for invalid in [
+            json!({}),
+            json!({"com.apple.security.application-groups":["group.another"]}),
+            json!({"com.apple.security.application-groups":["$(PHONEBOOK_APP_GROUP)"],"get-task-allow":true}),
+        ] {
+            fs::write(
+                config.join("Shared.entitlements"),
+                serde_json::to_vec(&invalid)?,
+            )?;
+            let error = prepare_requested_entitlements(root.path(), &archive)
+                .err()
+                .context("An unexpected request was accepted")?;
+            assert!(
+                error
+                    .to_string()
+                    .contains("Unexpected archive entitlement request")
+            );
+            assert_eq!(archive_files(&archive)?, original);
+        }
+        fs::copy(
+            source_root.join("ios/Config/Shared.entitlements"),
+            config.join("Shared.entitlements"),
+        )?;
+        prepare_requested_entitlements(root.path(), &archive)?;
+        for target in [extension, app] {
+            crate::checked(
+                Command::new("codesign")
+                    .args(["--verify", "--deep", "--strict"])
+                    .arg(&target),
+            )?;
+            let entitlement_path = root.path().join("observed-entitlements.plist");
+            crate::checked(
+                Command::new("codesign")
+                    .args(["-d", "--entitlements"])
+                    .arg(&entitlement_path)
+                    .arg("--xml")
+                    .arg(&target),
+            )?;
             assert_eq!(
-                signing::text(version)?,
-                "$(CURRENT_PROJECT_VERSION)",
-                "{file}"
+                plist(root.path(), &entitlement_path)?,
+                json!({"com.apple.security.application-groups":["group.page.dial.publicphonebook"]})
             );
         }
         Ok(())

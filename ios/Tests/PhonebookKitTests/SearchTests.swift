@@ -131,7 +131,14 @@ private func index(_ lines: [ArchiveLine]) async throws -> (LocalSearch, Snapsho
   await model.more(group)?.value
   #expect(model.expanded(group))
   #expect(model.visible(group).count == 3 + DirectoryModel.pageSize)
-  while model.expandable(group) { await model.more(group)?.value }
+  for expected in [43, 60] {
+    try #require(model.expandable(group))
+    await model.more(group)?.value
+    try #require(!model.loadingMore)
+    #expect(model.visible(group).count == expected)
+  }
+  #expect(!model.expandable(group))
+  #expect(model.more(group) == nil)
   #expect(model.visible(group).map(\.name) == (0..<60).map { "図書館" + String(format: "%02d", $0) })
   model.query = "  "
   #expect(model.search() == nil)

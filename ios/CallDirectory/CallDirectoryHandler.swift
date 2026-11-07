@@ -34,40 +34,32 @@ final class CallDirectoryHandler: CXCallDirectoryProvider, CXCallDirectoryExtens
       var entries = 0
       var removed = 0
       var peak = Self.footprint()
-      if context.isIncremental, let held = Self.held(in: directory) {
-        // iOS holds what the record names, so the request sends the difference alone.
-        try CallerFile.changes(
-          held: held, wanted: wanted,
-          remove: { number in
-            context.removeIdentificationEntry(withPhoneNumber: number)
-            removed += 1
-          },
-          add: { number, label in
-            autoreleasepool {
-              context.addIdentificationEntry(withNextSequentialPhoneNumber: number, label: label)
-            }
-            entries += 1
-          })
-      } else {
-        if context.isIncremental { context.removeAllIdentificationEntries() }
-        let reader = try wanted()
-        while true {
-          let read = try autoreleasepool {
-            try reader.read(upTo: 1000) { number, label in
-              context.addIdentificationEntry(withNextSequentialPhoneNumber: number, label: label)
-            }
+      let incremental = context.isIncremental
+      let plan = try CallerFile.load(
+        held: incremental ? Self.held(in: directory) : nil, wanted: wanted,
+        removeAll: { if incremental { context.removeAllIdentificationEntries() } },
+        remove: { number in
+          context.removeIdentificationEntry(withPhoneNumber: number)
+          removed += 1
+          if removed % 1000 == 0 {
+            peak = max(peak, Self.footprint())
+            logger.debug(
+              "caller.load phase=remove removed=\(removed, privacy: .public) footprintKB=\(peak / 1024, privacy: .public)"
+            )
           }
-          guard read > 0 else { break }
-          entries += read
-          if entries % 50_000 < read {
+        },
+        add: { number, label in
+          context.addIdentificationEntry(withNextSequentialPhoneNumber: number, label: label)
+          entries += 1
+          if entries % 50_000 == 0 {
             signposter.emitEvent("batch", id: signpost)
             peak = max(peak, Self.footprint())
             logger.debug(
               "caller.load entries=\(entries, privacy: .public) footprintKB=\(peak / 1024, privacy: .public)"
             )
           }
-        }
-      }
+        })
+      logger.debug("caller.load plan=\(plan.rawValue, privacy: .public)")
       complete(
         context, entries: entries, removed: removed, peak: max(peak, Self.footprint()),
         loaded: target, in: directory)
@@ -99,7 +91,7 @@ final class CallDirectoryHandler: CXCallDirectoryProvider, CXCallDirectoryExtens
     let logger = logger
     context.completeRequest { expired in
       logger.notice(
-        "caller.load entries=\(entries, privacy: .public) removed=\(removed, privacy: .public) peakFootprintKB=\(peak / 1024, privacy: .public) expired=\(expired, privacy: .public)"
+        "caller.load result=\(expired ? "expired" : "complete", privacy: .public) entries=\(entries, privacy: .public) removed=\(removed, privacy: .public) peakFootprintKB=\(peak / 1024, privacy: .public)"
       )
       // The app reads this record and skips asking iOS to load the same generation again, and the next load sends the difference from it.
       guard !expired else { return }

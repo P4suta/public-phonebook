@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import Network
 import Synchronization
@@ -14,6 +15,43 @@ private func keptOpen(_ body: Data, type: String, headers: String = "") -> Data 
 
 private let json = Data("{}".utf8)
 private let body = Data("archive".utf8)
+
+private final class SessionOriginLease: Sendable {
+  private let descriptor: Int32
+  let port: NWEndpoint.Port
+
+  init() throws {
+    let descriptor = Darwin.open(
+      "/tmp/public-phonebook-session-origin.lock", O_CREAT | O_RDWR | O_CLOEXEC, mode_t(0o600))
+    guard descriptor != -1 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+    let selected: NWEndpoint.Port
+    do {
+      guard flock(descriptor, LOCK_EX) == 0 else {
+        throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+      }
+      func boundary(_ name: String) throws -> Int32 {
+        var value: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        guard sysctlbyname(name, &value, &size, nil, 0) == 0 else {
+          throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        return value
+      }
+      let lower = try min(
+        boundary("net.inet.ip.portrange.first"), boundary("net.inet.ip.portrange.last"))
+      guard (1025...65_535).contains(lower), let port = NWEndpoint.Port(rawValue: UInt16(lower - 1))
+      else { throw POSIXError(.EADDRNOTAVAIL) }
+      selected = port
+    } catch {
+      Darwin.close(descriptor)
+      throw error
+    }
+    self.descriptor = descriptor
+    port = selected
+  }
+
+  deinit { Darwin.close(descriptor) }
+}
 
 private func archive() throws -> DatasetArchive {
   try sampleArchive(bytes: body.count, digest: sha256Hex(body))
@@ -90,7 +128,9 @@ func requestsOfOneClientShareOneSessionForJSONAndOneForEachTransferOrigin()
 func aPersonsTransferWaitsWhileJSONRequestsAndAutomaticTransfersFailAtOnce()
   async throws
 {
-  let unavailable = try await HTTPTestServer { _ in Data() }
+  let lease = try SessionOriginLease()
+  defer { withExtendedLifetime(lease) {} }
+  let unavailable = try await HTTPTestServer(port: lease.port) { _ in Data() }
   let origin = unavailable.origin
   await unavailable.stopListening()
   let api = try APIClient(origin: origin)
@@ -116,10 +156,8 @@ func aPersonsTransferWaitsWhileJSONRequestsAndAutomaticTransfersFailAtOnce()
       == TransferProgress(resumed: 0, received: 0, total: body.count, waiting: true))
   transfer.cancel()
   await #expect(throws: CancellationError.self) { try await transfer.value }
-  let number = try #require(origin.port)
-  let port = try #require(NWEndpoint.Port(rawValue: UInt16(number)))
   let snapshot = try sampleSnapshot().rawValue
-  let server = try await HTTPTestServer(port: port) { _ in
+  let server = try await HTTPTestServer(port: lease.port) { _ in
     Data(
       "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nX-Dataset-Snapshot: \(snapshot)\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
         .utf8) + body
@@ -129,6 +167,7 @@ func aPersonsTransferWaitsWhileJSONRequestsAndAutomaticTransfersFailAtOnce()
   defer { try? FileManager.default.removeItem(at: file) }
   #expect(try Data(contentsOf: file) == body)
   #expect(server.requestCount == 1)
+  await server.stopListening()
 }
 
 @Test(.timeLimit(.minutes(1))) func aClientsSessionsGoAwayWithTheClient() async throws {

@@ -14,10 +14,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-/// A profile's temporary directory holds at most this much at once; one unmutated package build takes 118 MiB.
+/// The maximum accepted sample of the requested temporary files and the shared Swift sandbox.
 const SCRATCH_BUDGET_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 /// How often the gate samples the size of a profile's temporary directory.
 const SCRATCH_SAMPLE_INTERVAL: Duration = Duration::from_millis(500);
+const LARGE_SCRATCH_FILE_BYTES: u64 = 64 * 1024 * 1024;
+const SCRATCH_REPORT_FILE_LIMIT: usize = 12;
 /// What macOS reports for a write past a test process's file size cap, which `testDirectory` sets and turns from a signal into an error.
 /// A cap on the tool's whole process tree stops its sandbox build even at 4 GiB, so the core tests carry it.
 const FILE_LIMIT_ERROR: &str = "File too large";
@@ -118,12 +120,89 @@ fn tree_bytes(path: &Path) -> u64 {
         .sum()
 }
 
-/// Samples the size of `path` at each interval until `done` turns true, and returns the largest sample.
-fn sample_peak(path: PathBuf, done: Arc<AtomicBool>) -> thread::JoinHandle<u64> {
+fn allocated_file_bytes(data: &fs::Metadata) -> u64 {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        const METADATA_BLOCK_UNIT_BYTES: u64 = 512;
+        data.blocks().saturating_mul(METADATA_BLOCK_UNIT_BYTES)
+    }
+    #[cfg(not(unix))]
+    {
+        data.len()
+    }
+}
+
+fn tree_allocated_bytes(path: &Path) -> u64 {
+    let Ok(entries) = fs::read_dir(path) else {
+        return 0;
+    };
+    entries
+        .filter_map(Result::ok)
+        .map(|entry| match entry.file_type() {
+            Ok(kind) if kind.is_dir() => tree_allocated_bytes(&entry.path()),
+            Ok(kind) if kind.is_file() => entry
+                .metadata()
+                .map_or(0, |data| allocated_file_bytes(&data)),
+            _ => 0,
+        })
+        .fold(0, u64::saturating_add)
+}
+
+fn large_files(path: &Path, files: &mut Vec<(u64, PathBuf)>) {
+    let Ok(entries) = fs::read_dir(path) else {
+        return;
+    };
+    for entry in entries.filter_map(Result::ok) {
+        match entry.file_type() {
+            Ok(kind) if kind.is_dir() => large_files(&entry.path(), files),
+            Ok(kind) if kind.is_file() => {
+                if let Ok(data) = entry.metadata()
+                    && allocated_file_bytes(&data) >= LARGE_SCRATCH_FILE_BYTES
+                {
+                    files.push((allocated_file_bytes(&data), entry.path()));
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+#[derive(Default)]
+struct ScratchPeak {
+    allocated: u64,
+    logical: u64,
+}
+
+/// Samples both directories until `done` turns true, and retains each measure's maximum.
+fn sample_peak(
+    path: PathBuf,
+    sandbox: PathBuf,
+    done: Arc<AtomicBool>,
+) -> thread::JoinHandle<ScratchPeak> {
     thread::spawn(move || {
-        let mut peak = 0;
+        let mut peak = ScratchPeak::default();
+        let mut reported = false;
         loop {
-            peak = peak.max(tree_bytes(&path));
+            peak.logical = peak
+                .logical
+                .max(tree_bytes(&path).saturating_add(tree_bytes(&sandbox)));
+            peak.allocated = peak
+                .allocated
+                .max(tree_allocated_bytes(&path).saturating_add(tree_allocated_bytes(&sandbox)));
+            if peak.allocated > SCRATCH_BUDGET_BYTES && !reported {
+                reported = true;
+                let mut files = Vec::new();
+                large_files(&path, &mut files);
+                large_files(&sandbox, &mut files);
+                files.sort_by_key(|entry| std::cmp::Reverse(entry.0));
+                for (bytes, file) in files.into_iter().take(SCRATCH_REPORT_FILE_LIMIT) {
+                    println!(
+                        "Scratch file: {bytes} allocated bytes at {}",
+                        file.display()
+                    );
+                }
+            }
             if done.load(Ordering::Relaxed) {
                 return peak;
             }
@@ -414,8 +493,103 @@ fn results(
     Ok(counts)
 }
 
-pub fn run(root: &Path) -> Result<()> {
-    let receipt = root.join("target/ios/mutation-receipt.json");
+type Profile = (&'static str, &'static str, &'static str);
+
+fn select_profile<'a>(profiles: &'a [Profile], name: Option<&str>) -> Result<&'a [Profile]> {
+    let Some(name) = name else {
+        return Ok(profiles);
+    };
+    let index = profiles
+        .iter()
+        .position(|(candidate, _, _)| *candidate == name)
+        .with_context(|| format!("Unknown affected mutation profile: {name}"))?;
+    Ok(&profiles[index..=index])
+}
+
+pub fn run(root: &Path, affected: bool, jobs: u16, profile: Option<&str>) -> Result<()> {
+    ensure!(
+        affected || profile.is_none(),
+        "A named profile requires --affected"
+    );
+    let profiles: &[Profile] = if affected {
+        &[
+            (
+                "caller-file",
+                "Sources/PhonebookCore/CallerFile.swift",
+                "PhonebookCoreTests",
+            ),
+            (
+                "caller-plan",
+                "Sources/PhonebookCore/CallerLoadPlan.swift",
+                "PhonebookCoreTests",
+            ),
+            (
+                "archive",
+                "Sources/PhonebookKit/APIClient.swift",
+                "PhonebookKitTests",
+            ),
+            (
+                "lines",
+                "Sources/PhonebookKit/BrotliLines.swift",
+                "PhonebookKitTests",
+            ),
+            (
+                "decode-progress",
+                "Sources/PhonebookCore/DecodeProgress.swift",
+                "PhonebookCoreTests",
+            ),
+            (
+                "delta",
+                "Sources/PhonebookKit/DirectoryDelta.swift",
+                "PhonebookKitTests",
+            ),
+            (
+                "directory",
+                "Sources/PhonebookKit/DirectoryModel.swift",
+                "PhonebookKitTests",
+            ),
+            (
+                "synchronization",
+                "Sources/PhonebookKit/SyncEngine.swift",
+                "PhonebookKitTests",
+            ),
+            (
+                "store",
+                "Sources/PhonebookKit/SnapshotStore.swift",
+                "PhonebookKitTests",
+            ),
+        ]
+    } else {
+        &[
+            ("core", "Sources/PhonebookCore", "PhonebookCoreTests"),
+            (
+                "notifications",
+                "Sources/PhonebookKit/ExtensionNotifications.swift",
+                "PhonebookKitTests",
+            ),
+        ]
+    };
+    run_profiles(
+        root,
+        select_profile(profiles, profile)?,
+        if profile.is_some() {
+            "mutation-profile-receipt.json"
+        } else if affected {
+            "mutation-affected-receipt.json"
+        } else {
+            "mutation-receipt.json"
+        },
+        jobs,
+    )
+}
+
+fn run_profiles(
+    root: &Path,
+    profiles: &[(&str, &str, &str)],
+    receipt_name: &str,
+    jobs: u16,
+) -> Result<()> {
+    let receipt = root.join("target/ios").join(receipt_name);
     if receipt.exists() {
         fs::remove_file(&receipt)?;
     }
@@ -434,16 +608,22 @@ pub fn run(root: &Path) -> Result<()> {
         .prefix("mutation-")
         .tempdir_in(root.join("target/ios"))?
         .keep();
-    let mut profiles = Vec::new();
+    let mut completed_profiles = Vec::new();
     let mut inconclusive = Vec::new();
-    for (name, source, target) in [
-        ("core", "Sources/PhonebookCore", "PhonebookCoreTests"),
-        (
-            "notifications",
-            "Sources/PhonebookKit/ExtensionNotifications.swift",
-            "PhonebookKitTests",
-        ),
-    ] {
+    let temporary = super::super::checked(Command::new("getconf").arg("DARWIN_USER_TEMP_DIR"))?;
+    let temporary = PathBuf::from(String::from_utf8(temporary.stdout)?.trim());
+    ensure!(
+        temporary.is_absolute(),
+        "The Foundation temporary directory must be absolute"
+    );
+    let sandbox = temporary.join("swift-mutation-testing");
+    for &(name, source, target) in profiles {
+        // Core test processes clean the same per-test directories on first use.
+        let workers = if target == "PhonebookCoreTests" {
+            1
+        } else {
+            jobs
+        };
         let plan_path = directory.join(format!("{name}-plan.json"));
         let report_path = directory.join(format!("{name}-result.json"));
         let logs = directory.join(format!("{name}-logs"));
@@ -466,6 +646,7 @@ pub fn run(root: &Path) -> Result<()> {
                 .arg(&plan_path),
         )?;
         let plan_bytes = fs::read(&plan_path)?;
+        let hash = crate::sha256_hex(&plan_bytes);
         let plan: Value = serde_json::from_slice(&plan_bytes)?;
         ensure!(
             plan["project"]["type"] == "spm"
@@ -473,14 +654,31 @@ pub fn run(root: &Path) -> Result<()> {
                 && plan["scope"]["sourcesPath"] == source,
             "The mutation plan has an unexpected target or source scope"
         );
+        let journal = root
+            .join("ios/.swift-mutation-testing-cache/plans")
+            .join(format!("{hash}.jsonl"));
+        match fs::rename(
+            &journal,
+            directory.join(format!("{name}-previous-journal.jsonl")),
+        ) {
+            Ok(()) => {
+                println!("Preserved interrupted {name} verdicts; every mutant will run again")
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error).context("Preserve interrupted mutation verdicts"),
+        }
         let measured = baseline(root, name, target)?;
         let guard = hang_guard(measured);
-        // The tool and every test process it starts write their temporary files here, and dropping it removes them on every exit path.
+        // Foundation uses the Darwin user temporary directory even when TMPDIR names another directory.
         let scratch = tempfile::Builder::new()
             .prefix(&format!("{name}-tmp-"))
             .tempdir_in(&directory)?;
         let done = Arc::new(AtomicBool::new(false));
-        let sampler = sample_peak(scratch.path().to_owned(), Arc::clone(&done));
+        let sampler = sample_peak(
+            scratch.path().to_owned(),
+            sandbox.clone(),
+            Arc::clone(&done),
+        );
         let run = logged(
             root,
             &format!("mutation-{name}"),
@@ -489,7 +687,9 @@ pub fn run(root: &Path) -> Result<()> {
                 .env("TMPDIR", scratch.path())
                 .args(["run", ".", "--plan"])
                 .arg(&plan_path)
-                .args(["--concurrency", "1", "--timeout"])
+                .arg("--concurrency")
+                .arg(workers.to_string())
+                .arg("--timeout")
                 .arg(guard.to_string())
                 // The gate, not the tool's score, decides survivors, because a listed equivalent counts against that score.
                 .args([
@@ -510,11 +710,11 @@ pub fn run(root: &Path) -> Result<()> {
             .map_err(|_| anyhow::anyhow!("The scratch size sampler stopped"))?;
         drop(scratch);
         ensure!(
-            peak <= SCRATCH_BUDGET_BYTES,
-            "INCONCLUSIVE: the {name} profile's temporary files reached {peak} bytes, past the {SCRATCH_BUDGET_BYTES}-byte budget, so the run stopped on a resource rather than on a test"
+            peak.allocated <= SCRATCH_BUDGET_BYTES,
+            "INCONCLUSIVE: the {name} profile's sampled temporary files allocated {} bytes, past the {SCRATCH_BUDGET_BYTES}-byte budget",
+            peak.allocated
         );
         run?;
-        let hash = crate::sha256_hex(plan_bytes);
         let counts = results(
             root,
             &plan,
@@ -523,9 +723,12 @@ pub fn run(root: &Path) -> Result<()> {
             &logs,
             &EQUIVALENTS,
         )?;
-        profiles.push(json!({"scope":source,"target":target,"plan":plan_path,"report":report_path,"plan_sha256":hash,"baseline_seconds":measured.as_secs_f64(),"hang_guard_seconds":guard,"killed":counts.killed,"crashed":counts.crashed,"compiler_rejected_declaration_renames":counts.compiler_rejected,"equivalent":counts.equivalent,"survived":0,"uncovered":0,"inconclusive_timeouts":counts.inconclusive,"resource_stopped":counts.resource_stopped,"test_file_limit":"the core tests cap their own process at 256 MiB, far over the 15.3 MB largest file of an unmutated build","scratch_budget_bytes":SCRATCH_BUDGET_BYTES,"scratch_peak_bytes":peak}));
+        completed_profiles.push(json!({"scope":source,"target":target,"workers":workers,"plan":plan_path,"report":report_path,"plan_sha256":hash,"baseline_seconds":measured.as_secs_f64(),"hang_guard_seconds":guard,"killed":counts.killed,"crashed":counts.crashed,"compiler_rejected_declaration_renames":counts.compiler_rejected,"equivalent":counts.equivalent,"survived":0,"uncovered":0,"inconclusive_timeouts":counts.inconclusive,"resource_stopped":counts.resource_stopped,"test_file_limit":"Core test processes cap individual files at 256 MiB","scratch_scope":"Requested TMPDIR and shared Foundation Swift sandbox; other OS-managed temporary files excluded","scratch_budget_bytes":SCRATCH_BUDGET_BYTES,"scratch_peak_bytes":peak.allocated,"scratch_peak_logical_bytes":peak.logical,"scratch_measure":"Allocated bytes on macOS; logical capacity recorded separately"}));
         inconclusive.extend(counts.inconclusive);
         inconclusive.extend(counts.resource_stopped);
+        if !inconclusive.is_empty() {
+            break;
+        }
     }
     require_current_sources(root, &sources)?;
     let result = if inconclusive.is_empty() {
@@ -536,7 +739,7 @@ pub fn run(root: &Path) -> Result<()> {
     fs::write(
         receipt,
         serde_json::to_vec_pretty(
-            &json!({"result":result,"tool":"swift-mutation-testing","version":VERSION,"workers":1,"operators":OPERATORS,"hang_guard":format!("{GUARD_FACTOR} times the unmutated test run, at least {} s, in wall-clock time because the tool has no CPU-time limit", GUARD_FLOOR.as_secs()),"profiles":profiles,"source_sha256":source_records(&sources),"scope_limit":"pure core and extension notification policy; not every application or framework path","compiler_rejection":"Only source-checked renames of the required Comparable operator with the matching compiler diagnostic; never counted as killed"}),
+            &json!({"result":result,"tool":"swift-mutation-testing","version":VERSION,"maximum_workers":jobs,"operators":OPERATORS,"hang_guard":format!("{GUARD_FACTOR} times the unmutated test run, at least {} s, in wall-clock time because the tool has no CPU-time limit", GUARD_FLOOR.as_secs()),"profiles":completed_profiles,"source_sha256":source_records(&sources),"scope_limit":"selected source profiles; not every application or framework path","compiler_rejection":"Only source-checked renames of the required Comparable operator with the matching compiler diagnostic; never counted as killed"}),
         )?,
     )?;
     ensure!(
@@ -556,6 +759,52 @@ pub fn run(root: &Path) -> Result<()> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn focused_profiles_preserve_exact_targets_and_refuse_unknown_names() -> Result<()> {
+        let profiles = [
+            ("delta", "Sources/DirectoryDelta.swift", "KitTests"),
+            ("store", "Sources/SnapshotStore.swift", "KitTests"),
+        ];
+        assert_eq!(select_profile(&profiles, None)?, profiles);
+        assert_eq!(select_profile(&profiles, Some("store"))?, &profiles[1..]);
+        assert!(select_profile(&profiles, Some("unknown")).is_err());
+        assert!(select_profile(&profiles, Some("")).is_err());
+        assert!(run(Path::new("."), false, 1, Some("core")).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn scratch_samples_include_the_foundation_sandbox() -> Result<()> {
+        let requested = tempfile::tempdir()?;
+        let foundation = tempfile::tempdir()?;
+        fs::write(requested.path().join("partial"), b"12345")?;
+        fs::write(foundation.path().join("build"), b"1234567")?;
+        let sample = sample_peak(
+            requested.path().to_owned(),
+            foundation.path().to_owned(),
+            Arc::new(AtomicBool::new(true)),
+        )
+        .join()
+        .map_err(|_| anyhow::anyhow!("The scratch sampler stopped"))?;
+        assert_eq!(sample.logical, 12);
+        assert_eq!(
+            sample.allocated,
+            tree_allocated_bytes(requested.path()) + tree_allocated_bytes(foundation.path())
+        );
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn sparse_cache_capacity_does_not_count_as_allocated_storage() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        fs::File::create(directory.path().join("cache"))?.set_len(1 << 30)?;
+        assert_eq!(tree_bytes(directory.path()), 1 << 30);
+        assert!(tree_allocated_bytes(directory.path()) < 1024 * 1024);
+        fs::write(directory.path().join("data"), [0; 8192])?;
+        assert!(tree_allocated_bytes(directory.path()) >= 8192);
+        Ok(())
+    }
     #[test]
     fn compiler_rejections_require_the_exact_operator_declaration_and_diagnostic() -> Result<()> {
         let root = tempfile::tempdir()?;

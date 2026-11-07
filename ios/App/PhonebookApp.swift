@@ -13,11 +13,7 @@ struct PhonebookApp: App {
       guard let url = URL(string: AppIdentity.apiOrigin) else { throw ServiceError.invalidURL }
       let api = try APIClient(origin: url, trace: SystemTraceSink())
       let store = try AppIdentity.store()
-      #if PHONEBOOK_VERIFICATION_TOOLS
-        _directory = State(initialValue: DirectoryModel(store: store, allowsForgivingSearch: true))
-      #else
-        _directory = State(initialValue: DirectoryModel(store: store))
-      #endif
+      _directory = State(initialValue: DirectoryModel(store: store))
       _integration = State(initialValue: IntegrationModel(api: api, store: store))
     } catch { _startupError = State(initialValue: "アプリを開けませんでした。アプリを開き直してください。") }
   }

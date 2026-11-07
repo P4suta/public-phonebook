@@ -60,6 +60,15 @@ enum DateText {
 private struct SourceScreen: View {
   let contact: Contact
 
+  private var licenseName: String {
+    switch contact.provenance.license {
+    case "Public Domain": "パブリックドメイン"
+    case "CC0-1.0": "Creative Commons CC0 1.0 Universal"
+    case "CC-BY-4.0": "Creative Commons Attribution 4.0 International"
+    default: contact.provenance.license
+    }
+  }
+
   var body: some View {
     let provenance = contact.provenance
     ScrollView {
@@ -83,11 +92,9 @@ private struct SourceScreen: View {
           Text("データの日付：\(date)").accessibilityIdentifier("source-data-date")
         }
         if let date = DateText.japanese(provenance.retrievedAt) { Text("データを集めた日：\(date)") }
-        Text(
-          "使うときの決まり：\(provenance.license == "Public Domain" ? "パブリックドメイン" : provenance.license)"
-        )
-        .fixedSize(horizontal: false, vertical: true)
-        .accessibilityIdentifier("source-license")
+        Text("使うときの決まり：\(licenseName)")
+          .fixedSize(horizontal: false, vertical: true)
+          .accessibilityIdentifier("source-license")
         if let url = WebAddress.url(provenance.licenseURL) {
           ExternalLink(url: url, destination: .license) {
             IconLabel(icon: "external", text: "データを使うときの決まりを見る")
