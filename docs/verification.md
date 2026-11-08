@@ -1,7 +1,8 @@
 # Verification contracts
 
-All owned application, API, data tooling, and test implementation is TypeScript.
-The previous Rust checks describe the previous implementation and do not verify this one.
+The website, API, collection tools, and browser tests use TypeScript.
+The iPhone app uses Swift, and the Android app uses Kotlin.
+Rust implements verification and delivery tools.
 
 ## Required fast gate
 
@@ -418,15 +419,16 @@ The report binds its verdict to the corpus manifest, candidate snapshot, and bot
 The quality report remains local and accompanies no release candidate.
 Small deterministic fixtures and a source-translated threshold proof check the gate without putting national data or morphology in the fast pull-request checks.
 
-Run `mise x -- node tools/search-performance.ts BUNDLE` with the build and the seeded state to record the device search's performance in `.local/search-performance.json`.
+Run `mise x -- node tools/search-performance.ts BUNDLE` with the seeded state to rebuild current sources and record device-search performance in `.local/search-performance.json`.
 It serves the build like the browser campaign and runs Chromium, Chromium with 4x CPU throttling, desktop WebKit, and the iPhone 13 profile.
-It records both artifacts' transfer bytes, navigation-to-ready time, worker admission time, and the p50 and p95 of search round trips for up to 50 distinct sampled queries.
+It records artifact transfer bytes, navigation-to-ready time, worker admission time, and the p50 and p95 of search round trips for up to 50 distinct sampled queries.
 It also records input events of 16 ms or longer while typing, long tasks in Chromium, and the main-thread heap in Chromium.
-The separate Node heap estimates compare the production column view with complete row objects.
-The column view still holds the decoded byte buffer, whose external allocation falls outside the JavaScript heap estimate.
+The separate Node heap estimates compare the compact in-memory reference with complete row objects.
+The compact reference holds the decoded byte buffer, whose external allocation falls outside the JavaScript heap estimate.
+The production browser Worker uses [bounded file-backed search](search-ranking.md#literal-search-from-temporary-files).
 The [compact-column decision](adr/keep-validated-search-columns-compact.md) preserves complete row validation before admission.
 Both decoders must reject the corruption corpus and match generated directories, while a scan test refuses display-row reads.
-Native D1 fixtures and the national parity command exercise the production column view.
+Native D1 fixtures and the national parity command exercise the server's compact column view.
 The literal-reference work counters describe the server matching reference, while the browser timings measure the production device worker.
 The optional `--contract FILE` retrieves every category of each query through the actual worker and its category continuations after 32 warm-up queries.
 The contract must match the snapshot, contact count, and both decoded digests.
@@ -434,14 +436,16 @@ It groups the fixture's ranked row-and-score pairs by category in rank order and
 Its timing field covers retrieval of every category of the returned ranking.
 The report counts inputs that the website's query parser rejects.
 The optional `--process-tools DIRECTORY` samples resident memory across the owned browser process tree every 250 milliseconds.
+On macOS, it also samples physical footprint.
 The directory supplies the macOS browser launcher and process-responsibility inspector from the search-engine experiment.
 The report records both helper digests and the installed `procs` version.
 WebKit memory sampling requires an attributed WebContent process and refuses an incomplete process inventory.
 The memory result includes browser infrastructure and may count shared pages more than once or miss peaks between samples.
 The sampling, viewport emulation, and Chromium CPU setting don't establish physical-phone performance.
-Safari on a physical iPhone and an isolated worker-heap measurement remain unrun.
+Chromium's [`Runtime.getHeapUsage`](https://chromedevtools.github.io/devtools-protocol/tot/Runtime/#method-getHeapUsage) reports main-thread and Worker heaps after the timed workload.
+Physical footprint for the Worker alone and Safari on a physical iPhone remain unmeasured.
 Each profile also counts search messages and returned JSON bytes during the UI sample.
-The record holds measurements, not thresholds.
+The report keeps measurements and the [mode-specific budget verdicts](search-ranking.md#literal-search-from-temporary-files).
 
 On 2026-11-08, the compact column view used 33,658,360 bytes of JavaScript heap for 672,133 contacts in Node.
 Complete row objects used 170,825,272 bytes in the same measurement.
