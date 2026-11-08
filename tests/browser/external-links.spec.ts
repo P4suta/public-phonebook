@@ -12,6 +12,7 @@ import {
   externalScriptIssues,
   test,
 } from "./fixtures.ts";
+import { recordViewport } from "./full-page-screenshot.ts";
 
 test.use({ video: "on", screenshot: "off" });
 
@@ -272,7 +273,6 @@ test("external links open directly as new tabs without JavaScript", async ({
 for (const width of [320, 1440])
   test(`the confirmation dialog keeps the design rules at ${width}px`, async ({
     page,
-    browserName,
   }, info) => {
     await page.setViewportSize({ width, height: 900 });
     await openPage(page, "/privacy");
@@ -315,10 +315,7 @@ for (const width of [320, 1440])
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
-    if (browserName !== "webkit")
-      await page.screenshot({
-        path: info.outputPath(`external-link-dialog-${width}.png`),
-      });
+    await recordViewport(page, info, `external-link-dialog-${width}`);
   });
 
 test("every screen preserves external navigation and the gate rejects missing protections", async ({

@@ -56,10 +56,17 @@ function rank(
       categories: new Set(holding.categories),
     };
   });
-  return rankWords(searchForm(name), words, (index) => {
-    const holding = held[index];
-    return holding ? placeHolds(holding, regionPlace(region, category)) : false;
-  });
+  return rankWords(
+    searchForm(name),
+    words,
+    (index) => {
+      const holding = held[index];
+      return holding
+        ? placeHolds(holding, regionPlace(region, category))
+        : false;
+    },
+    undefined,
+  );
 }
 
 function placeNames(region: string, category: string): string[] {

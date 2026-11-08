@@ -7,7 +7,7 @@ import { foundation } from "../../src/ui/foundations.ts";
 import { serviceInformation } from "../../src/ui/service-information.ts";
 import { auditDesign } from "./design-policy.ts";
 import { expect, test } from "./fixtures.ts";
-import { recordFullPage } from "./full-page-screenshot.ts";
+import { recordFullPage, recordViewport } from "./full-page-screenshot.ts";
 import { contactLinks, waitForLocalSearch } from "./search-sources.ts";
 
 test.use({ video: "on" });
@@ -149,7 +149,6 @@ for (const width of [320, 390, 1440]) {
     page,
     request,
     httpFailures,
-    browserName,
   }, info) => {
     httpFailures.add(400);
     httpFailures.add(404);
@@ -304,13 +303,8 @@ for (const width of [320, 390, 1440]) {
             })),
         );
       expect(clippedActions, name).toEqual([]);
-      if (browserName !== "webkit") {
-        if (name === "data")
-          await page.screenshot({
-            path: info.outputPath(`${name}-${width}.png`),
-          });
-        else await recordFullPage(page, info, `${name}-${width}`);
-      }
+      if (name === "data") await recordViewport(page, info, `${name}-${width}`);
+      else await recordFullPage(page, info, `${name}-${width}`);
       if (name === "home" || name === "results")
         await expect(page.getByRole("combobox"), name).toHaveCount(0);
     }

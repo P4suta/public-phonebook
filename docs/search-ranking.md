@@ -86,12 +86,64 @@ The contract tool verifies the actual files before comparing the source fingerpr
 The data gate independently regenerates the fingerprint and complete packed file from the prepared database and pinned readings.
 Never use the source fingerprint as the packed file's checksum.
 
-`tools/search-performance.ts` records a 1,500 ms admission budget after the last artifact byte arrives and a 400 MB peak added browser-process budget.
+## Literal search from temporary files
+
+The production Worker streams the existing index into origin-private files instead of retaining the transport buffer and every decoded name.
+Admission checks transport metadata, decoded length, SHA-256, header relationships, UTF-8, canonical name order, telephone syntax, and every category and region reference.
+The Worker derives folded names and row offsets in bounded batches.
+After admission, search reads fixed file buffers and keeps category codes, region codes, and one rank byte per contact.
+The retained typed buffers have an 8 MiB limit.
+Header objects, JavaScript heap, browser processes, and allocator reserves also use memory.
+The national 672,133-contact snapshot uses 4,787,736 bytes of retained typed buffers.
+Queries keep counts and bounded category previews rather than every matching row identifier.
+Continuations read the cached ranks, and visible cards read their display names and telephone numbers from files.
+UTF-8 matching chooses an anchor byte from the public names' byte frequencies and preserves the existing exact, prefix, substring, and place ranks.
+Generated Unicode cases and national parity compare the result with the existing reference.
+
+Each Worker owns a separate temporary directory and holds a Web Lock until disposal.
+Startup cleanup removes inactive directories while preserving active tabs.
+The Worker publishes a replacement before removing its retired files.
+Only public dataset bytes and derived search structures enter the files.
+Queries and diagnostics never enter the files.
+See the [file-backed search decision](adr/read-browser-search-data-from-temporary-files.md).
+Storage denial uses the existing server fallback.
+Playwright's WebKit private contexts reject the storage root, so normal-browser tests and measurements use temporary persistent profiles.
+The separate private-browsing test checks server fallback.
+The [Playwright context contract](https://github.com/microsoft/playwright/blob/v1.64.1/docs/src/api/class-browsertype.md#async-method-browsertype-launchpersistentcontext) defines the persistent context's lifetime.
+
+Local result links carry their return search in fragments through facility and source pages.
+The root page restores that search after admission or a fallback decision.
+The [navigation decision](adr/keep-local-search-return-paths-out-of-requests.md) prevents nested return parameters from sending local queries.
+Fragment-dependent links wait for hydration, while `noscript` preserves ordinary server navigation.
+The hydration boundary prevents an early source or return action from discarding the fragment.
+Browser history can keep address fragments, and the privacy page describes that behavior.
+
+`tools/search-performance.ts` rebuilds the current sources and records the Worker's actual load mode.
+The report keeps the 1,500 ms admission budget after the last artifact byte arrives and a 400,000,000-byte sampled added physical-footprint budget for both modes.
+Resident size and its historical 400,000,000-byte verdict remain separate fields.
+Literal search uses a 50 ms Worker round-trip p95 budget.
+The value adopts the input-processing allowance from the [Response, Animation, Idle, and Load (RAIL) model](https://web.dev/articles/rail).
+The round trip doesn't measure paint or the complete visible response.
 The complete-ranking p95 baseline is 10.2 ms for Chromium and 11.2 ms for Chromium with its existing fourfold page CPU setting.
 The baseline is 10 ms for desktop WebKit and 13 ms for mobile WebKit.
-Supply `--contract tests/fixtures/search-ranking.json` and `--process-tools DIRECTORY` for a complete attributed local budget record.
-The report refuses to mark missing memory or ranking measurements as passing budgets.
+Supply `--contract tests/fixtures/search-ranking.json` to select the explicit forgiving-search build and frozen complete-ranking workload.
+Supply `--process-tools DIRECTORY` for attributed browser process measurements.
+The report refuses to pass missing physical-footprint samples or missing latency samples for the selected mode.
+Every profile uses a fresh temporary persistent browser profile and records that storage context explicitly.
+Earlier private-context measurements aren't a paired comparison with the persistent-profile measurements.
+Supply `--profile NAME` for a focused investigation, and omit it for the required four-profile campaign.
 The release gate's existing performance observation keeps the budget fields with the candidate evidence.
+
+On macOS, the maintained step meter also reads current and lifetime peak physical-footprint counters through `proc_pid_rusage`.
+[Apple's memory guidance](https://developer.apple.com/videos/play/wwdc2022/10106/) distinguishes physical footprint from resident memory when assessing process limits.
+Each poll adds current process footprints, while the separate sum of process lifetime peaks doesn't represent a simultaneous peak.
+The native counter rejects missing processes and invalid samples instead of substituting resident memory.
+The owner selected physical footprint as the primary process-memory metric.
+Raw native lifetime peaks can lag current readings, so their ordering doesn't invalidate a positive current counter or replace it with an invented peak.
+Chromium's separate Chrome DevTools Protocol counters report main-thread and Worker heaps after the timed workload.
+WebKit and physical-phone heap inspection remain separate checks.
+The process sampler and optional region summary run only during an explicitly invoked local experiment.
+Production pages don't collect or upload performance telemetry.
 
 The website groups results into category previews of up to three results, with a continuation of 30 results per category.
 The production worker groups literal matches as the server does.

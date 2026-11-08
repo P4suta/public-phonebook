@@ -1,7 +1,8 @@
-import type { Request } from "@playwright/test";
+import type { Page, Request } from "@playwright/test";
 import * as v from "valibot";
 import { SearchIndexLocationSchema } from "../../src/core/dataset-storage.ts";
 import { expect, test } from "./fixtures.ts";
+import { recordFullPage } from "./full-page-screenshot.ts";
 import {
   contactLinks,
   holdIndex,
@@ -16,6 +17,74 @@ const indexReloadTimeout = 60_000;
 const indexLocation = "/api/search-index";
 const loadedAt = new Date("2026-11-02T00:00:00Z");
 const typingFrom = new Date("2026-11-02T01:00:00Z");
+
+async function temporaryDirectories(page: Page): Promise<readonly string[]> {
+  return page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    const parent = await root.getDirectoryHandle("public-phonebook-search");
+    const names: string[] = [];
+    for await (const name of parent.keys()) names.push(name);
+    return names;
+  });
+}
+
+test("temporary search files preserve active tabs and remove terminated workers", async ({
+  page,
+  context,
+}) => {
+  await page.goto("/");
+  await waitForLocalSearch(page);
+  const second = await context.newPage();
+  await second.goto("/");
+  await waitForLocalSearch(second);
+  await expect
+    .poll(async () => (await temporaryDirectories(page)).length)
+    .toBe(2);
+  await second.close();
+  const third = await context.newPage();
+  try {
+    await third.goto("/");
+    await waitForLocalSearch(third);
+    await expect
+      .poll(async () => (await temporaryDirectories(page)).length)
+      .toBe(2);
+    await page.getByRole("searchbox").fill(query);
+    await expect(
+      page.locator("article").first().getByRole("heading"),
+    ).toHaveText(query);
+    await third.getByRole("searchbox").fill(query);
+    await expect(
+      third.locator("article").first().getByRole("heading"),
+    ).toHaveText(query);
+  } finally {
+    await third.close();
+  }
+});
+
+test("WebKit private browsing uses the server when search storage is unavailable", async ({
+  browser,
+  browserName,
+}) => {
+  test.skip(
+    browserName !== "webkit",
+    "WebKit private browsing denies the storage API",
+  );
+  const privateContext = await browser.newContext();
+  try {
+    const page = await privateContext.newPage();
+    await page.goto("/");
+    await expect(searchSource(page)).toHaveAttribute(
+      "data-local-search",
+      "unavailable",
+    );
+    await page.getByRole("searchbox").fill(query);
+    await expect(
+      page.locator("article").first().getByRole("heading"),
+    ).toHaveText(query);
+  } finally {
+    await privateContext.close();
+  }
+});
 
 test("built device search matches verified place readings with only the name index", async ({
   page,
@@ -35,10 +104,7 @@ test("built device search matches verified place readings with only the name ind
   await expect(page.locator("article")).toHaveCount(3);
   await page.getByRole("searchbox").fill("とうきょう としょかん");
   await expect(page.locator("article")).toHaveCount(2);
-  await page.screenshot({
-    path: testInfo.outputPath("place-readings.png"),
-    fullPage: true,
-  });
+  await recordFullPage(page, testInfo, "place-readings");
   await page.getByRole("searchbox").fill(query);
   await expect(page.locator("article")).toHaveCount(3);
   expect(companions).toEqual([]);
@@ -49,14 +115,73 @@ function contactRequest(request: Request): boolean {
 }
 
 function carriesQuery(request: Request, text: string): boolean {
-  const forms = [text, encodeURIComponent(text)];
   const parts = [
     request.url(),
     request.postData() ?? "",
     ...Object.values(request.headers()),
   ];
-  return forms.some((form) => parts.some((part) => part.includes(form)));
+  return parts.some((part) => {
+    let decoded = part;
+    for (let nesting = 0; nesting < 4; nesting += 1) {
+      if (decoded.includes(text)) return true;
+      try {
+        decoded = decodeURIComponent(decoded);
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
 }
+
+test("facility, source, and return navigation keep local queries out of requests", async ({
+  page,
+  context,
+}) => {
+  await page.goto("/");
+  await waitForLocalSearch(page);
+  await page.getByRole("searchbox").fill(query);
+  await expect(contactLinks(page).first()).toBeVisible();
+  const requests: Request[] = [];
+  const record = (request: Request): void => {
+    requests.push(request);
+  };
+  context.on("request", record);
+  try {
+    await contactLinks(page).first().click();
+    await expect(page).toHaveURL(/\/contacts\/[^/?#]+#from=/u);
+    await page
+      .getByRole("link", { name: "電話番号のもとの情報を見る", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/source#from=/u);
+    await page
+      .getByRole("link", { name: "施設の情報にもどる", exact: true })
+      .click();
+    await page
+      .getByRole("link", { name: "検索結果にもどる", exact: true })
+      .click();
+    await waitForLocalSearch(page);
+    await expect(page.getByRole("searchbox")).toHaveValue(query);
+    const href = await contactLinks(page).first().getAttribute("href");
+    if (!href) throw new Error("The local detail link is missing");
+    const another = await context.newPage();
+    try {
+      await another.goto(href);
+      await expect(
+        another.getByRole("heading", { level: 1, name: query }),
+      ).toBeVisible();
+    } finally {
+      await another.close();
+    }
+    expect(
+      requests
+        .filter((request) => carriesQuery(request, query))
+        .map((request) => request.url()),
+    ).toEqual([]);
+  } finally {
+    context.off("request", record);
+  }
+});
 
 test("after the index loads, searching sends no term and no contact request", async ({
   page,
@@ -215,7 +340,7 @@ test("a local result opens its facility, and a changed snapshot reloads the inde
   );
   await page.unroute("**/api/contacts/row/**");
   await contactLinks(page).first().click();
-  await expect(page).toHaveURL(/\/contacts\/[^/?]+\?from=/u);
+  await expect(page).toHaveURL(/\/contacts\/[^/?#]+#from=/u);
   await expect(
     page.getByRole("heading", { level: 1, name: query }),
   ).toBeVisible();

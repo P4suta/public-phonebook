@@ -6,7 +6,8 @@ import {
 } from "./catalog.ts";
 import { compareUtf8 } from "./directory-archive.ts";
 import { packedMidpoint } from "./forgiving-search-policy.ts";
-import { normalizeName } from "./identity.ts";
+import { normalizeName, normalizeNameLines } from "./identity.ts";
+import { nameRankAt } from "./local-search-policy.ts";
 import {
   type Catalog,
   CountSchema,
@@ -14,7 +15,7 @@ import {
   TextSchema,
 } from "./models.ts";
 import { lazyArray } from "./packed-ranking.ts";
-import { searchForm } from "./search-text.ts";
+import { searchForm, searchNameLines } from "./search-text.ts";
 
 export const searchIndexFile = "search-index.br";
 const indexSignature = "public-phonebook-search-index\t1";
@@ -25,8 +26,7 @@ const firstDigitByte = 0x30;
 const lastDigitByte = 0x39;
 const nameSeparator = "\t";
 const phoneSeparator = " ";
-const reservedCharacters = ["\t", "\n", "\r"];
-const nameFieldLimit = 2;
+const reservedCharacter = /[\t\n\r]/u;
 const categoryWidth = 1;
 const regionWidth = 2;
 const regionLittleEndian = true;
@@ -39,6 +39,9 @@ const compressedMebibytes = 8;
 const loneSurrogate = /\p{Surrogate}/u;
 const nationalNumber = /^0[1-9][0-9]{8,9}$/u;
 const utf8Decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+const validationBatchRows = 512;
+const minimumNationalDigits = 10;
+const maximumNationalDigits = 11;
 
 export const searchIndexLimits = {
   categories: 256,
@@ -135,6 +138,169 @@ export interface SearchIndexColumns {
   readonly comparisonNames: readonly string[];
   readonly categoryAt: (row: number) => string;
   readonly regionAt: (row: number) => string;
+  /** One byte per row and word: zero for no match, otherwise the name rank plus one. */
+  readonly nameRanks?: (words: readonly string[]) => readonly Uint8Array[];
+}
+
+interface NameChunk {
+  readonly first: number;
+  readonly text: string;
+  readonly offsets: Uint32Array;
+}
+
+function nameChunk(first: number, names: readonly string[]): NameChunk {
+  const offsets = new Uint32Array(names.length + 1);
+  let characters = 0;
+  for (let row = 0; row < names.length; row += 1) {
+    offsets[row] = characters;
+    characters += (names[row]?.length ?? 0) + 1;
+  }
+  offsets[names.length] = characters;
+  return {
+    first,
+    text: `${names.join(lineTerminator)}${lineTerminator}`,
+    offsets,
+  };
+}
+
+function nameInChunks(chunks: readonly NameChunk[], row: number): string {
+  const chunk =
+    chunks[Math.floor(row / validationBatchRows)] ??
+    fail("Search name outside snapshot");
+  const local = row - chunk.first;
+  const start = chunk.offsets[local] ?? fail("Search name outside snapshot");
+  const end = chunk.offsets[local + 1] ?? fail("Search name outside snapshot");
+  return chunk.text.slice(start, end - 1);
+}
+
+interface RetainedSearchColumns {
+  readonly names: readonly NameChunk[];
+  readonly comparisons: readonly NameChunk[];
+  readonly categories: Uint8Array;
+  readonly regions: Uint8Array;
+  readonly phones: Uint8Array;
+  readonly phoneOffsets: Uint32Array;
+}
+
+function retainedIndex(
+  header: SearchIndexHeader,
+  columns: RetainedSearchColumns,
+): SearchIndex {
+  const { contacts } = header;
+  const regionView = new DataView(
+    columns.regions.buffer,
+    columns.regions.byteOffset,
+    columns.regions.byteLength,
+  );
+  const withoutAddress = new Set(header.rowsWithoutAddress);
+  const nameAt = (row: number): string => nameInChunks(columns.names, row);
+  const categoryAt = (row: number): string =>
+    header.categories[columns.categories[row] ?? -1]?.id ??
+    fail("Search category outside snapshot");
+  const regionAt = (row: number): string =>
+    header.regions[
+      regionView.getUint16(row * regionWidth, regionLittleEndian)
+    ] ?? fail("Search region outside snapshot");
+  return {
+    header,
+    rows: lazyArray(contacts, (row) => {
+      const name = nameAt(row);
+      const start =
+        columns.phoneOffsets[row] ?? fail("Search telephone outside snapshot");
+      const end =
+        columns.phoneOffsets[row + 1] ??
+        fail("Search telephone outside snapshot");
+      return {
+        normalizedName: normalizeName(name),
+        searchName: nameInChunks(columns.comparisons, row),
+        name,
+        category: categoryAt(row),
+        region: regionAt(row),
+        phones: utf8(
+          columns.phones.subarray(start, end - 1),
+          "telephone part",
+        ).split(phoneSeparator),
+        hasAddress: !withoutAddress.has(row),
+      };
+    }),
+    telephoneRows: telephoneMatches(columns.phones, columns.phoneOffsets),
+    nameAt,
+    placeAt: (row) => ({ name: nameAt(row), region: regionAt(row) }),
+    columns: {
+      comparisonNames: lazyArray(contacts, (row) =>
+        nameInChunks(columns.comparisons, row),
+      ),
+      categoryAt,
+      regionAt,
+      nameRanks: (words) =>
+        words.map((word) =>
+          chunkNameRanks(columns.comparisons, contacts, word),
+        ),
+    },
+  };
+}
+
+function telephoneMatches(
+  bytes: Uint8Array,
+  offsets: Uint32Array,
+): (number: string) => readonly number[] {
+  let text: string | undefined;
+  return (number) => {
+    if (!nationalNumber.test(number)) return [];
+    text ??= utf8(bytes, "telephone part");
+    const result: number[] = [];
+    let position = text.indexOf(number);
+    while (position >= 0) {
+      const before =
+        position === 0 ? lineFeedByte : text.charCodeAt(position - 1);
+      const after = text.charCodeAt(position + number.length);
+      if (
+        (before === lineFeedByte || before === spaceByte) &&
+        (after === lineFeedByte || after === spaceByte)
+      ) {
+        let low = 0;
+        let high = offsets.length - 1;
+        while (low < high) {
+          const middle = packedMidpoint(low, high);
+          if ((offsets[middle + 1] ?? 0) <= position) low = middle + 1;
+          else high = middle;
+        }
+        if (result.at(-1) !== low) result.push(low);
+      }
+      position = text.indexOf(number, position + 1);
+    }
+    return result;
+  };
+}
+
+function chunkNameRanks(
+  chunks: readonly NameChunk[],
+  contacts: number,
+  word: string,
+): Uint8Array {
+  const ranks = new Uint8Array(contacts);
+  for (const chunk of chunks) {
+    let at = chunk.text.indexOf(word);
+    while (at >= 0 && at < chunk.text.length) {
+      let low = 0;
+      let high = chunk.offsets.length - 1;
+      while (low < high) {
+        const middle = packedMidpoint(low, high);
+        if ((chunk.offsets[middle + 1] ?? 0) <= at) low = middle + 1;
+        else high = middle;
+      }
+      const start =
+        chunk.offsets[low] ?? fail("A search name offset is missing");
+      const end =
+        (chunk.offsets[low + 1] ?? fail("A search name end is missing")) - 1;
+      if (at + word.length <= end) {
+        ranks[chunk.first + low] =
+          nameRankAt(at - start, end - start, word.length) + 1;
+        at = chunk.text.indexOf(word, end + 1);
+      } else at = chunk.text.indexOf(word, at + 1);
+    }
+  }
+  return ranks;
 }
 
 export interface RowKey {
@@ -173,20 +339,18 @@ export function searchIndexRow(
 }
 
 function carriedText(value: string): boolean {
-  return (
-    !reservedCharacters.some((character) => value.includes(character)) &&
-    !loneSurrogate.test(value)
-  );
+  return !reservedCharacter.test(value) && !loneSurrogate.test(value);
 }
 
-function checkName(
+export function checkName(
   normalizedName: string,
   name: string,
   previous: string | undefined,
+  expected: string = normalizeName(name),
 ): void {
   if (!carriedText(normalizedName) || !carriedText(name))
     fail("A search index name contains a reserved character");
-  if (normalizedName === "" || normalizeName(name) !== normalizedName)
+  if (normalizedName === "" || expected !== normalizedName)
     fail("A search index name must be the normalized form of its display name");
   if (previous !== undefined && compareUtf8(previous, normalizedName) > 0)
     fail("Search index rows must follow normalized name order");
@@ -201,6 +365,68 @@ function checkPhones(phones: readonly string[]): void {
     fail("A search index row needs distinct national telephone numbers");
 }
 
+export function checkPhoneBytes(bytes: Uint8Array): void {
+  let digits = 0;
+  let number = 0;
+  let first = -1;
+  let seen: Set<number> | null = null;
+  for (let at = 0; at < bytes.length; at += 1) {
+    const byte = bytes[at] ?? -1;
+    if (byte >= firstDigitByte && byte <= lastDigitByte) {
+      if (
+        (digits === 0 && byte !== firstDigitByte) ||
+        (digits === 1 && byte === firstDigitByte) ||
+        digits >= maximumNationalDigits
+      )
+        fail("A search index row needs distinct national telephone numbers");
+      digits += 1;
+      number = number * 10 + byte - firstDigitByte;
+      continue;
+    }
+    if (
+      (byte !== spaceByte && byte !== lineFeedByte) ||
+      digits < minimumNationalDigits ||
+      first === number ||
+      seen?.has(number)
+    )
+      fail("A search index row needs distinct national telephone numbers");
+    if (first < 0) first = number;
+    else {
+      seen ??= new Set([first]);
+      seen.add(number);
+    }
+    digits = 0;
+    number = 0;
+    if (byte === lineFeedByte) {
+      first = -1;
+      seen = null;
+    }
+  }
+}
+
+function readNameLine(
+  line: string,
+  previous?: string,
+): { readonly normalizedName: string; readonly name: string } {
+  const parsed = splitNameLine(line);
+  checkName(parsed.normalizedName, parsed.name, previous);
+  return parsed;
+}
+
+export function splitNameLine(line: string): {
+  readonly normalizedName: string;
+  readonly name: string;
+} {
+  const separator = line.indexOf(nameSeparator);
+  if (separator >= 0 && line.indexOf(nameSeparator, separator + 1) >= 0)
+    fail("A search index name line has too many fields");
+  const normalizedName = separator < 0 ? line : line.slice(0, separator);
+  const name = separator < 0 ? line : line.slice(separator + 1);
+  if (separator >= 0 && name === normalizedName)
+    fail("A search index name repeats its normalized form");
+  return { normalizedName, name };
+}
+
 function checkAscending(items: readonly string[], label: string): void {
   for (const [index, item] of items.entries()) {
     const previous = items[index - 1];
@@ -209,7 +435,7 @@ function checkAscending(items: readonly string[], label: string): void {
   }
 }
 
-function checkHeader(header: SearchIndexHeader): void {
+export function checkHeader(header: SearchIndexHeader): void {
   if (
     new Set(header.categories.map((category) => category.id)).size !==
     header.categories.length
@@ -368,19 +594,34 @@ export function hasSearchIndexSignature(bytes: Uint8Array): boolean {
 }
 
 export function decodeLiteralSearchIndex(bytes: Uint8Array): SearchIndex {
+  return finishDecode(literalSearchIndexBatches(bytes));
+}
+
+export function literalSearchIndexBatches(
+  bytes: Uint8Array,
+): Generator<void, SearchIndex> {
   return decodeIndex(bytes, "columns");
+}
+
+function finishDecode(batches: Generator<void, SearchIndex>): SearchIndex {
+  let step = batches.next();
+  while (!step.done) step = batches.next();
+  return step.value;
 }
 
 export function decodeSearchIndex(
   bytes: Uint8Array,
   lazy = false,
 ): SearchIndex {
-  return decodeIndex(bytes, lazy ? "views" : "rows");
+  return finishDecode(decodeIndex(bytes, lazy ? "views" : "rows"));
 }
 
 type IndexStorage = "rows" | "views" | "columns";
 
-function decodeIndex(bytes: Uint8Array, storage: IndexStorage): SearchIndex {
+function* decodeIndex(
+  bytes: Uint8Array,
+  storage: IndexStorage,
+): Generator<void, SearchIndex> {
   const lazy = storage !== "rows";
   const signature = signatureLine;
   if (!hasSearchIndexSignature(bytes)) fail("Unsupported search index format");
@@ -409,6 +650,7 @@ function decodeIndex(bytes: Uint8Array, storage: IndexStorage): SearchIndex {
     return part;
   }
   let phoneOffsets: Uint32Array | null = null;
+  let nameOffsets: Uint32Array | null = null;
   function viewedLines(part: Uint8Array, label: string): readonly string[] {
     if (!lazy) return textLines(part, label, contacts);
     if (contacts === 0 && part.length !== 0)
@@ -437,6 +679,7 @@ function decodeIndex(bytes: Uint8Array, storage: IndexStorage): SearchIndex {
     if (row !== contacts || offsets[row] !== part.length)
       fail(`The search index ${label} differs from its contact count`);
     if (telephone) phoneOffsets = offsets;
+    else nameOffsets = offsets;
     return lazyArray(contacts, (position) =>
       utf8(
         part.subarray(offsets[position] ?? 0, (offsets[position + 1] ?? 0) - 1),
@@ -444,7 +687,8 @@ function decodeIndex(bytes: Uint8Array, storage: IndexStorage): SearchIndex {
       ),
     );
   }
-  const nameLines = viewedLines(take(parts.names), "name part");
+  const namePart = take(parts.names);
+  const nameLines = viewedLines(namePart, "name part");
   const categoryPart = take(parts.categories);
   const regionPart = take(parts.regions);
   const phonePart = take(parts.phones);
@@ -468,14 +712,7 @@ function decodeIndex(bytes: Uint8Array, storage: IndexStorage): SearchIndex {
     index: number,
     previous?: string,
   ): SearchIndexRow => {
-    const fields = line.split(nameSeparator);
-    if (fields.length > nameFieldLimit)
-      fail("A search index name line has too many fields");
-    const [normalizedName = "", display] = fields;
-    if (display === normalizedName)
-      fail("A search index name repeats its normalized form");
-    const name = display ?? normalizedName;
-    checkName(normalizedName, name, previous);
+    const { normalizedName, name } = readNameLine(line, previous);
     const category = categoryAt(index);
     const regionIndex = regionView.getUint16(
       index * regionWidth,
@@ -495,27 +732,45 @@ function decodeIndex(bytes: Uint8Array, storage: IndexStorage): SearchIndex {
       hasAddress: !rowsWithoutAddress.has(index),
     };
   };
-  const comparisonNames: string[] = [];
+  const nameChunks: NameChunk[] = [];
+  const displayChunks: NameChunk[] = [];
   let previous: string | undefined;
   if (storage === "columns") {
-    for (let row = 0; row < contacts; row += 1) {
-      const validated = readRow(nameLines[row] ?? "", row, previous);
-      previous = validated.normalizedName;
-      comparisonNames.push(validated.searchName);
+    checkPhoneBytes(phonePart);
+    const offsets = nameOffsets ?? fail("Search name offsets are missing");
+    for (let first = 0; first < contacts; first += validationBatchRows) {
+      const end = Math.min(first + validationBatchRows, contacts);
+      const lines = textLines(
+        namePart.subarray(offsets[first], offsets[end]),
+        "name part",
+        end - first,
+      );
+      const parsed = lines.map(splitNameLine);
+      const displays = parsed.map((line) => line.name);
+      const names = displays.join(lineTerminator);
+      const expected = normalizeNameLines(names);
+      for (let local = 0; local < parsed.length; local += 1) {
+        const line = parsed[local] ?? fail("A search name line is missing");
+        checkName(line.normalizedName, line.name, previous, expected[local]);
+        previous = line.normalizedName;
+      }
+      const forms = searchNameLines(names);
+      displayChunks.push(nameChunk(first, displays));
+      nameChunks.push(nameChunk(first, forms));
+      yield;
     }
-  } else if (lazy) {
+  }
+  if (lazy) {
     for (let row = 0; row < contacts; row += 1) {
       const category = categoryPart[row];
       const region = regionView.getUint16(
         row * regionWidth,
         regionLittleEndian,
       );
-      if (
-        category === undefined ||
-        !header.categories[category] ||
-        !header.regions[region]
-      )
-        fail("Search index row reference out of range");
+      if (category === undefined || !header.categories[category])
+        fail("Search index row reference out of range: category index");
+      if (!header.regions[region])
+        fail("Search index row reference out of range: region index");
       usedRegions.add(region);
     }
   }
@@ -530,35 +785,9 @@ function decodeIndex(bytes: Uint8Array, storage: IndexStorage): SearchIndex {
       });
   if (usedRegions.size !== header.regions.length)
     fail("Every search index region must be referenced");
-  let phoneText: string | undefined;
-  const telephoneRows = (number: string): readonly number[] => {
-    if (!nationalNumber.test(number)) return [];
-    const offsets =
-      phoneOffsets ?? fail("Search telephone offsets are missing");
-    phoneText ??= utf8(phonePart, "telephone part");
-    const result: number[] = [];
-    let position = phoneText.indexOf(number);
-    while (position >= 0) {
-      const before =
-        position === 0 ? lineFeedByte : phoneText.charCodeAt(position - 1);
-      const after = phoneText.charCodeAt(position + number.length);
-      if (
-        (before === lineFeedByte || before === spaceByte) &&
-        (after === lineFeedByte || after === spaceByte)
-      ) {
-        let low = 0;
-        let high = contacts;
-        while (low < high) {
-          const middle = packedMidpoint(low, high);
-          if ((offsets[middle + 1] ?? 0) <= position) low = middle + 1;
-          else high = middle;
-        }
-        if (result.at(-1) !== low) result.push(low);
-      }
-      position = phoneText.indexOf(number, position + 1);
-    }
-    return result;
-  };
+  const telephoneRows = phoneOffsets
+    ? telephoneMatches(phonePart, phoneOffsets)
+    : (): readonly number[] => fail("Search telephone offsets are missing");
   const nameAt = (row: number): string => {
     const line = nameLines[row];
     if (line === undefined) fail("Search name outside snapshot");
@@ -569,14 +798,15 @@ function decodeIndex(bytes: Uint8Array, storage: IndexStorage): SearchIndex {
     region: regionAt(row),
   });
   return storage === "columns"
-    ? {
-        header,
-        rows,
-        telephoneRows,
-        nameAt,
-        placeAt,
-        columns: { comparisonNames, categoryAt, regionAt },
-      }
+    ? retainedIndex(header, {
+        names: displayChunks,
+        comparisons: nameChunks,
+        categories: categoryPart.slice(),
+        regions: regionPart.slice(),
+        phones: phonePart.slice(),
+        phoneOffsets:
+          phoneOffsets ?? fail("Search telephone offsets are missing"),
+      })
     : lazy
       ? { header, rows, telephoneRows, nameAt, placeAt }
       : { header, rows };
