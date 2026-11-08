@@ -1856,9 +1856,7 @@ describe("dataset-bound search cache", () => {
       const response = await cachedRequest("/api/contacts?limit=1", cache);
       expect(response.status).toBe(200);
       expect(cache.reads).toHaveLength(1);
-      expect(warning.mock.calls).toEqual([
-        ['{"operation":"search.cache.store","outcome":"failed"}'],
-      ]);
+      expect(warning).not.toHaveBeenCalled();
     } finally {
       warning.mockRestore();
     }

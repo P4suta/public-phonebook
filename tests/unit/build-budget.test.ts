@@ -10,11 +10,30 @@ import {
 
 const output = ".cloudflare/output/v0/workers/default";
 const roots: string[] = [];
+const quietWorker = {
+  logpush: false,
+  tailConsumers: [],
+  observability: {
+    enabled: false,
+    redactQueryString: true,
+    issues: { enabled: false },
+    logs: {
+      enabled: false,
+      invocationLogs: false,
+      persist: false,
+      destinations: [],
+    },
+    traces: { enabled: false, persist: false, destinations: [] },
+  },
+};
 
 async function build(files: Record<string, string>): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "build-budget-"));
   roots.push(root);
-  for (const [path, contents] of Object.entries(files)) {
+  for (const [path, contents] of Object.entries({
+    "worker.config.json": JSON.stringify(quietWorker),
+    ...files,
+  })) {
     const target = join(root, output, path);
     await mkdir(join(target, ".."), { recursive: true });
     await writeFile(target, contents);
@@ -28,6 +47,49 @@ afterEach(async () => {
 });
 
 describe("build budget", () => {
+  it.each([
+    {},
+    { ...quietWorker, logpush: true },
+    { ...quietWorker, tailConsumers: [{ service: "unexpected" }] },
+    ...[
+      { ...quietWorker.observability, enabled: true },
+      { ...quietWorker.observability, redactQueryString: false },
+      { ...quietWorker.observability, issues: { enabled: true } },
+      ...["enabled", "invocationLogs", "persist"].map((key) => ({
+        ...quietWorker.observability,
+        logs: { ...quietWorker.observability.logs, [key]: true },
+      })),
+      {
+        ...quietWorker.observability,
+        logs: {
+          ...quietWorker.observability.logs,
+          destinations: ["unexpected"],
+        },
+      },
+      ...["enabled", "persist"].map((key) => ({
+        ...quietWorker.observability,
+        traces: { ...quietWorker.observability.traces, [key]: true },
+      })),
+      {
+        ...quietWorker.observability,
+        traces: {
+          ...quietWorker.observability.traces,
+          destinations: ["unexpected"],
+        },
+      },
+    ].map((observability) => ({ ...quietWorker, observability })),
+  ])(
+    "refuses collection settings that violate the production policy (%#)",
+    async (configuration) => {
+      const root = await build({
+        "worker.config.json": JSON.stringify(configuration),
+        "bundle/index.js": "export {};",
+        "assets/assets/local-search-worker-A.js": "self.onmessage=()=>{};",
+      });
+      await expect(measureBuild(root)).rejects.toThrow(/collection policy/u);
+    },
+  );
+
   it("rejects a forgiving scorer in any built client asset", async () => {
     const root = await build({
       "bundle/index.js": "export {};",

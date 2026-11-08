@@ -70,8 +70,6 @@ export async function storeSearch(
   try {
     await cache.put(key, storedSearch(response));
   } catch {
-    console.warn(
-      JSON.stringify({ operation: "search.cache.store", outcome: "failed" }),
-    );
+    return;
   }
 }
