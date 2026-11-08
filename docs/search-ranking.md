@@ -150,6 +150,11 @@ The native counter rejects missing processes and invalid samples instead of subs
 The owner selected physical footprint as the primary process-memory metric.
 Raw native lifetime peaks can lag current readings, so their ordering doesn't invalidate a positive current counter or replace it with an invented peak.
 Chromium's separate Chrome DevTools Protocol counters report main-thread and Worker heaps after the timed workload.
+The local diagnostic then invokes [`HeapProfiler.collectGarbage`](https://chromedevtools.github.io/devtools-protocol/tot/HeapProfiler/#method-collectGarbage) and reads the main-thread heap and DOM counters again.
+Timing and process sampling finish before that diagnostic, so forced collection can't improve a normal-workload verdict.
+In the focused 2026-11-09 Chromium run, DOM nodes fell from 7,369 to 582 after collection.
+Used main-thread JavaScript heap fell from 17,547,292 to 9,482,860 bytes.
+The observation identifies deferred collection in that workload without establishing that every retention path is absent.
 WebKit and physical-phone heap inspection remain separate checks.
 The process sampler and optional region summary run only during an explicitly invoked local experiment.
 Production pages don't collect or upload performance telemetry.

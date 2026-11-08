@@ -628,6 +628,14 @@ async function measureProfile(
               readonly jsEventListeners: number;
             };
             readonly workers: readonly v.InferOutput<typeof HeapUsageSchema>[];
+            readonly afterDiagnosticCollection: {
+              readonly heap: v.InferOutput<typeof HeapUsageSchema>;
+              readonly dom: {
+                readonly documents: number;
+                readonly nodes: number;
+                readonly jsEventListeners: number;
+              };
+            };
           }> => {
             const session = await context.newCDPSession(page);
             try {
@@ -639,7 +647,12 @@ async function measureProfile(
                 (target) => target.type === "worker",
               ))
                 workers.push(await workerHeap(session, target.targetId));
-              return { heap, dom, workers };
+              await session.send("HeapProfiler.collectGarbage");
+              const afterDiagnosticCollection = {
+                heap: await session.send("Runtime.getHeapUsage"),
+                dom: await session.send("Memory.getDOMCounters"),
+              };
+              return { heap, dom, workers, afterDiagnosticCollection };
             } finally {
               await session.detach();
             }
