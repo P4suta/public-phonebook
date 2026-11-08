@@ -60,6 +60,12 @@ Check the enabled Call Directory extension and actual incoming system UI without
 A receiver alone can't originate that controlled call.
 A successful extension reload doesn't establish carrier caller identification.
 
+On 2026-11-09, the owner reported that an incoming call might omit its caller label during Focus.
+Caller-label omission remains a known observation with an unconfirmed cause.
+Apple's [Focus guide](https://support.apple.com/ja-jp/guide/iphone/iph21d43af5b/27/ios/27) describes silencing calls and notifications but doesn't describe omission of Call Directory labels.
+The app [provides identification entries through Call Directory](https://developer.apple.com/documentation/callkit/identifying-and-blocking-calls), while iOS controls the incoming call screen.
+The project accepts the observed behavior and adds no workaround.
+
 ## Signposted intervals
 
 The QA app marks each synchronization phase as a signposted interval and each import phase's duration as a point, in the `directory` category of the `page.dial.publicphonebook` subsystem.
