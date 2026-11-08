@@ -5,9 +5,11 @@ import android.os.Build
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -16,6 +18,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
 import androidx.core.view.ViewCompat
@@ -42,6 +46,7 @@ class DirectoryUiTest {
         rule.waitUntil(SEARCH_TIMEOUT_MILLIS) { !imeVisible() }
         rule.onNodeWithText("Public Phonebook").assertIsDisplayed()
         capture("search")
+        expandLibrary()
         rule.onAllNodes(resultButton).onFirst().performClick()
         rule.onNodeWithText("電話番号を開く").assertHeightIsAtLeast(48.dp).performClick()
         rule.onNodeWithText("キャンセル").assertIsDisplayed().performClick()
@@ -62,6 +67,18 @@ class DirectoryUiTest {
                 .fetchSemanticsNodes()
                 .isNotEmpty()
         }
+    }
+
+    private fun expandLibrary() {
+        val list = rule.onNode(hasScrollToIndexAction())
+        list.performScrollToNode(hasText("図書館の続きを表示"))
+        rule.onNodeWithText("図書館の続きを表示").assertHeightIsAtLeast(48.dp).performClick()
+        rule.waitUntil(SEARCH_TIMEOUT_MILLIS) {
+            rule.onAllNodesWithText("続きを読み込んでいます").fetchSemanticsNodes().isEmpty()
+        }
+        rule.onAllNodesWithText("続きを読み込めませんでした。").assertCountEquals(0)
+        capture("search-expanded")
+        list.performScrollToIndex(0)
     }
 
     private fun imeVisible(): Boolean = rule.runOnIdle {
@@ -91,6 +108,7 @@ class DirectoryUiTest {
         private val resultButton =
             hasClickAction() and
                 hasText("図書館", substring = true) and
+                !hasText("続きを", substring = true) and
                 SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)
         private const val PREPARATION_TIMEOUT_MILLIS = 180_000L
         private const val SEARCH_TIMEOUT_MILLIS = 30_000L

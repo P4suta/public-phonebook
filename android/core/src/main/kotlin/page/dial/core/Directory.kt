@@ -62,6 +62,13 @@ data class Contact(
 
 data class SearchPage(val contacts: List<Contact>, val total: Long, val snapshot: SnapshotId?)
 
+data class SearchGroup(val category: Category, val contacts: List<Contact>, val total: Long)
+
+data class SearchResults(val groups: List<SearchGroup>, val snapshot: SnapshotId?) {
+    val total: Long
+        get() = groups.sumOf { it.total }
+}
+
 sealed interface SyncState {
     data object Preparing : SyncState
 
@@ -74,6 +81,8 @@ sealed interface SyncState {
 
 interface DirectoryRepository {
     suspend fun prepare(): SyncState.Ready
+
+    suspend fun preview(query: String): SearchResults
 
     suspend fun search(query: String, category: String? = null, offset: Int = 0): SearchPage
 

@@ -42,7 +42,7 @@
     {"id":"screening-responds-more-than-once","module":"app","file":"PhonebookScreeningService.kt","test":"ScreeningServiceTest","original":"sent.compareAndSet(false, true)","replacement":"!sent.get()"},
     {"id":"screening-deadline-depends-on-lookup","module":"app","file":"PhonebookScreeningService.kt","test":"ScreeningServiceTest","original":"handler.postDelayed(allow, CallerPolicy.LOOKUP_BUDGET_MILLIS)","replacement":"handler.postDelayed(allow, 5000L)"},
     {"id":"screening-omits-final-permission","module":"app","file":"PhonebookScreeningService.kt","test":"ScreeningServiceTest","original":"allow.run()","replacement":""},
-    {"id":"pagination-mixes-generations","module":"app","file":"DirectoryViewModel.kt","test":"DirectoryViewModelTest","original":"PagePolicy.restart(continuing, previous.snapshot, result.snapshot)","replacement":"false"},
+    {"id":"pagination-mixes-generations","module":"app","file":"DirectoryViewModel.kt","test":"DirectoryViewModelTest","original":"PagePolicy.restart(true, snapshot, result.snapshot)","replacement":"false"},
     {"id":"delta-signature-not-checked","module":"data","file":"DirectoryDelta.kt","test":"DeltaAdversarialTest","original":"lines.next() == DELTA_SIGNATURE","replacement":"lines.next() != DELTA_SIGNATURE"},
     {"id":"delta-archive-identity-not-checked","module":"data","file":"DirectoryDelta.kt","test":"DeltaAdversarialTest","original":"digest(destination.getString(\"archiveSha256\")) == entry.sha256","replacement":"true"},
     {"id":"delta-decoded-length-not-checked","module":"data","file":"DirectoryDelta.kt","test":"DeltaAdversarialTest","original":"requireDirectory(lines.consumed == it.bytes)","replacement":"requireDirectory(true)"},
@@ -58,6 +58,10 @@
     {"id":"service-path-traversal-allowed","module":"data","file":"Wire.kt","test":"WireContractTest","original":"uri.normalize() == uri","replacement":"true"},
     {"id":"delta-interruption-falls-back","module":"data","file":"DeviceDirectory.kt","test":"SynchronizationTest","original":"throw interrupted","replacement":"null"},
     {"id":"caller-lookup-timeout-ignored","module":"app","file":"PhonebookScreeningService.kt","test":"ScreeningServiceTest","original":"withTimeoutOrNull(CallerPolicy.LOOKUP_BUDGET_MILLIS)","replacement":"withTimeoutOrNull(2000L)"},
-    {"id":"pagination-mixes-queries","module":"app","file":"DirectoryViewModel.kt","test":"DirectoryViewModelTest","original":"state.value.resultQuery == query","replacement":"state.value.query == query"}
+    {"id":"pagination-mixes-queries","module":"app","file":"DirectoryViewModel.kt","test":"DirectoryViewModelTest","original":"state.value.resultQuery != query","replacement":"state.value.query != query"},
+    {"id":"preview-allows-a-fourth-result","module":"data","file":"DirectoryQuery.kt","test":"SearchRepositoryTest","original":"group.rows.size < DirectoryLimits.SEARCH_PREVIEW_SIZE","replacement":"group.rows.size <= DirectoryLimits.SEARCH_PREVIEW_SIZE"},
+    {"id":"preview-forgets-complete-counts","module":"data","file":"DirectoryQuery.kt","test":"SearchRepositoryTest","original":"group.total++","replacement":"group.total = group.rows.size.toLong()"},
+    {"id":"search-order-folds-kana","module":"data","file":"SearchOrder.kt","test":"SearchRepositoryTest","original":"Normalizer.normalize(name, Normalizer.Form.NFKC).lowercase(Locale.ROOT).trim()","replacement":"SearchForms.load().form(name)"},
+    {"id":"search-migration-is-not-committed","module":"data","file":"SearchOrder.kt","test":"SearchRepositoryTest","original":"transaction.commit()","replacement":""}
   ]
 }

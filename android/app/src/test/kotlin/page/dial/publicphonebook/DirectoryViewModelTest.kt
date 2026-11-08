@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelStore
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
@@ -13,6 +14,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -23,7 +25,9 @@ import page.dial.core.CanonicalPhone
 import page.dial.core.Category
 import page.dial.core.Contact
 import page.dial.core.DirectoryRepository
+import page.dial.core.SearchGroup
 import page.dial.core.SearchPage
+import page.dial.core.SearchResults
 import page.dial.core.SnapshotId
 import page.dial.core.SyncState
 
@@ -43,51 +47,138 @@ class DirectoryViewModelTest {
     }
 
     @Test
-    fun paginationRestartsWhenThePublishedGenerationChanges() = runTest {
-        val previous = page("a", 0, 1)
-        val updatedTail = page("b", 2)
-        val updatedFirst = page("b", 0, 1)
-        val repository = Pages(previous, updatedTail, updatedFirst)
-        val model = DirectoryViewModel(repository, SavedStateHandle())
-        models.put("directory", model)
+    fun eachCategoryExpandsFromItsPreviewAndContinuesIndependently() = runTest {
+        val repository =
+            Pages(
+                results(page(), page(category = "medical", rows = 100L..102L)),
+                page(rows = 0L..29L),
+                page(rows = 30L..34L),
+            )
+        val model = model(repository)
         advanceUntilIdle()
-        model.search("", more = true)
+        model.more("library")
         advanceUntilIdle()
-        assertEquals(listOf(0, 2, 0), repository.offsets)
-        assertEquals(updatedFirst, model.uiState.value.results)
+        assertEquals((0L..29L).toList(), rows(model))
+        assertEquals((100L..102L).toList(), rows(model, "medical"))
+        model.more("library")
+        advanceUntilIdle()
+        assertEquals(listOf("library" to 0, "library" to 30), repository.searches)
+        assertEquals((0L..34L).toList(), rows(model))
+        assertEquals(
+            listOf("library", "medical"),
+            model.uiState.value.results.groups.map { it.category.id },
+        )
+        model.more("library")
+        model.more("missing")
+        assertEquals(2, repository.searches.size)
     }
 
     @Test
-    fun paginationAppendsRowsWithinOneCompleteGeneration() = runTest {
-        val repository = Pages(page("a", 0, 1), page("a", 2))
-        val model = DirectoryViewModel(repository, SavedStateHandle())
-        models.put("directory", model)
+    fun aNewGenerationRestartsEveryCategoryBeforeAppendingAnything() = runTest {
+        val updated = results(page("b", rows = 8L..10L), page("b", "medical", 100L..102L))
+        val repository = Pages(results(page()), page("b", rows = 0L..29L))
+        repository.beforeSearch = { repository.previewResponse = updated }
+        val model = model(repository)
         advanceUntilIdle()
-        model.search("", more = true)
+        model.more("library")
         advanceUntilIdle()
-        assertEquals(listOf(0, 2), repository.offsets)
-        assertEquals(listOf(0L, 1L, 2L), model.uiState.value.results.contacts.map { it.row })
+        assertEquals(updated, model.uiState.value.results)
+        assertEquals(2, repository.previews.size)
+        assertTrue(model.uiState.value.expandedCategories.isEmpty())
+        assertTrue(model.uiState.value.loadingCategories.isEmpty())
     }
 
     @Test
-    fun paginationRestartsWhenTheQueryChangesBeforeItsFirstPageArrives() = runTest {
-        val firstNewPage = page("a", 1)
-        val repository = Pages(page("a", 0), firstNewPage)
-        val model = DirectoryViewModel(repository, SavedStateHandle(mapOf("query" to "previous")))
-        models.put("directory", model)
+    fun differentCategoriesCanFinishInEitherOrderWithoutLosingResults() = runTest {
+        val waiting =
+            mapOf(
+                "library" to CompletableDeferred<Unit>(),
+                "medical" to CompletableDeferred<Unit>(),
+            )
+        val repository =
+            Pages(
+                results(page(), page(category = "medical", rows = 100L..102L)),
+                page(rows = 0L..29L),
+                page(category = "medical", rows = 100L..129L),
+            )
+        repository.beforeSearch = { waiting.getValue(it).await() }
+        val model = model(repository)
+        advanceUntilIdle()
+        model.more("library")
+        model.more("medical")
+        model.more("library")
+        runCurrent()
+        assertEquals(2, repository.searches.size)
+        waiting.getValue("medical").complete(Unit)
+        runCurrent()
+        assertEquals(30, rows(model, "medical").size)
+        assertEquals(setOf("library"), model.uiState.value.loadingCategories)
+        waiting.getValue("library").complete(Unit)
+        advanceUntilIdle()
+        assertEquals(30, rows(model).size)
+        assertEquals(30, rows(model, "medical").size)
+        assertTrue(model.uiState.value.loadingCategories.isEmpty())
+    }
+
+    @Test
+    fun aFailedCategoryKeepsItsPreviewAndCanRetryWithoutChangingOtherCategories() = runTest {
+        val initial = results(page(), page(category = "medical", rows = 100L..102L))
+        val repository = Pages(initial, page(rows = 0L..29L), page(rows = 0L..29L))
+        repository.beforeSearch = { throw java.io.IOException("offline") }
+        val model = model(repository)
+        advanceUntilIdle()
+        model.more("library")
+        advanceUntilIdle()
+        assertEquals(initial, model.uiState.value.results)
+        assertEquals(setOf("library"), model.uiState.value.failedCategories)
+        assertTrue(model.uiState.value.loadingCategories.isEmpty())
+        repository.beforeSearch = {}
+        model.more("library")
+        advanceUntilIdle()
+        assertTrue(model.uiState.value.failedCategories.isEmpty())
+        assertEquals(30, rows(model).size)
+        assertEquals((100L..102L).toList(), rows(model, "medical"))
+        assertEquals(listOf("library" to 0, "library" to 0), repository.searches)
+    }
+
+    @Test
+    fun aCategoryReplyCannotReplaceResultsAfterTheQueryChanges() = runTest {
+        val waiting = CompletableDeferred<Unit>()
+        val repository = Pages(results(page()), page(rows = 0L..29L))
+        repository.beforeSearch = { withContext(NonCancellable) { waiting.await() } }
+        val model = model(repository)
+        advanceUntilIdle()
+        model.more("library")
+        runCurrent()
+        val latest = results(page(rows = 9L..9L, total = 1))
+        repository.previewResponse = latest
+        model.search("latest")
+        advanceUntilIdle()
+        waiting.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(latest, model.uiState.value.results)
+        assertEquals("latest", model.uiState.value.resultQuery)
+        assertTrue(model.uiState.value.loadingCategories.isEmpty())
+        assertTrue(model.uiState.value.failedCategories.isEmpty())
+    }
+
+    @Test
+    fun continuationWaitsForTheRequestedQueryPreview() = runTest {
+        val repository = Pages(results(page()))
+        val model = model(repository)
         advanceUntilIdle()
         model.search("requested")
-        model.search("requested", more = true)
+        model.more("library")
         advanceUntilIdle()
-        assertEquals(listOf(0, 0), repository.offsets)
-        assertEquals(firstNewPage, model.uiState.value.results)
+        assertTrue(repository.searches.isEmpty())
+        assertEquals("requested", model.uiState.value.resultQuery)
     }
 
     @Test
     fun replacingAnInFlightQueryCancelsOldWorkAndPreservesTheLatestSavedQuery() = runTest {
-        val repository = Pages(page("a", 0), page("a", 1))
+        val repository = Pages(results(page()))
         var cancelled = false
-        repository.beforeSearch = { query ->
+        repository.beforePreview = { query ->
             if (query == "slow")
                 try {
                     awaitCancellation()
@@ -96,8 +187,7 @@ class DirectoryViewModelTest {
                 }
         }
         val saved = SavedStateHandle()
-        val model = DirectoryViewModel(repository, saved)
-        models.put("directory", model)
+        val model = model(repository, saved)
         advanceUntilIdle()
         model.search("slow")
         advanceTimeBy(181)
@@ -106,64 +196,61 @@ class DirectoryViewModelTest {
         advanceUntilIdle()
         assertTrue(cancelled)
         assertEquals("latest", saved.get<String>("query"))
-        assertEquals("latest", model.uiState.value.query)
+        assertEquals("latest", model.uiState.value.resultQuery)
         assertFalse(model.uiState.value.searching)
         assertFalse(model.uiState.value.searchFailed)
-        assertEquals(listOf(1L), model.uiState.value.results.contacts.map { it.row })
     }
 
     @Test
     fun searchFailureRetainsSavedResultsAndASuccessfulRetryClearsTheFailure() = runTest {
-        val initial = page("a", 0)
-        val repository = Pages(initial, page("a", 1))
-        repository.beforeSearch = { if (it == "bad") throw java.io.IOException("offline") }
-        val model = DirectoryViewModel(repository, SavedStateHandle())
-        models.put("directory", model)
+        val initial = results(page())
+        val repository = Pages(initial)
+        repository.beforePreview = { if (it == "bad") throw java.io.IOException("offline") }
+        val model = model(repository)
         advanceUntilIdle()
         model.search("bad")
         advanceUntilIdle()
         assertTrue(model.uiState.value.searchFailed)
         assertFalse(model.uiState.value.searching)
         assertEquals(initial, model.uiState.value.results)
+        model.more("library")
+        assertTrue(repository.searches.isEmpty())
         model.search("retry")
         advanceUntilIdle()
         assertFalse(model.uiState.value.searchFailed)
-        assertEquals(listOf(1L), model.uiState.value.results.contacts.map { it.row })
+        assertEquals("retry", model.uiState.value.resultQuery)
     }
 
     @Test
     fun preparationCanRetryAfterAnInitialFailure() = runTest {
-        val repository = Pages(page("a", 0))
+        val repository = Pages(results(page()))
         repository.prepareFailure = java.io.IOException("unavailable storage")
-        val model = DirectoryViewModel(repository, SavedStateHandle(mapOf("query" to "restored")))
-        models.put("directory", model)
+        val model = model(repository, SavedStateHandle(mapOf("query" to "restored")))
         advanceUntilIdle()
         assertEquals(SyncState.Failed(null), model.uiState.value.sync)
         repository.prepareFailure = null
         model.prepare()
         advanceUntilIdle()
         assertTrue(model.uiState.value.sync is SyncState.Ready)
-        assertEquals("restored", model.uiState.value.query)
+        assertEquals("restored", model.uiState.value.resultQuery)
     }
 
     @Test
     fun overlappingRefreshesRunOnceAndFailureKeepsSearchAvailable() = runTest {
-        val initial = page("a", 0)
+        val initial = results(page())
         val repository = Pages(initial)
         val waiting = CompletableDeferred<Unit>()
         repository.beforeRefresh = {
             waiting.await()
             throw java.io.IOException("offline")
         }
-        val model = DirectoryViewModel(repository, SavedStateHandle())
-        models.put("directory", model)
+        val model = model(repository)
         advanceUntilIdle()
         model.refresh()
         model.refresh()
         runCurrent()
         assertEquals(1, repository.refreshes)
         assertTrue(model.uiState.value.updating)
-        assertEquals(initial, model.uiState.value.results)
         waiting.complete(Unit)
         advanceUntilIdle()
         assertFalse(model.uiState.value.updating)
@@ -172,14 +259,31 @@ class DirectoryViewModelTest {
         assertTrue(model.uiState.value.sync is SyncState.Ready)
     }
 
-    private fun page(identity: String, vararg rows: Long): SearchPage {
+    private fun model(
+        repository: Pages,
+        saved: SavedStateHandle = SavedStateHandle(),
+    ): DirectoryViewModel =
+        DirectoryViewModel(repository, saved).also { models.put("directory", it) }
+
+    private fun rows(model: DirectoryViewModel, category: String = "library"): List<Long> =
+        model.uiState.value.results.groups
+            .single { it.category.id == category }
+            .contacts
+            .map { it.row }
+
+    private fun page(
+        identity: String = "a",
+        category: String = "library",
+        rows: LongRange = 0L..2L,
+        total: Long = 35,
+    ): SearchPage {
         val snapshot = requireNotNull(SnapshotId.parse(identity.repeat(64)))
         return SearchPage(
             rows.map {
                 Contact(
                     snapshot,
                     it,
-                    Category("library", "Library"),
+                    Category(category, category),
                     "",
                     "",
                     "Facility $it",
@@ -193,16 +297,24 @@ class DirectoryViewModelTest {
                     "2026-11-05",
                 )
             },
-            3,
+            total,
             snapshot,
         )
     }
+
+    private fun results(vararg pages: SearchPage): SearchResults =
+        SearchResults(
+            pages.map { SearchGroup(it.contacts.first().category, it.contacts, it.total) },
+            pages.first().snapshot,
+        )
 }
 
-private class Pages(vararg pages: SearchPage) : DirectoryRepository {
+private class Pages(var previewResponse: SearchResults, vararg pages: SearchPage) :
+    DirectoryRepository {
     private val responses = ArrayDeque(pages.toList())
-    private val first = pages.first()
-    val offsets = mutableListOf<Int>()
+    val searches = mutableListOf<Pair<String, Int>>()
+    val previews = mutableListOf<String>()
+    var beforePreview: suspend (String) -> Unit = {}
     var beforeSearch: suspend (String) -> Unit = {}
     var beforeRefresh: suspend () -> Unit = {}
     var prepareFailure: Exception? = null
@@ -210,13 +322,22 @@ private class Pages(vararg pages: SearchPage) : DirectoryRepository {
 
     override suspend fun prepare(): SyncState.Ready {
         prepareFailure?.let { throw it }
-        return SyncState.Ready(requireNotNull(first.snapshot), first.total)
+        return SyncState.Ready(requireNotNull(previewResponse.snapshot), previewResponse.total)
+    }
+
+    override suspend fun preview(query: String): SearchResults {
+        previews.add(query)
+        val result = previewResponse
+        beforePreview(query)
+        return result
     }
 
     override suspend fun search(query: String, category: String?, offset: Int): SearchPage {
-        offsets.add(offset)
-        beforeSearch(query)
-        return responses.removeFirst()
+        val key = requireNotNull(category)
+        searches.add(key to offset)
+        val result = responses.removeFirst()
+        beforeSearch(key)
+        return result
     }
 
     override suspend fun find(phone: CanonicalPhone): Contact? = null

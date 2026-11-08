@@ -40,6 +40,7 @@ import page.dial.core.CanonicalPhone
 import page.dial.core.Contact
 import page.dial.core.DirectoryRepository
 import page.dial.core.SearchPage
+import page.dial.core.SearchResults
 import page.dial.core.SyncState
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -257,4 +258,6 @@ private class LookupRepository(private val lookup: suspend (CanonicalPhone) -> C
 
     override suspend fun search(query: String, category: String?, offset: Int): SearchPage =
         error("Unexpected search")
+
+    override suspend fun preview(query: String): SearchResults = error("Unexpected preview")
 }

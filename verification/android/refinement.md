@@ -26,10 +26,24 @@ Host tests provide a controlled repository to exercise lookup failure and cancel
 SQLite and synchronization tests exercise the actual directory implementation.
 
 `canAppendPage` and `PagePolicy.canAppend` admit a continuation only when the request asks for more rows and the completed results belong to the same query.
-The adapter stores `resultQuery` with the completed page, compares it with the requested query, and uses the admitted continuation for both the offset and generation-restart decision.
+The adapter stores `resultQuery` with the completed preview and compares it with the requested query.
+An expanded category supplies the continuation flag, so its first expansion starts at zero and later pages append.
 `pageAppendRequiresTheSameQuery` proves the two Boolean requirements.
 The refinement gate checks the actual comparison, offset, generation check, and completed-page assignment.
-The adapter regression test changes the query and requests more rows before the first page arrives.
+The adapter regression test changes the query and requests more rows before the first preview arrives.
+
+Category previews stream ordered SQLite identifiers and counts while retaining at most three identifiers per category.
+The payload query reads only those selected contacts.
+Native SQLite tests compare every group, count, and preview with the complete scan oracle, including complete telephone numbers and a category beyond the former global page.
+The validated limit of 256 categories bounds the payload query to 768 identifiers.
+SQLite sorting, cursors, and cancellation are external runtime boundaries.
+The existing word-rank model supplies the matching tiers.
+Native ordering fixtures cover compatibility-normalized names and kana folding.
+
+Saved databases gain their separate sort key through an exclusive transaction under the store's write lock.
+The schema version changes within the same transaction.
+A planted update failure checks rollback, retry, unchanged archive bytes, and caller lookup through the actual database implementation.
+The [sort-key decision](../../docs/adr/keep-android-search-order-separate-from-comparison-folding.md) records the storage boundary.
 
 The Lean model proves deterministic policy statements.
 The Rust runner compares thirteen complete Kotlin expression functions with their reviewed translations and checks modeled constants.
@@ -81,9 +95,12 @@ Unicode normalization, SQLite execution, and full-text tokenization remain runti
 
 `PagePolicy.restart` corresponds to `restartPage` over a continuation flag and two optional snapshot identities.
 The theorem establishes that a continuation restarts exactly when its received snapshot differs from the displayed snapshot.
-The ViewModel requests offset zero after a restart and appends rows only within an unchanged generation.
+The ViewModel requests a complete preview after a restart and appends category rows only within an unchanged generation.
+Independent category jobs update their own category in the current state.
+A query-run identity rejects late replies after cancellation, and the screen hides results belonging to another query.
 `DirectoryViewModelTest` controls coroutine scheduling under the [Android coroutine testing guidance](https://developer.android.com/kotlin/coroutines/test) and reproduces a generation change between two page requests.
-The regression requires the replacement generation's first page and prevents an update from skipping that page.
+The regression requires the replacement generation's preview and prevents an update from skipping its first results.
+Controlled jobs also cover category failures, retries, duplicate requests, reversed completion order, and late replies from an earlier query.
 
 `PublicationPolicy.canActivate` corresponds to `canActivate` and permits a write only from an indexed, admitted candidate.
 `PublicationPolicy.select` corresponds to `select` over optional active generations, four stages, validation, and the observed pointer.

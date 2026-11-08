@@ -25,11 +25,20 @@ class DirectoryDeviceTest {
         val preparation = SystemClock.elapsedRealtime() - began
         assertEquals(if (BuildConfig.FLAVOR == "development") 241L else 667696L, ready.contacts)
         val searched = SystemClock.elapsedRealtime()
-        val results = application.directory.search("図書館")
+        val results = application.directory.preview("図書館")
         val elapsed = SystemClock.elapsedRealtime() - searched
-        assertTrue(results.contacts.isNotEmpty())
+        assertTrue(results.groups.isNotEmpty())
         assertEquals(ready.snapshot, results.snapshot)
-        val found = application.directory.find(results.contacts.first().phones.first().number)
+        for (group in results.groups) {
+            assertEquals(minOf(3L, group.total).toInt(), group.contacts.size)
+            val category = application.directory.search("図書館", group.category.id)
+            assertEquals(group.total, category.total)
+            assertEquals(group.contacts, category.contacts.take(3))
+        }
+        val found =
+            application.directory.find(
+                results.groups.first().contacts.first().phones.first().number
+            )
         assertNotNull(found)
         verifySharedSearchContract()
         val memory = Debug.MemoryInfo().also(Debug::getMemoryInfo)

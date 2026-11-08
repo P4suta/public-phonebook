@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Public Phonebook</string>
-    <string name="search">施設を検索</string>
+    <string name="searching">検索しています</string>
+    <string name="retry_search">検索を再試行</string>
     <string name="query_label">施設名・地域・電話番号</string>
     <string name="settings">着信とデータ更新</string>
     <string name="about">アプリ情報</string>
@@ -21,7 +22,11 @@
 複数の語は空白で区切ってください。</string>
     <string name="no_matches">一致する施設がありません</string>
     <string name="results">%1$d件</string>
-    <string name="more">続きの50件</string>
+    <string name="category_results">%1$s %2$d件</string>
+    <string name="more">%1$sの続きを表示</string>
+    <string name="retry_more">%1$sの続きを再試行</string>
+    <string name="loading_more">続きを読み込んでいます</string>
+    <string name="more_failed">続きを読み込めませんでした。</string>
     <string name="call">電話番号を開く</string>
     <string name="map">地図を開く</string>
     <string name="website">施設のWebサイト</string>

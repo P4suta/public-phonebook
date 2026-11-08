@@ -222,59 +222,17 @@ private fun ConfirmationDialog(action: ExternalAction, dismiss: () -> Unit, fail
 
 @Composable
 internal fun Action(label: Int, onClick: () -> Unit) {
+    Action(stringResource(label), onClick)
+}
+
+@Composable
+internal fun Action(label: String, onClick: () -> Unit) {
     OutlinedButton(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
     ) {
-        Text(stringResource(label))
-    }
-}
-
-@Composable
-private fun SearchScreen(
-    state: DirectoryUiState,
-    model: DirectoryViewModel,
-    select: (Contact) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SearchField(state.query) { model.search(it) }
-        if (state.searching) Text(stringResource(R.string.search))
-        if (state.searchFailed) Text(stringResource(R.string.search_failed))
-        if (state.query.isBlank()) Text(stringResource(R.string.empty_query))
-        else if (!state.searching && state.results.total == 0L)
-            Text(stringResource(R.string.no_matches))
-        else Text(stringResource(R.string.results, state.results.total))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            val groups = state.results.contacts.groupBy { it.category }
-            groups.forEach { (category, contacts) ->
-                item(key = "category:${category.id}") {
-                    Text(
-                        category.label,
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(top = 16.dp).semantics { heading() },
-                    )
-                }
-                items(contacts, key = { "${it.snapshot.value}:${it.row}" }) { contact ->
-                    OutlinedButton(
-                        onClick = { select(contact) },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
-                    ) {
-                        Column(Modifier.fillMaxWidth().padding(8.dp)) {
-                            Text(contact.name, style = MaterialTheme.typography.titleMedium)
-                            Text("${contact.prefecture} ${contact.municipality}")
-                            Text(contact.phones.first().display)
-                        }
-                    }
-                }
-            }
-            if (
-                state.results.contacts.size < state.results.total &&
-                    state.results.contacts.isNotEmpty()
-            )
-                item { Action(R.string.more) { model.search(state.query, more = true) } }
-        }
+        Text(label)
     }
 }
 

@@ -540,9 +540,12 @@ fn source_refinement(root: &Path) -> Result<BTreeMap<String, String>> {
     let view_model = "android/app/src/main/kotlin/page/dial/publicphonebook/DirectoryViewModel.kt";
     let source = compact(&fs::read_to_string(root.join(view_model))?);
     for boundary in [
-        "valcontinuing=PagePolicy.canAppend(more,state.value.resultQuery==query)",
+        "valcontinuing=PagePolicy.canAppend(categoryinstate.value.expandedCategories,state.value.resultQuery==query)",
         "valoffset=if(continuing)previous.contacts.sizeelse0",
-        "PagePolicy.restart(continuing,previous.snapshot,result.snapshot)",
+        "valsnapshot=state.value.results.snapshot",
+        "if(PagePolicy.restart(true,snapshot,result.snapshot)){search(query)return}",
+        "valresult=repository.search(query,category,offset)if(searchRun!==run)return",
+        "if(searchRun!==run)return@launch",
         "state.value.copy(results=results,resultQuery=query,searching=false)",
     ] {
         ensure!(
@@ -555,7 +558,7 @@ fn source_refinement(root: &Path) -> Result<BTreeMap<String, String>> {
     let source = compact(&fs::read_to_string(root.join(storage))?);
     for boundary in [
         "valadmitted=SyncPolicy.admit(facts)",
-        "privatefunactivate(staged:StagedGeneration,name:String,admitted:Boolean)=gate.write{requireDirectory(PublicationPolicy.canActivate(staged.phase,admitted))valprevious=activeName()",
+        "privatefunactivate(staged:StagedGeneration,name:String,admitted:Boolean)=gate.write{requireDirectory(PublicationPolicy.canActivate(staged.phase,admitted))valprevious=reader.currentName()",
         "valselected=PublicationPolicy.select(previous,name,staged.phase,admitted,observed?.current==name)if(selected!=name)throwfailure?:InvalidDirectory(\"Generationactivationisunconfirmed\")",
     ] {
         ensure!(

@@ -12,16 +12,21 @@ import kotlinx.coroutines.launch
 import page.dial.core.Contact
 import page.dial.core.DirectoryRepository
 import page.dial.core.PagePolicy
-import page.dial.core.SearchPage
+import page.dial.core.SearchGroup
+import page.dial.core.SearchResults
+import page.dial.core.SnapshotId
 import page.dial.core.SyncState
 
 data class DirectoryUiState(
     val sync: SyncState = SyncState.Preparing,
     val query: String = "",
     val resultQuery: String? = null,
-    val results: SearchPage = SearchPage(emptyList(), 0, null),
+    val results: SearchResults = SearchResults(emptyList(), null),
     val searching: Boolean = false,
     val searchFailed: Boolean = false,
+    val expandedCategories: Set<String> = emptySet(),
+    val loadingCategories: Set<String> = emptySet(),
+    val failedCategories: Set<String> = emptySet(),
     val updating: Boolean = false,
     val updateMessage: Int? = null,
     val selected: Contact? = null,
@@ -34,6 +39,8 @@ class DirectoryViewModel(
     private val state = MutableStateFlow(DirectoryUiState(query = saved["query"] ?: ""))
     val uiState = state.asStateFlow()
     private var searchJob: Job? = null
+    private var searchRun = SearchRun()
+    private val categoryJobs = mutableMapOf<String, Job>()
 
     init {
         prepare()
@@ -53,32 +60,110 @@ class DirectoryViewModel(
         }
     }
 
-    fun search(query: String, more: Boolean = false) {
+    fun search(query: String) {
         searchJob?.cancel()
+        categoryJobs.values.forEach { it.cancel() }
+        categoryJobs.clear()
+        val run = SearchRun()
+        searchRun = run
         saved["query"] = query
-        state.value = state.value.copy(query = query, searching = true, searchFailed = false)
+        state.value =
+            state.value.copy(
+                query = query,
+                searching = true,
+                searchFailed = false,
+                expandedCategories = emptySet(),
+                loadingCategories = emptySet(),
+                failedCategories = emptySet(),
+            )
         searchJob = viewModelScope.launch {
             try {
-                if (!more) delay(SEARCH_SETTLE_MILLIS)
-                val results = fetchPage(query, more)
+                delay(SEARCH_SETTLE_MILLIS)
+                val results = repository.preview(query)
+                if (searchRun !== run) return@launch
                 state.value =
                     state.value.copy(results = results, resultQuery = query, searching = false)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                state.value = state.value.copy(searching = false, searchFailed = true)
+                if (searchRun === run)
+                    state.value = state.value.copy(searching = false, searchFailed = true)
             }
         }
     }
 
-    private suspend fun fetchPage(query: String, more: Boolean): SearchPage {
-        val previous = state.value.results
-        val continuing = PagePolicy.canAppend(more, state.value.resultQuery == query)
+    fun more(category: String) {
+        val query = state.value.query
+        if (
+            state.value.searching ||
+                state.value.resultQuery != query ||
+                category in state.value.loadingCategories
+        )
+            return
+        val previous =
+            state.value.results.groups
+                .firstOrNull { it.category.id == category }
+                ?.takeIf { it.contacts.size < it.total } ?: return
+        val run = searchRun
+        val snapshot = state.value.results.snapshot
+        val continuing =
+            PagePolicy.canAppend(
+                category in state.value.expandedCategories,
+                state.value.resultQuery == query,
+            )
+        val request = CategoryRequest(query, category, previous, run, snapshot, continuing)
+        state.value =
+            state.value.copy(
+                loadingCategories = state.value.loadingCategories + category,
+                failedCategories = state.value.failedCategories - category,
+            )
+        categoryJobs[category] = viewModelScope.launch { loadCategory(request) }
+    }
+
+    private suspend fun loadCategory(request: CategoryRequest) {
+        val query = request.query
+        val category = request.category
+        val previous = request.previous
+        val run = request.run
+        val snapshot = request.snapshot
+        val continuing = request.continuing
         val offset = if (continuing) previous.contacts.size else 0
-        val result = repository.search(query, offset = offset)
-        return if (PagePolicy.restart(continuing, previous.snapshot, result.snapshot))
-            repository.search(query)
-        else if (continuing) result.copy(contacts = previous.contacts + result.contacts) else result
+        try {
+            val result = repository.search(query, category, offset)
+            if (searchRun !== run) return
+            if (PagePolicy.restart(true, snapshot, result.snapshot)) {
+                search(query)
+                return
+            }
+            require(
+                result.total == previous.total && result.contacts.all { it.category.id == category }
+            )
+            val contacts = if (continuing) previous.contacts + result.contacts else result.contacts
+            state.value =
+                state.value.copy(
+                    results =
+                        state.value.results.copy(
+                            groups =
+                                state.value.results.groups.map {
+                                    if (it.category.id == category) it.copy(contacts = contacts)
+                                    else it
+                                }
+                        ),
+                    expandedCategories = state.value.expandedCategories + category,
+                )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            if (searchRun === run)
+                state.value =
+                    state.value.copy(failedCategories = state.value.failedCategories + category)
+        } finally {
+            if (searchRun === run) {
+                state.value =
+                    state.value.copy(loadingCategories = state.value.loadingCategories - category)
+                categoryJobs.remove(category)
+            }
+        }
     }
 
     fun select(contact: Contact?) {
@@ -110,3 +195,14 @@ class DirectoryViewModel(
         private const val SEARCH_SETTLE_MILLIS = 180L
     }
 }
+
+private class SearchRun
+
+private data class CategoryRequest(
+    val query: String,
+    val category: String,
+    val previous: SearchGroup,
+    val run: SearchRun,
+    val snapshot: SnapshotId?,
+    val continuing: Boolean,
+)
