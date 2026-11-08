@@ -25,7 +25,7 @@ import {
 import { formatPhone, normalizePhone } from "../src/core/phone.ts";
 import { showsAddress } from "../src/core/search.ts";
 import {
-  decodeSearchIndex,
+  decodeLiteralSearchIndex,
   type SearchIndex,
   searchIndexFile,
 } from "../src/core/search-index.ts";
@@ -612,7 +612,7 @@ async function main(): Promise<void> {
   const ids = readRowIds(join(directory, "directory.sqlite"));
   if (ids.length !== manifest.contacts)
     throw new Error("The bundle database has a different contact count");
-  const index = decodeSearchIndex(decoded);
+  const index = decodeLiteralSearchIndex(decoded);
   const reference = new LiteralReference(index, ids);
   const runtime = localDataRuntime(values.state ?? defaultState);
   try {

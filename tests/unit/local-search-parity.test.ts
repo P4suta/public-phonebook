@@ -26,7 +26,7 @@ import {
 import { normalizeName } from "../../src/core/search.ts";
 import {
   compareRowOrder,
-  decodeSearchIndex,
+  decodeLiteralSearchIndex,
   type SearchIndex,
 } from "../../src/core/search-index.ts";
 import { uiCopy } from "../../src/ui/copy.ts";
@@ -209,7 +209,9 @@ beforeAll(async () => {
     local.exec(databaseSchema);
     for (const item of statements())
       local.prepare(item.sql).run(...item.params);
-    index = decodeSearchIndex(readSearchIndex(local, { snapshot, catalog }));
+    index = decodeLiteralSearchIndex(
+      readSearchIndex(local, { snapshot, catalog }),
+    );
   } finally {
     local.close();
   }

@@ -22,6 +22,7 @@ import {
   matchIndex,
 } from "../src/core/local-search.ts";
 import {
+  decodeLiteralSearchIndex,
   decodeSearchIndex,
   type SearchIndex,
   searchIndexFile,
@@ -769,7 +770,10 @@ async function measureRankingContract(
   };
 }
 
-function decodedIndexHeapBytes(decoded: Uint8Array): number {
+function decodedIndexHeapBytes(
+  decoded: Uint8Array,
+  decode: (bytes: Uint8Array) => SearchIndex,
+): number {
   setFlagsFromString("--expose-gc");
   const collect: unknown = runInNewContext("gc");
   const gc = (): void => {
@@ -777,7 +781,7 @@ function decodedIndexHeapBytes(decoded: Uint8Array): number {
   };
   gc();
   const before = process.memoryUsage().heapUsed;
-  const index = decodeSearchIndex(decoded);
+  const index = decode(decoded);
   gc();
   const after = process.memoryUsage().heapUsed;
   if (!index.rows.length) throw new Error("The decoded index is empty");
@@ -936,7 +940,14 @@ async function main(): Promise<void> {
             decoded: manifest.searchRanking.uncompressedBytes,
           }
         : null,
-      decodedIndexHeapBytesInNode: decodedIndexHeapBytes(decoded),
+      decodedIndexHeapBytesInNode: decodedIndexHeapBytes(
+        decoded,
+        decodeLiteralSearchIndex,
+      ),
+      decodedMaterializedIndexHeapBytesInNode: decodedIndexHeapBytes(
+        decoded,
+        decodeSearchIndex,
+      ),
       queries: sample.length,
       typedText,
       literalReferenceWork: work,

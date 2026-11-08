@@ -88,16 +88,10 @@ function fail(message: string): never {
   throw new Error(message);
 }
 
-type RowRank = (row: SearchIndex["rows"][number]) => number;
+type WordRank = (name: string, region: string, category: string) => number;
 
-function rowRank(
-  index: SearchIndex,
-  query: Exclude<LocalQuery, { kind: "empty" }>,
-): RowRank {
-  if (query.kind === "telephone")
-    return (row) =>
-      row.phones.includes(query.number) ? nameRank.exact : unmatchedRank;
-  const places = query.words.map((word) => {
+function wordRank(index: SearchIndex, words: readonly string[]): WordRank {
+  const places = words.map((word) => {
     const holding = wordPlaces(index.header, word);
     return {
       prefectures: new Set(holding.prefectures),
@@ -105,13 +99,53 @@ function rowRank(
       categories: new Set(holding.categories),
     };
   });
-  return (row) =>
-    rankWords(row.searchName, query.words, (word) =>
+  return (name, region, category) =>
+    rankWords(name, words, (word) =>
       placeHolds(
         places[word] ?? fail("A word has no places"),
-        regionPlace(row.region, row.category),
+        regionPlace(region, category),
       ),
     );
+}
+
+function forEachMatch(
+  index: SearchIndex,
+  query: Exclude<LocalQuery, { kind: "empty" }>,
+  matched: (position: number, category: string, rank: number) => void,
+): void {
+  const telephone =
+    query.kind === "telephone" && index.telephoneRows
+      ? index.telephoneRows(query.number)
+      : null;
+  const columns = index.columns;
+  const rankOf = wordRank(index, query.kind === "words" ? query.words : []);
+  const count = telephone?.length ?? index.rows.length;
+  for (let candidate = 0; candidate < count; candidate += 1) {
+    const position = telephone?.[candidate] ?? candidate;
+    const row =
+      columns && (query.kind === "words" || telephone !== null)
+        ? undefined
+        : index.rows[position];
+    const category =
+      columns?.categoryAt(position) ??
+      row?.category ??
+      fail("A search index row is missing");
+    const rank =
+      query.kind === "telephone"
+        ? telephone || row?.phones.includes(query.number)
+          ? nameRank.exact
+          : unmatchedRank
+        : rankOf(
+            columns?.comparisonNames[position] ??
+              row?.searchName ??
+              fail("A search index name is missing"),
+            columns?.regionAt(position) ??
+              row?.region ??
+              fail("A search index region is missing"),
+            category,
+          );
+    if (rank !== unmatchedRank) matched(position, category, rank);
+  }
 }
 
 export function matchIndex(
@@ -120,19 +154,14 @@ export function matchIndex(
 ): LocalMatches {
   if (query.kind === "empty") return { categories: [], total: 0 };
   const buckets = new Map<string, number[][]>();
-  const { rows } = index;
-  const rankOf = rowRank(index, query);
-  for (let position = 0; position < rows.length; position += 1) {
-    const row = rows[position] ?? fail("A search index row is missing");
-    const rank = rankOf(row);
-    if (rank === unmatchedRank) continue;
-    let bucket = buckets.get(row.category);
+  forEachMatch(index, query, (position, category, rank) => {
+    let bucket = buckets.get(category);
     if (!bucket) {
       bucket = nameRankValues.map(() => []);
-      buckets.set(row.category, bucket);
+      buckets.set(category, bucket);
     }
     (bucket[rank] ?? fail("A search rank is out of range")).push(position);
-  }
+  });
   const ranked: RankedCategory[] = [];
   for (const [category, bucket] of buckets) {
     const rank = bucket.findIndex((entries) => entries.length > 0);
@@ -161,13 +190,9 @@ export function orderedIndexRows(
 ): readonly number[] {
   if (query.kind === "empty") return [];
   const buckets: number[][] = nameRankValues.map(() => []);
-  const rankOf = rowRank(index, query);
-  for (let position = 0; position < index.rows.length; position += 1) {
-    const row = index.rows[position] ?? fail("A search index row is missing");
-    const rank = rankOf(row);
-    if (rank !== unmatchedRank)
-      (buckets[rank] ?? fail("A search rank is out of range")).push(position);
-  }
+  forEachMatch(index, query, (position, _category, rank) => {
+    (buckets[rank] ?? fail("A search rank is out of range")).push(position);
+  });
   return buckets.flat();
 }
 
