@@ -101,6 +101,12 @@ A query-run identity rejects late replies after cancellation, and the screen hid
 `DirectoryViewModelTest` controls coroutine scheduling under the [Android coroutine testing guidance](https://developer.android.com/kotlin/coroutines/test) and reproduces a generation change between two page requests.
 The regression requires the replacement generation's preview and prevents an update from skipping its first results.
 Controlled jobs also cover category failures, retries, duplicate requests, reversed completion order, and late replies from an earlier query.
+Composition starts a fresh query-run identity and cancels earlier work without starting a repository query.
+The adapter observes text and composition together, so an unchanged-text commit still starts a search.
+Preparation awaits its result before copying the current state, which preserves text edited while import was running.
+Controlled scheduling tests cover preparation, refresh, commit, and late preview replies during composition.
+The device UI test exercises the real input connection's composing and finishing operations.
+Input methods and Compose observation remain platform boundaries.
 
 `PublicationPolicy.canActivate` corresponds to `canActivate` and permits a write only from an indexed, admitted candidate.
 `PublicationPolicy.select` corresponds to `select` over optional active generations, four stages, validation, and the observed pointer.

@@ -26,8 +26,8 @@ internal fun SearchScreen(
     select: (Contact) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SearchField(state.query) { model.search(it) }
-        val answered = state.resultQuery == state.query
+        SearchField(state.query) { query, composing -> model.search(query, composing) }
+        val answered = state.hasCurrentResults
         if (state.query.isBlank()) Text(stringResource(R.string.empty_query))
         else if (state.searching) Text(stringResource(R.string.searching))
         else if (state.searchFailed) {

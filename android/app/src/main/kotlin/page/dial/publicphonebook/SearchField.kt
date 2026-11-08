@@ -19,11 +19,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 
 @Composable
-internal fun SearchField(initialQuery: String, changed: (String) -> Unit) {
+internal fun SearchField(initialQuery: String, changed: (String, Boolean) -> Unit) {
     val text = rememberTextFieldState(initialText = initialQuery)
     val onChanged by rememberUpdatedState(changed)
     val focus = LocalFocusManager.current
-    LaunchedEffect(text) { snapshotFlow { text.text.toString() }.collect { onChanged(it) } }
+    LaunchedEffect(text) {
+        snapshotFlow { SearchEdit(text.text.toString(), text.composition != null) }
+            .collect { onChanged(it.text, it.composing) }
+    }
     OutlinedTextField(
         state = text,
         label = { Text(stringResource(R.string.query_label)) },
@@ -33,3 +36,5 @@ internal fun SearchField(initialQuery: String, changed: (String) -> Unit) {
         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
     )
 }
+
+private data class SearchEdit(val text: String, val composing: Boolean)

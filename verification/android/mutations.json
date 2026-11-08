@@ -58,10 +58,12 @@
     {"id":"service-path-traversal-allowed","module":"data","file":"Wire.kt","test":"WireContractTest","original":"uri.normalize() == uri","replacement":"true"},
     {"id":"delta-interruption-falls-back","module":"data","file":"DeviceDirectory.kt","test":"SynchronizationTest","original":"throw interrupted","replacement":"null"},
     {"id":"caller-lookup-timeout-ignored","module":"app","file":"PhonebookScreeningService.kt","test":"ScreeningServiceTest","original":"withTimeoutOrNull(CallerPolicy.LOOKUP_BUDGET_MILLIS)","replacement":"withTimeoutOrNull(2000L)"},
-    {"id":"pagination-mixes-queries","module":"app","file":"DirectoryViewModel.kt","test":"DirectoryViewModelTest","original":"state.value.resultQuery != query","replacement":"state.value.query != query"},
+    {"id":"pagination-mixes-queries","module":"app","file":"DirectoryViewModel.kt","test":"DirectoryViewModelTest","original":"!state.value.hasCurrentResults","replacement":"false"},
     {"id":"preview-allows-a-fourth-result","module":"data","file":"DirectoryQuery.kt","test":"SearchRepositoryTest","original":"group.rows.size < DirectoryLimits.SEARCH_PREVIEW_SIZE","replacement":"group.rows.size <= DirectoryLimits.SEARCH_PREVIEW_SIZE"},
     {"id":"preview-forgets-complete-counts","module":"data","file":"DirectoryQuery.kt","test":"SearchRepositoryTest","original":"group.total++","replacement":"group.total = group.rows.size.toLong()"},
     {"id":"search-order-folds-kana","module":"data","file":"SearchOrder.kt","test":"SearchRepositoryTest","original":"Normalizer.normalize(name, Normalizer.Form.NFKC).lowercase(Locale.ROOT).trim()","replacement":"SearchForms.load().form(name)"},
-    {"id":"search-migration-is-not-committed","module":"data","file":"SearchOrder.kt","test":"SearchRepositoryTest","original":"transaction.commit()","replacement":""}
+    {"id":"search-migration-is-not-committed","module":"data","file":"SearchOrder.kt","test":"SearchRepositoryTest","original":"transaction.commit()","replacement":""},
+    {"id":"search-runs-during-composition","module":"app","file":"DirectoryViewModel.kt","test":"DirectoryViewModelTest","original":"if (composing) return","replacement":""},
+    {"id":"preparation-overwrites-current-input","module":"app","file":"DirectoryViewModel.kt","test":"DirectoryViewModelTest","original":"val ready = repository.prepare()\n                state.value = state.value.copy(sync = ready)","replacement":"state.value = state.value.copy(sync = repository.prepare())"}
   ]
 }

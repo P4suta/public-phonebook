@@ -47,6 +47,70 @@ class DirectoryViewModelTest {
     }
 
     @Test
+    fun composingDraftsWaitForAnUnchangedTextCommitBeforeSearching() = runTest {
+        val repository = Pages(results(page()))
+        val model = model(repository)
+        advanceUntilIdle()
+        repository.previews.clear()
+        model.search("国", composing = true)
+        advanceUntilIdle()
+        assertTrue(repository.previews.isEmpty())
+        model.search("国立", composing = true)
+        model.more("library")
+        model.refresh()
+        advanceUntilIdle()
+        assertEquals("国立", model.uiState.value.query)
+        assertTrue(model.uiState.value.composing)
+        assertFalse(model.uiState.value.searching)
+        assertTrue(repository.previews.isEmpty())
+        assertTrue(repository.searches.isEmpty())
+        model.search("国立")
+        advanceUntilIdle()
+        assertEquals(listOf("国立"), repository.previews)
+        assertEquals("国立", model.uiState.value.resultQuery)
+        assertFalse(model.uiState.value.composing)
+    }
+
+    @Test
+    fun preparationDoesNotCommitAnActiveComposition() = runTest {
+        val waiting = CompletableDeferred<Unit>()
+        val repository = Pages(results(page()))
+        repository.beforePrepare = { waiting.await() }
+        val model = model(repository)
+        runCurrent()
+        model.search("国立", composing = true)
+        advanceUntilIdle()
+        waiting.complete(Unit)
+        advanceUntilIdle()
+        assertTrue(model.uiState.value.composing)
+        assertTrue(repository.previews.isEmpty())
+        model.search("国立")
+        advanceUntilIdle()
+        assertEquals(listOf("国立"), repository.previews)
+    }
+
+    @Test
+    fun aLatePreviewCannotPublishDuringComposition() = runTest {
+        val repository = Pages(results(page()))
+        val model = model(repository)
+        advanceUntilIdle()
+        val waiting = CompletableDeferred<Unit>()
+        repository.beforePreview = { withContext(NonCancellable) { waiting.await() } }
+        model.search("国立")
+        advanceTimeBy(180)
+        runCurrent()
+        model.search("国立", composing = true)
+        waiting.complete(Unit)
+        advanceUntilIdle()
+        assertTrue(model.uiState.value.composing)
+        assertFalse(model.uiState.value.searching)
+        assertEquals("", model.uiState.value.resultQuery)
+        model.search("国立")
+        advanceUntilIdle()
+        assertEquals("国立", model.uiState.value.resultQuery)
+    }
+
+    @Test
     fun eachCategoryExpandsFromItsPreviewAndContinuesIndependently() = runTest {
         val repository =
             Pages(
@@ -315,12 +379,14 @@ private class Pages(var previewResponse: SearchResults, vararg pages: SearchPage
     val searches = mutableListOf<Pair<String, Int>>()
     val previews = mutableListOf<String>()
     var beforePreview: suspend (String) -> Unit = {}
+    var beforePrepare: suspend () -> Unit = {}
     var beforeSearch: suspend (String) -> Unit = {}
     var beforeRefresh: suspend () -> Unit = {}
     var prepareFailure: Exception? = null
     var refreshes = 0
 
     override suspend fun prepare(): SyncState.Ready {
+        beforePrepare()
         prepareFailure?.let { throw it }
         return SyncState.Ready(requireNotNull(previewResponse.snapshot), previewResponse.total)
     }

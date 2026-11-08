@@ -2,6 +2,7 @@ package page.dial.publicphonebook
 
 import android.graphics.Bitmap
 import android.os.Build
+import android.view.inputmethod.EditorInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -20,10 +21,10 @@ import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
-import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.ViewModelProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import org.junit.Rule
@@ -37,8 +38,7 @@ class DirectoryUiTest {
         rule.waitUntil(PREPARATION_TIMEOUT_MILLIS) {
             rule.onAllNodesWithText("施設名・地域・電話番号").fetchSemanticsNodes().isNotEmpty()
         }
-        rule.onNodeWithText("施設名・地域・電話番号").performTextInput("図書館")
-        rule.waitUntil(SEARCH_TIMEOUT_MILLIS) { imeVisible() }
+        composeSearch()
         rule.waitUntil(SEARCH_TIMEOUT_MILLIS) {
             rule.onAllNodes(resultButton).fetchSemanticsNodes().isNotEmpty()
         }
@@ -67,6 +67,25 @@ class DirectoryUiTest {
                 .fetchSemanticsNodes()
                 .isNotEmpty()
         }
+    }
+
+    private fun composeSearch() {
+        rule.onNodeWithText("施設名・地域・電話番号").performClick()
+        rule.waitUntil(SEARCH_TIMEOUT_MILLIS) { imeVisible() }
+        val model = rule.runOnIdle {
+            ViewModelProvider(rule.activity)[DirectoryViewModel::class.java]
+        }
+        val connection = rule.runOnIdle {
+            requireNotNull(rule.activity.currentFocus?.onCreateInputConnection(EditorInfo()))
+        }
+        rule.runOnIdle { check(connection.setComposingText("図書館", 1)) }
+        rule.waitUntil(SEARCH_TIMEOUT_MILLIS) {
+            model.uiState.value.composing && model.uiState.value.query == "図書館"
+        }
+        rule.onAllNodes(resultButton).assertCountEquals(0)
+        capture("search-composing")
+        rule.runOnIdle { check(connection.finishComposingText()) }
+        rule.waitUntil(SEARCH_TIMEOUT_MILLIS) { !model.uiState.value.composing }
     }
 
     private fun expandLibrary() {

@@ -23,6 +23,7 @@ data class DirectoryUiState(
     val resultQuery: String? = null,
     val results: SearchResults = SearchResults(emptyList(), null),
     val searching: Boolean = false,
+    val composing: Boolean = false,
     val searchFailed: Boolean = false,
     val expandedCategories: Set<String> = emptySet(),
     val loadingCategories: Set<String> = emptySet(),
@@ -30,7 +31,10 @@ data class DirectoryUiState(
     val updating: Boolean = false,
     val updateMessage: Int? = null,
     val selected: Contact? = null,
-)
+) {
+    val hasCurrentResults: Boolean
+        get() = !composing && resultQuery == query
+}
 
 class DirectoryViewModel(
     private val repository: DirectoryRepository,
@@ -50,8 +54,9 @@ class DirectoryViewModel(
         state.value = state.value.copy(sync = SyncState.Preparing)
         viewModelScope.launch {
             try {
-                state.value = state.value.copy(sync = repository.prepare())
-                search(state.value.query)
+                val ready = repository.prepare()
+                state.value = state.value.copy(sync = ready)
+                search(state.value.query, state.value.composing)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -60,7 +65,7 @@ class DirectoryViewModel(
         }
     }
 
-    fun search(query: String) {
+    fun search(query: String, composing: Boolean = false) {
         searchJob?.cancel()
         categoryJobs.values.forEach { it.cancel() }
         categoryJobs.clear()
@@ -70,12 +75,14 @@ class DirectoryViewModel(
         state.value =
             state.value.copy(
                 query = query,
-                searching = true,
+                searching = !composing,
+                composing = composing,
                 searchFailed = false,
                 expandedCategories = emptySet(),
                 loadingCategories = emptySet(),
                 failedCategories = emptySet(),
             )
+        if (composing) return
         searchJob = viewModelScope.launch {
             try {
                 delay(SEARCH_SETTLE_MILLIS)
@@ -96,7 +103,7 @@ class DirectoryViewModel(
         val query = state.value.query
         if (
             state.value.searching ||
-                state.value.resultQuery != query ||
+                !state.value.hasCurrentResults ||
                 category in state.value.loadingCategories
         )
             return
@@ -181,7 +188,7 @@ class DirectoryViewModel(
                         updating = false,
                         updateMessage = R.string.update_done,
                     )
-                search(state.value.query)
+                search(state.value.query, state.value.composing)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {

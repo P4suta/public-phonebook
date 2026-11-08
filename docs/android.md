@@ -85,6 +85,10 @@ The [separate sort key](adr/keep-android-search-order-separate-from-comparison-f
 Existing saved databases migrate the key locally in a transaction before search, while archive data and caller lookup remain available.
 Preview queries stream identifiers and counts before decoding only the selected contacts.
 Cancelling a search coroutine also cancels its SQLite queries.
+The text field observes its native composing range together with the text.
+Conversion drafts cancel earlier work and wait for composition to finish before searching, including an unchanged-text commit.
+Preparation and refresh preserve an active composition.
+The device UI test drives the real input connection through composition and commit before checking results.
 
 A transfer starts only on an unmetered connection without Data Saver restrictions.
 Partial files persist under their expected digest, and a resume requires the exact `Content-Range`.
