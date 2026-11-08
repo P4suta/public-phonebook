@@ -5,6 +5,7 @@ import { read, utils } from "xlsx";
 
 const maximumTableRows = 100000;
 const maximumTableColumns = 256;
+const maximumRowSpan = 65534;
 const defaultSpan = 1;
 
 export interface SourceTable {
@@ -106,6 +107,7 @@ function span(value: string | undefined, remaining: number): number {
 export function readHtmlTables(
   html: string,
   selector = "table",
+  layout: "table" | "definition" = "table",
 ): readonly SourceTable[] {
   const $ = load(html);
   $("br").replaceWith("\n");
@@ -131,10 +133,12 @@ export function readHtmlTables(
             $(cell).attr("colspan"),
             maximumTableColumns - column,
           );
-          const height = span(
-            $(cell).attr("rowspan"),
-            elements.length - rowIndex,
-          );
+          const remainingRows = elements.length - rowIndex;
+          const rowSpan = $(cell).attr("rowspan");
+          const height =
+            rowSpan === "0"
+              ? remainingRows
+              : Math.min(span(rowSpan, maximumRowSpan), remainingRows);
           const text = $(cell).text().replaceAll("\u00a0", " ").trim();
           for (
             let nextRow = rowIndex;
@@ -151,6 +155,25 @@ export function readHtmlTables(
           }
           column += width;
         }
+      }
+      if (layout === "definition") {
+        let anchor = $(table);
+        let heading = "";
+        while (!heading && anchor.length) {
+          heading = anchor.prevAll("h1, h2, h3, h4").first().text().trim();
+          anchor = anchor.parent();
+        }
+        heading ||= $(table).find("caption").first().text().trim();
+        if (!heading)
+          throw new Error("A directory record has no published heading");
+        const fields = rows.filter((row) => row[0]?.trim());
+        return {
+          name: heading,
+          rows: [
+            ["名称", ...fields.map((row) => row[0] ?? "")],
+            [heading, ...fields.map((row) => row.slice(1).join("\n"))],
+          ],
+        };
       }
       return {
         name:

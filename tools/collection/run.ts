@@ -152,8 +152,16 @@ export async function collectDirectories(input: {
             : format === "workbook"
               ? readWorkbookTables(bytes)
               : format === "html"
-                ? readHtmlTables(decodeSourceText(bytes), plan.selector)
-                : await readPdfTables(bytes, plan.pdfColumns);
+                ? readHtmlTables(
+                    decodeSourceText(bytes),
+                    plan.selector,
+                    plan.htmlLayout,
+                  )
+                : await readPdfTables(
+                    bytes,
+                    plan.pdfColumns,
+                    plan.pdfRecordColumn,
+                  );
         if (!tables) throw new Error(`Unsupported source format: ${format}`);
         const sourceId = `${plan.id}:${createHash("sha256")
           .update(
