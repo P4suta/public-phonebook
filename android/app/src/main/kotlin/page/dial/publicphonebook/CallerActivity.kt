@@ -8,16 +8,18 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import page.dial.core.DirectoryLimits
 
@@ -33,7 +35,9 @@ class CallerActivity : ComponentActivity() {
             PhonebookTheme {
                 Surface(Modifier.fillMaxSize()) {
                     Column(
-                        Modifier.safeDrawingPadding().padding(24.dp),
+                        Modifier.safeDrawingPadding()
+                            .verticalScroll(rememberScrollState())
+                            .padding(24.dp),
                         verticalArrangement = Arrangement.spacedBy(24.dp),
                     ) {
                         Text(
@@ -44,14 +48,13 @@ class CallerActivity : ComponentActivity() {
                             stringResource(R.string.incoming),
                             style = MaterialTheme.typography.titleMedium,
                         )
-                        Text(caller.value.first, style = MaterialTheme.typography.headlineLarge)
+                        Text(
+                            caller.value.first,
+                            style = MaterialTheme.typography.headlineLarge,
+                            modifier = Modifier.semantics { heading() },
+                        )
                         if (caller.value.second.isNotEmpty()) Text(caller.value.second)
-                        OutlinedButton(
-                            onClick = { finish() },
-                            modifier = Modifier.heightIn(min = 48.dp),
-                        ) {
-                            Text(stringResource(R.string.close))
-                        }
+                        Action(R.string.close, R.drawable.ic_close) { finish() }
                     }
                 }
             }

@@ -2,8 +2,10 @@ package page.dial.publicphonebook
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -29,7 +31,13 @@ internal fun SearchField(initialQuery: String, changed: (String, Boolean) -> Uni
     }
     OutlinedTextField(
         state = text,
+        shape = RoundedCornerShape(12.dp),
         label = { Text(stringResource(R.string.query_label)) },
+        leadingIcon = { PhonebookIcon(R.drawable.ic_search) },
+        trailingIcon = {
+            if (text.text.isNotEmpty())
+                IconAction(R.string.clear_query, R.drawable.ic_close) { text.clearText() }
+        },
         lineLimits = TextFieldLineLimits.SingleLine,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         onKeyboardAction = { focus.clearFocus() },
