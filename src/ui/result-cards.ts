@@ -1,5 +1,6 @@
 import type { LocalRow } from "../core/local-search-protocol.ts";
 import type { Contact } from "../core/models.ts";
+import { localContactHref } from "../core/private-navigation.ts";
 import { showsAddress } from "../core/search.ts";
 
 const countryPrefix = "+81";
@@ -101,7 +102,7 @@ export function localCard(
       (national) => `${countryPrefix}${national.slice(trunkPrefixLength)}`,
     ),
     hasAddress: row.hasAddress,
-    href: `/contacts/row/${snapshot}/${row.row}?from=${encodeURIComponent(returnTo)}`,
+    href: localContactHref(`/contacts/row/${snapshot}/${row.row}`, returnTo),
     row: { snapshot, row: row.row },
   };
 }

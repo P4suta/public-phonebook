@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { ReactElement } from "react";
+import { contactReturnHref } from "../core/private-navigation.ts";
 import { getCatalog, getSource } from "../ui/client.ts";
 import { BackButton, LinkButton, OfficialLink } from "../ui/components.tsx";
 import { uiCopy } from "../ui/copy.ts";
+import { PrivateReturnNavigation } from "../ui/private-return-navigation.tsx";
 import { getRouteContact } from "../ui/route-data.ts";
 import * as css from "../ui/styles.css.ts";
 import { formatDate, validateReturnSearch } from "./contacts.$id.tsx";
@@ -32,11 +34,18 @@ function SourcePage(): ReactElement {
   return (
     <main id="main" className={css.page}>
       <div className={css.stack}>
-        <BackButton
-          href={`/contacts/${encodeURIComponent(contact.id)}?from=${encodeURIComponent(from)}`}
-        >
-          施設の情報にもどる
-        </BackButton>
+        <PrivateReturnNavigation from={from}>
+          {(target) => (
+            <BackButton
+              href={contactReturnHref(
+                `/contacts/${encodeURIComponent(contact.id)}`,
+                target,
+              )}
+            >
+              施設の情報にもどる
+            </BackButton>
+          )}
+        </PrivateReturnNavigation>
         <h1 className={css.heading}>{uiCopy.sourceTitle}</h1>
         <h2 className={css.subheading}>{contact.name}</h2>
         {contact.phones.map((phone) => (

@@ -15,6 +15,7 @@ import { CategorySchema } from "../core/catalog.ts";
 import { searchSource } from "../core/local-search-policy.ts";
 import type { LocalRow } from "../core/local-search-protocol.ts";
 import type { Contact, GroupedSearchResponse } from "../core/models.ts";
+import { localContactHref, privateSearch } from "../core/private-navigation.ts";
 import {
   completeTelephone,
   inputScript,
@@ -121,6 +122,7 @@ export function SearchPage(): ReactElement {
   const keystrokes = useRef<number[]>([]);
   const form = useRef<HTMLFormElement>(null);
   const restoredInput = useRef(false);
+  const restoredFragment = useRef(false);
   const active = hasSearch(search);
   const key = webSearchParameters(search).toString();
   const localKey = webSearchParameters({ ...search, cursor: "" }).toString();
@@ -202,8 +204,23 @@ export function SearchPage(): ReactElement {
   );
 
   useEffect(() => {
+    if (restoredFragment.current || readiness === "loading") return;
+    const restored = privateSearch(window.location.hash);
+    if (!restored) return;
+    restoredFragment.current = true;
+    void navigate({
+      to: "/",
+      search: { ...restored, error: "" },
+      hash: "",
+      replace: true,
+      resetScroll: false,
+    });
+  }, [readiness, navigate]);
+
+  useEffect(() => {
     if (restoredInput.current || !form.current) return;
     restoredInput.current = true;
+    if (privateSearch(window.location.hash)) return;
     const restored = parseWebSearch(
       Object.fromEntries(new FormData(form.current)),
     );
@@ -256,7 +273,10 @@ export function SearchPage(): ReactElement {
         try {
           const located = await getRowLocation(row.snapshot, String(row.row));
           window.location.assign(
-            `/contacts/${encodeURIComponent(located.id)}?from=${encodeURIComponent(returnTo)}`,
+            localContactHref(
+              `/contacts/${encodeURIComponent(located.id)}`,
+              returnTo,
+            ),
           );
         } catch (error) {
           if (
