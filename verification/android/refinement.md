@@ -110,7 +110,8 @@ The regression requires the replacement generation's preview and prevents an upd
 Controlled jobs also cover category failures, retries, duplicate requests, reversed completion order, and late replies from an earlier query.
 Composition starts a fresh query-run identity and cancels earlier work without starting a repository query.
 The adapter observes text and composition together, so an unchanged-text commit still starts a search.
-Preparation awaits its result before copying the current state, which preserves text edited while import was running.
+Preparation and refresh await their result before copying the current state, preserving text edited during either operation.
+Suspended refresh tests cover both a committed query and an active composition.
 Controlled scheduling tests cover preparation, refresh, commit, and late preview replies during composition.
 The device UI test exercises the real input connection's composing and finishing operations.
 Input methods and Compose observation remain platform boundaries.

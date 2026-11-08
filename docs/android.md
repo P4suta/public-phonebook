@@ -89,6 +89,8 @@ Preview queries stream identifiers and counts before decoding only the selected 
 Cancelling a search coroutine also cancels its SQLite queries.
 The text field observes its native composing range together with the text.
 Conversion drafts cancel earlier work and wait for composition to finish before searching, including an unchanged-text commit.
+Preparation and refresh apply their result to the current screen state after the repository operation finishes.
+Input committed or composed during either operation stays in the search field.
 Preparation and refresh preserve an active composition.
 The device UI test drives the real input connection through composition and commit before checking results.
 

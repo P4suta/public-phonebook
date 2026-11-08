@@ -300,6 +300,51 @@ class DirectoryViewModelTest {
     }
 
     @Test
+    fun refreshPreservesCompositionTypedDuringTheUpdate() = runTest {
+        val repository = Pages(results(page()))
+        val model = model(repository)
+        advanceUntilIdle()
+        repository.previews.clear()
+        val waiting = CompletableDeferred<Unit>()
+        repository.beforeRefresh = { waiting.await() }
+        model.refresh()
+        runCurrent()
+        model.search("国立", composing = true)
+        advanceUntilIdle()
+        waiting.complete(Unit)
+        advanceUntilIdle()
+        assertEquals("国立", model.uiState.value.query)
+        assertTrue(model.uiState.value.composing)
+        assertFalse(model.uiState.value.updating)
+        assertTrue(repository.previews.isEmpty())
+        model.search("国立")
+        advanceUntilIdle()
+        assertEquals(listOf("国立"), repository.previews)
+        assertEquals("国立", model.uiState.value.resultQuery)
+    }
+
+    @Test
+    fun refreshPreservesCommittedInputTypedDuringTheUpdate() = runTest {
+        val repository = Pages(results(page()))
+        val model = model(repository)
+        advanceUntilIdle()
+        repository.previews.clear()
+        val waiting = CompletableDeferred<Unit>()
+        repository.beforeRefresh = { waiting.await() }
+        model.refresh()
+        runCurrent()
+        model.search("国立")
+        advanceUntilIdle()
+        waiting.complete(Unit)
+        advanceUntilIdle()
+        assertEquals("国立", model.uiState.value.query)
+        assertEquals("国立", model.uiState.value.resultQuery)
+        assertFalse(model.uiState.value.composing)
+        assertFalse(model.uiState.value.updating)
+        assertEquals(listOf("国立", "国立"), repository.previews)
+    }
+
+    @Test
     fun overlappingRefreshesRunOnceAndFailureKeepsSearchAvailable() = runTest {
         val initial = results(page())
         val repository = Pages(initial)

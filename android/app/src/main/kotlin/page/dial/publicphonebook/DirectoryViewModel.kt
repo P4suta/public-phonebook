@@ -182,9 +182,10 @@ class DirectoryViewModel(
         state.value = state.value.copy(updating = true, updateMessage = null)
         viewModelScope.launch {
             try {
+                val ready = repository.refresh()
                 state.value =
                     state.value.copy(
-                        sync = repository.refresh(),
+                        sync = ready,
                         updating = false,
                         updateMessage = R.string.update_done,
                     )
