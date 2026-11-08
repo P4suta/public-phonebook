@@ -134,6 +134,15 @@ Earlier private-context measurements aren't a paired comparison with the persist
 Supply `--profile NAME` for a focused investigation, and omit it for the required four-profile campaign.
 The release gate's existing performance observation keeps the budget fields with the candidate evidence.
 
+The national literal campaign on 2026-11-09 measured Chromium's Worker round-trip p95 at 46.6 ms.
+Chromium with fourfold page CPU throttling took 48.2 ms.
+Desktop and mobile WebKit took 39 and 37 ms.
+Admission after artifact arrival took 857–911 ms.
+The sampled added physical footprint ranged from 195,461,816 to 296,419,760 bytes across the complete owned browser process trees.
+Retained search buffers use 4,787,736 bytes within an 8 MiB guard.
+Complete browser processes still require much more than a few megabytes.
+The process figures include runtime and rendering costs outside the typed search buffers.
+
 On macOS, the maintained step meter also reads current and lifetime peak physical-footprint counters through `proc_pid_rusage`.
 [Apple's memory guidance](https://developer.apple.com/videos/play/wwdc2022/10106/) distinguishes physical footprint from resident memory when assessing process limits.
 Each poll adds current process footprints, while the separate sum of process lifetime peaks doesn't represent a simultaneous peak.
