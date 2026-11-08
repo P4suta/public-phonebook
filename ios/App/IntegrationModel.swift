@@ -2,14 +2,19 @@ import BackgroundTasks
 import CallKit
 import Foundation
 import Network
-import OSLog
 import Observation
 import PhonebookCore
 import PhonebookKit
 import SwiftUI
 
+#if PHONEBOOK_VERIFICATION_TOOLS
+  import OSLog
+#endif
+
 enum ExtensionOperations {
-  private static let logger = Logger(subsystem: "page.dial.publicphonebook", category: "caller")
+  #if PHONEBOOK_VERIFICATION_TOOLS
+    private static let logger = Logger(subsystem: "page.dial.publicphonebook", category: "caller")
+  #endif
 
   /// Reduces a Call Directory error to its code, which the reload decision reads without CallKit.
   private static func classified(_ error: any Error) -> any Error {
@@ -24,10 +29,12 @@ enum ExtensionOperations {
         withIdentifier: AppIdentity.callDirectory
       ) { status, error in
         if let error {
-          let failure = error as NSError
-          logger.error(
-            "caller.status result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public)"
-          )
+          #if PHONEBOOK_VERIFICATION_TOOLS
+            let failure = error as NSError
+            logger.error(
+              "caller.status result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public)"
+            )
+          #endif
           continuation.resume(throwing: classified(error))
         } else if status == .unknown {
           continuation.resume(throwing: ServiceError.invalidResponse)
@@ -45,10 +52,12 @@ enum ExtensionOperations {
         withIdentifier: AppIdentity.callDirectory
       ) { error in
         guard let error else { return continuation.resume() }
-        let failure = error as NSError
-        logger.error(
-          "caller.reload result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public)"
-        )
+        #if PHONEBOOK_VERIFICATION_TOOLS
+          let failure = error as NSError
+          logger.error(
+            "caller.reload result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public)"
+          )
+        #endif
         continuation.resume(throwing: classified(error))
       }
     }
