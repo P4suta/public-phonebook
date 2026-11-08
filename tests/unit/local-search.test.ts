@@ -76,6 +76,10 @@ const placeWords = [
   "病院",
   "博物館",
   "神奈川",
+  "とうきょう",
+  "としょかん",
+  "びょういん",
+  "びじゅつかん",
 ] as const;
 const sharedNames = [
   "図書館",
@@ -103,6 +107,30 @@ function modelPlaces(contact: ModelContact): string[] {
     modelCatalog.categories.find((item) => item.id === contact.category)
       ?.label ?? "",
   ];
+}
+
+function modelReading(contact: ModelContact, word: string): boolean {
+  if (
+    word.length < 2 ||
+    Array.from(word).some(
+      (letter) =>
+        !"ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゝゞ-".includes(
+          letter,
+        ),
+    )
+  )
+    return false;
+  const readings: Record<string, readonly string[]> = {
+    library: ["としょかん"],
+    medical: ["びょういん", "しんりょうじょ", "しんりょうしょ"],
+    museum: ["はくぶつかん", "びじゅつかん"],
+    "13": ["とうきょうと"],
+    "14": ["かながわけん"],
+  };
+  return [
+    ...(readings[contact.category] ?? []),
+    ...(readings[contact.prefectureCode] ?? []),
+  ].some((reading) => reading.startsWith(word));
 }
 
 interface ReferenceGroup {
@@ -134,7 +162,12 @@ function referenceSearch(
       )
         ? [{ contact, normalized, row, rank: 0 }]
         : [];
-    const rank = referenceRank(contact.name, modelPlaces(contact), words);
+    const rank = referenceRank(
+      contact.name,
+      modelPlaces(contact),
+      words,
+      (word) => modelReading(contact, word),
+    );
     return rank < 0 ? [] : [{ contact, normalized, row, rank }];
   });
   matched.sort(
@@ -379,6 +412,7 @@ describe.each([
                     contact.name,
                     modelPlaces(contact),
                     referenceWords(query.trim()),
+                    (word) => modelReading(contact, word),
                   )
                 : 0;
             };

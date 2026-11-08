@@ -40,6 +40,10 @@ class DirectoryDeviceTest {
                 results.groups.first().contacts.first().phones.first().number
             )
         assertNotNull(found)
+        val readings = application.directory.preview("とうきょう としょかん")
+        assertTrue(readings.groups.isNotEmpty())
+        assertTrue(readings.groups.all { it.category.id == "library" })
+        assertTrue(readings.groups.flatMap { it.contacts }.all { it.prefecture == "東京都" })
         verifySharedSearchContract()
         val memory = Debug.MemoryInfo().also(Debug::getMemoryInfo)
         instrumentation.sendStatus(

@@ -19,7 +19,8 @@
     <string name="search_failed">検索できませんでした。
 検索をやり直してください。</string>
     <string name="empty_query">施設名、地域名、カテゴリ名、電話番号から検索できます。
-複数の語は空白で区切ってください。</string>
+複数の語は空白で区切ってください。
+都道府県名と主な分類名は、2文字以上の読み仮名でもさがせます。</string>
     <string name="no_matches">一致する施設がありません</string>
     <string name="results">%1$d件</string>
     <string name="category_results">%1$s %2$d件</string>

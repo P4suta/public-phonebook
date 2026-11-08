@@ -1,4 +1,5 @@
 import { nameRankAt, wordRank } from "./local-search-policy.ts";
+import { readingPlaces } from "./place-readings.ts";
 import { searchForm } from "./search-text.ts";
 
 const substringRank = 2;
@@ -72,12 +73,25 @@ function holding(
   return forms.filter(([, form]) => form.includes(word)).map(([code]) => code);
 }
 
-export function wordPlaces(places: PlaceNames, word: string): WordPlaces {
+export function wordPlaces(
+  places: PlaceNames,
+  word: string,
+  mode: "literal" | "with-readings" = "literal",
+): WordPlaces {
   const forms = placeForms(places);
+  const readings = mode === "with-readings" ? readingPlaces(word) : null;
+  const prefectures = new Set(holding(forms.prefectures, word));
+  const categories = new Set(holding(forms.categories, word));
+  for (const code of readings?.prefectures ?? []) prefectures.add(code);
+  for (const id of readings?.categories ?? []) categories.add(id);
   return {
-    prefectures: holding(forms.prefectures, word),
+    prefectures: places.prefectures
+      .filter(({ code }) => prefectures.has(code))
+      .map(({ code }) => code),
     municipalities: holding(forms.municipalities, word),
-    categories: holding(forms.categories, word),
+    categories: places.categories
+      .filter(({ id }) => categories.has(id))
+      .map(({ id }) => id),
   };
 }
 

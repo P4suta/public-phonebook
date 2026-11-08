@@ -64,6 +64,10 @@
     {"id":"search-order-folds-kana","module":"data","file":"SearchOrder.kt","test":"SearchRepositoryTest","original":"Normalizer.normalize(name, Normalizer.Form.NFKC).lowercase(Locale.ROOT).trim()","replacement":"SearchForms.load().form(name)"},
     {"id":"search-migration-is-not-committed","module":"data","file":"SearchOrder.kt","test":"SearchRepositoryTest","original":"transaction.commit()","replacement":""},
     {"id":"search-runs-during-composition","module":"app","file":"DirectoryViewModel.kt","test":"DirectoryViewModelTest","original":"if (composing) return","replacement":""},
-    {"id":"preparation-overwrites-current-input","module":"app","file":"DirectoryViewModel.kt","test":"DirectoryViewModelTest","original":"val ready = repository.prepare()\n                state.value = state.value.copy(sync = ready)","replacement":"state.value = state.value.copy(sync = repository.prepare())"}
+    {"id":"preparation-overwrites-current-input","module":"app","file":"DirectoryViewModel.kt","test":"DirectoryViewModelTest","original":"val ready = repository.prepare()\n                state.value = state.value.copy(sync = ready)","replacement":"state.value = state.value.copy(sync = repository.prepare())"},
+    {"id":"reading-prefilter-loses-saved-matches","module":"data","file":"DirectoryQuery.kt","test":"SearchRepositoryTest","original":"words.filterIndexed { index, _ -> readings[index].isEmpty }","replacement":"words.filterIndexed { _, _ -> true }"},
+    {"id":"reading-category-membership-disabled","module":"data","file":"DirectoryQuery.kt","test":"SearchRepositoryTest","original":"if (places.categories.isNotEmpty())","replacement":"if (false)"},
+    {"id":"reading-prefecture-membership-disabled","module":"data","file":"DirectoryQuery.kt","test":"SearchRepositoryTest","original":"if (places.prefectures.isNotEmpty())","replacement":"if (false)"},
+    {"id":"reading-prefix-becomes-substring","module":"core","file":"PlaceReadings.kt","test":"PlaceReadingsTest","original":"it.startsWith(word)","replacement":"word in it"}
   ]
 }

@@ -28,6 +28,34 @@ class SearchRepositoryTest {
     @get:Rule val temporary = TemporaryFolder()
 
     @Test
+    fun readingsFindPlacesWithoutRebuildingTheSavedFullTextIndex() {
+        val store =
+            namedDirectory(
+                listOf("中央館" to 0, "としょかん分室" to 1, "分室" to 1),
+                kinds = listOf("library", "medical"),
+                region = "13",
+            )
+        val archive = requireNotNull(store.activeArchive())
+        val before = FileDigest.sha256(archive)
+        val database = File(archive.parentFile, "directory.db")
+        val savedIndex = FileDigest.sha256(database)
+        val matches = store.preview("としょかん")
+        assertEquals(2L, matches.total)
+        assertEquals(
+            listOf("としょかん分室", "中央館"),
+            matches.groups.flatMap { it.contacts }.map { it.name },
+        )
+        assertEquals(2L, store.preview("とうきょう としょかん").total)
+        assertEquals(2L, store.preview(List(8) { "としょかん" }.joinToString(" ")).total)
+        assertEquals(3L, store.preview("とうきょう").total)
+        assertEquals(1L, store.preview("と").total)
+        assertEquals(0L, store.preview("としょこ").total)
+        assertEquals(3L, store.search("03-0000-0000").total)
+        assertEquals(before, FileDigest.sha256(archive))
+        assertEquals(savedIndex, FileDigest.sha256(database))
+    }
+
+    @Test
     fun equalRanksFollowNormalizedNamesInsteadOfKanaFoldedNames() {
         val store = namedDirectory(listOf("あ施設" to 0, "が施設" to 0, "ア施設" to 0))
         assertEquals(listOf("あ施設", "が施設", "ア施設"), store.search("施設").contacts.map { it.name })
@@ -234,11 +262,18 @@ class SearchRepositoryTest {
             }
     }
 
-    private fun namedDirectory(names: List<Pair<String, Int>>): SQLiteDirectory {
+    private fun namedDirectory(
+        names: List<Pair<String, Int>>,
+        kinds: List<String> = emptyList(),
+        region: String? = null,
+    ): SQLiteDirectory {
         val fixtures = ContractFixtures(temporary.root)
         val lines = fixtures.decoded("baseline").lines()
         val header = JSONObject(lines[1])
-        val categories = header.getJSONArray("categories")
+        val original = header.getJSONArray("categories")
+        val selected = kinds.map { id -> original.objects().single { it.getString("id") == id } }
+        val categories = if (kinds.isEmpty()) original else org.json.JSONArray(selected)
+        header.put("categories", categories)
         val lastCategory = names.maxOf { it.second }
         while (categories.length() <= lastCategory) {
             val index = categories.length()
@@ -248,7 +283,8 @@ class SearchRepositoryTest {
                     .put("label", "Category $index")
             )
         }
-        val template = lines[2].split('\t')
+        val template = lines[2].split('\t').toMutableList()
+        if (region != null) template[ArchiveColumn.Region.ordinal] = region
         val rows =
             names
                 .map { (name, category) ->

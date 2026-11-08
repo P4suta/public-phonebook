@@ -204,7 +204,12 @@ function mentionsIconName(node: Node | undefined): boolean {
   });
 }
 
-function indexModule(path: string, source: string): ModuleIndex {
+function indexModule(path: string, input: string): ModuleIndex {
+  let source = input;
+  if (path.endsWith(".json")) {
+    const value: unknown = JSON.parse(input);
+    source = `export default (${JSON.stringify(value)});`;
+  }
   const parsed = parseSync(path, source, {
     lang: path.endsWith(".tsx") ? "tsx" : "ts",
   });

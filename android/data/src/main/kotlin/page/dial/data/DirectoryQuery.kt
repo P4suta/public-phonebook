@@ -6,6 +6,7 @@ import page.dial.core.CanonicalPhone
 import page.dial.core.Category
 import page.dial.core.DirectoryLimits
 import page.dial.core.IndexTerms
+import page.dial.core.ReadingPlaces
 import page.dial.core.SearchGroup
 import page.dial.core.SearchPage
 import page.dial.core.SearchResults
@@ -127,11 +128,16 @@ private constructor(
                 clauses += "c.id IN (SELECT contact FROM phones WHERE number=?)"
                 arguments += phone.value
             } else {
-                clauses += "c.id IN (SELECT rowid FROM terms WHERE tokens MATCH ?)"
-                arguments += words.flatMap(IndexTerms::required).distinct().joinToString(" ")
-                words.forEach {
-                    clauses += "(instr(c.name,?)>0 OR instr(c.place,?)>0)"
-                    arguments += listOf(it, it)
+                val readings = words.map(forms::readingPlaces)
+                val indexed = words.filterIndexed { index, _ -> readings[index].isEmpty }
+                if (indexed.isNotEmpty()) {
+                    clauses += "c.id IN (SELECT rowid FROM terms WHERE tokens MATCH ?)"
+                    arguments += indexed.flatMap(IndexTerms::required).distinct().joinToString(" ")
+                }
+                words.forEachIndexed { index, word ->
+                    val condition = wordCondition(word, readings[index])
+                    clauses += condition.first
+                    arguments += condition.second
                 }
             }
             category?.let {
@@ -141,6 +147,20 @@ private constructor(
             val ranking =
                 if (phone != null) "CASE WHEN 1 THEN 0 END" to emptyList() else rank(words)
             return DirectoryQuery(clauses, arguments, ranking)
+        }
+
+        private fun wordCondition(word: String, places: ReadingPlaces): Pair<String, List<String>> {
+            val clauses = arrayListOf("instr(c.name,?)>0", "instr(c.place,?)>0")
+            val values = arrayListOf(word, word)
+            if (places.categories.isNotEmpty()) {
+                clauses += "instr(?, '|' || c.category || '|')>0"
+                values += places.categories.joinToString("|", "|", "|")
+            }
+            if (places.prefectures.isNotEmpty()) {
+                clauses += "instr(?, '|' || substr(c.raw,instr(c.raw,char(9))+1,2) || '|')>0"
+                values += places.prefectures.joinToString("|", "|", "|")
+            }
+            return "(${clauses.joinToString(" OR ")})" to values
         }
 
         private fun rank(words: List<String>): Pair<String, List<String>> {

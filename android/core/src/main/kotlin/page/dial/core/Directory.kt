@@ -111,7 +111,7 @@ object SyncPolicy {
         last == null || (last >= 0 && now >= last && now - last >= UPDATE_INTERVAL_SECONDS)
 }
 
-class SearchText(pairs: List<String>) {
+class SearchText(pairs: List<String>, private val readings: PlaceReadings? = null) {
     private val standardSelectors = FIRST_STANDARD_SELECTOR..LAST_STANDARD_SELECTOR
     private val supplementarySelectors = FIRST_SUPPLEMENTARY_SELECTOR..LAST_SUPPLEMENTARY_SELECTOR
     private val whitespace =
@@ -162,6 +162,9 @@ class SearchText(pairs: List<String>) {
     }
 
     fun form(text: String): String = words(text).joinToString(" ")
+
+    fun readingPlaces(word: String): ReadingPlaces =
+        readings?.matching(word) ?: ReadingPlaces(emptyList(), emptyList())
 
     fun rank(name: String, places: List<String>, query: String): Int {
         val words = words(query)

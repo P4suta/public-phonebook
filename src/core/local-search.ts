@@ -92,7 +92,7 @@ type WordRank = (name: string, region: string, category: string) => number;
 
 function wordRank(index: SearchIndex, words: readonly string[]): WordRank {
   const places = words.map((word) => {
-    const holding = wordPlaces(index.header, word);
+    const holding = wordPlaces(index.header, word, "with-readings");
     return {
       prefectures: new Set(holding.prefectures),
       municipalities: new Set(holding.municipalities),

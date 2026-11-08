@@ -84,6 +84,7 @@ export function referenceRank(
   name: string,
   places: readonly string[],
   words: readonly string[],
+  reading: (word: string) => boolean = () => false,
 ): number {
   if (words.length === 0) return -1;
   const form = referenceForm(name);
@@ -91,7 +92,9 @@ export function referenceRank(
   const named = words.filter((word) => form.includes(word));
   const matched = words.every(
     (word) =>
-      form.includes(word) || placeForms.some((place) => place.includes(word)),
+      form.includes(word) ||
+      placeForms.some((place) => place.includes(word)) ||
+      reading(word),
   );
   if (!matched) return -1;
   if (named.length < words.length) return 3;

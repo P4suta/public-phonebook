@@ -11,7 +11,9 @@ let package = Package(
   targets: [
     .target(name: "PhonebookCore"),
     .systemLibrary(name: "CSQLite"),
-    .target(name: "PhonebookKit", dependencies: ["PhonebookCore", "CSQLite"]),
+    .target(
+      name: "PhonebookKit", dependencies: ["PhonebookCore", "CSQLite"],
+      resources: [.copy("PlaceReadings.json")]),
     // The build runs this tool to admit the bundled archive, and the app never links it.
     .executableTarget(
       name: "BundledAdmission",
@@ -25,7 +27,7 @@ let package = Package(
       ]),
     .testTarget(
       name: "PhonebookKitTests", dependencies: ["PhonebookKit"],
-      resources: [.copy("DirectoryContract.json")]),
+      resources: [.copy("DirectoryContract.json"), .copy("PlaceReadingContract.json")]),
   ],
   swiftLanguageModes: [.v6]
 )

@@ -172,6 +172,6 @@ object SearchForms {
                 Regex("[0-9a-f]+:[0-9a-f]+").findAll(reader.readText()).map { it.value }.toList()
             }
         requireDirectory(pairs.size == VARIANT_PAIRS)
-        return SearchText(pairs)
+        return SearchText(pairs, BundledPlaceReadings.load(SearchText(pairs)))
     }
 }

@@ -322,6 +322,25 @@ export function parityQueries(
       ? `${place}　${fragment}`
       : `${fragment} ${place}`;
   });
+  const readingQueries = [
+    "とうきょう",
+    "としょかん",
+    "とうきょう としょかん",
+    "ﾄｼｮｶﾝ",
+    "びょういん",
+    "やくしょ",
+    "ふく",
+    "と",
+    "としょこ",
+  ];
+  for (
+    let position = 0;
+    position < Math.min(places.length, readingQueries.length);
+    position++
+  ) {
+    const query = readingQueries[position];
+    if (query !== undefined) places[position] = query;
+  }
   return { substrings, names, numbers, absent, places };
 }
 

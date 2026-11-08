@@ -71,6 +71,8 @@ It requires one complete object, rejects duplicate keys, malformed UTF-8, traili
 Search uses FTS4 unigrams and bigrams to narrow candidates, then requires every normalized word with exact substring predicates.
 Bound SQL parameters carry search terms, ranking, category selection, and pagination.
 The canonical kanji variants and shared search fixtures load from their existing source paths.
+The [verified place readings](search-readings.md) add prefecture and common-category prefixes through the same bundled JSON as Web and iPhone.
+Reading predicates query saved category identifiers and archive prefecture codes without rebuilding the saved full-text index.
 The full-text index is an optimization whose candidates must include every exact match.
 Phone lookup uses a separate indexed canonical number and bypasses the word-count limit.
 

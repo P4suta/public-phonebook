@@ -3,14 +3,11 @@ package page.dial.publicphonebook
 import android.graphics.Bitmap
 import android.os.Build
 import android.view.inputmethod.EditorInfo
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollToIndexAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -78,9 +75,9 @@ class DirectoryUiTest {
         val connection = rule.runOnIdle {
             requireNotNull(rule.activity.currentFocus?.onCreateInputConnection(EditorInfo()))
         }
-        rule.runOnIdle { check(connection.setComposingText("図書館", 1)) }
+        rule.runOnIdle { check(connection.setComposingText("とうきょう としょかん", 1)) }
         rule.waitUntil(SEARCH_TIMEOUT_MILLIS) {
-            model.uiState.value.composing && model.uiState.value.query == "図書館"
+            model.uiState.value.composing && model.uiState.value.query == "とうきょう としょかん"
         }
         rule.onAllNodes(resultButton).assertCountEquals(0)
         capture("search-composing")
@@ -124,11 +121,7 @@ class DirectoryUiTest {
     }
 
     companion object {
-        private val resultButton =
-            hasClickAction() and
-                hasText("図書館", substring = true) and
-                !hasText("続きを", substring = true) and
-                SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)
+        private val resultButton = hasTestTag("search-result")
         private const val PREPARATION_TIMEOUT_MILLIS = 180_000L
         private const val SEARCH_TIMEOUT_MILLIS = 30_000L
         private const val PNG_QUALITY = 100

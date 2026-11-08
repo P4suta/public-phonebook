@@ -13,6 +13,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -50,7 +51,8 @@ internal fun SearchScreen(
                 items(group.contacts, key = { "${it.snapshot.value}:${it.row}" }) { contact ->
                     OutlinedButton(
                         onClick = { select(contact) },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        modifier =
+                            Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("search-result"),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
                     ) {
                         Column(Modifier.fillMaxWidth().padding(8.dp)) {

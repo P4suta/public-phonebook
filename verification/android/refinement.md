@@ -92,6 +92,13 @@ The branch order rejects missing words and ranks place matches after complete na
 A single word preserves its name rank, while a query containing two or more words uses the shared name-match rank.
 The shared SearchContract fixtures check normalization, candidate completeness, and result order on the host and both Android runtime targets.
 Unicode normalization, SQLite execution, and full-text tokenization remain runtime contracts rather than Lean semantics.
+`PlaceReadings` validates the shared kana resource and compares folded prefixes of at least two characters.
+The same `PlaceReadingContract.json` cases run through Kotlin, Swift, and TypeScript implementations.
+Reading words bypass Android's saved full-text prefilter because older token indexes contain only literal names and places.
+The final word predicate combines literal matches with bound category membership and the prefecture prefix from each validated archive row.
+Native SQL regressions require complete category counts, literal-name precedence, combined reading words, short-input exclusion, and unchanged archive and telephone lookup.
+Reading resource admission, Unicode comparison, and SQL predicate execution remain tested runtime boundaries.
+The [reading decision](../../docs/adr/match-verified-place-readings-without-a-ranking-companion.md) leaves the existing word-rank theorem unchanged.
 
 `PagePolicy.restart` corresponds to `restartPage` over a continuation flag and two optional snapshot identities.
 The theorem establishes that a continuation restarts exactly when its received snapshot differs from the displayed snapshot.

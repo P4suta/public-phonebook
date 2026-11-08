@@ -176,6 +176,8 @@ Progress reports keep the three stages, so `WaitDisplay` and its proof stay unch
 
 Search runs on the device and sends no query to the service.
 Facility names use literal matching with the saved normalized comparison names.
+The [shared place readings](search-readings.md) also match prefectures and common categories by a kana prefix of at least two characters.
+The small package resource works with existing saved search files and needs no ranking companion.
 Results keep their deterministic name order and category previews.
 Changing the original written input starts a fresh search even when its folded key stays unchanged.
 Complete Japanese telephone numbers keep their existing exact matching path and name order.

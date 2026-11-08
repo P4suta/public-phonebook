@@ -123,7 +123,7 @@ function harness(
 }
 
 describe("local search worker", () => {
-  it("defaults to literal matching with only the name index", async () => {
+  it("matches names and verified place readings with only the name index", async () => {
     const source = fixture();
     const replies: LocalSearchReply[] = [];
     const fetcher = vi.fn(async () =>
@@ -137,7 +137,8 @@ describe("local search worker", () => {
     expect(replies.at(-1)).toMatchObject({ type: "ready" });
     for (const [query, total] of [
       ["図書館", 3],
-      ["としょかん", 0],
+      ["としょかん", 2],
+      ["とうきょう としょかん", 2],
       ["東京 図書館", 3],
       ["03-3581-2331", 2],
     ] as const) {
