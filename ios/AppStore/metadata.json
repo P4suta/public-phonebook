@@ -3,7 +3,7 @@
   "bundleId": "page.dial.publicphonebook",
   "sku": "public-phonebook-ios",
   "primaryLocale": "ja",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "releaseType": "AFTER_APPROVAL",
   "name": "Public Phonebook",
   "subtitle": "登録なしで着信に施設名を表示",
