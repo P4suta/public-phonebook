@@ -215,7 +215,8 @@ Settings holds the caller section, which shows a filled check circle with `許�
 When iOS refuses a reload, `PhonebookCore.CallerReply` decides the state from the [Call Directory error code](https://developer.apple.com/documentation/callkit/cxerrorcodecalldirectorymanagererror-swift.struct/code).
 `currentlyLoading` shows `許可しています・iPhoneが準備しています`, `extensionDisabled` shows the off state, and any other error shows `許可しています・次にアプリを開くと使えるようになります`.
 The app records no generation after a refusal, so the next launch compares the extension's own record with the saved generation and asks again.
-The app logs the error domain and code of every refused reload or status read, and nothing else about it.
+Only QA builds log the error domain and code of a refused reload or status read.
+Production builds discard trace events and compile out unified logging and signposts under the [production diagnostic policy](adr/keep-production-free-of-diagnostic-output.md).
 The About screen shows the date that the app saved its data.
 
 The VerificationDebug and VerificationRelease configurations define the `PHONEBOOK_VERIFICATION_TOOLS` compile condition, and the other four configurations don't.
@@ -245,12 +246,12 @@ A reload that meets `currentlyLoading` waits 3 seconds and asks again, up to fou
 The screen never asks the owner to press the button again.
 The screen also shows the saved data date, the last answered check, the next check time, a waiting transfer, and any problem.
 Its `いま受け取る` button starts a transfer as the person, which may use any path, or the first download before any data exists.
-The gate in `ios-check` scans every file of the unsigned Release app and extension for six markers of QA code and fails on any of them.
-The markers include the verification screen's type name, filename, identifier, and three phrases.
+The gate in `ios-check` scans every file of the unsigned Release app and extension for ten markers of QA code and fails on any of them.
+The markers include the verification screen's type name, filenames, identifier, launch argument, diagnostic output, and three phrases.
 The gate rejects name-index, ranking, packed-search, mapping, and search declaration resources by filename, including empty resources.
-The gate requires all six markers in the VerificationDebug build, which establishes the scan's detection control.
+The gate requires all ten markers in the VerificationDebug build, which establishes the scan's detection control.
 `mise x -- cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- store-build-control` builds Release with the condition defined.
-It passes when the scan rejects that build with all six markers.
+It passes when the scan rejects that build with all ten markers.
 The control plants empty forbidden search resources in its own build and requires filename detection before removing each fixture.
 The normal `ios-check` gate runs the negative control, and App Store export runs the same absence check.
 The about screens, privacy notes, data sources, and licenses are part of the app, and only facility, map, and source pages open in the browser after a confirmation.

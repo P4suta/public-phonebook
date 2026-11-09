@@ -371,6 +371,193 @@ fn measurement(attachment: &Value) -> Result<Value> {
     Ok(json!({"path": path, "metrics": metrics, "storeBytes": stores}))
 }
 
+fn native_measurement(attachment: &Value, results: &Value) -> Result<Value> {
+    let path = text(attachment, "/path");
+    let (_, test, _) = RUN_PATHS
+        .iter()
+        .find(|(known, _, _)| *known == path)
+        .context("A measurement names an unknown path")?;
+    let identifier = format!("DeviceMeasurementTests/{test}()");
+    let matching = results
+        .as_array()
+        .context("Native metrics are not a list")?
+        .iter()
+        .filter(|case| text(case, "/testIdentifier") == identifier)
+        .collect::<Vec<_>>();
+    let [case] = matching.as_slice() else {
+        anyhow::bail!("A measurement needs exactly its named native case");
+    };
+    let runs = case["testRuns"]
+        .as_array()
+        .context("A native case has no test runs")?;
+    let [run] = runs.as_slice() else {
+        anyhow::bail!("A native measurement needs one device run");
+    };
+    let repetitions = attachment["iterations"]
+        .as_u64()
+        .filter(|count| *count > 0)
+        .context("A measurement has no positive iteration count")?;
+    let repetitions = usize::try_from(repetitions)?;
+    let metrics = run["metrics"]
+        .as_array()
+        .context("A native case has no metrics")?
+        .iter()
+        .map(|metric| {
+            let identifier = metric["identifier"]
+                .as_str()
+                .filter(|value| !value.is_empty())
+                .context("A native metric has no identifier")?;
+            let name = metric["displayName"]
+                .as_str()
+                .filter(|value| !value.is_empty())
+                .context("A native metric has no name")?;
+            let unit = metric["unitOfMeasurement"]
+                .as_str()
+                .filter(|value| !value.is_empty())
+                .context("A native metric has no unit")?;
+            let values = metric["measurements"]
+                .as_array()
+                .context("A native metric has no values")?;
+            ensure!(
+                values.len() == repetitions
+                    && values
+                        .iter()
+                        .all(|value| value.as_f64().is_some_and(f64::is_finite)),
+                "A native metric has incomplete finite repetitions"
+            );
+            Ok(json!({"identifier":identifier,"name":name,"unit":unit,"values":values}))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    for (family, unit) in [
+        ("cpu.instructions_retired", "kI"),
+        ("clock.time.monotonic", "s"),
+        ("memory.physical_peak", "kB"),
+        ("disk.logical_writes", "kB"),
+    ] {
+        ensure!(
+            metrics.iter().any(|metric| text(metric, "/identifier")
+                .to_ascii_lowercase()
+                .ends_with(family)
+                && text(metric, "/unit") == unit
+                && metric["values"].as_array().is_some_and(|values| values
+                    .iter()
+                    .all(|value| value.as_f64().is_some_and(|value| value > 0.0)))),
+            "Native metrics omit positive {family} repetitions"
+        );
+    }
+    let mut measured =
+        measurement(&json!({"path":path,"metrics":metrics,"storeBytes":attachment["storeBytes"]}))?;
+    let observations = attachment["observations"]
+        .as_array()
+        .context("A measurement has no phase observations")?;
+    let stores = measured["storeBytes"]
+        .as_array()
+        .context("Measured stores")?;
+    ensure!(
+        stores.len() >= repetitions
+            && stores
+                .iter()
+                .all(|value| value.as_u64().is_some_and(|bytes| bytes > 0))
+            && observations.len() == stores.len(),
+        "A measurement needs phase observations and positive sizes for every trial"
+    );
+    let imports = if path == "bundleThenDelta" { 2 } else { 1 };
+    for observation in observations {
+        let intervals = observation["intervals"]
+            .as_array()
+            .context("An observation has no phase intervals")?;
+        for stage in [1, 2] {
+            ensure!(
+                intervals
+                    .iter()
+                    .filter(|item| item["stage"] == stage)
+                    .count()
+                    == imports,
+                "An observation omits a measured import stage"
+            );
+        }
+        ensure!(
+            intervals.len() == imports * 2
+                && intervals
+                    .iter()
+                    .all(|item| item["rows"].as_u64().is_some_and(|rows| rows > 0)
+                        && item["milliseconds"]
+                            .as_f64()
+                            .is_some_and(|ms| ms.is_finite() && ms > 0.0)),
+            "An observation has invalid phase sizes or times"
+        );
+    }
+    let space = &attachment["space"];
+    let working = space["observedPeakWorkingBytes"]
+        .as_u64()
+        .context("No workspace sample")?;
+    let scratch = space["observedPeakScratchBytes"]
+        .as_u64()
+        .context("No scratch sample")?;
+    let stored = space["finalStoreBytes"]
+        .as_u64()
+        .context("No final store size")?;
+    ensure!(
+        stored > 0
+            && working >= stored
+            && working >= scratch
+            && space["samples"].as_u64().is_some_and(|samples| samples > 0),
+        "A measurement has incomplete workspace samples"
+    );
+    let allocated_working = space["observedPeakWorkingAllocatedBytes"]
+        .as_u64()
+        .context("No allocated workspace sample")?;
+    let allocated_scratch = space["observedPeakScratchAllocatedBytes"]
+        .as_u64()
+        .context("No allocated scratch sample")?;
+    let allocated_stored = space["finalStoreAllocatedBytes"]
+        .as_u64()
+        .context("No allocated store size")?;
+    ensure!(
+        allocated_stored > 0
+            && allocated_working >= allocated_stored
+            && allocated_working >= allocated_scratch,
+        "A measurement has incomplete allocated storage samples"
+    );
+    measured["iterations"] = json!(repetitions);
+    measured["observations"] = attachment["observations"].clone();
+    measured["space"] = space.clone();
+    Ok(measured)
+}
+
+fn device_unlocked(report: &Value) -> bool {
+    report
+        .pointer("/result/passcodeRequired")
+        .and_then(Value::as_bool)
+        == Some(false)
+}
+
+fn require_unlocked(root: &Path, device: &Device) -> Result<()> {
+    let path = root.join("target/ios/device/lock-state.json");
+    logged(
+        root,
+        "device-lock-state",
+        Command::new("xcrun")
+            .args([
+                "devicectl",
+                "device",
+                "info",
+                "lockState",
+                "--device",
+                &device.udid,
+                "--quiet",
+                "--json-output",
+            ])
+            .arg(&path),
+    )?;
+    ensure!(
+        device_unlocked(&serde_json::from_slice(&fs::read(path)?)?),
+        "Unlock {} before preparing the device check",
+        device.model
+    );
+    Ok(())
+}
+
 /// The names of the crash reports for `bundle` that record a `0xdead10cc` termination.
 fn deadlock_reports(reports: &[(String, String)], bundle: &str) -> Vec<String> {
     reports
@@ -688,7 +875,9 @@ fn select(root: &Path, requested: Option<&str>) -> Result<Device> {
 
 /// Refuses before any build unless one iPhone is ready, and records the service's delta inputs for the test bundle.
 pub(super) fn prepare(root: &Path, requested: Option<&str>) -> Result<(Device, DeltaInput)> {
-    Ok((select(root, requested)?, record_inputs(root)?))
+    let device = select(root, requested)?;
+    require_unlocked(root, &device)?;
+    Ok((device, record_inputs(root)?))
 }
 
 pub(super) fn prepare_qa(root: &Path, requested: Option<&str>) -> Result<Device> {
@@ -700,7 +889,9 @@ pub(super) fn prepare_qa(root: &Path, requested: Option<&str>) -> Result<Device>
         root.join(LOCAL_SIGNING).is_file(),
         "Create the ignored {LOCAL_SIGNING} with an authorized development team before installing QA"
     );
-    select(root, requested)
+    let device = select(root, requested)?;
+    require_unlocked(root, &device)?;
+    Ok(device)
 }
 
 fn qa_build(root: &Path, device: &Device) -> Command {
@@ -819,6 +1010,7 @@ pub(super) fn install_qa(root: &Path, device: &Device) -> Result<()> {
 
 /// Measures the planned paths on the device, walks the on-device items, checks the crash logs, and writes the record.
 pub(super) fn run(root: &Path, device: &Device, delta: &DeltaInput) -> Result<()> {
+    let sources = super::source_hashes(root)?;
     let plan = planned_paths(delta);
     let bundle = root.join(RESULT_BUNDLE);
     if bundle.exists() {
@@ -846,7 +1038,40 @@ pub(super) fn run(root: &Path, device: &Device, delta: &DeltaInput) -> Result<()
             command.arg(format!("-only-testing:{TEST_CLASS}/{test}"));
         }
     }
-    logged(root, "device-measure", &mut command)?;
+    command.arg("-only-testing:PhonebookDeviceMeasurements/CallerProbeTests");
+    command.arg("-only-testing:PhonebookDeviceMeasurements/DirectoryStorageSizeTests");
+    let measured = logged(root, "device-measure", &mut command);
+    let restored = logged(
+        root,
+        "device-reopen-qa",
+        Command::new("xcrun").args([
+            "devicectl",
+            "device",
+            "process",
+            "launch",
+            "--device",
+            &device.udid,
+            "--terminate-existing",
+            BUNDLE_IDENTIFIER,
+        ]),
+    );
+    if let Err(error) = measured {
+        return match restored {
+            Ok(_) => Err(error),
+            Err(restore) => {
+                Err(error.context(format!("Restoring interactive QA also failed: {restore}")))
+            }
+        };
+    }
+    restored?;
+    let metrics = logged(
+        root,
+        "device-native-metrics",
+        Command::new("xcrun")
+            .args(["xcresulttool", "get", "test-results", "metrics", "--path"])
+            .arg(&bundle),
+    )?;
+    let metrics: Value = serde_json::from_slice(&metrics.stdout)?;
     let attachments = root.join(ATTACHMENTS);
     fresh(&attachments)?;
     logged(
@@ -874,9 +1099,10 @@ pub(super) fn run(root: &Path, device: &Device, delta: &DeltaInput) -> Result<()
             !file.is_empty() && !file.contains('/') && !file.starts_with('.'),
             "Invalid exported attachment name"
         );
-        measured.push(measurement(&serde_json::from_slice(&fs::read(
-            attachments.join(file),
-        )?)?)?);
+        measured.push(native_measurement(
+            &serde_json::from_slice(&fs::read(attachments.join(file))?)?,
+            &metrics,
+        )?);
     }
     let paths = plan
         .iter()
@@ -923,10 +1149,16 @@ pub(super) fn run(root: &Path, device: &Device, delta: &DeltaInput) -> Result<()
         "note": format!("{} crash reports read; {}", reports.len(), if deadlocks.is_empty() { "none for the QA bundle ends with 0xdead10cc".to_owned() } else { deadlocks.join(", ") }),
     }));
     let date = super::super::checked(Command::new("date").arg("+%Y-%m-%d"))?;
+    ensure!(
+        sources == super::source_hashes(root)?,
+        "Device measurement inputs changed during the run"
+    );
     let record = json!({
         "date": String::from_utf8_lossy(&date.stdout).trim(),
         "device": {"model": device.model, "os": device.os, "build": device.build},
         "configuration": CONFIGURATION,
+        "source_sha256": super::source_records(&sources),
+        "appExecutableSha256": crate::sha256_hex(fs::read(root.join(DERIVED_DATA).join(BUILT_APP).join("PublicPhonebook"))?),
         "appBytes": bytes_under(&root.join(DERIVED_DATA).join(BUILT_APP))?,
         "paths": paths,
         "checks": checks,
@@ -1223,6 +1455,97 @@ mod tests {
             ],
             "storeBytes": [123_456, 123_456],
         })
+    }
+
+    #[test]
+    fn native_metrics_require_the_named_case_units_repetitions_and_each_family() -> Result<()> {
+        let attachment = json!({"path":"bundledImport","iterations":3,"storeBytes":[123,123,123],
+            "observations":vec![json!({"intervals":[
+                {"stage":1,"rows":100,"milliseconds":3.0},
+                {"stage":2,"rows":100,"milliseconds":1.0}],"phases":[]});3],
+            "space":{"observedPeakWorkingBytes":200,"observedPeakScratchBytes":50,"finalStoreBytes":123,
+                "observedPeakWorkingAllocatedBytes":160,"observedPeakScratchAllocatedBytes":40,"finalStoreAllocatedBytes":100,"samples":4}});
+        let metrics = [
+            ("com.apple.dt.XCTMetric_CPU.instructions_retired", "kI"),
+            ("com.apple.dt.XCTMetric_Clock.time.monotonic", "s"),
+            ("com.apple.dt.XCTMetric_Memory.physical_peak", "kB"),
+            ("com.apple.dt.XCTMetric_Disk.logical_writes", "kB"),
+        ].map(|(identifier, unit)| json!({"identifier":identifier,"displayName":identifier,"unitOfMeasurement":unit,"measurements":[1.0,2.0,3.0]}));
+        let cases = json!([{"testIdentifier":"DeviceMeasurementTests/testBundledImport()","testRuns":[{"metrics":metrics}]}]);
+        let measured = native_measurement(&attachment, &cases)?;
+        assert_eq!(measured["iterations"], json!(3));
+        assert_eq!(measured["metrics"][0]["median"], json!(2.0));
+        assert_eq!(measured["space"], attachment["space"]);
+        assert_eq!(measured["observations"], attachment["observations"]);
+        for (pointer, value) in [
+            ("/0/testIdentifier", json!("OtherTests/testBundledImport()")),
+            ("/0/testRuns/0/metrics/0/measurements", json!([1.0])),
+            ("/0/testRuns/0/metrics/0/measurements/1", json!("2")),
+            ("/0/testRuns/0/metrics/3/unitOfMeasurement", json!("")),
+            ("/0/testRuns/0/metrics/3/unitOfMeasurement", json!("bytes")),
+            ("/0/testRuns/0/metrics/2/identifier", json!("unknown")),
+            (
+                "/0/testRuns/0/metrics/3/identifier",
+                json!("unrelated.storage"),
+            ),
+            ("/0/testRuns/0/metrics/0/measurements/1", json!(0.0)),
+        ] {
+            let mut broken = cases.clone();
+            *broken
+                .pointer_mut(pointer)
+                .context("Native metric test pointer")? = value;
+            assert!(
+                native_measurement(&attachment, &broken).is_err(),
+                "{pointer}"
+            );
+        }
+        let mut duplicate = cases.clone();
+        duplicate
+            .as_array_mut()
+            .context("Native metric list")?
+            .push(cases[0].clone());
+        assert!(native_measurement(&attachment, &duplicate).is_err());
+        for (pointer, value) in [
+            ("/space/samples", json!(0)),
+            ("/space/observedPeakWorkingBytes", json!(100)),
+            ("/space/observedPeakScratchBytes", json!(201)),
+            ("/space/finalStoreBytes", json!(0)),
+            ("/space/observedPeakWorkingAllocatedBytes", json!(99)),
+            ("/space/observedPeakScratchAllocatedBytes", json!(161)),
+            ("/space/finalStoreAllocatedBytes", json!(0)),
+            ("/space/finalStoreAllocatedBytes", json!(null)),
+            ("/observations", json!([])),
+            ("/observations/0/intervals/0/milliseconds", json!(-1)),
+            ("/observations/0/intervals/0/rows", json!(0)),
+            ("/observations/0/intervals/0/stage", json!(0)),
+        ] {
+            let mut broken = attachment.clone();
+            *broken
+                .pointer_mut(pointer)
+                .context("Observation test pointer")? = value;
+            assert!(native_measurement(&broken, &cases).is_err(), "{pointer}");
+        }
+        assert!(
+            native_measurement(
+                &json!({"path":"bundledImport","iterations":0,"storeBytes":[123]}),
+                &cases
+            )
+            .is_err()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn device_lock_preflight_refuses_locked_or_unknown_states() {
+        assert!(device_unlocked(
+            &json!({"result":{"passcodeRequired":false}})
+        ));
+        for value in [json!(true), json!(null), json!("false"), json!(0)] {
+            assert!(!device_unlocked(
+                &json!({"result":{"passcodeRequired":value}})
+            ));
+        }
+        assert!(!device_unlocked(&json!({})));
     }
 
     #[test]

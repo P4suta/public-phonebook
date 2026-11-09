@@ -78,6 +78,23 @@
       tell(reload.status == .off ? "消しました。" : "消しました。" + Self.reloaded(reload))
     }
 
+    func verifyReplacement(_ integration: IntegrationModel) async {
+      working = true
+      defer { working = false }
+      let initial = await integration.reloadCallerNames()
+      guard initial.status == .on else {
+        tell(Self.reloaded(initial))
+        return
+      }
+      do {
+        let root = try VerificationNumberStore.container()
+        _ = try VerificationNumberStore.prepareCallerProbe(in: root)
+        let reply = await integration.reloadCallerNames()
+        try VerificationNumberStore.clearCallerProbe(in: root)
+        tell(reply.status == .on ? "全件の再登録が完了しました。" : Self.reloaded(reply))
+      } catch { tell("確認の準備ができませんでした。データの準備が終わってから試してください。") }
+    }
+
     private func tell(_ text: String) {
       message = text
       AccessibilityAnnouncement.post(text)
@@ -120,6 +137,16 @@
             .buttonStyle(MonoButtonStyle())
             .disabled(model.working)
             .accessibilityIdentifier("verification-clear")
+            Text("確認用の差分で、施設名の再登録を試します。")
+              .font(.callout)
+            Button {
+              Task { await model.verifyReplacement(integration) }
+            } label: {
+              IconLabel(icon: "check", text: "全件の再登録を確認する")
+            }
+            .buttonStyle(MonoButtonStyle())
+            .disabled(model.working)
+            .accessibilityIdentifier("verification-caller-replacement")
           }
           .padding(.vertical, 24)
           Rectangle().fill(.ink).frame(height: 1)

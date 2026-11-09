@@ -60,7 +60,6 @@ Check focus order, labels, values, traits, category headings, result announcemen
 The search field needs an understandable label independent of its current value.
 Decorative icons must not become extra stops.
 Follow [Apple's VoiceOver criteria](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/voiceover-evaluation-criteria).
-All common tasks remain pending for physical-device VoiceOver evaluation.
 
 ### Voice commands
 
@@ -69,7 +68,6 @@ Check Show names and Show numbers for every interactive control, including the s
 Speak the visible control names to activate each action.
 Scroll and return from iOS settings without tapping the display.
 Follow [Apple's Voice Control criteria](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/voice-control-evaluation-criteria).
-All common tasks remain pending for physical-device Voice Control evaluation.
 
 ### Text enlargement
 
@@ -79,7 +77,6 @@ Primary text must reach at least 200% or the system's largest font size without 
 Meaningful icons must enlarge with their labels, and every action must remain reachable by scrolling.
 Zoom and Hover Text don't establish support.
 Follow [Apple's Larger Text criteria](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/larger-text-evaluation-criteria).
-All common tasks remain pending for physical-device Larger Text evaluation.
 
 ### Dark appearance
 
@@ -87,7 +84,6 @@ Enable the system's Dark Mode before launching and keep it enabled through every
 Inspect startup, progress, empty and failure states, navigation, dialogs, and returns from other apps for bright flashes or bright app-owned surfaces.
 Repeat with Increase Contrast enabled.
 Follow [Apple's Dark Interface criteria](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/dark-interface-evaluation-criteria).
-All common tasks remain pending for physical-device Dark Interface evaluation.
 
 ### Information without color
 
@@ -95,7 +91,6 @@ Finish every common task with the Grayscale color filter enabled.
 Check that caller identification, progress, unavailable controls, failures, and selected states convey their meaning through words, shapes, or placement.
 Grayscale is a check for dependence on color, not a simulation of every form of color blindness.
 Follow [Apple's Differentiate Without Color Alone criteria](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/differentiate-without-color-alone-evaluation-criteria).
-All common tasks remain pending for physical-device Differentiate Without Color Alone evaluation.
 
 ### Contrast
 
@@ -105,7 +100,6 @@ Use at least 4.5:1 for ordinary text and 3:1 for meaningful non-text controls an
 Turn on Bold Text, Increase Contrast, and Reduce Transparency before repeating the tasks.
 Repeat with Increase Contrast on and Reduce Transparency off.
 Follow [Apple's Sufficient Contrast criteria](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/sufficient-contrast-evaluation-criteria).
-All common tasks remain pending for physical-device Sufficient Contrast evaluation.
 
 ### Motion
 
@@ -113,7 +107,6 @@ Enable Reduce Motion and perform every common task, including progress indicator
 Observe each animation for spinning, scaling, parallax, depth simulation, or ongoing motion that could cause discomfort.
 Confirm that any problematic motion stops or has an operable alternative while preserving progress and state information.
 Follow [Apple's Reduced Motion criteria](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/reduced-motion-evaluation-criteria).
-All common tasks remain pending for physical-device Reduced Motion evaluation.
 
 ## Automated audit
 
@@ -145,9 +138,30 @@ Passing automated checks don't establish completion of the device evaluation or 
 
 ## Device records
 
-The physical-device evaluation remains pending for every feature and common task.
+The owner-reported checks cover part of the physical-device evaluation.
+The complete common-task matrix remains pending, so the observations don't establish eligibility for a store label.
 Keep one record per feature, task, and device configuration.
 Record failures and incomplete attempts alongside passing observations.
+
+### Owner observations on 2026-11-08
+
+The owner used Public Phonebook QA on iPhone Air with iOS 27.2, build 24B119.
+The manual observations didn't capture the app's source hash.
+
+With VoiceOver alone and without looking at the screen, the owner completed the `とうきょう としょかん` search, facility details, call cancellation, maps, sources, and settings.
+With Voice Control alone and without touching the screen, the owner completed the same requested operations and checked Show names and Show numbers.
+The owner reported successful operation for both feature checks.
+
+At the largest accessibility text size, the owner reported readable content and operable major controls in portrait and landscape.
+The owner also reported no readability or operation failures with Dark Mode, Increase Contrast, Grayscale, and Reduce Motion.
+The observations don't cover every Dynamic Type font size, a small supported iPhone, measured contrast ratios, or every first-launch and failure state.
+
+The owner enabled the QA extension and confirmed incoming labels before and after changing the controlled number's label.
+A private incoming-call screenshot identifies Public Phonebook QA as the provider.
+Keep the screenshot and device archives private because they contain personal device information.
+
+First launch, interrupted preparation, empty and expanded results, complete-number search, long names, two telephone numbers, and the complete information-screen flow still need feature-specific observations.
+The store declaration remains at the post-release stage specified by issue #284.
 Record the date, tester, iPhone model, iOS version and build, and app version and build.
 Include the source revision, artifact digest, directory snapshot, language, orientation, and feature settings.
 Describe the exact task, observed behavior, and evidence location.

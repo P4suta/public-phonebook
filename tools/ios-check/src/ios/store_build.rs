@@ -13,10 +13,14 @@ pub(super) const CONDITION: &str = "PHONEBOOK_VERIFICATION_TOOLS";
 
 /// Byte strings that the verification tools put in a build: type names, file names, identifiers, and copy.
 /// Swift stores strings of up to 15 UTF-8 bytes inside instructions, so every marker is longer.
-pub(super) const MARKERS: [&str; 6] = [
+pub(super) const MARKERS: [&str; 10] = [
     "VerificationToolsScreen",
     "verification-number.json",
+    "verification-caller-held.callers",
     "verification-tools",
+    "--device-measurements",
+    "caller.load result=",
+    "caller.reload result=failed",
     "確認用の番号",
     "確認用の電話番号",
     "データの自動の受け取り",

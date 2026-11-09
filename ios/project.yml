@@ -170,6 +170,7 @@ targets:
     platform: iOS
     sources:
       - DeviceMeasurements
+      - Native/VerificationNumberStore.swift
       # The service's listing, delta listing, and delta that `ios-check device-record` records.
       - path: ../target/ios/device-measurement
         type: folder
@@ -220,4 +221,6 @@ schemes:
         PublicPhonebook: all
     test:
       config: VerificationRelease
+      commandLineArguments:
+        "--device-measurements": true
       targets: [PhonebookDeviceMeasurements]

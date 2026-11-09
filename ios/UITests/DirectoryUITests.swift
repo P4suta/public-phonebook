@@ -284,6 +284,11 @@ final class DirectoryUITests: XCTestCase {
       observed: { message.exists ? "It shows “\(message.label)”." : "It doesn't exist." })
     XCTAssertFalse(message.label.contains("もう一度"))
     capture(app, name: "verification-saved")
+    let replacement = app.buttons["verification-caller-replacement"]
+    reveal(replacement, in: app)
+    XCTAssertTrue(replacement.isEnabled)
+    XCTAssertEqual(replacement.label, "全件の再登録を確認する")
+    capture(app, name: "verification-caller-replacement")
     goBack(app)
     search("確認用", in: app)
     let result = app.descendants(matching: .any)["verification-result"]
@@ -1153,10 +1158,19 @@ final class DirectoryUITests: XCTestCase {
         if frame.midY > app.windows.firstMatch.frame.maxY { scrollDown = false }
       }
       let window = app.windows.firstMatch
-      let start = window.coordinate(
-        withNormalizedOffset: CGVector(dx: 0.5, dy: scrollDown ? 0.45 : 0.7))
-      let end = window.coordinate(
-        withNormalizedOffset: CGVector(dx: 0.5, dy: scrollDown ? 0.7 : 0.45))
+      let frame = window.frame
+      let top =
+        app.navigationBars.firstMatch.exists ? app.navigationBars.firstMatch.frame.maxY : frame.minY
+      let keyboard = app.keyboards.firstMatch
+      let bottom = keyboard.exists ? min(frame.maxY, keyboard.frame.minY) : frame.maxY
+      guard bottom > top else { return false }
+      let origin = window.coordinate(withNormalizedOffset: .zero)
+      let start = origin.withOffset(
+        CGVector(
+          dx: frame.width / 2, dy: top - frame.minY + (bottom - top) * (scrollDown ? 0.45 : 0.7)))
+      let end = origin.withOffset(
+        CGVector(
+          dx: frame.width / 2, dy: top - frame.minY + (bottom - top) * (scrollDown ? 0.7 : 0.45)))
       start.press(forDuration: 0.01, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
     }
     return element.exists && element.isHittable

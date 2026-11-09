@@ -3,6 +3,8 @@
 Use a development-signed QA bundle identifier and its own App Group.
 Record the device model, OS build, Xcode version, source hashes, bundle identifier, compiled API origin, and result bundle privately.
 Keep a personal device's serial number, address book, and device diagnostics private.
+Production builds exclude the app's diagnostic logs and signposts.
+The procedures below collect local QA records only when someone explicitly runs them.
 
 Enable Developer Mode and use an authorized Apple development team.
 Use `xcrun devicectl list devices` to confirm the actual destination.
@@ -58,9 +60,15 @@ Check the enabled Call Directory extension and actual incoming system UI without
 A receiver alone can't originate that controlled call.
 A successful extension reload doesn't establish carrier caller identification.
 
+On 2026-11-09, the owner reported that an incoming call might omit its caller label during Focus.
+Caller-label omission remains a known observation with an unconfirmed cause.
+Apple's [Focus guide](https://support.apple.com/ja-jp/guide/iphone/iph21d43af5b/27/ios/27) describes silencing calls and notifications but doesn't describe omission of Call Directory labels.
+The app [provides identification entries through Call Directory](https://developer.apple.com/documentation/callkit/identifying-and-blocking-calls), while iOS controls the incoming call screen.
+The project accepts the observed behavior and adds no workaround.
+
 ## Signposted intervals
 
-The app marks each synchronization phase as a signposted interval and each import phase's duration as a point, in the `directory` category of the `page.dial.publicphonebook` subsystem.
+The QA app marks each synchronization phase as a signposted interval and each import phase's duration as a point, in the `directory` category of the `page.dial.publicphonebook` subsystem.
 The Call Directory extension marks each load as an interval with a point every 50,000 entries, in the `caller` category.
 Choose Product > Profile in Xcode, add the `os_signpost` instrument to a blank template, record a first run, and keep the trace beside the measurements of #231.
 Apple's guide to [recording performance data](https://developer.apple.com/documentation/os/recording-performance-data) describes the instrument.
@@ -68,8 +76,9 @@ Apple's guide to [recording performance data](https://developer.apple.com/docume
 ## Measured first run
 
 `just ios-device-record` measures the first run's three paths on one connected iPhone and walks the on-device checks of this page.
-It refuses before any build when no iPhone is connected, when the paired iPhone isn't connected, or when Developer Mode is off.
-With several connected iPhones, pass `--device` and one of the UDIDs that the refusal lists.
+Preflight requires a connected, unlocked iPhone with Developer Mode on.
+The tool stops before building when a connection or unlock check fails.
+With two or more connected iPhones, pass `--device` and one of the UDIDs that the refusal lists.
 
 The tool reads the service's listing and its delta listing, and records them with the delta from the bundled snapshot in `target/ios/device-measurement`.
 The `PhonebookDeviceMeasurements` tests replay that record from a loopback server inside the QA app, which builds in the Release-optimized `VerificationRelease` configuration.
@@ -79,6 +88,16 @@ The `PhonebookDeviceMeasurements` tests replay that record from a loopback serve
 Until the service lists a delta from the bundled snapshot, the two delta paths stay pending with that reason.
 
 Each test records `XCTCPUMetric`, `XCTClockMetric`, `XCTMemoryMetric`, and `XCTStorageMetric`, and the saved store's size after each iteration.
+Each metric must contain ten finite measurements in its declared unit.
+XCTest also runs an unreported warm-up.
+The record holds eleven successful observations and ten metric values.
+The reader uses `xcresulttool get test-results metrics` instead of wrapping XCTest's built-in metric objects.
+The QA host stays idle under `--device-measurements`, and the tool reopens the interactive QA app after the experiment.
+Separate untimed imports sample working-directory and scratch sizes at progress and trace boundaries.
+Each sample records logical sizes and the sum of per-file allocated sizes from Apple's [`totalFileAllocatedSize`](https://developer.apple.com/documentation/foundation/urlresourcevalues/totalfileallocatedsize).
+Missing size metadata fails the experiment instead of estimating a value.
+The observed peaks don't claim every allocation spike or unique physical blocks shared through filesystem clones.
+The record binds the result to source hashes and the measured app executable's SHA-256.
 The instructions retired come from `XCTCPUMetric` on the device, and the step meter counts only the tool's own processes on the Mac.
 The tool also records the size of the `VerificationRelease` app that it built for the device, and the Release size stays in `docs/ios-store-distribution.md`.
 
@@ -87,22 +106,105 @@ After the item that leaves the app during an import, it copies the device's cras
 It writes `target/ios/device-record.json` and prints a section for this page.
 Add that section with the three conclusions of #231: the first-run path that the numbers favor, the wait display's budgets, and the prebuilt SQLite option.
 
-No run of `just ios-device-record` has happened yet, so every measurement and the crash log check remain pending until the owner's iPhone runs it.
+The first national campaign completed all three measurement paths on 2026-11-08.
+The manual checks remain separate from the automated measurements and keep their actual recorded outcomes.
+
+## Recorded measurement on 2026-11-09
+
+The destination was iPhone Air with iOS 27.2, build 24B119, and Xcode 27.2, build 27B52.
+The app used the Release-optimized `VerificationRelease` configuration.
+The bundled and target snapshots were `5bd74f20` and `e73309ca`, each containing 667,696 contacts.
+The expanded 672,133-contact Web campaign used a separate snapshot.
+All seven device tests passed, including the three import paths and four caller-fixture and storage-size tests.
+Each path produced ten metric values and eleven successful observations, including XCTest's warm-up.
+The medians below keep XCTest's units, where `kI` means one thousand retired instructions and `kB` is the reported byte unit.
+The source-bound record and result bundle remain in `target/ios/device-record.json` and `target/ios/device/measurements.xcresult`.
+
+The bundled import's median wall time was 5.246 s, CPU time 6.302 s, and retired instructions 107,093,875 `kI`.
+Median peak physical memory was 44,009.144 `kB`, logical writes 256,682.512 `kB`, and saved-store size 192,759,003 bytes.
+Its separate space trial ended with 192,759,004 logical bytes and 198,828,032 allocated bytes in the store.
+Observed working-directory peaks were 192,759,516 logical bytes and 198,832,128 allocated bytes across 685 samples.
+Scratch space stayed at zero.
+
+The delta rebuild followed by one import took a median 8.787 s of wall time, 9.907 s of CPU time, and 153,818,569 `kI`.
+Median peak physical memory was 40,814.288 `kB`, logical writes 417,632.784 `kB`, and saved-store size 192,759,008 bytes.
+The separate space trial ended with 192,759,008 logical bytes and 199,147,520 allocated bytes in the store.
+Observed working-directory peaks were 312,069,317 logical bytes and 328,949,760 allocated bytes across 855 samples.
+Scratch peaks were 160,843,674 logical bytes and 164,319,232 allocated bytes.
+
+Importing the bundle and then updating the saved store took a median 16.074 s, 18.432 s of CPU time, and 286,325,377 `kI`.
+Median peak physical memory was 43,239.120 `kB` and logical writes 593,847.328 `kB`.
+The saved store held 385,517,801 logical bytes and 397,189,120 allocated bytes.
+The path keeps both the current and previous generations.
+Observed working-directory peaks were 424,406,484 logical bytes and 447,098,880 allocated bytes across 1,538 samples.
+Scratch peaks were 80,421,837 logical bytes and 83,894,272 allocated bytes.
+Working-directory and scratch peaks are separate observations and don't establish simultaneous maxima.
+
+Keep the first-run path that rebuilds the updated bundle and imports once.
+On the measured iPhone, that path used less time, fewer instructions, fewer writes, and less peak working space than importing twice.
+Importing twice used less scratch space and could expose the bundled data earlier, but the experiment didn't measure an interactive handoff.
+
+Keep `WaitDisplay`'s initial 7 ms preparation and 3 ms identification allowances per 1,000 rows.
+Preparation reached 7.259 ms and identification 2.190 ms per 1,000 rows, while every observed combined import stayed within 9.400 ms per 1,000 rows.
+The combined initial allowance exceeds the measured times.
+The implementation refines identification time from measured preparation pace.
+The constants are initial estimates rather than upper bounds for every phase or device.
+
+The store size alone doesn't justify replacing the bundled archive with a prebuilt SQLite store.
+A prebuilt store could avoid import work.
+The experiment didn't measure the prebuilt store's compressed distribution size or copy cost.
+The 192.8 MB logical store and 13.4 MB Brotli archive represent different compression states and aren't a download-size comparison.
+Keep the current archive and revisit a prebuilt candidate if startup requirements change.
+
+The measured QA app held 21,384,200 bytes.
+The separate unsigned Release app held 18,082,532 logical bytes and 18,116,608 allocated bytes across 15 files.
+The Release size includes the 13,428,507-byte bundled archive and isn't an App Store download size.
+The tool reopened interactive QA after the experiment.
+The crash-log scan found no QA report containing `0xdead10cc`, while the twelve manual items remained pending in the automated record.
+Earlier manual observations keep their original dates and scope.
 
 ## Incremental caller names
 
 The extension sends removals and then additions when iOS asks for an incremental load and its loaded record names a kept caller file.
-Stream the extension's log with `log stream --level debug --predicate 'subsystem == "page.dial.publicphonebook" AND category == "caller"'` on the connected Mac.
-Each load ends with one `caller.load entries=… removed=… peakFootprintKB=… expired=…` line.
-Record these observations with the QA build, each with that line:
+The normal app and QA app have separate caller identification switches in iPhone settings.
+Open settings from Public Phonebook QA and enable that exact extension.
+Saving a controlled number must report that the iPhone accepted the reload before checking incoming labels.
 
-- Save a test number, then change only its label, which removes the number and adds it again in one request; check the new label on an incoming call.
-- Save a test number below every national number and then one above them, which sends a removal and an addition out of number order between the two lists.
-- Publish or install a generation one step newer than the loaded one, and compare the load's time with a full load of 561,495 entries.
-- Turn the extension off and on in the iPhone settings, and check that the next load has `removed=0` and the full entry count.
-- Leave the app while a load runs, and check that the next load after an `expired=true` line sends the same difference again.
+After an accepted load, use `全件の再登録を確認する` on the QA screen.
+The operation prepares a one-use comparison file with 1,001 different labels while preserving the desired national caller file.
+The real incremental CallKit request must select the full replacement plan and complete the national entry count within the extension's memory limit.
+Change the controlled number's label to a different value, save it, and verify the changed label on an incoming call.
+The next incremental request must remove one entry and add one entry within the same limit.
+The [held-fixture decision](adr/exercise-caller-replacement-with-a-bounded-held-fixture.md) defines the scenario's scope.
 
-A refused request logs `caller.request result=failed` with its domain and code, which the record needs as well.
+QA completion messages include `result`, `entries`, `removed`, `peakFootprintKB`, `incremental`, and `plan`.
+A no-change completion with zero additions and removals doesn't establish a label-change test.
+Also check controlled numbers that sort before and after the national range, full loads after toggling the QA extension, and recovery after an expired request.
+A refused QA request records its domain and code.
+
+Collect an attached device archive from Terminal after the operations, using a fresh output path:
+
+```sh
+sudo /usr/bin/log collect --device-name 'iPhone Air' --last 15m --size 128m --output target/ios/caller-paths.logarchive
+```
+
+The attached-device collector ignores `--predicate`.
+Filter the private archive after collection with `/usr/bin/log show --archive PATH --predicate 'subsystem == "page.dial.publicphonebook" AND category == "caller"'`.
+The command needs `/usr/bin/log` because zsh also names a builtin `log`.
+Keep archives and incoming-call screenshots out of repository files and published attachments.
+Distinguish the project's `CallDirectory` extension process from the separate `com.apple.CallKit.CallDirectory` system daemon when inspecting termination messages.
+
+On 2026-11-09, the QA iPhone completed the 1,001-label comparison fixture with `incremental=true`, `plan=full`, `entries=561496`, and `removed=0`.
+The completion notice reported `peakFootprintKB=2497`.
+Changing the controlled number's label then completed with `incremental=true`, `plan=incremental`, `entries=1`, `removed=1`, and `peakFootprintKB=2449`.
+Both requests completed in the same provider process.
+The notice uses 1,024-byte units, so the sampled footprints were about 2.56 MB and 2.51 MB.
+The provider completed both requests without a kernel memory-limit termination.
+Separate kernel messages record a nonfatal 6 MB soft-limit event for the `com.apple.CallKit.CallDirectory` system daemon.
+The system daemon's PID differs from the extension's PID.
+The owner confirmed the changed label on the real incoming-call screen.
+The owner then removed the controlled number and confirmed that iOS accepted the reload.
+The zero-change completion before the fixture isn't evidence of the label-change path.
 
 Run iOS 18 on a compatible device or simulator runtime and record its actual OS build.
 The connected iPhone Air runs its installed newer OS and can't substitute for an iOS 18 runtime.
