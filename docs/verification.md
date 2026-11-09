@@ -112,7 +112,7 @@ A timeout supplies no behavioral evidence.
 
 ## Linux equivalent of Verify
 
-The Verify job runs `just check` on `ubuntu-24.04`, and `just check` on macOS can't show Linux differences.
+The Verify job runs `just check` on `ubuntu-26.04`, and `just check` on macOS can't show Linux differences.
 The provider corpus once changed only on Linux, because macOS and Linux write a different operating system byte into gzip headers.
 Run `mise x -- just check-linux` before every push to run Verify's `just check` in a pinned Linux container.
 

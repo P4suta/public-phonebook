@@ -22,7 +22,6 @@ import { type CommandResult, command, requireCommand } from "./process.ts";
 
 /** The Verify job runs on linux/amd64, so native npm binaries differ by architecture. */
 export const containerPlatform = "linux/arm64";
-// The hosted ubuntu-24.04 runner has 4 vCPUs and 16 GiB of memory.
 const cpuLimit = 4;
 const memoryLimitMib = 8192;
 const processLimit = 4096;
