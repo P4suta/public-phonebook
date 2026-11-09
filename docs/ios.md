@@ -268,7 +268,7 @@ Run `mise x -- just ios-unit-test` for all compiled Swift package tests, strict 
 Run `mise x -- just ios-check` for those checks, unsigned simulator and device builds, and the complete isolated simulator UI inventory.
 Run `mise x -- just ios-prove`, `mise x -- just ios-sanitize`, and `mise x -- just ios-mutate` for the heavier assurance checks.
 Run `mise x -- just ios-device-record` with one iPhone connected to measure the first run and walk the manual checks, as [device verification](ios-device-verification.md#measured-first-run) describes.
-For routine updates, run `mise x -- just ios-ui-test --live --device UDID` with the selected iPhone unlocked.
+For routine updates, run `mise x -- just ios-ui-test --live --device` with one iPhone connected and unlocked.
 The command installs the locally signed VerificationRelease QA app and validates only the live search, detail, and source case.
 It preserves the production app and writes the XCTest result under `target/ios/device-ui`.
 `just ios-prove` compiles the retained Lean models and two generated trace modules, and replays two generated roots, `PublicationModels` and `OmegaModels`, with `leanchecker --fresh`.

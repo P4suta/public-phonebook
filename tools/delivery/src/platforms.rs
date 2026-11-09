@@ -97,6 +97,41 @@ fn output(program: &str, arguments: &[&str]) -> Result<String> {
     .to_owned())
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+struct SimulatorRuntime {
+    identifier: String,
+    version: String,
+    #[serde(rename = "buildversion")]
+    build: String,
+    #[serde(rename = "isAvailable")]
+    available: bool,
+}
+
+fn simulator_runtimes(report: &str) -> Result<String> {
+    #[derive(Deserialize)]
+    struct Report {
+        runtimes: Vec<SimulatorRuntime>,
+    }
+    let mut runtimes = serde_json::from_str::<Report>(report)?.runtimes;
+    runtimes.retain(|runtime| {
+        runtime
+            .identifier
+            .starts_with("com.apple.CoreSimulator.SimRuntime.iOS-")
+    });
+    runtimes.sort_by(|left, right| left.identifier.cmp(&right.identifier));
+    ensure!(
+        !runtimes.is_empty()
+            && runtimes
+                .iter()
+                .all(|runtime| !runtime.version.is_empty() && !runtime.build.is_empty())
+            && runtimes
+                .windows(2)
+                .all(|pair| pair[0].identifier != pair[1].identifier),
+        "Missing, malformed, or duplicate iOS simulator runtime identities"
+    );
+    Ok(serde_json::to_string(&runtimes)?)
+}
+
 pub fn inputs(root: &Path, app: App, scope: Scope) -> Result<PlatformInputs> {
     let mut git = Command::new("git");
     git.current_dir(root).args([
@@ -141,6 +176,11 @@ pub fn inputs(root: &Path, app: App, scope: Scope) -> Result<PlatformInputs> {
                 "iOS assurance requires the documented macOS runner"
             );
             environment.insert("xcode".to_owned(), output("xcodebuild", &["-version"])?);
+            environment.insert("macos".to_owned(), output("sw_vers", &[])?);
+            environment.insert(
+                "simulatorRuntimes".to_owned(),
+                simulator_runtimes(&output("xcrun", &["simctl", "list", "runtimes", "--json"])?)?,
+            );
             environment.insert(
                 "developerDirectory".to_owned(),
                 env::var("DEVELOPER_DIR").unwrap_or(output("xcode-select", &["-p"])?),
@@ -271,6 +311,46 @@ pub fn verify(root: &Path, app: App, scope: Scope) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn runtime_identity_changes_invalidate_reuse_while_usage_and_mount_paths_do_not() -> Result<()>
+    {
+        let runtime = serde_json::json!({
+            "identifier":"com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+            "version":"27.0", "buildversion":"24A434", "isAvailable":true,
+            "runtimeRoot":"/mount/first", "lastUsage":{"arm64":"earlier"},
+        });
+        let normalized =
+            simulator_runtimes(&serde_json::json!({"runtimes":[runtime.clone()]}).to_string())?;
+        let mut updated = runtime.clone();
+        updated["runtimeRoot"] = serde_json::json!("/mount/second");
+        updated["lastUsage"] = serde_json::json!({"arm64":"later"});
+        assert_eq!(
+            normalized,
+            simulator_runtimes(&serde_json::json!({"runtimes":[updated]}).to_string())?
+        );
+        for (field, value) in [
+            ("version", serde_json::json!("27.0.1")),
+            ("buildversion", serde_json::json!("24A435")),
+            ("isAvailable", serde_json::json!(false)),
+        ] {
+            let mut updated = runtime.clone();
+            updated[field] = value;
+            assert_ne!(
+                normalized,
+                simulator_runtimes(&serde_json::json!({"runtimes":[updated]}).to_string())?
+            );
+        }
+        for invalid in [
+            serde_json::json!({"runtimes":[]}),
+            serde_json::json!({"runtimes":[runtime.clone(),runtime]}),
+            serde_json::json!({"runtimes":[{"identifier":"incomplete"}]}),
+        ] {
+            assert!(simulator_runtimes(&invalid.to_string()).is_err());
+        }
+        Ok(())
+    }
+
     #[test]
     fn a_selected_comparison_base_cannot_remove_client_input_validation() -> Result<()> {
         for app in [App::Ios, App::Android] {

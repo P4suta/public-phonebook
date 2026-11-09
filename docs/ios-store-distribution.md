@@ -55,7 +55,7 @@ Prepare an iOS plan and request `ios-testflight` through the [independent delive
 Its controller refuses a source that differs from protected `main`, a changed plan, or another workflow identity.
 Dependency checks, formal assurance, and native assurance run independently at the same commit.
 A Linux job runs `just ios-prove`, and a macOS job runs `just delivery platform ios --scope check`, `just ios-sanitize`, and `just ios-mutate`.
-Candidate and TestFlight share the check-only result when sources, commands, toolchains, and the native output receipt's digest match.
+Candidate and TestFlight share the check-only result when sources, commands, toolchains, OS builds, simulator runtimes, and the native output receipt's digest match.
 Missing or changed outputs rerun verification.
 Jobs for the same source commit serialize their native work.
 The unsigned job waits for every required dependency, formal, and native check.
@@ -95,7 +95,7 @@ Use the same App Store Connect app record, a higher display version, and a fresh
 Read the changes since the published version when writing the required What's New text.
 Copy the promotional text from `ios/AppStore/metadata.json` when the draft leaves that field empty.
 
-Run `mise x -- just ios-ui-test --live --device UDID` with the connected iPhone unlocked for the source-level QA check.
+Run `mise x -- just ios-ui-test --live --device` with one iPhone connected and unlocked for the source-level QA check.
 The command uses VerificationRelease and the separate QA identity.
 It keeps production data and doesn't perform calls, collect device logs, or change caller-identification settings.
 Its result doesn't replace testing the distributed package.

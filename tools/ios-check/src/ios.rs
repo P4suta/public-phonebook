@@ -396,8 +396,8 @@ pub enum Action {
         tests: Vec<String>,
         #[arg(long, conflicts_with = "tests")]
         live: bool,
-        #[arg(long, requires = "live")]
-        device: Option<String>,
+        #[arg(long, requires = "live", num_args = 0..=1)]
+        device: Option<Option<String>>,
     },
     Affected {
         #[arg(long)]
@@ -1353,7 +1353,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         Action::UiTest {
             device: Some(device),
             ..
-        } => Some(device::prepare_ui(root, device)?),
+        } => Some(device::prepare_ui(root, device.as_deref())?),
         _ => None,
     };
     let _machine_lease = (!matches!(action, Action::Prove | Action::UnitTest))

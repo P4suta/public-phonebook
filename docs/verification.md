@@ -77,7 +77,7 @@ No pull request, merge group, or push starts it, and a manual run gates nothing 
 The national multi-browser campaign stays out of it and runs in `just test`.
 The manual TestFlight workflow requires native, Lean, sanitizer, and mutation checks for one `main` commit before its signed delivery.
 Candidate and TestFlight share matching check-only native results through the platform verifier.
-The verifier compares source inputs, command scope, toolchain identity, and every required output digest.
+The verifier compares source inputs, command scope, toolchain and OS builds, simulator runtime identities, and every required output digest.
 A missing, malformed, or changed result reruns verification.
 Independent TestFlight checks run concurrently, and unsigned archive preparation waits for every required check.
 

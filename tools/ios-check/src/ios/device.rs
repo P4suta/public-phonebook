@@ -895,12 +895,12 @@ pub(super) fn prepare_qa(root: &Path, requested: Option<&str>) -> Result<Device>
     Ok(device)
 }
 
-pub(super) fn prepare_ui(root: &Path, requested: &str) -> Result<Device> {
+pub(super) fn prepare_ui(root: &Path, requested: Option<&str>) -> Result<Device> {
     let receipt = root.join(UI_DIRECTORY).join("receipt.json");
     if receipt.exists() {
         fs::remove_file(receipt)?;
     }
-    prepare_qa(root, Some(requested))
+    prepare_qa(root, requested)
 }
 
 fn qa_command(root: &Path, device: &Device) -> Command {
@@ -1293,20 +1293,39 @@ mod tests {
                 .iter()
                 .any(|arg| arg.contains("uninstall") || arg.contains("erase"))
         );
-        for arguments in [
-            vec!["ios-check", "ui-test", "--live", "--device", "phone"],
-            vec!["ios-check", "ui-test", "--device", "phone"],
-            vec![
-                "ios-check",
-                "ui-test",
-                "--live",
-                "--device",
-                "phone",
-                "--test",
-                "testSearch",
-            ],
+        let automatic = <crate::Arguments as clap::Parser>::try_parse_from([
+            "ios-check",
+            "ui-test",
+            "--live",
+            "--device",
+        ])?;
+        assert!(matches!(
+            automatic.action,
+            super::super::Action::UiTest {
+                device: Some(None),
+                ..
+            }
+        ));
+        for (arguments, valid) in [
+            (vec!["ios-check", "ui-test", "--live", "--device"], true),
+            (
+                vec!["ios-check", "ui-test", "--live", "--device", "phone"],
+                true,
+            ),
+            (vec!["ios-check", "ui-test", "--device", "phone"], false),
+            (
+                vec![
+                    "ios-check",
+                    "ui-test",
+                    "--live",
+                    "--device",
+                    "phone",
+                    "--test",
+                    "testSearch",
+                ],
+                false,
+            ),
         ] {
-            let valid = arguments.len() == 5;
             assert_eq!(
                 <crate::Arguments as clap::Parser>::try_parse_from(arguments).is_ok(),
                 valid
