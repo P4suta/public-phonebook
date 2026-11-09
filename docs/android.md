@@ -47,6 +47,29 @@ Text entry follows the recommended [state-based Compose text fields](https://dev
 The search keyboard action clears focus and dismisses the keyboard while preserving the query.
 Screenshot capture waits for the platform's [accessibility event stream to become idle](https://developer.android.com/reference/android/app/UiAutomation#waitForIdle(long,long)) after Compose becomes idle.
 
+## Interface
+
+Search uses a compact app bar with direct access to settings and app information, following Android's [app-bar guidance](https://developer.android.com/develop/ui/compose/components/app-bars).
+Facility rows group the name, location, and telephone number in one target.
+A building icon identifies each facility, and a chevron indicates its details.
+Rules separate entries, while font size, weight, and spacing distinguish names from supporting information.
+The black-and-white palette and outlined secondary actions are owner design choices.
+The detail screen groups telephone actions, the address, and source information under [semantic headings](https://developer.android.com/develop/ui/compose/accessibility/semantics#headings).
+
+Controls have at least 48 dp targets and localized icon descriptions under [Compose accessibility defaults](https://developer.android.com/develop/ui/compose/accessibility/api-defaults).
+Facility rows and actions declare a button role because [Material Surface](https://github.com/androidx/androidx/blob/androidx-main/compose/material3/material3/src/commonMain/kotlin/androidx/compose/material3/Surface.kt) supplies an `OnClick` action without a default role.
+Redundant icons have no independent accessibility description.
+The search field retains native composition and adds an explicit clear action.
+Text uses scalable units, content scrolls, and [window insets](https://developer.android.com/develop/ui/compose/system/insets) protect controls from system bars and the keyboard.
+The shared outcome is readable text and usable controls, also addressed by [Apple accessibility guidance](https://developer.apple.com/design/human-interface-guidelines/accessibility) and [Web Content Accessibility Guidelines target sizing](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html).
+Android's dp targets and Compose semantics govern the native implementation.
+
+Review covers empty search, composition, results, continuation, details, cancelled external actions, settings, app information, and returning to the current query.
+Device checks cover the clear action, navigation labels, button roles, system-bar appearance, target sizes, and text overflow.
+Text inspection compares individual line widths with the rendered size.
+Compose's [semantic text projection](https://github.com/androidx/androidx/blob/androidx-main/compose/foundation/foundation/src/commonMain/kotlin/androidx/compose/foundation/text/modifiers/ParagraphLayoutCache.kt) can rebuild a paragraph with parent constraints, so its paragraph width can exceed the rendered text width without clipping any characters.
+Inspect the same journey in light and dark appearances and with enlarged text on a narrow display.
+
 ## Data and update design
 
 Android's [architecture recommendations](https://developer.android.com/topic/architecture/recommendations) place repositories between the UI and data sources, and the [offline-first guidance](https://developer.android.com/topic/architecture/data-layer/offline-first) keeps saved data available during network failure.
