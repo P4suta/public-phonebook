@@ -23,7 +23,7 @@ concurrency:
 jobs:
   plan:
     name: Find the stages without evidence for their inputs
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: candidate
     timeout-minutes: 10
     permissions:
@@ -63,7 +63,7 @@ jobs:
     name: Fast and build checks
     needs: [plan]
     if: contains(fromJSON(needs.plan.outputs.missing), 'check')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -87,7 +87,7 @@ jobs:
     name: Formal assurance
     needs: [plan]
     if: contains(fromJSON(needs.plan.outputs.missing), 'prove')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -103,7 +103,7 @@ jobs:
     name: iOS proofs
     needs: [plan]
     if: contains(fromJSON(needs.plan.outputs.missing), 'ios-prove')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -150,7 +150,7 @@ jobs:
     name: Dataset and telephone checks
     needs: [plan]
     if: contains(fromJSON(needs.plan.outputs.missing), 'data') || contains(fromJSON(needs.plan.outputs.missing), 'phones')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: candidate
     timeout-minutes: 30
     permissions:
@@ -191,7 +191,7 @@ jobs:
     name: Literal search parity
     needs: [plan]
     if: contains(fromJSON(needs.plan.outputs.missing), 'parity')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: candidate
     timeout-minutes: 60
     permissions:
@@ -249,7 +249,7 @@ jobs:
     name: Browser and API checks on the national dataset
     needs: [plan]
     if: contains(fromJSON(needs.plan.outputs.missing), 'e2e')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: candidate
     timeout-minutes: 60
     permissions:
@@ -307,7 +307,7 @@ jobs:
     name: Record the evidence of every passing stage
     needs: [plan, check, prove, ios-prove, ios-check, data, parity, e2e]
     if: always() && needs.plan.result == 'success'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: candidate
     timeout-minutes: 15
     permissions:

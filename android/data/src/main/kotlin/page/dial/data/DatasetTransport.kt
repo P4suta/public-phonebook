@@ -42,7 +42,7 @@ internal class DatasetTransport(
             else {
                 requireDirectory(
                     code == HttpURLConnection.HTTP_OK &&
-                        connection.contentEncoding in listOf(null, "identity")
+                        connection.contentEncoding in listOf(null, "identity"),
                 )
                 Reply(connection.inputStream.use { it.readObject() }, next)
             }
@@ -76,11 +76,11 @@ internal class DatasetTransport(
                 requireDirectory(
                     code == HttpURLConnection.HTTP_PARTIAL &&
                         connection.getHeaderField("Content-Range") ==
-                            "bytes $offset-${bytes - 1}/$bytes"
+                            "bytes $offset-${bytes - 1}/$bytes",
                 )
             requireDirectory(
                 connection.contentLengthLong == -1L ||
-                    connection.contentLengthLong == bytes - offset
+                    connection.contentLengthLong == bytes - offset,
             )
             FileOutputStream(file, offset > 0).use { output ->
                 connection.inputStream.use { input ->

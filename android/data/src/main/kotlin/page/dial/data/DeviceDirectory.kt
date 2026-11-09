@@ -183,7 +183,7 @@ class DeviceDirectory(
         val deltas = transport.json(path).body ?: throw InvalidDirectory("Missing delta listing")
         requireDirectory(
             digest(deltas.getString("snapshot")) == target.snapshot &&
-                digest(deltas.getString("archiveSha256")) == target.sha256
+                digest(deltas.getString("archiveSha256")) == target.sha256,
         )
         val candidate =
             deltas.getJSONArray("deltas").objects().firstOrNull {

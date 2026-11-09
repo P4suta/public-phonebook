@@ -62,7 +62,7 @@ jobs:
   proposal:
     name: Create or update a version proposal
     needs: [delivery-checks]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: version-preparation
     timeout-minutes: 15
     permissions:

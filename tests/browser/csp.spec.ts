@@ -1,4 +1,5 @@
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, browserTest as test } from "./fixtures.ts";
 import { waitForLocalSearch } from "./search-sources.ts";
 
 test.use({ trace: "off", video: "off", screenshot: "off" });

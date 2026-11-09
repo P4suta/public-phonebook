@@ -143,7 +143,8 @@ class DirectoryViewModel(
                 return
             }
             require(
-                result.total == previous.total && result.contacts.all { it.category.id == category }
+                result.total == previous.total &&
+                    result.contacts.all { it.category.id == category },
             )
             val contacts = if (continuing) previous.contacts + result.contacts else result.contacts
             state.value =
@@ -154,7 +155,7 @@ class DirectoryViewModel(
                                 state.value.results.groups.map {
                                     if (it.category.id == category) it.copy(contacts = contacts)
                                     else it
-                                }
+                                },
                         ),
                     expandedCategories = state.value.expandedCategories + category,
                 )

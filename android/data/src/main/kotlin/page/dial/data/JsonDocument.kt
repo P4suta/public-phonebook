@@ -13,7 +13,7 @@ internal fun InputStream.readObject(): JSONObject =
     parseObject(
         Charsets.UTF_8.newDecoder()
             .decode(ByteBuffer.wrap(readBounded(DirectoryLimits.MAXIMUM_JSON_BYTES)))
-            .toString()
+            .toString(),
     )
 
 internal fun parseObject(text: String): JSONObject {

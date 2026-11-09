@@ -246,7 +246,7 @@ class PublicationTest {
                     indexed.countDown()
                     if (!activate.await(10, TimeUnit.SECONDS))
                         throw java.util.concurrent.TimeoutException(
-                            "Publication activation guard expired"
+                            "Publication activation guard expired",
                         )
                 }
             val future =
@@ -295,7 +295,7 @@ class PublicationTest {
             val broken = File(root, "malformed-$index.tsv").apply { writeText(text) }
             assertThrows(java.io.IOException::class.java) {
                 store.install(
-                    RebuiltArchive(broken, candidate, broken.length(), FileDigest.sha256(broken))
+                    RebuiltArchive(broken, candidate, broken.length(), FileDigest.sha256(broken)),
                 )
             }
             assertEquals(entry.snapshot, store.current()!!.snapshot)

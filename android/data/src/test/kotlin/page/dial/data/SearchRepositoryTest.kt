@@ -67,7 +67,7 @@ class SearchRepositoryTest {
             namedDirectory(
                 List(80) { "A facility ${it.toString().padStart(2, '0')}" to 0 } +
                     List(4) { "Z facility $it" to 1 } +
-                    listOf("M facility" to 2)
+                    listOf("M facility" to 2),
             )
         val results = store.preview("facility")
         assertEquals(85L, results.total)
@@ -88,7 +88,7 @@ class SearchRepositoryTest {
             namedDirectory(
                 (0 until DirectoryLimits.MAXIMUM_CATEGORY_COUNT).flatMap { category ->
                     List(4) { "facility ${category.toString().padStart(3, '0')} $it" to category }
-                }
+                },
             )
         val preview = store.preview("facility")
         assertEquals(DirectoryLimits.MAXIMUM_CATEGORY_COUNT, preview.groups.size)
@@ -117,16 +117,16 @@ class SearchRepositoryTest {
                 db.execSQL("ALTER TABLE contacts RENAME TO ordered_contacts")
                 db.execSQL(
                     "CREATE TABLE contacts(id INTEGER PRIMARY KEY,raw TEXT NOT NULL," +
-                        "name TEXT NOT NULL,place TEXT NOT NULL,category TEXT NOT NULL)"
+                        "name TEXT NOT NULL,place TEXT NOT NULL,category TEXT NOT NULL)",
                 )
                 db.execSQL(
-                    "INSERT INTO contacts SELECT id,raw,name,place,category FROM ordered_contacts"
+                    "INSERT INTO contacts SELECT id,raw,name,place,category FROM ordered_contacts",
                 )
                 db.execSQL("DROP TABLE ordered_contacts")
                 db.version = 0
                 db.execSQL(
                     "CREATE TRIGGER reject_sort BEFORE UPDATE ON contacts WHEN NEW.id=1 " +
-                        "BEGIN SELECT RAISE(FAIL,'interrupted migration'); END"
+                        "BEGIN SELECT RAISE(FAIL,'interrupted migration'); END",
                 )
                 assertThrows(SQLiteException::class.java) { SearchOrder.migrate(db) }
                 assertEquals(0, db.version)
@@ -218,7 +218,7 @@ class SearchRepositoryTest {
         }
         assertTrue(store.search("Index", offset = -1).contacts.isEmpty())
         assertTrue(
-            store.search("Index", offset = DirectoryLimits.MAXIMUM_CONTACTS + 1).contacts.isEmpty()
+            store.search("Index", offset = DirectoryLimits.MAXIMUM_CONTACTS + 1).contacts.isEmpty(),
         )
         val phone = requireNotNull(CanonicalPhone.parse("03-0000-0000"))
         assertNotNull(store.find(phone))
@@ -280,7 +280,7 @@ class SearchRepositoryTest {
             categories.put(
                 JSONObject(categories.getJSONObject(0).toString())
                     .put("id", "category-$index")
-                    .put("label", "Category $index")
+                    .put("label", "Category $index"),
             )
         }
         val template = lines[2].split('\t').toMutableList()
@@ -308,7 +308,7 @@ class SearchRepositoryTest {
                     (listOf(ARCHIVE_SIGNATURE, header.toString()) + rows).joinToString(
                         "\n",
                         postfix = "\n",
-                    )
+                    ),
                 )
             }
         val hash = FileDigest.sha256(file)

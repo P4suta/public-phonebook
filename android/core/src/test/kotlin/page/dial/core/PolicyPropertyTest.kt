@@ -134,7 +134,7 @@ class PolicyPropertyTest {
             assertEquals(
                 canonical,
                 CanonicalPhone.parse(
-                    national.map { if (it.isDigit()) it + ('０' - '0') else it }.joinToString("")
+                    national.map { if (it.isDigit()) it + ('０' - '0') else it }.joinToString(""),
                 ),
             )
             for (marker in listOf(";", "#", "*", "\n", "a")) {
@@ -160,7 +160,7 @@ class PolicyPropertyTest {
             val end = random.nextInt(start + 1, parts.size + 1)
             assertTrue(
                 IndexTerms.tokens(parts.joinToString(""))
-                    .containsAll(IndexTerms.required(parts.subList(start, end).joinToString("")))
+                    .containsAll(IndexTerms.required(parts.subList(start, end).joinToString(""))),
             )
         }
     }

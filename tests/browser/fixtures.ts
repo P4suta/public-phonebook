@@ -127,10 +127,7 @@ export async function externalScriptIssues(
   );
 }
 
-export const test = base.extend<{
-  diagnostics: void;
-  httpFailures: Set<number>;
-}>({
+export const browserTest = base.extend({
   context: async ({ context, browserName, playwright }, use): Promise<void> => {
     if (browserName !== "webkit") {
       await use(context);
@@ -143,6 +140,12 @@ export const test = base.extend<{
       await regular.close();
     }
   },
+});
+
+export const test = browserTest.extend<{
+  diagnostics: void;
+  httpFailures: Set<number>;
+}>({
   httpFailures: async ({ baseURL }, use): Promise<void> => {
     if (!baseURL) throw new Error("The browser test server URL is required");
     await use(new Set());

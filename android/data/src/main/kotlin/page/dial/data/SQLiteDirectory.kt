@@ -76,7 +76,7 @@ internal class SQLiteDirectory(
     fun install(rebuilt: RebuiltArchive): SyncState.Ready {
         requireDirectory(
             rebuilt.file.length() == rebuilt.bytes &&
-                FileDigest.sha256(rebuilt.file) == rebuilt.digest
+                FileDigest.sha256(rebuilt.file) == rebuilt.digest,
         )
         return publish(rebuilt.file, rebuilt.entry, compressed = false)
     }

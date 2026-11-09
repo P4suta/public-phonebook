@@ -59,7 +59,7 @@ pitest {
             "page.dial.core.PagePolicy",
             "page.dial.core.JsonPolicy",
             "page.dial.core.WordPolicy",
-        )
+        ),
     )
     targetTests.set(setOf("page.dial.core.*Test"))
     threads.set(1)

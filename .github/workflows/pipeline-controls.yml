@@ -17,7 +17,7 @@ concurrency:
 jobs:
   fakes:
     name: Refusals with fake providers
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -34,7 +34,7 @@ jobs:
         run: node tools/workflow-policy.ts
   foreign-secret:
     name: Refuse another environment's secrets
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: observe
     timeout-minutes: 10
     permissions:
@@ -65,7 +65,7 @@ jobs:
           test "$status" = 403
   read-only-deploy:
     name: Refuse a deployment with the read-only token
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: observe
     timeout-minutes: 10
     permissions:
@@ -103,7 +103,7 @@ jobs:
           printf '%s\n' "$output" | grep -E -q 'Authentication error|10000|403'
   drill-evidence:
     name: Admit the drill candidate's evidence
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: observe
     timeout-minutes: 15
     permissions:
@@ -143,7 +143,7 @@ jobs:
   drill-build:
     name: Build and attest the drill candidate
     needs: [drill-evidence]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: candidate
     timeout-minutes: 20
     permissions:
@@ -188,7 +188,7 @@ jobs:
   drill:
     name: Withdraw a 0% candidate after an injected probe failure
     needs: [drill-evidence, drill-build]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: release-candidate
     timeout-minutes: 150
     concurrency:

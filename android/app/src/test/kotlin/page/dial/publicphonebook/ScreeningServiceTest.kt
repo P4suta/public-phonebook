@@ -220,7 +220,7 @@ class ScreeningServiceTest {
         }
 
     private fun responses(
-        service: PhonebookScreeningService
+        service: PhonebookScreeningService,
     ): List<CallScreeningService.CallResponse> =
         Shadow.extract<RecordingScreeningShadow>(service).responses
 
