@@ -5,6 +5,18 @@ import type { Page, TestInfo } from "@playwright/test";
 const largestScreenshotSide = 32_767;
 const nativeFrameTimeoutMs = 5000;
 
+export function matchesViewportFrame(
+  size: { readonly width: number; readonly height: number },
+  width: number,
+  height: number,
+): boolean {
+  return (
+    [size.width, size.height, width, height].every(
+      (dimension) => Number.isSafeInteger(dimension) && dimension > 0,
+    ) && width * size.height === height * size.width
+  );
+}
+
 export async function recordViewport(
   page: Page,
   info: TestInfo,
@@ -47,7 +59,7 @@ export async function recordViewport(
     let timer: ReturnType<typeof setTimeout> | undefined;
     const frame = new Promise<Buffer>((resolve, reject) => {
       receive = (data, width, height): void => {
-        if (width === size.width && height === size.height) resolve(data);
+        if (matchesViewportFrame(size, width, height)) resolve(data);
       };
       timer = setTimeout(
         () =>

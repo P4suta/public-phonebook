@@ -1,6 +1,7 @@
 import type { Page, Request } from "@playwright/test";
 import * as v from "valibot";
 import { SearchIndexLocationSchema } from "../../src/core/dataset-storage.ts";
+import { GroupedSearchResponseSchema } from "../../src/core/models.ts";
 import { expect, test } from "./fixtures.ts";
 import { recordFullPage } from "./full-page-screenshot.ts";
 import {
@@ -88,6 +89,7 @@ test("WebKit private browsing uses the server when search storage is unavailable
 
 test("built device search matches verified place readings with only the name index", async ({
   page,
+  request,
 }, testInfo) => {
   const companions: string[] = [];
   page.on("request", (request) => {
@@ -100,10 +102,36 @@ test("built device search matches verified place readings with only the name ind
   await expect(page.getByRole("searchbox")).toHaveAccessibleDescription(
     "都道府県名と主な分類名は、2文字以上の読み仮名でもさがせます。",
   );
-  await page.getByRole("searchbox").fill("としょかん");
-  await expect(page.locator("article")).toHaveCount(3);
+  const library = page.locator('[data-result-category="library"]');
+  for (const [reading, canonical] of [
+    ["としょかん", "図書館"],
+    ["とうきょう としょかん", "東京 図書館"],
+  ] as const) {
+    const response: unknown = await (
+      await request.get(
+        `/api/contact-groups?${new URLSearchParams({ q: canonical })}`,
+      )
+    ).json();
+    const expected = v
+      .parse(GroupedSearchResponseSchema, response)
+      .groups.find((group) => group.category === "library");
+    if (!expected)
+      throw new Error(`The served data has no libraries for ${canonical}`);
+    expect(expected.results.data.length).toBeGreaterThan(0);
+    await page.getByRole("searchbox").fill(reading);
+    await expect(
+      library.getByRole("heading", { level: 2 }),
+    ).toHaveAccessibleName(
+      `図書館 ${expected.results.meta.total.toLocaleString("ja-JP")}件`,
+    );
+    await expect(library.locator("article").getByRole("heading")).toHaveText(
+      expected.results.data.map((contact) => contact.name),
+    );
+    await page.getByRole("searchbox").fill("");
+    await expect(page.locator("article")).toHaveCount(0);
+  }
   await page.getByRole("searchbox").fill("とうきょう としょかん");
-  await expect(page.locator("article")).toHaveCount(2);
+  await expect(library.locator("article")).not.toHaveCount(0);
   await recordFullPage(page, testInfo, "place-readings");
   await page.getByRole("searchbox").fill(query);
   await expect(page.locator("article")).toHaveCount(3);
