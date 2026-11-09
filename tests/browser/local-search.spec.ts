@@ -17,9 +17,9 @@ const indexLocation = "/api/search-index";
 const loadedAt = new Date("2026-11-02T00:00:00Z");
 const typingFrom = new Date("2026-11-02T01:00:00Z");
 
-test("built device search loads only the name index and preserves literal matching", async ({
+test("built device search matches verified place readings with only the name index", async ({
   page,
-}) => {
+}, testInfo) => {
   const companions: string[] = [];
   page.on("request", (request) => {
     if (new URL(request.url()).pathname.startsWith("/api/search-ranking"))
@@ -28,8 +28,17 @@ test("built device search loads only the name index and preserves literal matchi
   await page.route("**/api/search-ranking**", (route) => route.abort());
   await page.goto("/");
   await waitForLocalSearch(page);
+  await expect(page.getByRole("searchbox")).toHaveAccessibleDescription(
+    "都道府県名と主な分類名は、2文字以上の読み仮名でもさがせます。",
+  );
   await page.getByRole("searchbox").fill("としょかん");
-  await expect(page.locator("article")).toHaveCount(0);
+  await expect(page.locator("article")).toHaveCount(3);
+  await page.getByRole("searchbox").fill("とうきょう としょかん");
+  await expect(page.locator("article")).toHaveCount(2);
+  await page.screenshot({
+    path: testInfo.outputPath("place-readings.png"),
+    fullPage: true,
+  });
   await page.getByRole("searchbox").fill(query);
   await expect(page.locator("article")).toHaveCount(3);
   expect(companions).toEqual([]);

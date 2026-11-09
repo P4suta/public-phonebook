@@ -19,6 +19,7 @@ import {
 } from "../core/local-search-protocol.ts";
 import type { Result } from "../core/result.ts";
 import {
+  decodeLiteralSearchIndex,
   decodeSearchIndex,
   hasSearchIndexSignature,
   type SearchIndex,
@@ -131,7 +132,12 @@ async function download(
 
 function decode(bytes: Uint8Array, lazy: boolean): Result<SearchIndex, string> {
   try {
-    return { ok: true, value: decodeSearchIndex(bytes, lazy) };
+    return {
+      ok: true,
+      value: lazy
+        ? decodeSearchIndex(bytes, true)
+        : decodeLiteralSearchIndex(bytes),
+    };
   } catch (error) {
     return { ok: false, error: String(error) };
   }
@@ -150,7 +156,8 @@ function groupRows(
 ): LocalMatches {
   const categories = new Map<string, number[]>();
   for (const position of positions) {
-    const category = index.rows[position]?.category;
+    const category =
+      index.columns?.categoryAt(position) ?? index.rows[position]?.category;
     if (category === undefined)
       throw new Error("A matched row is out of range");
     const rows = categories.get(category) ?? [];

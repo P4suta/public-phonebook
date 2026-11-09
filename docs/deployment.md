@@ -36,6 +36,9 @@ mise x -- just dev
 
 Open http://127.0.0.1:8787/.
 Stop the local server before replacing its data.
+For an isolated dataset, use `mise x -- node tools/local-data.ts BUNDLE --state DIRECTORY --port PORT`.
+The port selects the server check before preparation, and the state directory selects the D1 and R2 namespace.
+Use the same directory through `DIAL_LOCAL_STATE` when starting its preview or through `--state` when running a measurement.
 The seeder verifies the ready manifest, every record, source references, indexes, counts, database integrity, archive byte lengths, and hashes before activation.
 It discovers the pinned local D1 namespace using a unique marker rather than a hard-coded SQLite filename.
 The database is copied only after Miniflare closes its handles.
@@ -45,7 +48,7 @@ A failed preparation never produces a ready manifest.
 Production preparation omits the ranking companion and needs no Sudachi analyzer.
 The website and release candidates use literal matching with the name index.
 Production admission rejects a manifest that declares a ranking companion before checking or uploading the dataset.
-The [local forgiving-search recipes](search-ranking.md#local-preparation-and-quality-checks) prepare and check separate QA bundles with the pinned analyzer.
+The [local forgiving-search recipes](search-ranking.md#local-preparation-and-quality-checks) prepare and check separate experiment bundles with the pinned analyzer.
 The native TypeScript collector and overlay preparation are described in [data sources](data-sources.md).
 
 For a built local preview, run `mise x -- just build` followed by `mise x -- npm run preview`, then open https://127.0.0.1:8787/.

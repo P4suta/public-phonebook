@@ -11,6 +11,7 @@
     "noImplicitOverride": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
     "types": ["node", "vite/client", "@cloudflare/workers-types"],
     "jsx": "react-jsx",
     "skipLibCheck": true

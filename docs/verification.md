@@ -404,7 +404,7 @@ For the first category of 4 to 100 rows, it also compares the complete ordered c
 It checks 100 row positions with the row locator, the lookup that opens a device result's details.
 The run fails on any difference between the server and its literal reference.
 The shipped device worker uses the same literal matching contract and the same category previews.
-The QA scorer follows its separate shared ranking fixture and quality gate, because forgiving ranking intentionally differs from server matching.
+The explicit local website scorer follows its separate shared ranking fixture and quality gate, because forgiving ranking intentionally differs from server matching.
 Each D1 statement opens a loopback connection from Node to workerd, and macOS keeps a closed one for 30 seconds within 16,384 ephemeral ports.
 A read that fails with `EADDRNOTAVAIL` therefore waits a second and runs again, up to 60 times, while any other error fails the run at once.
 It also requires two controls to differ: previews with their first two rows swapped, and an index whose adjacent same-name rows with different details are swapped.
@@ -422,7 +422,11 @@ Run `mise x -- node tools/search-performance.ts BUNDLE` with the build and the s
 It serves the build like the browser campaign and runs Chromium, Chromium with 4x CPU throttling, desktop WebKit, and the iPhone 13 profile.
 It records both artifacts' transfer bytes, navigation-to-ready time, worker admission time, and the p50 and p95 of search round trips for up to 50 distinct sampled queries.
 It also records input events of 16 ms or longer while typing, long tasks in Chromium, and the main-thread heap in Chromium.
-The separate Node heap estimate covers only the decoded name index.
+The separate Node heap estimates compare the production column view with complete row objects.
+The column view still holds the decoded byte buffer, whose external allocation falls outside the JavaScript heap estimate.
+The [compact-column decision](adr/keep-validated-search-columns-compact.md) preserves complete row validation before admission.
+Both decoders must reject the corruption corpus and match generated directories, while a scan test refuses display-row reads.
+Native D1 fixtures and the national parity command exercise the production column view.
 The literal-reference work counters describe the server matching reference, while the browser timings measure the production device worker.
 The optional `--contract FILE` retrieves every category of each query through the actual worker and its category continuations after 32 warm-up queries.
 The contract must match the snapshot, contact count, and both decoded digests.
@@ -438,6 +442,15 @@ The sampling, viewport emulation, and Chromium CPU setting don't establish physi
 Safari on a physical iPhone and an isolated worker-heap measurement remain unrun.
 Each profile also counts search messages and returned JSON bytes during the UI sample.
 The record holds measurements, not thresholds.
+
+On 2026-11-08, the compact column view used 33,658,360 bytes of JavaScript heap for 672,133 contacts in Node.
+Complete row objects used 170,825,272 bytes in the same measurement.
+The compact view also holds the 41,395,723-byte decoded buffer outside that heap estimate.
+Across the four browser profiles, compact admission took 959 to 1,372.6 milliseconds, compared with 673 to 1,083.2 milliseconds before the change.
+The sampled search p95 ranged from 33.6 to 38 milliseconds, compared with 34.4 to 37 milliseconds before the change.
+Each profile ran the same 50 sampled queries and seven input prefixes.
+The measurements show smaller JavaScript heap use with extra startup decoding time.
+They establish neither browser resident memory nor physical-phone performance.
 
 On 2026-11-05, before the category previews returned, all four profiles matched the 2,200 national contract queries in one list with zero divergences and no parser rejections.
 Chromium worker admission took 7,820.9 milliseconds, with a 9.4-millisecond p95 across 57 UI search round trips.

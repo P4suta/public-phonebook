@@ -24,11 +24,21 @@ val variants =
         rename { "kanji-variants.txt" }
     }
 
+val readings =
+    tasks.register<Copy>("copyPlaceReadings") {
+        from("../../ios/Sources/PhonebookKit/PlaceReadings.json")
+        into(layout.buildDirectory.dir("generated/readings"))
+    }
+
 sourceSets {
-    main { resources.srcDir(variants) }
+    main {
+        resources.srcDir(variants)
+        resources.srcDir(readings)
+    }
     test {
         resources.srcDir("../../ios/Tests/PhonebookCoreTests")
-        resources.include("SearchContract.json")
+        resources.srcDir("../../ios/Tests/PhonebookKitTests")
+        resources.include("SearchContract.json", "PlaceReadingContract.json")
     }
 }
 

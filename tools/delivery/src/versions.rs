@@ -239,6 +239,14 @@ mod tests {
             assert!(!version_input(app, "wrangler.jsonc")?);
             assert!(!version_input(app, "src/server/datasets.ts")?);
             assert!(version_input(app, "src/core/kanji-variants.ts")?);
+            assert!(version_input(
+                app,
+                "ios/Sources/PhonebookKit/PlaceReadings.json"
+            )?);
+            assert!(version_input(
+                app,
+                "ios/Tests/PhonebookKitTests/PlaceReadingContract.json"
+            )?);
             assert!(version_input(app, "unclassified/generator.rs")?);
         }
         assert!(version_input(App::Ios, "ios/App/Main.swift")?);

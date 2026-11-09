@@ -12,7 +12,7 @@ Search terms and incoming numbers stay on the device.
 
 Install the versions in `mise.toml` and set `ANDROID_HOME` to the Android SDK directory.
 The build uses Java Development Kit (JDK) 21.
-Gradle `9.5.0` runs Android Gradle plugin `9.3.3`.
+Gradle `9.8.2` runs Android Gradle plugin `9.3.3`.
 Kotlin and Compose Compiler both use version `2.4.10`.
 Production and test coroutines both use version `1.11.0`.
 
@@ -71,8 +71,28 @@ It requires one complete object, rejects duplicate keys, malformed UTF-8, traili
 Search uses FTS4 unigrams and bigrams to narrow candidates, then requires every normalized word with exact substring predicates.
 Bound SQL parameters carry search terms, ranking, category selection, and pagination.
 The canonical kanji variants and shared search fixtures load from their existing source paths.
+The [verified place readings](search-readings.md) add prefecture and common-category prefixes through the same bundled JSON as Web and iPhone.
+Reading predicates query saved category identifiers and archive prefecture codes without rebuilding the saved full-text index.
 The full-text index is an optimization whose candidates must include every exact match.
 Phone lookup uses a separate indexed canonical number and bypasses the word-count limit.
+
+Every matching category shows its complete count and up to three results.
+Expanding a category shows its first 30 results, and later requests append another 30 within that category.
+Other category previews keep their positions and visible contacts.
+Changing the query cancels earlier work, and a generation change restarts the complete preview before appending.
+Failed continuation keeps the category's visible contacts and offers a retry.
+The native controls keep [stable lazy-list keys](https://developer.android.com/develop/ui/compose/lists#item-keys) and [semantic headings](https://developer.android.com/develop/ui/compose/accessibility/semantics#headings).
+
+The [separate sort key](adr/keep-android-search-order-separate-from-comparison-folding.md) keeps kana folding out of the result order.
+Existing saved databases migrate the key locally in a transaction before search, while archive data and caller lookup remain available.
+Preview queries stream identifiers and counts before decoding only the selected contacts.
+Cancelling a search coroutine also cancels its SQLite queries.
+The text field observes its native composing range together with the text.
+Conversion drafts cancel earlier work and wait for composition to finish before searching, including an unchanged-text commit.
+Preparation and refresh apply their result to the current screen state after the repository operation finishes.
+Input committed or composed during either operation stays in the search field.
+Preparation and refresh preserve an active composition.
+The device UI test drives the real input connection through composition and commit before checking results.
 
 A transfer starts only on an unmetered connection without Data Saver restrictions.
 Partial files persist under their expected digest, and a resume requires the exact `Content-Range`.

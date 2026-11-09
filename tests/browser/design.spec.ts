@@ -208,7 +208,10 @@ for (const width of [320, 390, 1440]) {
       if (name === "home") {
         const searchbox = page.getByRole("searchbox");
         await expect(searchbox).not.toHaveAttribute("placeholder");
-        await expect(searchbox).not.toHaveAttribute("aria-describedby");
+        await expect(searchbox).toHaveAttribute(
+          "aria-describedby",
+          "search-readings",
+        );
         const label = page.locator('label[for="directory-search"]');
         await expect(label).toBeVisible();
         expect(

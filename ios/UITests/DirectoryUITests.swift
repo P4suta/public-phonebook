@@ -71,6 +71,9 @@ final class DirectoryUITests: XCTestCase {
 
   func testSearchGroupsRankedResultsAndShowsMore() throws {
     let app = prepared()
+    search("とうきょう としょかん", in: app)
+    waitForGroup("library", "件", in: app)
+    capture(app, name: "reading-results")
     search("facility", in: app)
     waitForGroup("library", "件", in: app)
     XCTAssertFalse(app.staticTexts["search-limit"].exists)

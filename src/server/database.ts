@@ -370,7 +370,9 @@ export async function searchSelection(
     };
   const { words } = query;
   const name = schema.contacts.foldedName;
-  const places = words.map((word) => wordPlaces(catalog, word));
+  const places = words.map((word) =>
+    wordPlaces(catalog, word, "with-readings"),
+  );
   clauses.push(await wordCandidates(db, words, places, catalog));
   for (const [index, word] of words.entries())
     clauses.push(

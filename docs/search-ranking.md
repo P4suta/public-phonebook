@@ -1,7 +1,8 @@
 # Device name ranking
 
-Forgiving search runs only in the owner's QA iPhone builds and explicit local website development.
-The production website, server, and non-QA iPhone configurations use literal matching.
+Forgiving search runs only in explicit local website development.
+The production website, server, and every iPhone and Android configuration use literal matching.
+The [iPhone QA alignment decision](adr/keep-qa-search-aligned-with-the-release-app.md) removes the experimental native scorer and its companion downloads.
 The [distribution decision](adr/keep-forgiving-search-in-qa-and-local-development.md) records the resource costs and build boundaries.
 Run `mise x -- just dev-forgiving` to build and serve the website scorer locally over HTTPS.
 The optional port argument defaults to 8787, and `DIAL_LOCAL_STATE` selects the existing seeded local state.
@@ -60,7 +61,7 @@ Queries with one or two code points use the bounded literal route.
 The [scorer decision](adr/rank-device-search-with-place-preferences-and-gated-readings.md) defines retrieval, reading selection, place conditions, score encoding, and ties.
 The [server fallback decision](adr/show-one-ranked-list-with-a-server-fallback.md) keeps the server matcher, and [category previews for ranked results](adr/group-ranked-results-into-category-previews.md) defines the presentation.
 The local forgiving-search worker admits both artifacts before constructing the scorer and keeps the server fallback when admission fails.
-The iPhone adapter consumes the equivalent ranking contract in Swift.
+Git history preserves the retired Swift scorer.
 
 ## Packed artifact loading
 
@@ -100,10 +101,9 @@ Complete telephone numbers keep exact-number matching in index row order.
 
 `tests/fixtures/search-ranking.json` declares `public-phonebook-name-ranking/1`, the exact snapshot, both decoded artifact digests, and complete expected row-and-score pairs for every fixture query.
 The fixture records all returned candidates, including score ties and secondary-route candidates.
-The iPhone tests should decode the same JSON and compare every pair using 0-based row positions.
+The current iPhone tests exercise literal search without a ranking companion.
 String comparison inside the reading lane follows ordinal UTF-16 order, while n-grams and query bounds use Unicode code points.
-Swift adapters must preserve both choices rather than using locale-sensitive ordering or grapheme clusters.
-Use 64-bit arithmetic for weighted sums and score products, whose intermediate values exceed 32-bit bounds.
+The frozen scorer uses exact integer arithmetic for weighted sums and score products.
 
 ```sh
 mise x -- node tools/search-ranking-contract.ts check .local/national-core tests/fixtures/search-ranking.json
@@ -128,7 +128,7 @@ Remote storage, candidate data admission, and publication reject manifests that 
 Remote archive upload also rejects a ranking file hidden among other declared files.
 The upload inventory excludes undeclared local ranking files.
 
-Prepare a separate QA bundle with `mise x -- just data-prepare-forgiving SOURCE OUTPUT` to generate the snapshot-bound ranking companion.
+Prepare a separate local experiment bundle with `mise x -- just data-prepare-forgiving SOURCE OUTPUT` to generate the snapshot-bound ranking companion.
 Install the pinned analyzer with `mise install` in `tools/readings` before preparing a national QA bundle.
 The first analyzer run downloads the checksum-pinned full dictionary into `.local/search-readings/`.
 `mise x -- just data-check BUNDLE` still verifies a declared ranking companion by regenerating the readings and posting bytes, so checking a national QA bundle also needs the analyzer.

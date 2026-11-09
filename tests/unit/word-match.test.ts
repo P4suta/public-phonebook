@@ -72,6 +72,29 @@ function placeNames(region: string, category: string): string[] {
 }
 
 describe("word matching", () => {
+  it("uses verified readings only in the explicit reading mode", () => {
+    expect(wordPlaces(places, "とうきょう", "with-readings")).toEqual({
+      prefectures: ["13"],
+      municipalities: [],
+      categories: [],
+    });
+    expect(wordPlaces(places, "としょ", "with-readings")).toEqual({
+      prefectures: [],
+      municipalities: [],
+      categories: ["library"],
+    });
+    expect(wordPlaces(places, "としょ")).toEqual({
+      prefectures: [],
+      municipalities: [],
+      categories: [],
+    });
+    expect(wordPlaces(places, "と", "with-readings")).toEqual({
+      prefectures: [],
+      municipalities: [],
+      categories: [],
+    });
+  });
+
   it("matches and ranks like the reference for generated rows and queries", () => {
     const tiers = new Set<number>();
     fc.assert(

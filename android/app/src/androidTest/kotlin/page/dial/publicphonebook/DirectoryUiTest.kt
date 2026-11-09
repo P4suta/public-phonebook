@@ -2,12 +2,12 @@ package page.dial.publicphonebook
 
 import android.graphics.Bitmap
 import android.os.Build
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.test.SemanticsMatcher
+import android.view.inputmethod.EditorInfo
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasScrollToIndexAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -16,10 +16,12 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.dp
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.ViewModelProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import org.junit.Rule
@@ -33,8 +35,7 @@ class DirectoryUiTest {
         rule.waitUntil(PREPARATION_TIMEOUT_MILLIS) {
             rule.onAllNodesWithText("施設名・地域・電話番号").fetchSemanticsNodes().isNotEmpty()
         }
-        rule.onNodeWithText("施設名・地域・電話番号").performTextInput("図書館")
-        rule.waitUntil(SEARCH_TIMEOUT_MILLIS) { imeVisible() }
+        composeSearch()
         rule.waitUntil(SEARCH_TIMEOUT_MILLIS) {
             rule.onAllNodes(resultButton).fetchSemanticsNodes().isNotEmpty()
         }
@@ -42,6 +43,7 @@ class DirectoryUiTest {
         rule.waitUntil(SEARCH_TIMEOUT_MILLIS) { !imeVisible() }
         rule.onNodeWithText("Public Phonebook").assertIsDisplayed()
         capture("search")
+        expandLibrary()
         rule.onAllNodes(resultButton).onFirst().performClick()
         rule.onNodeWithText("電話番号を開く").assertHeightIsAtLeast(48.dp).performClick()
         rule.onNodeWithText("キャンセル").assertIsDisplayed().performClick()
@@ -62,6 +64,37 @@ class DirectoryUiTest {
                 .fetchSemanticsNodes()
                 .isNotEmpty()
         }
+    }
+
+    private fun composeSearch() {
+        rule.onNodeWithText("施設名・地域・電話番号").performClick()
+        rule.waitUntil(SEARCH_TIMEOUT_MILLIS) { imeVisible() }
+        val model = rule.runOnIdle {
+            ViewModelProvider(rule.activity)[DirectoryViewModel::class.java]
+        }
+        val connection = rule.runOnIdle {
+            requireNotNull(rule.activity.currentFocus?.onCreateInputConnection(EditorInfo()))
+        }
+        rule.runOnIdle { check(connection.setComposingText("とうきょう としょかん", 1)) }
+        rule.waitUntil(SEARCH_TIMEOUT_MILLIS) {
+            model.uiState.value.composing && model.uiState.value.query == "とうきょう としょかん"
+        }
+        rule.onAllNodes(resultButton).assertCountEquals(0)
+        capture("search-composing")
+        rule.runOnIdle { check(connection.finishComposingText()) }
+        rule.waitUntil(SEARCH_TIMEOUT_MILLIS) { !model.uiState.value.composing }
+    }
+
+    private fun expandLibrary() {
+        val list = rule.onNode(hasScrollToIndexAction())
+        list.performScrollToNode(hasText("図書館の続きを表示"))
+        rule.onNodeWithText("図書館の続きを表示").assertHeightIsAtLeast(48.dp).performClick()
+        rule.waitUntil(SEARCH_TIMEOUT_MILLIS) {
+            rule.onAllNodesWithText("続きを読み込んでいます").fetchSemanticsNodes().isEmpty()
+        }
+        rule.onAllNodesWithText("続きを読み込めませんでした。").assertCountEquals(0)
+        capture("search-expanded")
+        list.performScrollToIndex(0)
     }
 
     private fun imeVisible(): Boolean = rule.runOnIdle {
@@ -88,10 +121,7 @@ class DirectoryUiTest {
     }
 
     companion object {
-        private val resultButton =
-            hasClickAction() and
-                hasText("図書館", substring = true) and
-                SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)
+        private val resultButton = hasTestTag("search-result")
         private const val PREPARATION_TIMEOUT_MILLIS = 180_000L
         private const val SEARCH_TIMEOUT_MILLIS = 30_000L
         private const val PNG_QUALITY = 100

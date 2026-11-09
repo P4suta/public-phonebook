@@ -5,14 +5,17 @@ import { auditDesign } from "./design-policy.ts";
 import { expect, test } from "./fixtures.ts";
 import { knownContact } from "./known-contact.ts";
 
-test("the initial screen labels the search without a hint and offers one project-information action", async ({
+test("the initial screen explains reading search and offers one project-information action", async ({
   page,
 }) => {
   await page.goto("/");
   const searchbox = page.getByRole("searchbox");
   await expect(searchbox).not.toHaveAttribute("placeholder");
   await expect(searchbox).toHaveAccessibleName("施設の名前");
-  await expect(searchbox).toHaveAccessibleDescription("");
+  await expect(searchbox).toHaveAccessibleDescription(uiCopy.search.readings);
+  await expect(
+    page.getByText(uiCopy.search.readings, { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText(/名前の一部でも/u)).toHaveCount(0);
   await expect(page.getByText("施設の名前", { exact: true })).toBeVisible();
   await expect(searchbox).toHaveAttribute("enterkeyhint", "search");

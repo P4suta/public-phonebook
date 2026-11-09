@@ -14,7 +14,10 @@ import {
   searchLocalIndex,
 } from "../../src/core/local-search.ts";
 import { normalizePhone } from "../../src/core/phone.ts";
-import { decodeSearchIndex } from "../../src/core/search-index.ts";
+import {
+  decodeLiteralSearchIndex,
+  decodeSearchIndex,
+} from "../../src/core/search-index.ts";
 import { maximumQueryWords } from "../../src/core/search-text.ts";
 import {
   indexInput,
@@ -73,6 +76,10 @@ const placeWords = [
   "病院",
   "博物館",
   "神奈川",
+  "とうきょう",
+  "としょかん",
+  "びょういん",
+  "びじゅつかん",
 ] as const;
 const sharedNames = [
   "図書館",
@@ -100,6 +107,30 @@ function modelPlaces(contact: ModelContact): string[] {
     modelCatalog.categories.find((item) => item.id === contact.category)
       ?.label ?? "",
   ];
+}
+
+function modelReading(contact: ModelContact, word: string): boolean {
+  if (
+    word.length < 2 ||
+    Array.from(word).some(
+      (letter) =>
+        !"ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゝゞ-".includes(
+          letter,
+        ),
+    )
+  )
+    return false;
+  const readings: Record<string, readonly string[]> = {
+    library: ["としょかん"],
+    medical: ["びょういん", "しんりょうじょ", "しんりょうしょ"],
+    museum: ["はくぶつかん", "びじゅつかん"],
+    "13": ["とうきょうと"],
+    "14": ["かながわけん"],
+  };
+  return [
+    ...(readings[contact.category] ?? []),
+    ...(readings[contact.prefectureCode] ?? []),
+  ].some((reading) => reading.startsWith(word));
 }
 
 interface ReferenceGroup {
@@ -131,7 +162,12 @@ function referenceSearch(
       )
         ? [{ contact, normalized, row, rank: 0 }]
         : [];
-    const rank = referenceRank(contact.name, modelPlaces(contact), words);
+    const rank = referenceRank(
+      contact.name,
+      modelPlaces(contact),
+      words,
+      (word) => modelReading(contact, word),
+    );
     return rank < 0 ? [] : [{ contact, normalized, row, rank }];
   });
   matched.sort(
@@ -292,7 +328,56 @@ function queryArbitrary(
   );
 }
 
-describe("local search", () => {
+describe.each([
+  { storage: "materialized", decode: decodeSearchIndex },
+  { storage: "compact", decode: decodeLiteralSearchIndex },
+])("local search: $storage", ({ decode }) => {
+  it("scans names and complete telephone tokens without decoding display rows", () => {
+    const directory = modelDirectory(
+      ["Ａ図書館", "北診療所", "南図書館"].map((name, row) => ({
+        id: `c:${row}`,
+        name,
+        category: "library",
+        prefectureCode: "13",
+        municipalityCode: null,
+        phones: [{ e164: row === 1 ? "+819012345678" : "+81774981200" }],
+      })),
+      snapshot,
+    );
+    const materialized = decodeSearchIndex(directory.bytes);
+    const compact = decodeLiteralSearchIndex(directory.bytes);
+    const { telephoneRows, ...withoutPhoneLookup } = compact;
+    expect(telephoneRows).toBeTypeOf("function");
+    let reads = 0;
+    const rows = new Proxy(compact.rows, {
+      get(target, property, receiver): unknown {
+        if (typeof property === "string" && /^\d+$/u.test(property)) reads += 1;
+        return Reflect.get(target, property, receiver);
+      },
+    });
+    for (const input of [
+      "図書館",
+      "東京",
+      "診療所 東京",
+      "0774981200",
+      "0774981201",
+      "",
+    ]) {
+      const query = localQuery(input);
+      if (!query.ok) throw new Error("Expected a valid query");
+      expect(matchIndex({ ...compact, rows }, query.value)).toEqual(
+        matchIndex(materialized, query.value),
+      );
+      expect(orderedIndexRows({ ...compact, rows }, query.value)).toEqual(
+        orderedIndexRows(materialized, query.value),
+      );
+      expect(matchIndex(withoutPhoneLookup, query.value)).toEqual(
+        matchIndex(materialized, query.value),
+      );
+    }
+    expect(reads).toBe(0);
+  });
+
   it("matches a plain reference implementation on generated directories", () => {
     const seen = new Set<string>();
     fc.assert(
@@ -305,7 +390,7 @@ describe("local search", () => {
         ),
         ([contacts, queries]) => {
           const directory = modelDirectory(contacts, snapshot);
-          const index = decodeSearchIndex(directory.bytes);
+          const index = decode(directory.bytes);
           for (const query of queries) {
             const expected = referenceSearch(directory.contacts, query);
             const parsed = localQuery(query);
@@ -327,6 +412,7 @@ describe("local search", () => {
                     contact.name,
                     modelPlaces(contact),
                     referenceWords(query.trim()),
+                    (word) => modelReading(contact, word),
                   )
                 : 0;
             };
@@ -439,7 +525,7 @@ describe("local search", () => {
       phones: [{ e164: "+81335812331" }],
     }));
     const directory = modelDirectory(contacts, snapshot);
-    const index = decodeSearchIndex(directory.bytes);
+    const index = decode(directory.bytes);
     expect(directory.contacts.map((contact) => contact.id)).toEqual([
       "c:1",
       "c:2",
@@ -481,7 +567,7 @@ describe("local search", () => {
         phones: [{ e164: "+81774981200" }],
       }),
     );
-    const index = decodeSearchIndex(modelDirectory(contacts, snapshot).bytes);
+    const index = decode(modelDirectory(contacts, snapshot).bytes);
     const rows = (query: string): readonly number[] | string => {
       const result = searchLocalIndex(index, query);
       return result.ok
@@ -517,7 +603,7 @@ describe("local search", () => {
         phones: [{ e164: "+81335812331" }],
       },
     ];
-    const index = decodeSearchIndex(modelDirectory(contacts, snapshot).bytes);
+    const index = decode(modelDirectory(contacts, snapshot).bytes);
     const query = localQuery("図書館");
     if (!query.ok) throw new Error("The query must be valid");
     const matches = matchIndex(index, query.value);

@@ -25,7 +25,7 @@ import {
 import { formatPhone, normalizePhone } from "../src/core/phone.ts";
 import { showsAddress } from "../src/core/search.ts";
 import {
-  decodeSearchIndex,
+  decodeLiteralSearchIndex,
   type SearchIndex,
   searchIndexFile,
 } from "../src/core/search-index.ts";
@@ -322,6 +322,25 @@ export function parityQueries(
       ? `${place}　${fragment}`
       : `${fragment} ${place}`;
   });
+  const readingQueries = [
+    "とうきょう",
+    "としょかん",
+    "とうきょう としょかん",
+    "ﾄｼｮｶﾝ",
+    "びょういん",
+    "やくしょ",
+    "ふく",
+    "と",
+    "としょこ",
+  ];
+  for (
+    let position = 0;
+    position < Math.min(places.length, readingQueries.length);
+    position++
+  ) {
+    const query = readingQueries[position];
+    if (query !== undefined) places[position] = query;
+  }
   return { substrings, names, numbers, absent, places };
 }
 
@@ -612,7 +631,7 @@ async function main(): Promise<void> {
   const ids = readRowIds(join(directory, "directory.sqlite"));
   if (ids.length !== manifest.contacts)
     throw new Error("The bundle database has a different contact count");
-  const index = decodeSearchIndex(decoded);
+  const index = decodeLiteralSearchIndex(decoded);
   const reference = new LiteralReference(index, ids);
   const runtime = localDataRuntime(values.state ?? defaultState);
   try {

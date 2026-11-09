@@ -123,7 +123,7 @@ function harness(
 }
 
 describe("local search worker", () => {
-  it("defaults to literal matching with only the name index", async () => {
+  it("matches names and verified place readings with only the name index", async () => {
     const source = fixture();
     const replies: LocalSearchReply[] = [];
     const fetcher = vi.fn(async () =>
@@ -137,7 +137,8 @@ describe("local search worker", () => {
     expect(replies.at(-1)).toMatchObject({ type: "ready" });
     for (const [query, total] of [
       ["図書館", 3],
-      ["としょかん", 0],
+      ["としょかん", 2],
+      ["とうきょう としょかん", 2],
       ["東京 図書館", 3],
       ["03-3581-2331", 2],
     ] as const) {
@@ -191,6 +192,32 @@ describe("local search worker", () => {
       source.load.index.url,
       source.load.ranking.url,
     ]);
+  });
+
+  it("rejects malformed literal rows before replacing an admitted index", async () => {
+    const source = fixture();
+    const invalid = source.index.slice();
+    const headerEnd = invalid.indexOf(0x0a, invalid.indexOf(0x0a) + 1);
+    invalid[headerEnd + 1] = 0x62;
+    const changed = location("search-index", invalid);
+    const worker = harness(source, async (url) =>
+      url === changed.url
+        ? response(invalid, changed)
+        : response(source.index, source.load.index),
+    );
+    await worker.handle({ type: "load", index: source.load.index });
+    expect(worker.replies.at(-1)).toMatchObject({ type: "ready" });
+    await worker.handle({ type: "load", index: changed });
+    expect(worker.replies.at(-1)).toMatchObject({
+      type: "unavailable",
+      reason: "malformed",
+    });
+    await worker.handle({ type: "search", id: 1, query: "図書館" });
+    expect(worker.replies.at(-1)).toEqual({
+      type: "failed",
+      id: 1,
+      error: "not_ready",
+    });
   });
 
   it("passes original spelling to the exact-name guard", async () => {

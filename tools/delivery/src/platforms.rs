@@ -41,7 +41,7 @@ fn under(path: &str, prefix: &str) -> bool {
 }
 
 pub fn reads(app: App, path: &str) -> Result<bool> {
-    classify(path)?;
+    let classification = classify(path)?;
     if ["docs", "releases", "src/routes"]
         .iter()
         .any(|prefix| under(path, prefix))
@@ -56,13 +56,12 @@ pub fn reads(app: App, path: &str) -> Result<bool> {
         App::Ios => &["android", "verification/android"],
         App::Android => &["ios", "verification/ios", "tools/ios-check"],
     };
-    let fixture = matches!(
-        path,
-        "ios/Tests/PhonebookCoreTests/SearchContract.json"
-            | "ios/Tests/PhonebookKitTests/DirectoryContract.json"
+    let shared = matches!(
+        classification,
+        delivery_core::Change::SharedSource | delivery_core::Change::ServerContract
     );
     let proof_base = app == App::Android && path == "verification/ios/Dockerfile";
-    Ok(fixture || proof_base || !excluded.iter().any(|prefix| under(path, prefix)))
+    Ok(shared || proof_base || !excluded.iter().any(|prefix| under(path, prefix)))
 }
 
 fn output(program: &str, arguments: &[&str]) -> Result<String> {
@@ -221,6 +220,11 @@ mod tests {
                 "ios/Tests/PhonebookCoreTests/SearchContract.json"
             )?);
             assert!(reads(app, "unknown/generator")?);
+            assert!(reads(app, "ios/Sources/PhonebookKit/PlaceReadings.json")?);
+            assert!(reads(
+                app,
+                "ios/Tests/PhonebookKitTests/PlaceReadingContract.json"
+            )?);
         }
         assert!(!reads(App::Android, "ios/App/Directory.swift")?);
         assert!(!reads(App::Ios, "android/app/src/Main.kt")?);

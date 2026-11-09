@@ -11,6 +11,7 @@ import {
 import { createConnection } from "node:net";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { parseArgs } from "node:util";
 import { Miniflare } from "miniflare";
 import { checkedDataBundle } from "./check-data.ts";
 
@@ -157,9 +158,37 @@ export async function seedLocalData(
   );
 }
 
+export function localDataOptions(args: readonly string[]): {
+  readonly bundle: string;
+  readonly state: string;
+  readonly port: number;
+} {
+  const { positionals, values } = parseArgs({
+    args: [...args],
+    allowPositionals: true,
+    options: { state: { type: "string" }, port: { type: "string" } },
+  });
+  const [bundle, ...extra] = positionals;
+  const state = values.state ?? ".local/state";
+  const rawPort = values.port ?? String(developmentPort);
+  const port = Number(rawPort);
+  if (
+    !bundle?.trim() ||
+    extra.length ||
+    !state.trim() ||
+    !/^[1-9][0-9]*$/u.test(rawPort) ||
+    !Number.isSafeInteger(port) ||
+    port > 65_535
+  )
+    throw new Error(
+      "Usage: npm run data:local -- BUNDLE_DIRECTORY [--state DIRECTORY] [--port PORT]",
+    );
+  return { bundle, state, port };
+}
+
 if (import.meta.main) {
-  const [bundle, ...extra] = process.argv.slice(commandArgumentOffset);
-  if (!bundle || extra.length)
-    throw new Error("Usage: npm run data:local -- BUNDLE_DIRECTORY");
-  await seedLocalData(bundle);
+  const { bundle, ...options } = localDataOptions(
+    process.argv.slice(commandArgumentOffset),
+  );
+  await seedLocalData(bundle, options);
 }
