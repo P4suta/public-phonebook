@@ -10,7 +10,8 @@ object DirectoryLimits {
     const val BUFFER_BYTES = 65_536
     const val MAXIMUM_QUERY_BYTES = 512
     const val MAXIMUM_QUERY_WORDS = 8
-    const val SEARCH_PAGE_SIZE = 50
+    const val SEARCH_PAGE_SIZE = 30
+    const val SEARCH_PREVIEW_SIZE = 3
     const val MAXIMUM_PHONE_INPUT = 80
     const val COUNTRY_PREFIX = "+81"
     const val MAXIMUM_NAME_BYTES = 4096

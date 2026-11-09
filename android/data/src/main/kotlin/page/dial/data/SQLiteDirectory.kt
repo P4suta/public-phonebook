@@ -1,6 +1,5 @@
 package page.dial.data
 
-import android.database.sqlite.SQLiteDatabase
 import android.os.CancellationSignal
 import android.util.AtomicFile
 import java.io.File
@@ -10,11 +9,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 import org.brotli.dec.BrotliInputStream
-import org.json.JSONObject
 import page.dial.core.CanonicalPhone
 import page.dial.core.Contact
 import page.dial.core.PublicationPolicy
 import page.dial.core.SearchPage
+import page.dial.core.SearchResults
 import page.dial.core.SearchText
 import page.dial.core.SyncPolicy
 import page.dial.core.SyncState
@@ -51,8 +50,8 @@ internal class SQLiteDirectory(
     private val generations = File(root, "generations").apply { mkdirs() }
     private val active = AtomicFile(File(root, "active"))
     private val gate = ReentrantReadWriteLock()
+    private val reader = GenerationReader(generations, active, gate)
     private val importing = Any()
-    @Volatile private var cached: Pair<String, ArchiveHeader>? = null
     @Volatile
     var cleanupState = CleanupState.Deferred
         private set
@@ -61,34 +60,12 @@ internal class SQLiteDirectory(
     var activationOutcome = ActivationOutcome.NotAttempted
         private set
 
-    private fun activeName(): String? = GenerationPointer.read(active)?.current
-
-    private fun <T> read(block: (SQLiteDatabase, ArchiveHeader) -> T): T? = gate.read {
-        val name = activeName() ?: return@read null
-        SQLiteDatabase.openDatabase(
-                File(generations, "$name/directory.db").path,
-                null,
-                SQLiteDatabase.OPEN_READONLY,
-            )
-            .use { db ->
-                val header =
-                    cached?.takeIf { it.first == name }?.second
-                        ?: db.rawQuery("SELECT json FROM metadata", null).use {
-                            requireDirectory(it.moveToFirst())
-                            ArchiveHeader(JSONObject(it.getString(0))).also { header ->
-                                cached = name to header
-                            }
-                        }
-                block(db, header)
-            }
-    }
-
-    fun current(): SyncState.Ready? = read { _, header ->
+    fun current(): SyncState.Ready? = reader.read { _, header ->
         SyncState.Ready(header.snapshot, header.contacts)
     }
 
     fun activeArchive(): File? = gate.read {
-        activeName()?.let { File(generations, "$it/archive.tsv") }
+        reader.currentName()?.let { File(generations, "$it/archive.tsv") }
     }
 
     fun install(input: File, entry: ArchiveEntry): SyncState.Ready {
@@ -108,7 +85,7 @@ internal class SQLiteDirectory(
         synchronized(importing) {
             val identity = "${entry.snapshot.value}-${entry.sha256.value}"
             val alreadyActive = gate.read {
-                activeName()?.let { it == identity || it.startsWith("$identity-") } == true
+                reader.currentName()?.let { it == identity || it.startsWith("$identity-") } == true
             }
             if (alreadyActive)
                 return@synchronized current() ?: throw InvalidDirectory("Missing active generation")
@@ -141,7 +118,7 @@ internal class SQLiteDirectory(
 
     private fun activate(staged: StagedGeneration, name: String, admitted: Boolean) = gate.write {
         requireDirectory(PublicationPolicy.canActivate(staged.phase, admitted))
-        val previous = activeName()
+        val previous = reader.currentName()
         val destination = File(generations, name)
         requireDirectory(!destination.exists())
         staged.activationStarted()
@@ -177,7 +154,6 @@ internal class SQLiteDirectory(
         activationOutcome =
             if (failure == null) ActivationOutcome.Committed else ActivationOutcome.Recovered
         staged.activated()
-        cached = null
     }
 
     fun retryCleanup(): Unit =
@@ -195,16 +171,33 @@ internal class SQLiteDirectory(
                 }
         }
 
-    fun search(query: String, category: String? = null, offset: Int = 0): SearchPage {
+    fun search(
+        query: String,
+        category: String? = null,
+        offset: Int = 0,
+        cancellation: CancellationSignal? = null,
+    ): SearchPage {
         val plan = DirectoryQuery.parse(query, category, offset, forms)
         return if (plan == null) SearchPage(emptyList(), 0, current()?.snapshot)
-        else
-            read { db, header -> plan.execute(db, header, offset) }
+        else {
+            prepareSearch(cancellation)
+            reader.read { db, header -> plan.execute(db, header, offset, cancellation) }
                 ?: SearchPage(emptyList(), 0, null)
+        }
+    }
+
+    fun prepareSearch(cancellation: CancellationSignal? = null) = reader.prepareSearch(cancellation)
+
+    fun preview(query: String, cancellation: CancellationSignal? = null): SearchResults {
+        val plan = DirectoryQuery.parse(query, null, 0, forms)
+        if (plan == null) return SearchResults(emptyList(), current()?.snapshot)
+        prepareSearch(cancellation)
+        return reader.read { db, header -> plan.preview(db, header, cancellation) }
+            ?: SearchResults(emptyList(), null)
     }
 
     fun find(phone: CanonicalPhone, cancellation: CancellationSignal? = null): Contact? =
-        read { db, header ->
+        reader.read { db, header ->
             val sql =
                 "SELECT c.id,c.raw FROM phones p JOIN contacts c ON p.contact=c.id " +
                     "WHERE p.number=? ORDER BY c.id LIMIT 1"

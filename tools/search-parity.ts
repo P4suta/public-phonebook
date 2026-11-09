@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { closeSync, fstatSync, openSync, readSync, writeSync } from "node:fs";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { parseArgs } from "node:util";
@@ -8,6 +10,12 @@ import * as v from "valibot";
 import { type Category, CategorySchema } from "../src/core/catalog.ts";
 import { PreparedDatasetManifestSchema } from "../src/core/dataset-storage.ts";
 import { environments } from "../src/core/environment.ts";
+import {
+  admitFileSearch,
+  type FileSearch,
+  type SearchFile,
+  writeSearchFile,
+} from "../src/core/file-search.ts";
 import {
   localQuery,
   matchIndex,
@@ -25,12 +33,11 @@ import {
 import { formatPhone, normalizePhone } from "../src/core/phone.ts";
 import { showsAddress } from "../src/core/search.ts";
 import {
-  decodeSearchIndex,
+  decodeLiteralSearchIndex,
   type SearchIndex,
   searchIndexFile,
 } from "../src/core/search-index.ts";
 import { api, type DirectoryApiBindings } from "../src/server/api.ts";
-import { localRow as indexRow } from "../src/ui/local-search-service.ts";
 import { localDataRuntime } from "./local-data.ts";
 
 const commandArgumentOffset = 2;
@@ -322,6 +329,25 @@ export function parityQueries(
       ? `${place}　${fragment}`
       : `${fragment} ${place}`;
   });
+  const readingQueries = [
+    "とうきょう",
+    "としょかん",
+    "とうきょう としょかん",
+    "ﾄｼｮｶﾝ",
+    "びょういん",
+    "やくしょ",
+    "ふく",
+    "と",
+    "としょこ",
+  ];
+  for (
+    let position = 0;
+    position < Math.min(places.length, readingQueries.length);
+    position++
+  ) {
+    const query = readingQueries[position];
+    if (query !== undefined) places[position] = query;
+  }
   return { substrings, names, numbers, absent, places };
 }
 
@@ -525,26 +551,78 @@ class ServerSearch {
 }
 
 class LiteralReference {
-  readonly #index: SearchIndex;
   readonly #ids: readonly string[];
+  readonly #files: FileSearch;
 
-  constructor(index: SearchIndex, ids: readonly string[]) {
-    this.#index = index;
+  constructor(ids: readonly string[], files: FileSearch) {
     this.#ids = ids;
+    this.#files = files;
   }
 
   preview(query: string): ComparedResults {
-    return previewOf(this.#index, query, this.#ids);
+    const results = this.#files.search(query);
+    if (!results.ok) throw new Error(`A reference query is invalid: ${query}`);
+    return {
+      total: results.value.total,
+      groups: results.value.groups.map((group) => ({
+        ...group,
+        rows: group.rows.map((row) =>
+          localRow(this.#files.row(row), this.#ids),
+        ),
+      })),
+    };
   }
 
   category(query: string, category: Category): ComparedRow[] {
-    const parsed = localQuery(query);
-    if (!parsed.ok) throw new Error(`A reference query is invalid: ${query}`);
-    const matches = matchIndex(this.#index, parsed.value);
-    return (
-      matches.categories.find((group) => group.category === category)?.rows ??
-      []
-    ).map((row) => localRow(indexRow(this.#index, row), this.#ids));
+    const rows: ComparedRow[] = [];
+    let visible = 0;
+    for (;;) {
+      const page = this.#files.continue(query, category, visible);
+      if (!page.ok)
+        throw new Error(`A reference continuation is invalid: ${query}`);
+      rows.push(
+        ...page.value.rows.map((row) =>
+          localRow(this.#files.row(row), this.#ids),
+        ),
+      );
+      visible = page.value.visible;
+      if (visible === page.value.total) return rows;
+    }
+  }
+}
+
+async function openFileReference(bytes: Uint8Array): Promise<{
+  readonly index: FileSearch;
+  readonly dispose: () => Promise<void>;
+}> {
+  const directory = await mkdtemp(join(tmpdir(), "phonebook-search-parity-"));
+  const descriptors: number[] = [];
+  async function dispose(): Promise<void> {
+    for (const fd of descriptors.splice(0)) closeSync(fd);
+    await rm(directory, { recursive: true, force: true });
+  }
+  try {
+    function file(name: string): SearchFile {
+      const fd = openSync(join(directory, name), "w+");
+      descriptors.push(fd);
+      return {
+        getSize: () => fstatSync(fd).size,
+        read: (buffer, at) => readSync(fd, buffer, 0, buffer.length, at),
+        write: (buffer, at) => writeSync(fd, buffer, 0, buffer.length, at),
+      };
+    }
+    const files = {
+      raw: file("index"),
+      folded: file("folded-names"),
+      names: file("name-offsets"),
+      phones: file("telephone-offsets"),
+    };
+    writeSearchFile(files.raw, bytes, 0);
+    const index = await admitFileSearch(files, async () => {});
+    return { index, dispose };
+  } catch (error) {
+    await dispose();
+    throw error;
   }
 }
 
@@ -612,10 +690,12 @@ async function main(): Promise<void> {
   const ids = readRowIds(join(directory, "directory.sqlite"));
   if (ids.length !== manifest.contacts)
     throw new Error("The bundle database has a different contact count");
-  const index = decodeSearchIndex(decoded);
-  const reference = new LiteralReference(index, ids);
+  const index = decodeLiteralSearchIndex(decoded);
   const runtime = localDataRuntime(values.state ?? defaultState);
+  let files: Awaited<ReturnType<typeof openFileReference>> | null = null;
   try {
+    files = await openFileReference(decoded);
+    const reference = new LiteralReference(ids, files.index);
     const server = new ServerSearch({
       DB: retryingDatabase(await runtime.getD1Database("DB")),
       DATASETS: {
@@ -712,6 +792,8 @@ async function main(): Promise<void> {
     const report = {
       operation: "search-parity",
       contract: "server-literal-reference",
+      localBackend: "temporary-files",
+      retainedSearchBufferBytes: files.index.retainedBufferBytes,
       snapshot: manifest.snapshot,
       contacts: manifest.contacts,
       seed: paritySeed,
@@ -765,7 +847,11 @@ async function main(): Promise<void> {
     if (!passed)
       throw new Error("The server search differs from its literal reference");
   } finally {
-    await runtime.dispose();
+    try {
+      await files?.dispose();
+    } finally {
+      await runtime.dispose();
+    }
   }
 }
 

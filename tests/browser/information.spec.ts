@@ -5,14 +5,46 @@ import { auditDesign } from "./design-policy.ts";
 import { expect, test } from "./fixtures.ts";
 import { knownContact } from "./known-contact.ts";
 
-test("the initial screen labels the search without a hint and offers one project-information action", async ({
+test("the initial search fits the viewport without app information", async ({
+  page,
+}) => {
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 390, height: 844 },
+    { width: 320, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/");
+    await expect(page.getByRole("searchbox")).toBeInViewport();
+    await expect(
+      page.getByRole("button", { name: "電話番号をさがす", exact: true }),
+    ).toBeInViewport();
+    expect(
+      await page.evaluate((): number => document.documentElement.scrollHeight),
+    ).toBeLessThanOrEqual(viewport.height);
+    await expect(
+      page.getByRole("region", { name: uiCopy.app.heading, exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("region", {
+        name: uiCopy.openSource.heading,
+        exact: true,
+      }),
+    ).toHaveCount(0);
+  }
+});
+
+test("the initial screen explains reading search and offers one project-information action", async ({
   page,
 }) => {
   await page.goto("/");
   const searchbox = page.getByRole("searchbox");
   await expect(searchbox).not.toHaveAttribute("placeholder");
   await expect(searchbox).toHaveAccessibleName("施設の名前");
-  await expect(searchbox).toHaveAccessibleDescription("");
+  await expect(searchbox).toHaveAccessibleDescription(uiCopy.search.readings);
+  await expect(
+    page.getByText(uiCopy.search.readings, { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText(/名前の一部でも/u)).toHaveCount(0);
   await expect(page.getByText("施設の名前", { exact: true })).toBeVisible();
   await expect(searchbox).toHaveAttribute("enterkeyhint", "search");
@@ -70,6 +102,60 @@ test("the about page describes search with the iPhone app's sentence at every wi
     ).toBeVisible();
     await expect(page.getByText(/候補が出ます|電話番号でも/u)).toHaveCount(0);
   }
+});
+
+test("the about page explains iPhone setup and links the published app", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: uiCopy.about, exact: true }).click();
+  await expect(page).toHaveURL("/about");
+  const invitation = page.getByRole("region", {
+    name: "iPhoneで、電話の相手が分かります",
+    exact: true,
+  });
+  await expect(invitation).toBeVisible();
+  await expect(
+    invitation.getByText(/アプリに番号がある施設の名前が出ます。/u),
+  ).toBeVisible();
+  await expect(
+    invitation.getByText(/設定でPublic Phonebookをオン/u),
+  ).toBeVisible();
+  const link = invitation.getByRole("link", {
+    name: "App Storeでアプリを見る （新しいタブ）",
+    exact: true,
+  });
+  await expect(link).toHaveAttribute(
+    "href",
+    "https://apps.apple.com/jp/app/public-phonebook/id6828899028",
+  );
+  await expect(link).toHaveAttribute("data-external-destination", "appStore");
+  await page.goto("/?q=図書館");
+  await expect(page.getByRole("searchbox")).toHaveValue("図書館");
+  await expect(
+    page.getByRole("link", { name: /App Storeでアプリを見る/u }),
+  ).toHaveCount(0);
+});
+
+test("the about page explains free use and links the public source", async ({
+  page,
+}) => {
+  await page.goto("/about");
+  const information = page.getByRole("region", {
+    name: "無料で使えます",
+    exact: true,
+  });
+  await expect(information).toBeVisible();
+  await expect(
+    information.getByText("アプリもウェブサイトも、無料で使えます。", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(information.getByText(/プログラムの中身を公開/u)).toBeVisible();
+  await expect(information.getByText(/決まりにそって/u)).toBeVisible();
+  await expect(
+    information.getByRole("link", { name: /^プログラムと決まりを見る/u }),
+  ).toHaveAttribute("href", "https://github.com/P4suta/public-phonebook");
 });
 
 test("each page action leads with its own icon", async ({ page, request }) => {

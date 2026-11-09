@@ -10,30 +10,32 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,6 +46,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -104,28 +107,17 @@ private fun Phonebook(model: DirectoryViewModel, prepared: () -> Unit) {
         pending = ExternalAction(intent, message)
     }
     val entries = rememberEntries(stack, model, ::external)
-    Surface(Modifier.fillMaxSize()) {
-        Column(
-            Modifier.safeDrawingPadding().imePadding().fillMaxSize().padding(horizontal = 20.dp)
+    Scaffold(topBar = { PhonebookAppBar(stack) }) { insets ->
+        Box(
+            Modifier.fillMaxSize().padding(insets).consumeWindowInsets(insets).imePadding(),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            Text(
-                stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(vertical = 16.dp).semantics { heading() },
-            )
-            if (stack.size > 1) Action(R.string.back) { stack.removeAt(stack.lastIndex) }
             NavDisplay(
                 backStack = stack,
                 onBack = { if (stack.size > 1) stack.removeAt(stack.lastIndex) },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.widthIn(max = 720.dp).fillMaxSize().padding(horizontal = 20.dp),
                 entryProvider = entries,
             )
-            if (stack.size == 1)
-                Column {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface)
-                    Action(R.string.settings) { stack += Screen.Settings }
-                    Action(R.string.about) { stack += Screen.About }
-                }
         }
     }
     pending?.let { action ->
@@ -167,7 +159,7 @@ private fun ExternalFailure(dismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = dismiss,
         text = { Text(stringResource(R.string.no_external_app)) },
-        confirmButton = { TextButton(onClick = dismiss) { Text(stringResource(R.string.close)) } },
+        confirmButton = { DialogAction(R.string.close, R.drawable.ic_close, dismiss) },
     )
 }
 
@@ -179,15 +171,21 @@ private fun SearchDestination(
 ) {
     when (state.sync) {
         SyncState.Preparing ->
-            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()).padding(vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
                 Text(stringResource(R.string.preparing))
                 Text(stringResource(R.string.offline_setup))
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.onSurface)
             }
         is SyncState.Failed ->
-            Column {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()).padding(vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
                 Text(stringResource(R.string.preparation_failed))
-                Action(R.string.retry, model::prepare)
+                Action(R.string.retry, R.drawable.ic_refresh, onClick = model::prepare)
             }
         else -> SearchScreen(state, model, select)
     }
@@ -201,7 +199,9 @@ private fun ConfirmationDialog(action: ExternalAction, dismiss: () -> Unit, fail
         title = { Text(stringResource(R.string.external_title)) },
         text = { Text(action.explanation) },
         confirmButton = {
-            TextButton(
+            DialogAction(
+                R.string.open,
+                R.drawable.ic_external,
                 onClick = {
                     dismiss()
                     try {
@@ -211,76 +211,20 @@ private fun ConfirmationDialog(action: ExternalAction, dismiss: () -> Unit, fail
                     } catch (_: SecurityException) {
                         failed()
                     }
-                }
-            ) {
-                Text(stringResource(R.string.open))
-            }
+                },
+            )
         },
-        dismissButton = { TextButton(onClick = dismiss) { Text(stringResource(R.string.cancel)) } },
+        dismissButton = { DialogAction(R.string.cancel, R.drawable.ic_close, dismiss) },
     )
 }
 
 @Composable
-internal fun Action(label: Int, onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
-    ) {
-        Text(stringResource(label))
-    }
-}
-
-@Composable
-private fun SearchScreen(
-    state: DirectoryUiState,
-    model: DirectoryViewModel,
-    select: (Contact) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SearchField(state.query) { model.search(it) }
-        if (state.searching) Text(stringResource(R.string.search))
-        if (state.searchFailed) Text(stringResource(R.string.search_failed))
-        if (state.query.isBlank()) Text(stringResource(R.string.empty_query))
-        else if (!state.searching && state.results.total == 0L)
-            Text(stringResource(R.string.no_matches))
-        else Text(stringResource(R.string.results, state.results.total))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            val groups = state.results.contacts.groupBy { it.category }
-            groups.forEach { (category, contacts) ->
-                item(key = "category:${category.id}") {
-                    Text(
-                        category.label,
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(top = 16.dp).semantics { heading() },
-                    )
-                }
-                items(contacts, key = { "${it.snapshot.value}:${it.row}" }) { contact ->
-                    OutlinedButton(
-                        onClick = { select(contact) },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
-                    ) {
-                        Column(Modifier.fillMaxWidth().padding(8.dp)) {
-                            Text(contact.name, style = MaterialTheme.typography.titleMedium)
-                            Text("${contact.prefecture} ${contact.municipality}")
-                            Text(contact.phones.first().display)
-                        }
-                    }
-                }
-            }
-            if (
-                state.results.contacts.size < state.results.total &&
-                    state.results.contacts.isNotEmpty()
-            )
-                item { Action(R.string.more) { model.search(state.query, more = true) } }
-        }
-    }
-}
-
-@Composable
 private fun ContactScreen(contact: Contact, external: (Intent, String) -> Unit) {
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    LazyColumn(
+        contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item { Text(contact.category.label, style = MaterialTheme.typography.bodyMedium) }
         item {
             Text(
                 contact.name,
@@ -288,16 +232,22 @@ private fun ContactScreen(contact: Contact, external: (Intent, String) -> Unit) 
                 modifier = Modifier.semantics { heading() },
             )
         }
-        item {
-            Text(contact.category.label)
-            Text("${contact.prefecture} ${contact.municipality}")
-            Text(contact.address)
-        }
+        item { SectionHeading(R.string.phone_heading) }
         items(contact.phones) { phone -> PhoneAction(phone, external) }
+        item {
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface)
+            SectionHeading(R.string.address_heading)
+        }
+        item {
+            Text(
+                contact.address.ifBlank { "${contact.prefecture} ${contact.municipality}" },
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
         if (contact.address.isNotBlank())
             item {
                 val confirmation = stringResource(R.string.map_confirmation, contact.address)
-                Action(R.string.map) {
+                Action(R.string.map, R.drawable.ic_place) {
                     external(
                         Intent(
                             Intent.ACTION_VIEW,
@@ -310,38 +260,26 @@ private fun ContactScreen(contact: Contact, external: (Intent, String) -> Unit) 
         contact.website?.let { url ->
             item {
                 val confirmation = stringResource(R.string.web_confirmation, url)
-                Action(R.string.website) {
+                Action(R.string.website, R.drawable.ic_external) {
                     external(Intent(Intent.ACTION_VIEW, url.toUri()), confirmation)
                 }
             }
         }
-        item {
-            Text(contact.publisher)
-            Text(stringResource(R.string.retrieved, contact.retrievedAt))
-        }
-        item {
-            Action(R.string.source) {
-                external(Intent(Intent.ACTION_VIEW, contact.sourceUrl.toUri()), contact.sourceUrl)
-            }
-        }
-        item {
-            Text(contact.license)
-            Action(R.string.license) {
-                external(Intent(Intent.ACTION_VIEW, contact.licenseUrl.toUri()), contact.licenseUrl)
-            }
-        }
+        sourceDetails(contact, external)
     }
 }
 
 @Composable
 private fun PhoneAction(phone: Phone, external: (Intent, String) -> Unit) {
     val confirmation = stringResource(R.string.dial_confirmation, phone.display)
-    Text(phone.display)
-    Action(R.string.call) {
-        external(
-            Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", phone.number.value, null)),
-            confirmation,
-        )
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(phone.display, style = MaterialTheme.typography.headlineSmall)
+        Action(R.string.call, R.drawable.ic_phone, primary = true) {
+            external(
+                Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", phone.number.value, null)),
+                confirmation,
+            )
+        }
     }
 }
 
@@ -357,32 +295,31 @@ private fun SettingsScreen(state: DirectoryUiState, model: DirectoryViewModel) {
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             active = roles.isRoleHeld(RoleManager.ROLE_CALL_SCREENING)
         }
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    LazyColumn(
+        contentPadding = PaddingValues(top = 8.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item { SectionHeading(R.string.caller_settings) }
         item {
             Text(
-                stringResource(R.string.caller_settings),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.semantics { heading() },
+                stringResource(if (active) R.string.caller_active else R.string.caller_inactive),
+                style = MaterialTheme.typography.titleMedium,
             )
         }
         item {
-            Text(stringResource(R.string.caller_explanation))
-            Text(stringResource(if (active) R.string.caller_active else R.string.caller_inactive))
+            Text(
+                stringResource(R.string.caller_explanation),
+                style = MaterialTheme.typography.bodyLarge,
+            )
         }
         if (roles.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING))
             item {
-                Action(R.string.choose_caller) {
+                Action(R.string.choose_caller, R.drawable.ic_phone) {
                     launcher.launch(roles.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING))
                 }
             }
         else item { Text(stringResource(R.string.caller_unavailable)) }
-        item { Text(stringResource(R.string.update_explanation)) }
-        item { Action(R.string.update, model::refresh) }
-        if (state.updating) item { Text(stringResource(R.string.updating)) }
-        state.updateMessage?.let { message -> item { Text(stringResource(message)) } }
-        (state.sync as? SyncState.Ready)?.let { ready ->
-            item { Text(stringResource(R.string.saved_count, ready.contacts)) }
-        }
+        datasetSettings(state, model::refresh)
         if (BuildConfig.QA_ENABLED) item { VerificationSettings() }
     }
 }
@@ -393,14 +330,20 @@ private fun VerificationSettings() {
     val number = rememberTextFieldState()
     var message by remember { mutableStateOf<Int?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(top = 16.dp),
+        )
+        SectionHeading(R.string.verification_heading)
         OutlinedTextField(
             state = number,
             lineLimits = TextFieldLineLimits.SingleLine,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             label = { Text(stringResource(R.string.verification_number)) },
+            leadingIcon = { PhonebookIcon(R.drawable.ic_phone) },
             modifier = Modifier.fillMaxWidth(),
         )
-        Action(R.string.save_verification) {
+        Action(R.string.save_verification, R.drawable.ic_check) {
             val canonical = CanonicalPhone.parse(number.text.toString())
             if (canonical == null) message = R.string.verification_invalid
             else {
@@ -414,11 +357,65 @@ private fun VerificationSettings() {
                     }
             }
         }
-        Action(R.string.clear_verification) {
+        Action(R.string.clear_verification, R.drawable.ic_delete) {
             VerificationNumber.clear(context)
             number.clearText()
             message = null
         }
         message?.let { Text(stringResource(it)) }
     }
+}
+
+private fun LazyListScope.sourceDetails(contact: Contact, external: (Intent, String) -> Unit) {
+    item {
+        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface)
+        SectionHeading(R.string.source_heading)
+    }
+    item {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(contact.publisher, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(R.string.retrieved, contact.retrievedAt.substringBefore('T')),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+    item {
+        Action(R.string.source, R.drawable.ic_external) {
+            external(Intent(Intent.ACTION_VIEW, contact.sourceUrl.toUri()), contact.sourceUrl)
+        }
+    }
+    item { Text(contact.license, style = MaterialTheme.typography.bodyMedium) }
+    item {
+        Action(R.string.license, R.drawable.ic_document) {
+            external(Intent(Intent.ACTION_VIEW, contact.licenseUrl.toUri()), contact.licenseUrl)
+        }
+    }
+}
+
+private fun LazyListScope.datasetSettings(state: DirectoryUiState, refresh: () -> Unit) {
+    item {
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(top = 16.dp),
+        )
+        SectionHeading(R.string.update_heading)
+    }
+    (state.sync as? SyncState.Ready)?.let { ready ->
+        item {
+            Text(
+                stringResource(R.string.saved_count, ready.contacts),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+    }
+    item {
+        Text(
+            stringResource(R.string.update_explanation),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+    }
+    item { Action(R.string.update, R.drawable.ic_refresh, onClick = refresh) }
+    if (state.updating) item { Text(stringResource(R.string.updating)) }
+    state.updateMessage?.let { message -> item { Text(stringResource(message)) } }
 }

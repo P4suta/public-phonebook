@@ -25,6 +25,7 @@ import page.dial.core.Contact
 import page.dial.core.DirectoryLimits
 import page.dial.core.DirectoryRepository
 import page.dial.core.SearchPage
+import page.dial.core.SearchResults
 import page.dial.core.SyncPolicy
 import page.dial.core.SyncState
 
@@ -54,7 +55,12 @@ class DeviceDirectory(
         )
 
     override suspend fun prepare(): SyncState.Ready = sync.withLock {
-        runInterruptible(io) { store.current()?.also { store.retryCleanup() } ?: importBundle() }
+        runInterruptible(io) {
+            (store.current() ?: importBundle()).also {
+                store.prepareSearch()
+                store.retryCleanup()
+            }
+        }
     }
 
     private fun importBundle(): SyncState.Ready {
@@ -80,16 +86,13 @@ class DeviceDirectory(
     }
 
     override suspend fun search(query: String, category: String?, offset: Int): SearchPage =
-        runInterruptible(io) { store.search(query, category, offset) }
+        readQuery(io) { store.search(query, category, offset, it) }
+
+    override suspend fun preview(query: String): SearchResults =
+        readQuery(io) { store.preview(query, it) }
 
     override suspend fun find(phone: CanonicalPhone): Contact? =
-        withContext(io) {
-            suspendCancellableCoroutine { continuation ->
-                val cancellation = CancellationSignal()
-                continuation.invokeOnCancellation { cancellation.cancel() }
-                continuation.resumeWith(runCatching { store.find(phone, cancellation) })
-            }
-        }
+        readQuery(io) { store.find(phone, it) }
 
     private fun readState(): JSONObject =
         try {
@@ -214,3 +217,12 @@ class DeviceDirectory(
         private const val MILLIS_PER_SECOND = 1000
     }
 }
+
+private suspend fun <T> readQuery(io: CoroutineDispatcher, read: (CancellationSignal) -> T): T =
+    withContext(io) {
+        suspendCancellableCoroutine { continuation ->
+            val cancellation = CancellationSignal()
+            continuation.invokeOnCancellation { cancellation.cancel() }
+            continuation.resumeWith(runCatching { read(cancellation) })
+        }
+    }

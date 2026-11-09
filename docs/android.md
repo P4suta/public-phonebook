@@ -12,7 +12,7 @@ Search terms and incoming numbers stay on the device.
 
 Install the versions in `mise.toml` and set `ANDROID_HOME` to the Android SDK directory.
 The build uses Java Development Kit (JDK) 21.
-Gradle `9.5.0` runs Android Gradle plugin `9.3.3`.
+Gradle `9.8.2` runs Android Gradle plugin `9.3.3`.
 Kotlin and Compose Compiler both use version `2.4.10`.
 Production and test coroutines both use version `1.11.0`.
 
@@ -21,6 +21,7 @@ The Android Gradle plugin uses its [built-in Kotlin integration](https://develop
 The [plugin compatibility matrix](https://developer.android.com/build/releases/agp-9-3-0-release-notes) governs Gradle and SDK compatibility.
 Install `platforms;android-37.0` revision 2 and `build-tools;36.0.0` with the Android SDK tools.
 The SDK platform package name includes `.0`.
+Workflows install both packages through `.github/actions/android-sdk`, which calls `sdkmanager` under `ANDROID_HOME` because hosted runners keep it off `PATH`.
 Dependency locks and `android/gradle/verification-metadata.xml` bind dependency versions and SHA-256 checksums.
 
 ```console
@@ -46,6 +47,29 @@ Text entry follows the recommended [state-based Compose text fields](https://dev
 The search keyboard action clears focus and dismisses the keyboard while preserving the query.
 Screenshot capture waits for the platform's [accessibility event stream to become idle](https://developer.android.com/reference/android/app/UiAutomation#waitForIdle(long,long)) after Compose becomes idle.
 
+## Interface
+
+Search uses a compact app bar with direct access to settings and app information, following Android's [app-bar guidance](https://developer.android.com/develop/ui/compose/components/app-bars).
+Facility rows group the name, location, and telephone number in one target.
+A building icon identifies each facility, and a chevron indicates its details.
+Rules separate entries, while font size, weight, and spacing distinguish names from supporting information.
+The black-and-white palette and outlined secondary actions are owner design choices.
+The detail screen groups telephone actions, the address, and source information under [semantic headings](https://developer.android.com/develop/ui/compose/accessibility/semantics#headings).
+
+Controls have at least 48 dp targets and localized icon descriptions under [Compose accessibility defaults](https://developer.android.com/develop/ui/compose/accessibility/api-defaults).
+Facility rows and actions declare a button role because [Material Surface](https://github.com/androidx/androidx/blob/androidx-main/compose/material3/material3/src/commonMain/kotlin/androidx/compose/material3/Surface.kt) supplies an `OnClick` action without a default role.
+Redundant icons have no independent accessibility description.
+The search field retains native composition and adds an explicit clear action.
+Text uses scalable units, content scrolls, and [window insets](https://developer.android.com/develop/ui/compose/system/insets) protect controls from system bars and the keyboard.
+The shared outcome is readable text and usable controls, also addressed by [Apple accessibility guidance](https://developer.apple.com/design/human-interface-guidelines/accessibility) and [Web Content Accessibility Guidelines target sizing](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html).
+Android's dp targets and Compose semantics govern the native implementation.
+
+Review covers empty search, composition, results, continuation, details, cancelled external actions, settings, app information, and returning to the current query.
+Device checks cover the clear action, navigation labels, button roles, system-bar appearance, target sizes, and text overflow.
+Text inspection compares individual line widths with the rendered size.
+Compose's [semantic text projection](https://github.com/androidx/androidx/blob/androidx-main/compose/foundation/foundation/src/commonMain/kotlin/androidx/compose/foundation/text/modifiers/ParagraphLayoutCache.kt) can rebuild a paragraph with parent constraints, so its paragraph width can exceed the rendered text width without clipping any characters.
+Inspect the same journey in light and dark appearances and with enlarged text on a narrow display.
+
 ## Data and update design
 
 Android's [architecture recommendations](https://developer.android.com/topic/architecture/recommendations) place repositories between the UI and data sources, and the [offline-first guidance](https://developer.android.com/topic/architecture/data-layer/offline-first) keeps saved data available during network failure.
@@ -70,8 +94,28 @@ It requires one complete object, rejects duplicate keys, malformed UTF-8, traili
 Search uses FTS4 unigrams and bigrams to narrow candidates, then requires every normalized word with exact substring predicates.
 Bound SQL parameters carry search terms, ranking, category selection, and pagination.
 The canonical kanji variants and shared search fixtures load from their existing source paths.
+The [verified place readings](search-readings.md) add prefecture and common-category prefixes through the same bundled JSON as Web and iPhone.
+Reading predicates query saved category identifiers and archive prefecture codes without rebuilding the saved full-text index.
 The full-text index is an optimization whose candidates must include every exact match.
 Phone lookup uses a separate indexed canonical number and bypasses the word-count limit.
+
+Every matching category shows its complete count and up to three results.
+Expanding a category shows its first 30 results, and later requests append another 30 within that category.
+Other category previews keep their positions and visible contacts.
+Changing the query cancels earlier work, and a generation change restarts the complete preview before appending.
+Failed continuation keeps the category's visible contacts and offers a retry.
+The native controls keep [stable lazy-list keys](https://developer.android.com/develop/ui/compose/lists#item-keys) and [semantic headings](https://developer.android.com/develop/ui/compose/accessibility/semantics#headings).
+
+The [separate sort key](adr/keep-android-search-order-separate-from-comparison-folding.md) keeps kana folding out of the result order.
+Existing saved databases migrate the key locally in a transaction before search, while archive data and caller lookup remain available.
+Preview queries stream identifiers and counts before decoding only the selected contacts.
+Cancelling a search coroutine also cancels its SQLite queries.
+The text field observes its native composing range together with the text.
+Conversion drafts cancel earlier work and wait for composition to finish before searching, including an unchanged-text commit.
+Preparation and refresh apply their result to the current screen state after the repository operation finishes.
+Input committed or composed during either operation stays in the search field.
+Preparation and refresh preserve an active composition.
+The device UI test drives the real input connection through composition and commit before checking results.
 
 A transfer starts only on an unmetered connection without Data Saver restrictions.
 Partial files persist under their expected digest, and a resume requires the exact `Content-Range`.

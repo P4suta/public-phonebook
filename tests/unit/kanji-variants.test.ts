@@ -28,7 +28,9 @@ const traditional = joyoTraditionalForms.split(" ").map((pair) => {
 });
 
 function finds(name: string, query: string): boolean {
-  return rankWords(searchForm(name), searchWords(query), () => false) >= 0;
+  return (
+    rankWords(searchForm(name), searchWords(query), () => false, undefined) >= 0
+  );
 }
 
 function characters(table: ReadonlyMap<number, number>): object {

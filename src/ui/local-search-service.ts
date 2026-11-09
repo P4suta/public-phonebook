@@ -21,6 +21,7 @@ import type { Result } from "../core/result.ts";
 import {
   decodeSearchIndex,
   hasSearchIndexSignature,
+  literalSearchIndexBatches,
   type SearchIndex,
 } from "../core/search-index.ts";
 
@@ -35,6 +36,7 @@ export type RankingFactory = (
 export interface LocalSearchPorts {
   readonly fetch: (url: string) => Promise<Response>;
   readonly post: (reply: LocalSearchReply) => void;
+  readonly yield?: () => Promise<void>;
 }
 
 interface Expected {
@@ -84,17 +86,34 @@ async function download(
       return { ok: false, error: { reason: "transport_mismatch", detail: "" } };
     if (!response.body)
       return { ok: false, error: { reason: "length_mismatch", detail: "" } };
-    const reader = response.body.getReader();
-    const bytes = new Uint8Array(expected.uncompressedBytes);
-    const hash = sha256.create();
+    let byteReader: ReadableStreamBYOBReader | null = null;
+    try {
+      byteReader = response.body.getReader({ mode: "byob" });
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error;
+    }
+    const reader = byteReader ?? response.body.getReader();
+    let bytes = new Uint8Array(
+      expected.uncompressedBytes + (byteReader ? 1 : 0),
+    );
     let received = 0;
+    const hasher = sha256.create();
     let step = Math.floor(
       (receivedBefore * indexProgressSteps) / Math.max(total, 1),
     );
     for (;;) {
-      const read = await reader.read();
-      if (read.done) break;
+      const read =
+        reader instanceof ReadableStreamBYOBReader
+          ? await reader.read(bytes.subarray(received))
+          : await reader.read();
       const chunk: unknown = read.value;
+      if (
+        byteReader &&
+        chunk instanceof Uint8Array &&
+        chunk.buffer instanceof ArrayBuffer
+      )
+        bytes = new Uint8Array(chunk.buffer);
+      if (read.done) break;
       if (!(chunk instanceof Uint8Array))
         throw new TypeError("The index body didn't stream bytes");
       received += chunk.byteLength;
@@ -102,8 +121,8 @@ async function download(
         await reader.cancel();
         return { ok: false, error: { reason: "length_mismatch", detail: "" } };
       }
-      bytes.set(chunk, received - chunk.byteLength);
-      hash.update(chunk);
+      if (!byteReader) bytes.set(chunk, received - chunk.byteLength);
+      hasher.update(chunk);
       const reached = Math.floor(
         ((receivedBefore + received) * indexProgressSteps) / Math.max(total, 1),
       );
@@ -118,9 +137,10 @@ async function download(
     }
     if (received !== expected.uncompressedBytes)
       return { ok: false, error: { reason: "length_mismatch", detail: "" } };
-    if (digestHex(hash.digest()) !== expected.uncompressedSha256)
+    const admitted = bytes.subarray(0, received);
+    if (digestHex(hasher.digest()) !== expected.uncompressedSha256)
       return { ok: false, error: { reason: "digest_mismatch", detail: "" } };
-    return { ok: true, value: bytes };
+    return { ok: true, value: admitted };
   } catch (error) {
     return {
       ok: false,
@@ -129,9 +149,23 @@ async function download(
   }
 }
 
-function decode(bytes: Uint8Array, lazy: boolean): Result<SearchIndex, string> {
+async function decode(
+  bytes: Uint8Array,
+  lazy: boolean,
+  current: () => boolean,
+  yieldBatch: (() => Promise<void>) | undefined,
+): Promise<Result<SearchIndex, string>> {
   try {
-    return { ok: true, value: decodeSearchIndex(bytes, lazy) };
+    if (lazy) return { ok: true, value: decodeSearchIndex(bytes, true) };
+    const batches = literalSearchIndexBatches(bytes);
+    let step = batches.next();
+    while (!step.done) {
+      await yieldBatch?.();
+      if (!current())
+        return { ok: false, error: "The index load was superseded" };
+      step = batches.next();
+    }
+    return { ok: true, value: step.value };
   } catch (error) {
     return { ok: false, error: String(error) };
   }
@@ -150,7 +184,8 @@ function groupRows(
 ): LocalMatches {
   const categories = new Map<string, number[]>();
   for (const position of positions) {
-    const category = index.rows[position]?.category;
+    const category =
+      index.columns?.categoryAt(position) ?? index.rows[position]?.category;
     if (category === undefined)
       throw new Error("A matched row is out of range");
     const rows = categories.get(category) ?? [];
@@ -225,8 +260,14 @@ export function localSearchService(
     if (!current()) return;
     const signatureMatches = digestMatches && hasSearchIndexSignature(bytes);
     const decoded = signatureMatches
-      ? decode(bytes, request.type === "load-forgiving")
+      ? await decode(
+          bytes,
+          request.type === "load-forgiving",
+          current,
+          ports.yield,
+        )
       : null;
+    if (!current()) return;
     const admission = indexAdmission(
       bytes.byteLength,
       expected.uncompressedBytes,

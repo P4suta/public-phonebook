@@ -270,7 +270,7 @@ it("links a device result through its index row and keeps the national number's 
       region: "京都府",
       phones: ["+81774981200"],
       hasAddress,
-      href: `/contacts/row/${"a".repeat(64)}/41?from=%2F%3Fq%3D%E5%9B%B3%E6%9B%B8%E9%A4%A8`,
+      href: `/contacts/row/${"a".repeat(64)}/41#from=%2F%23q%3D%25E5%259B%25B3%25E6%259B%25B8%25E9%25A4%25A8`,
       row: { snapshot: "a".repeat(64), row: 41 },
     });
   }

@@ -186,7 +186,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
-      - run: sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0'
+      - uses: $/.github/actions/android-sdk
       - id: inputs
         run: mise x -- just delivery platform-key android --output "$GITHUB_OUTPUT"
       - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25

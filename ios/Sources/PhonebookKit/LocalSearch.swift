@@ -14,6 +14,9 @@ public final class LocalSearch: Sendable {
   public struct Places: Sendable {
     public let regions: [(prefecture: String, municipality: String)]
     public let categories: [String]
+    public let regionCodes: [String]
+    public let categoryIDs: [String]
+    public let readings: PlaceReadings
   }
 
   private let names: Data
@@ -124,11 +127,17 @@ public final class LocalSearch: Sendable {
   /// The regions and categories whose comparison form holds a word.
   private func holding(_ word: String) -> (regions: [Bool], categories: [Bool], any: Bool) {
     let needle = word.utf8
-    let regions = places.regions.map {
-      $0.prefecture.utf8.firstRange(of: needle) != nil
-        || $0.municipality.utf8.firstRange(of: needle) != nil
+    let readings = places.readings.matching(word)
+    let prefectures = Set(readings.prefectures)
+    let categoryIDs = Set(readings.categories)
+    let regions = places.regions.enumerated().map { index, names in
+      names.prefecture.utf8.firstRange(of: needle) != nil
+        || names.municipality.utf8.firstRange(of: needle) != nil
+        || prefectures.contains(places.regionCodes[index])
     }
-    let categories = places.categories.map { $0.utf8.firstRange(of: needle) != nil }
+    let categories = places.categories.enumerated().map { index, name in
+      name.utf8.firstRange(of: needle) != nil || categoryIDs.contains(places.categoryIDs[index])
+    }
     return (regions, categories, regions.contains(true) || categories.contains(true))
   }
 
@@ -231,15 +240,20 @@ extension ArchiveHeader {
   }
 
   var searchPlaces: LocalSearch.Places {
-    LocalSearch.Places(
-      regions: prefectures.map { (SearchInput.searchForm($0.name), "") }
-        + municipalities.map { municipality in
-          (
-            SearchInput.searchForm(
-              prefectures.first { $0.code == municipality.prefectureCode }?.name ?? ""),
-            SearchInput.searchForm(municipality.name)
-          )
-        },
-      categories: categories.map { SearchInput.searchForm($0.label) })
+    get throws {
+      LocalSearch.Places(
+        regions: prefectures.map { (SearchInput.searchForm($0.name), "") }
+          + municipalities.map { municipality in
+            (
+              SearchInput.searchForm(
+                prefectures.first { $0.code == municipality.prefectureCode }?.name ?? ""),
+              SearchInput.searchForm(municipality.name)
+            )
+          },
+        categories: categories.map { SearchInput.searchForm($0.label) },
+        regionCodes: prefectures.map(\.code.rawValue)
+          + municipalities.map(\.prefectureCode.rawValue),
+        categoryIDs: categories.map(\.id), readings: try BundledPlaceReadings.load())
+    }
   }
 }

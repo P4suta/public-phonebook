@@ -1,97 +1,123 @@
 # Native assurance boundaries
 
 The project records verification receipts under `target/ios/`.
-Receipts bind their verdict to source hashes and reject edits made during execution.
-A passing source-bound receipt covers its named check and target.
-Consult the actual receipt and logs for the current candidate's results.
+Receipts bind each verdict to source hashes and reject edits made during execution.
+A passing receipt covers its named check, inventory, and target.
+Consult the receipt and logs for the candidate's actual results.
 
-| Production contract | Verification | Limit |
-| --- | --- | --- |
-| Snapshot admission | Exact TypeScript-to-Dafny translation, three postconditions, all 16 Boolean inputs, and deliberate identity and ambiguity defects | HTTP tests cover parsing and runtime behavior |
-| Provider and consumer compatibility | Actual Hono/D1 response corpus compared in TypeScript and decoded by Swift | Synthetic data with separate production publication checks |
-| National dataset import | The provider archive imported through the real synchronization path, digest, length, snapshot, Brotli truncation, row order, dictionary, region, and count checks, cancelled and interrupted imports, real SQLite activation, pinned digests of every saved table and file, and the byte parser compared with the previous string parser on 20,000 mutated lines | Only simulator runs cover time and memory, and device throughput for about 650,000 records remains unmeasured |
-| Delta updates | The provider's fixture delta rebuilt from the saved baseline and compared byte for byte, every rejection, the complete-archive fallback, and cancellation | Device time and temporary storage for a national rebuild remain unmeasured |
-| Bundled archive admission | The provider's baseline archive admitted by `BundledDataset`, each differing entry field named, one changed byte, a damaged entry, and a wrong format line, header, and row count refused, plus the generator's own changed-byte and changed-row-count controls and the built apps compared with their declaration | The national archive's rows pass the full check at build time, while a launch reads only its length, digest, and header, so damaged rows surface during staging |
-| First run from the bundle | Every pair of bundle state and listing outcome against the decision record's table, the provider's fixture delta rebuilt from the decoded bundle byte for byte, one active generation, a failed listing, a wrong decoded base digest, a wrong delta digest, and a cut transfer each saving the bundled snapshot, and no temporary file after those runs or a cancellation | Device time and temporary storage for decoding the national archive and rebuilding it remain unmeasured |
-| Daily check and transfer paths | Lean theorems over every finite trace that no answered automatic read falls within 24 hours of the last answered read, that no automatic transfer starts on an expensive or a constrained path, that a waiting or listed automatic transfer starts on an inexpensive path, that a person's transfer starts on every path, and that a 304 or the saved snapshot starts nothing, bound to the Swift file's digest, with ten seeded Swift traces replayed by the kernel, five planted defects, every boundary state and event checked natively, and 2,000 seeded traces; package tests with a forced path show a 304 without a transfer, a delta and the complete archive waiting on each costly path and starting once it turns inexpensive, and a person's transfer on an expensive path | The model receives the path that iOS reports, so whether `NWPathMonitor` reports a hotspot or Low Data Mode correctly on a device remains an observation, and a clock set back delays the check |
-| Delta admission | Lean theorems for the verdict order and the copy range guard, bound to the exact Swift source, and all 13,896 finite cases checked natively | The digest check, not a proof, decides whether a rebuilt archive is right |
-| Publication and cancellation | Shared 25-transition contract, production Swift refinement, Lean theorems for arbitrary finite traces, and independent fresh kernel replay | Foundation, SQLite, process crash, and power-loss durability remain external trust boundaries |
-| Receive budget | Lean integer bounds and overflow theorems bound to the exact guarded Int64 expression | Integration tests cover callers and actual I/O |
-| First download wait | Lean theorems for every finite trace that the countdown never rises, the line changes at most once a second, no countdown reaches zero, steps hold for 0.6 seconds, and a waiting transfer shows the weak signal and never a new estimate, bound to the Swift file's digest, eleven Swift traces replayed by the kernel, four planted defects, every line, stage, wait, and stall of the weak-signal choice, and 2,000 seeded traces checked natively | The Swift tests record the traces, so the kernel replay is the cross-implementation evidence; Euclidean and truncating division agree because every numerator is nonnegative; the estimate's accuracy on a device remains unmeasured |
-| Incremental Call Directory load | Lean theorems that the removals and then the additions turn the held entries into the wanted ones for every number, that both lists ascend, that no addition meets a number iOS still holds, and that every change sits where the lists differ, bound to the exact Swift change decision, with 200 seeded streamed differences compared with a Swift transcription of the Lean difference | The Lean model treats iOS as a map from number to label, so whether one request may remove and re-add a number, and whether additions must ascend, remain device questions in `docs/ios-device-verification.md` |
-| QA test number in caller names | Lean theorems that the merged entries stay ascending, keep every other national entry, hold the test entry, and give its number the test label, bound to the exact Swift merge decision, with 200 seeded streamed merges compared with a Swift transcription of the Lean merge | The Lean merge models whole lists, so the seeded tests carry the batch and chunk boundaries of the streamed reader; a real incoming call remains a device observation |
-| Logging levels and redaction | The gate scans every Swift file of the app, the extension, and the packages, refuses `print`, `debugPrint`, `dump`, `NSLog`, and a public error description, and requires every other public value to appear in a table of counts, codes, enum raw values, and identifiers, with three planted lines that must fail | The scan reads Swift text, so a public value spelled through a new name needs a table entry that a review sees, and the levels that a device persists remain an observation |
-| Launch screen and transport exceptions | The built `Info.plist` of the VerificationDebug and Release apps with the launch screen color, local networking in VerificationDebug alone, and both documents refused without the launch screen or with local networking turned, plus each of the six configurations taking its expected property list and the two lists differing in local networking alone | Debug, DevRelease, ProductionDebug, and VerificationRelease aren't built by the gate, so their built lists rest on the selected source list and on Xcode's processing that the two built configurations show; the launch screen's look on a device is a visual observation |
-| Appearance colors | The gate scans every Swift file of `ios/App` except `Palette.swift` and refuses SwiftUI color names, system styles, `opacity`, `foregroundColor`, and the `Color`, `UIColor`, and `CGColor` types, with a planted `.gray` and a planted `Color(red:green:blue:)` that must fail; a UI scenario samples the dark appearance's onboarding, search, results, contact, and Settings screens for a black surface and white ink | The scan reads Swift text, so a color drawn by an asset or a system control falls outside it, and the screenshot samples cover a few points of each screen |
-| Required reason APIs | The gate scans every Swift file of the app, the extension, and the packages for the API names of Apple's five required reason categories, plus `attributesOfItem`, and requires an approved reason for each named category in the privacy manifest, with a planted `stat` call and a planted `modificationDate` read that must fail | The scan reads Swift names, so a call through C or an SDK falls outside it, and the download reads a partial file's size from its open handle, which names no listed API |
-| Signposted intervals | `TraceIntervals` pairs the traces of a real successful, failed, and cancelled loopback synchronization, and every interval that begins ends once, with a planted defect that leaves the staging open failing the test | Instruments on a device shows the intervals, which remains a recorded observation |
-| QA tools in the store build | The gate scans every file of the unsigned Release app and extension for six marker strings, requires all six in the VerificationDebug build, and a control build of Release with the condition defined must fail with all six | The markers stand for the compiled QA code, so a renamed type or rewritten copy needs a matching marker change |
-| Background time around a synchronization | Every transition of the background time decision and every trace of up to eight events, with the task ended once at the operation's end and the operation cancelled by the first expiry before it, every expiry releasing the locks in its own step, and an expiry during a loopback transfer, during an import, and during the activation that finds the transfer lock or the `writer.sqlite` lease free when the handler returns, after one counted release step | A device run that leaves the app during an import, and its crash logs, remain a separate observation that `just ios-device-record` walks |
-| Resumable transfer | Range resume, a server that ignores the range, a changed digest, a wrong `Content-Range`, a 416 reply, a verified kept file, and a cut synchronization against loopback servers, with the Worker's ranges checked on workerd R2 and the range arithmetic verified in Dafny | Suspension on a device and a natural network loss remain separate observations |
-| Shared sessions | Loopback package tests show the JSON requests and each transfer type of one client on one connection for each session, both transfer origins mapped to their own session, a cancelled request that leaves the session usable, a person's transfer to a refusing port that reports its wait while a JSON request and an automatic transfer fail at once, an automatic update whose refused transfer waits again for the path rule, and every session leaving with the client | Loopback has no path change or costly path, so a waiting transfer that starts on a new path and a costly automatic transfer remain device observations |
-| Required nullable wire fields | Missing-key regression tests for contact, source, page metadata, and continuation | Each provider deployment still needs compatibility checks |
-| Request concurrency | Controlled transport ordering, cancellation, stale completion, and retry schedules | Finite schedules rather than exhaustive OS scheduling |
-| Search experience | Local search ranks and normalization compared with the website rules, a classifier and phone table taken from the website implementation, per-category previews, and in-place continuation | Search time on a device remains unmeasured |
-| Native memory and synchronization | Complete package test inventory under Address Sanitizer and Thread Sanitizer | Host Swift package execution excludes UIKit and extension execution |
-| Assertion sensitivity | Pinned Swift mutation operators with an exact planned and executed inventory | The receipt distinguishes compiler rejection from test detection |
-| User flows | Full named UI inventory on an isolated iOS 27 simulator, rotation, large text, permission, and retry paths | Real carrier calls and physical background delivery require separate device evidence |
-| Shared icons | Figma node and digest inventory, SVG allowlist, exact derived assets, mask safe area, browser metadata, and sprite checks | Semantic clarity and brand recognition remain design judgments |
-| Dependency and secret boundaries | npm audit, pinned RustSec advisory snapshot, gitleaks over a nonempty publishable inventory | RustSec snapshot excludes newer advisories and registry yank status |
+## Data and synchronization
 
-The app and the extension log through `Logger` in every build and follow Apple's [logging guide](https://developer.apple.com/documentation/os/generating-log-messages-from-your-code).
-That guide keeps Debug messages in memory, writes Info to disk only when the `log` tool collects it, and writes Notice, Error, and Fault to disk up to a storage limit.
-The extension logs its progress at the debug level and one notice summary per load from `completeRequest`'s completion handler, with the `expired` flag that tells whether iOS took the entries.
-A failure, including one that iOS reports through `requestFailed(for:withError:)`, logs its error domain and code as public values and its description as private.
-The app's trace events stay at the info level with an operation identifier, a phase, an outcome, a snapshot identifier, a count, and a duration.
-No log line marks a telephone number, a label, a search query, or an error description as public.
+TypeScript and Swift consume the same corpus produced by the actual Hono handlers.
+Swift imports the provider archive through the real synchronization path and checks its digest, length, snapshot, rows, dictionaries, regions, and counts.
+Tests cover cancellation, interrupted imports, SQLite activation, and pinned saved-file digests.
+Tests compare the byte parser with the string parser on 20,000 mutated lines.
+Synthetic fixtures establish compatibility without establishing the correctness of a particular production publication.
 
-The forgiving ranking code lives in the `PhonebookRanking` target, so the core mutation profile covers only the shipped `PhonebookCore`, as the [module decision](adr/keep-forgiving-ranking-outside-the-shipped-core.md) records.
-`mise x -- just ios-search-measure` replays the shared 2,200-query national fixture through `PhonebookRanking` and the saved generation, and compares every row and integer score.
-The unit tests check the ranking readers on synthetic fixtures, because loading the national artifacts starved the hosted runner's other unit tests and forgiving search ships only in QA builds.
-The fixture binds the snapshot, contact count, and decoded artifact digests.
-The artifact readers reject truncated and noncanonical varints, out-of-range postings, trailing bytes, and mismatched identities.
-The committed Brotli pair under `ios/SearchData` supplies the national fixture without depending on a production deployment.
+Delta tests rebuild the provider's updated archive from its saved baseline and compare every byte.
+They cover admission failures, the complete-archive fallback, and cancellation.
+Boundary tests cover header limits, empty targets, canonical dictionary indices, and overflow-safe row slices.
+The shared archive buffer tests check the 1 MiB flushing boundary and preservation of pending bytes and the digest after a failed operation.
+Bundled-data tests check every declared identity field, damaged bytes, invalid headers, and wrong row counts.
+The generator admits the national archive and rejects deliberate changes before comparing each built app with its declaration.
+First-run tests cover bundle and listing outcomes, delta reconstruction, fallback, activation, and temporary-file cleanup.
+National import throughput and temporary storage on a physical iPhone remain separate measurements.
 
-Lean checks 74 named theorems.
-Its negative controls reject active deletion, digest-mismatch admission, an unchanged shared-number label, and addition of a removed number.
-They also reject automatic transfer on an expensive path and reading admission at the ratio boundary.
-The search activation control rejects a generation without its mandatory search files.
-The pagination control rejects a page that extends past its result count.
-Three source-bound pagination theorems establish bounds, progress, and Int64 arithmetic safety for nonnegative counts with the shown count at most the total.
-Native tests cover signed extremes and invalid counts.
-Two source-bound Boolean theorems require search readiness for a mandatory generation and preserve readable earlier generations.
-The ranking model refines `RankingPolicy.swift` function by function and binds its complete source digest.
-Its eight ranking theorems cover score bounds, reading bands, preference tiers, exact-score protection, gate boundaries, and the Han anchor.
-They also establish Int64 arithmetic bounds under the declared input limits.
-Swift and Lean division agree for the nonnegative numerators and positive divisors of those bounds.
-The proof trusts the reviewed translation and Swift integer semantics.
-Unicode normalization, candidate retrieval, sorting, lexical readings, and future search quality remain native-test and empirical boundaries.
-The directory model tests exercise the real saved scorer across categories, written-form changes, all-page order, and complete telephone matching.
-Controlled asynchronous reads establish that an older query can't replace a newer result or clear its page operation.
-The UI scenarios check kana and misspelled names, metadata at the largest Dynamic Type setting, three previews per category, and each category's continuation.
-The screenshot selector requires the live directory search capture.
-A planted defect that keeps a changed label must fail inside the two theorems that characterize the change decision and nowhere else.
-It also rejects three planted defects in the wait model inside the theorems that they break: a rising countdown, a line that changes within a second, and a countdown that reaches zero.
-A fourth wait defect that makes a waiting transfer also wait for the stall time must fail inside the waiting lemma and nowhere else.
-Five planted defects in the update model must each fail inside its own theorem and nowhere else.
-They check one second early, start an automatic transfer on a constrained path, never start a waiting transfer, hold a person's transfer, and start a transfer on a 304.
-The TypeScript proof gate checks its full declared contract inventory and deliberate broken implementations.
-Neither result proves the entire app.
-The proof gate rejects unsupported proof escapes and stale source or generated-model receipts.
+Loopback tests cover Range resumption, an ignored range, changed identities, invalid Content-Range, a 416 reply, and a cut synchronization.
+Worker tests check ranges through workerd and R2, while Dafny checks range arithmetic.
+Session tests check connection reuse, cancellation, transfer-origin selection, and the difference between waiting transfers and immediate JSON failures.
+They don't establish natural network loss or iOS network-path reporting on a physical device.
+Daily update tests check a 304 response, the saved snapshot, and automatic transfers waiting for an inexpensive path.
+Person-initiated transfers may use every path.
+Background-expiry tests cancel work and observe released transfer and SQLite locks before the expiry handler returns.
+Natural background delivery, process suspension, and filesystem durability remain operating-system boundaries.
 
-The fast project gate on every pull request includes strict TypeScript checks, behavioral tests, dependency checks, secret checks, and workflow checks.
-A pull request that changes a Rust input also runs the `tools/ios-check` formatting, Clippy, test, icon consistency, and RustSec checks.
-The release assurance set adds the build, Rust formatting, strict Clippy, Rust tests, icon consistency, built-browser checks, both proof commands, and the native checks.
-The manual Assurance workflow runs that set on hosted runners, and its `campaigns` input adds the sanitizer and mutation checks.
-The TestFlight workflow runs the native checks, the Lean proofs, and the sanitizer and mutation checks before every delivery.
-No personal credentials or connected phone are prerequisites of these hosted checks.
+## Caller identification and memory
 
-`just verification --scope affected <identifier>...` reports named Swift Testing functions to the owner's request-bound `dotfiles verify run` as structured JSON.
-It refuses an identifier that `swift test list` doesn't name once, or whose printed name another listed test shares.
-A test without a result line counts as inconclusive.
-The recipe serves local change contracts, and `just ios-unit-test` with its required inventory stays the native gate.
+The streamed caller merge preserves ascending numbers and lets the controlled QA label replace its matching national entry.
+Seeded tests compare streamed merges and differences with independent list models across chunk and batch boundaries.
+Applied-state tests check that removals followed by additions produce the target entries.
+Malformed preflight input must fail before any CallKit effect.
 
-Physical-device search, forced background callbacks, natural OS scheduling, and real incoming calls are distinct observations.
-A debugger-triggered BGTask callback doesn't establish natural scheduler delivery.
-A foreground/background round trip doesn't establish a background download.
-The iOS 18 deployment setting doesn't establish iOS 18 runtime execution.
+The load decision limits individual incremental operations to 1,000 and otherwise selects one clear followed by a streamed replacement.
+Isolated host tests compare 600,000 caller entries through unchanged, incremental, removal, addition, relabeling, and empty loads.
+An independent archive test hashes 100 MiB while measuring process footprint.
+The line-size limit applies before the consumer receives either a terminated or an unterminated line.
+The decoder uses a managed Data buffer and one owner for initialized C state.
+Port tests use [Apple's Compression contract](https://developer.apple.com/documentation/compression/compression_stream_process%28_%3A_%3A%29) to check release after success and failure, finalization flags, input slices, invalid counts, and stalled processing.
+Address Sanitizer and Thread Sanitizer run the complete applicable package inventory.
+Host process measurements exclude UIKit, the extension process, and CallKit's internal allocations.
+Real incoming calls and device memory termination require separate observations.
+
+## Pure decisions and proof scope
+
+Lean checks 72 named theorems and replays generated roots with `leanchecker --fresh`.
+The publication model covers arbitrary finite traces under the shared transition contract.
+Receive-budget and pagination theorems establish guarded integer bounds and arithmetic safety.
+Caller-merge and caller-difference theorems establish ordering, replacement, uniqueness, and the resulting number-to-label map.
+Four caller-load theorems establish the combined operation limit, invalid-count fallback, guarded subtraction bounds, and the empty-change decision.
+Four decoder theorems establish end detection and rejection of a stalled decode before and after input exhaustion.
+Source refinements bind each modeled decision to the corresponding Swift implementation.
+
+Wait-display proofs cover countdown monotonicity, positive estimates, line holding, and the weak-signal choice.
+The Lean model replays eleven Swift traces, and native tests cover boundaries and seeded traces.
+Update proofs cover the daily read interval, network restrictions, waiting transfers, person-initiated transfers, and unchanged listings.
+The update model replays ten Swift traces.
+Deliberate defects must fail inside their named theorems rather than through unrelated compiler errors.
+The controls include caller changes, operation limits, publication, admission, pagination, waiting, and update decisions.
+
+Proofs establish their formal statements under their assumptions.
+They don't establish Unicode behavior, framework contracts, storage durability, network-path accuracy, or the adequacy of a reviewed translation.
+Native tests and real device observations cover those separate boundaries.
+Neither a proof receipt nor a successful compile proves the entire app.
+
+## Search, interface, and privacy
+
+QA and release builds use the same literal search implementation.
+The [retirement decision](adr/keep-qa-search-aligned-with-the-release-app.md) removes the experimental ranking target and companions.
+Directory-model tests cover category previews, complete telephone matching, pagination, changed input, and late asynchronous completions.
+Controlled reads establish that an older query can't replace a newer result or clear its page operation.
+Simulator scenarios cover literal names, metadata, large text, permission states, retry paths, and category continuation.
+`mise x -- just ios-search-measure` measures five launches from a saved national generation and three repetitions of four literal queries for memory use.
+Simulator performance doesn't establish physical iPhone performance.
+
+Static gates check logging APIs, public-value classifications, required reason APIs, and the app's appearance colors.
+Planted violations establish that each scanner detects its promised inputs.
+The app and extension use `Logger` according to [Apple's logging guide](https://developer.apple.com/documentation/os/generating-log-messages-from-your-code).
+Telephone numbers, labels, queries, and error descriptions never appear as public log values.
+Text scanners don't establish the behavior of an SDK, indirect call, or future unrecognized spelling.
+
+Built-property-list checks cover the launch screen and each configuration's selected transport declaration.
+Release scans reject experimental search resources and six QA marker strings.
+Verification builds must contain all six markers, and a contaminated Release control must fail.
+The control plants empty forbidden resources in its own build to check filename detection.
+Icon checks bind Figma sources to derived assets and validate SVG boundaries and mask geometry.
+Visual meaning, actual device appearance, carrier calls, and natural background delivery remain distinct observations.
+
+## Gate completeness
+
+The fast project gate includes strict TypeScript checks, behavioral tests, dependency checks, secret checks, and workflow checks.
+Rust checks add formatting, strict Clippy, native-tool tests, icon consistency, and the pinned RustSec snapshot.
+The snapshot excludes newer advisories and registry yank status.
+The native unit gate enumerates compiled tests, rejects missing or skipped required work, and checks coverage and strict Swift lints.
+
+The default mutation campaign covers the shipped pure core and extension notification policy.
+The affected campaign selects the caller, archive, decoding, directory, synchronization, and storage files changed by the retirement and memory fixes.
+The native mutation command accepts `--jobs` from 1 to 4 and defaults to one worker.
+Profiles running `PhonebookCoreTests` stay serial because their test processes clean shared per-test directories.
+Profiles running `PhonebookKitTests` use the requested worker count.
+The runner preserves interrupted plan journals and executes every selected mutant with fresh logs.
+Scratch samples include the requested temporary directory and Foundation's shared Swift sandbox directory.
+The 4 GiB storage budget uses allocated blocks, and sparse logical capacity has a distinct receipt field.
+The [macOS file-status contract](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/stat.2.html) defines allocated blocks in 512-byte units.
+Other operating-system temporary files remain outside that measurement.
+Receipts distinguish test detection, crashes, narrowly justified equivalents, compiler rejection, survivors, and inconclusive resource stops.
+An incomplete inventory, surviving mutant, or timeout supplies no passing campaign result.
+
+`just verification --scope affected <identifier>...` reports named Swift Testing functions to `dotfiles verify run` as structured JSON.
+It refuses missing or ambiguous identifiers and treats missing result lines as inconclusive.
+The local adapter preserves `just ios-unit-test` as the authoritative native unit gate.
+
+The manual Assurance workflow runs the declared checks on hosted runners.
+The TestFlight workflow requires native checks, Lean proofs, sanitizers, and mutation checks before delivery.
+No local QA installation grants authority to sign a distribution, upload a build, or publish a release.
+Physical-device procedures and recorded limits remain in [device verification](ios-device-verification.md).

@@ -12,10 +12,13 @@ import {
   externalScriptIssues,
   test,
 } from "./fixtures.ts";
+import { recordViewport } from "./full-page-screenshot.ts";
 
 test.use({ video: "on", screenshot: "off" });
 
 const minimumTarget = 44;
+const appStoreUrl =
+  "https://apps.apple.com/jp/app/public-phonebook/id6828899028";
 const { destinations } = uiCopy.external;
 
 async function knownContactPath(page: Page): Promise<string> {
@@ -90,10 +93,16 @@ test("every external link type confirms its destination before opening a tab", a
   const contact = await knownContactPath(page);
   const source = `${contact}/source`;
   let popups = 0;
-  page.on("popup", () => {
+  context.on("page", () => {
     popups += 1;
   });
   const cases = [
+    {
+      path: "/about",
+      link: (): Locator =>
+        page.getByRole("link", { name: /^プログラムと決まりを見る/u }),
+      description: destinations.sourceCode,
+    },
     {
       path: contact,
       link: (): Locator =>
@@ -186,7 +195,7 @@ test("every external link type confirms its destination before opening a tab", a
     expect(await isActive(link), path).toBe(true);
     expect(popups, path).toBe(0);
     await link.click();
-    const popupEvent = page.waitForEvent("popup");
+    const popupEvent = context.waitForEvent("page");
     await open.click();
     const popup = await popupEvent;
     await popup.waitForLoadState("domcontentloaded");
@@ -197,6 +206,49 @@ test("every external link type confirms its destination before opening a tab", a
     expect(await isActive(link), path).toBe(true);
     popups = 0;
   }
+});
+
+test("the App Store confirmation delegates the published destination to the browser", async ({
+  page,
+}) => {
+  await openPage(page, "/about");
+  await page.evaluate(() => {
+    window.open = (url, target, features): null => {
+      document.documentElement.dataset.externalOpen = JSON.stringify([
+        String(url),
+        target,
+        features,
+      ]);
+      return null;
+    };
+  });
+  const link = page.getByRole("link", {
+    name: /^App Storeでアプリを見る/u,
+  });
+  await expect(link).toHaveAttribute("href", appStoreUrl);
+  const dialog = confirmation(page);
+  const html = page.locator("html");
+  await link.click();
+  await expect(dialog).toHaveAccessibleDescription(
+    `${destinations.appStore} ${uiCopy.external.host("apps.apple.com")} ${uiCopy.external.newTab}`,
+  );
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  expect(await isActive(link)).toBe(true);
+  await expect(html).not.toHaveAttribute("data-external-open");
+  await link.click();
+  await dialog.getByRole("button", { name: uiCopy.external.cancel }).click();
+  await expect(dialog).toBeHidden();
+  expect(await isActive(link)).toBe(true);
+  await expect(html).not.toHaveAttribute("data-external-open");
+  await link.click();
+  await dialog.getByRole("button", { name: uiCopy.external.open }).click();
+  await expect(html).toHaveAttribute(
+    "data-external-open",
+    JSON.stringify([appStoreUrl, "_blank", "noopener,noreferrer"]),
+  );
+  await expect(dialog).toBeHidden();
+  expect(await isActive(link)).toBe(true);
 });
 
 test("modified and middle-button activations leave external links to the browser", async ({
@@ -242,7 +294,7 @@ test("modified and middle-button activations leave external links to the browser
   await expect(confirmation(page)).toBeVisible();
 });
 
-test("external links open directly as new tabs without JavaScript", async ({
+test("external links keep isolated navigation without JavaScript", async ({
   browser,
   baseURL,
 }) => {
@@ -254,15 +306,37 @@ test("external links open directly as new tabs without JavaScript", async ({
   try {
     await stubOtherSites(context, new URL(baseURL).origin);
     const page = await context.newPage();
-    await page.goto("/privacy");
-    const popupEvent = page.waitForEvent("popup");
-    await page
-      .getByRole("link", { name: /^Cloudflareのプライバシーを見る/u })
-      .click();
-    const popup = await popupEvent;
-    await popup.waitForLoadState("domcontentloaded");
-    expect(popup.url()).toBe("https://www.cloudflare.com/privacypolicy/");
-    expect(await popup.evaluate(() => window.opener === null)).toBe(true);
+    for (const [path, name, target] of [
+      [
+        "/privacy",
+        "Cloudflareのプライバシーを見る",
+        "https://www.cloudflare.com/privacypolicy/",
+      ],
+      [
+        "/about",
+        "プログラムと決まりを見る",
+        "https://github.com/P4suta/public-phonebook",
+      ],
+    ] as const) {
+      await page.goto(path);
+      const popupEvent = context.waitForEvent("page");
+      await page
+        .getByRole("link", { name: `${name} （新しいタブ）`, exact: true })
+        .click();
+      const popup = await popupEvent;
+      await popup.waitForLoadState("domcontentloaded");
+      expect(popup.url()).toBe(target);
+      expect(await popup.evaluate(() => window.opener === null)).toBe(true);
+      await popup.close();
+      await expect(confirmation(page)).toBeHidden();
+    }
+    await page.goto("/about");
+    const link = page.getByRole("link", {
+      name: /^App Storeでアプリを見る/u,
+    });
+    await expect(link).toHaveAttribute("href", appStoreUrl);
+    await expect(link).toHaveAttribute("target", "_blank");
+    await expect(link).toHaveAttribute("rel", "noopener noreferrer");
     await expect(confirmation(page)).toBeHidden();
   } finally {
     await context.close();
@@ -272,7 +346,6 @@ test("external links open directly as new tabs without JavaScript", async ({
 for (const width of [320, 1440])
   test(`the confirmation dialog keeps the design rules at ${width}px`, async ({
     page,
-    browserName,
   }, info) => {
     await page.setViewportSize({ width, height: 900 });
     await openPage(page, "/privacy");
@@ -315,10 +388,7 @@ for (const width of [320, 1440])
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
-    if (browserName !== "webkit")
-      await page.screenshot({
-        path: info.outputPath(`external-link-dialog-${width}.png`),
-      });
+    await recordViewport(page, info, `external-link-dialog-${width}`);
   });
 
 test("every screen preserves external navigation and the gate rejects missing protections", async ({

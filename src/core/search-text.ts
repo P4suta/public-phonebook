@@ -3,7 +3,8 @@ import { kanjiVariantPairs } from "./kanji-variants.ts";
 /** The most words that one name query may hold, which bounds the bound parameters of a D1 search. */
 export const maximumQueryWords = 8;
 
-const whitespaceRun = /\p{White_Space}+/u;
+const whitespaceRun = /\p{White_Space}+/gu;
+const outerSpace = /^ | $/gu;
 const variationSelector = /[\u{fe00}-\u{fe0f}\u{e0100}-\u{e01ef}]/gu;
 const hexadecimalRadix = 16;
 const katakanaToHiragana = 0x60;
@@ -76,6 +77,10 @@ const foldedCharacter = new RegExp(
   "gu",
 );
 
+function foldCharacter(character: string): string {
+  return foldedCharacters.get(character) ?? character;
+}
+
 /**
  * Folds the input variants that search ignores, character by character, without splitting words.
  * Variation selectors go first, so that composition can't stop at one, and compatibility composition and lowercase follow.
@@ -87,10 +92,7 @@ export function foldSearchCharacters(text: string): string {
     .replace(variationSelector, "")
     .normalize("NFKC")
     .toLowerCase()
-    .replace(
-      foldedCharacter,
-      (character) => foldedCharacters.get(character) ?? character,
-    )
+    .replace(foldedCharacter, foldCharacter)
     .normalize("NFC");
 }
 
@@ -103,5 +105,13 @@ export function searchWords(text: string): readonly string[] {
 
 /** The comparison form of a name, region, or label: its folded words joined by one space. */
 export function searchForm(text: string): string {
-  return searchWords(text).join(" ");
+  return foldWhitespace(foldSearchCharacters(text));
+}
+
+function foldWhitespace(text: string): string {
+  return text.replace(whitespaceRun, " ").replace(outerSpace, "");
+}
+
+export function searchNameLines(lines: string): readonly string[] {
+  return foldSearchCharacters(lines).split("\n").map(foldWhitespace);
 }

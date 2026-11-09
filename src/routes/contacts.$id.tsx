@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { ReactElement } from "react";
+import { contactReturnHref } from "../core/private-navigation.ts";
 import { BackButton, ContactCard, LinkButton } from "../ui/components.tsx";
 import { uiCopy } from "../ui/copy.ts";
+import { PrivateReturnNavigation } from "../ui/private-return-navigation.tsx";
 import { getRouteContact } from "../ui/route-data.ts";
 import * as css from "../ui/styles.css.ts";
 
@@ -26,20 +28,33 @@ export const Route = createFileRoute("/contacts/$id")({
 function ContactPage(): ReactElement {
   const contact = Route.useLoaderData();
   const { from = "/" } = Route.useSearch();
-  const sourcePath = `/contacts/${encodeURIComponent(contact.id)}/source?from=${encodeURIComponent(from)}`;
   return (
     <main id="main" className={css.page}>
       <div className={css.stack}>
-        <BackButton href={from}>検索結果にもどる</BackButton>
+        <PrivateReturnNavigation from={from}>
+          {(target) => (
+            <BackButton href={target.from}>検索結果にもどる</BackButton>
+          )}
+        </PrivateReturnNavigation>
         <ContactCard contact={contact} />
         <h2 className={css.subheading}>{uiCopy.sourceTitle}</h2>
         {/^\d{4}-\d{2}-\d{2}$/u.test(contact.dataAsOf) && (
           <p>データの日付：{formatDate(contact.dataAsOf)}</p>
         )}
         <div className={css.actionColumn}>
-          <LinkButton href={sourcePath} icon="file-search">
-            {uiCopy.sourceAction}
-          </LinkButton>
+          <PrivateReturnNavigation from={from}>
+            {(target) => (
+              <LinkButton
+                href={contactReturnHref(
+                  `/contacts/${encodeURIComponent(contact.id)}/source`,
+                  target,
+                )}
+                icon="file-search"
+              >
+                {uiCopy.sourceAction}
+              </LinkButton>
+            )}
+          </PrivateReturnNavigation>
         </div>
       </div>
     </main>

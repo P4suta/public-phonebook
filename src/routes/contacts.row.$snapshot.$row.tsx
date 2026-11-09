@@ -5,6 +5,7 @@ import { httpStatus } from "../core/http-status.ts";
 import { DirectoryError, getRowLocation } from "../ui/client.ts";
 import { BackButton } from "../ui/components.tsx";
 import { uiCopy } from "../ui/copy.ts";
+import { PrivateReturnNavigation } from "../ui/private-return-navigation.tsx";
 import * as css from "../ui/styles.css.ts";
 import { validateReturnSearch } from "./contacts.$id.tsx";
 
@@ -58,7 +59,9 @@ function SnapshotConflictPage(): ReactElement {
       <div className={css.stack}>
         <h1 className={css.heading}>{uiCopy.rowUpdated.title}</h1>
         <p className={css.body}>{uiCopy.rowUpdated.body}</p>
-        <BackButton href={from} />
+        <PrivateReturnNavigation from={from}>
+          {(target) => <BackButton href={target.from} />}
+        </PrivateReturnNavigation>
       </div>
     </main>
   );

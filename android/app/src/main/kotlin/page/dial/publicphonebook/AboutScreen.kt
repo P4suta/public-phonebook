@@ -2,7 +2,9 @@ package page.dial.publicphonebook
 
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,29 +23,70 @@ import kotlinx.coroutines.withContext
 
 @Composable
 internal fun AboutScreen(external: (Intent, String) -> Unit, licenses: () -> Unit) {
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+    LazyColumn(
+        contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
         item {
             Text(
-                stringResource(R.string.about),
-                style = MaterialTheme.typography.titleLarge,
+                stringResource(R.string.app_name),
+                style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.semantics { heading() },
             )
         }
         item { Text(stringResource(R.string.version, BuildConfig.VERSION_NAME)) }
-        item { Text(stringResource(R.string.privacy)) }
-        item { Text(stringResource(R.string.connection_metadata)) }
-        item { Text(stringResource(R.string.data_notice)) }
-        item { Action(R.string.software_licenses, licenses) }
+        item { SectionHeading(R.string.about_caller_heading) }
         item {
-            Action(R.string.privacy_policy) {
+            Text(stringResource(R.string.about_caller), style = MaterialTheme.typography.bodyLarge)
+        }
+        openSourceInformation(external)
+        item { SectionHeading(R.string.privacy_heading) }
+        item { Text(stringResource(R.string.privacy), style = MaterialTheme.typography.bodyLarge) }
+        item {
+            Text(
+                stringResource(R.string.connection_metadata),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+        item {
+            Action(R.string.privacy_policy, R.drawable.ic_document) {
                 val url = "${BuildConfig.ORIGIN}/privacy"
                 external(Intent(Intent.ACTION_VIEW, url.toUri()), url)
             }
         }
+        item { SectionHeading(R.string.source_heading) }
         item {
-            Action(R.string.application_website) {
+            Text(stringResource(R.string.data_notice), style = MaterialTheme.typography.bodyLarge)
+        }
+        item { Action(R.string.software_licenses, R.drawable.ic_document, onClick = licenses) }
+        item {
+            Action(R.string.application_website, R.drawable.ic_external) {
                 external(Intent(Intent.ACTION_VIEW, BuildConfig.ORIGIN.toUri()), BuildConfig.ORIGIN)
             }
+        }
+    }
+}
+
+private fun LazyListScope.openSourceInformation(external: (Intent, String) -> Unit) {
+    item { SectionHeading(R.string.free_heading) }
+    item { Text(stringResource(R.string.free_use), style = MaterialTheme.typography.bodyLarge) }
+    item {
+        Text(
+            stringResource(R.string.open_source_description),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+    }
+    item {
+        Text(
+            stringResource(R.string.open_source_freedom),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+    }
+    item {
+        val url = "https://github.com/P4suta/public-phonebook"
+        val confirmation = stringResource(R.string.source_code_confirmation, url)
+        Action(R.string.source_code, R.drawable.ic_external) {
+            external(Intent(Intent.ACTION_VIEW, url.toUri()), confirmation)
         }
     }
 }
@@ -65,5 +108,7 @@ internal fun LicenseScreen(io: CoroutineDispatcher = Dispatchers.IO) {
                     }
                 }
         }
-    LazyColumn { item { Text(text) } }
+    LazyColumn(contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)) {
+        item { Text(text, style = MaterialTheme.typography.bodyLarge) }
+    }
 }

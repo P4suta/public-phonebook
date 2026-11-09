@@ -1,4 +1,4 @@
-//! Keeps console output out of the native code and keeps personal values out of public log fields.
+//! Keeps production diagnostics out of the native code and classifies public QA log fields.
 //!
 //! Apple's [logging guide](https://developer.apple.com/documentation/os/generating-log-messages-from-your-code) asks apps to redact any value that contains sensitive user information.
 
@@ -25,7 +25,7 @@ enum Kind {
 
 /// Every expression that a log line may mark `.public`, with its kind.
 /// A new public field needs an entry here, so its review names what kind of value it is.
-const PUBLIC_VALUES: [(&str, Kind); 15] = [
+const PUBLIC_VALUES: [(&str, Kind); 18] = [
     ("key.phase.rawValue", Kind::RawValue),
     ("point.phase.rawValue", Kind::RawValue),
     (
@@ -36,6 +36,9 @@ const PUBLIC_VALUES: [(&str, Kind); 15] = [
     ("removed", Kind::Count),
     ("peak / 1024", Kind::Count),
     ("expired", Kind::Code),
+    ("incremental", Kind::Code),
+    ("plan.rawValue", Kind::RawValue),
+    ("expired ? \"expired\" : \"complete\"", Kind::Code),
     ("failure.domain", Kind::Code),
     ("failure.code", Kind::Code),
     ("event.operation.uuidString", Kind::Identifier),
@@ -176,7 +179,55 @@ fn public_findings(source: &str, file: &str) -> Vec<String> {
 
 fn findings(source: &str, file: &str) -> Vec<String> {
     let mut found = console_calls(source, file);
+    found.extend(diagnostic_findings(source, file));
     found.extend(public_findings(source, file));
+    found
+}
+
+fn diagnostic_findings(source: &str, file: &str) -> Vec<String> {
+    const OUTPUT: [&str; 5] = ["Logger", "OSLog", "OSSignposter", "os_log", "os_signpost"];
+    let mut conditions = Vec::new();
+    let mut found = Vec::new();
+    for (index, line) in code_only(source).lines().enumerate() {
+        let words = line.split_whitespace().collect::<Vec<_>>();
+        match words.first().copied() {
+            Some("#if") => {
+                conditions.push(words.as_slice() == ["#if", super::store_build::CONDITION]);
+                continue;
+            }
+            Some("#else" | "#elseif") => {
+                if let Some(condition) = conditions.last_mut() {
+                    *condition = words.as_slice() == ["#elseif", super::store_build::CONDITION];
+                } else {
+                    found.push(format!("{file}:{}: unmatched compile condition", index + 1));
+                }
+                continue;
+            }
+            Some("#endif") => {
+                if conditions.pop().is_none() {
+                    found.push(format!("{file}:{}: unmatched compile condition", index + 1));
+                }
+                continue;
+            }
+            _ => {}
+        }
+        if conditions.contains(&true) {
+            continue;
+        }
+        for token in line.split(|character: char| !character.is_alphanumeric() && character != '_')
+        {
+            if OUTPUT.contains(&token) {
+                found.push(format!(
+                    "{file}:{}: {token} requires {}",
+                    index + 1,
+                    super::store_build::CONDITION
+                ));
+            }
+        }
+    }
+    if !conditions.is_empty() {
+        found.push(format!("{file}: unterminated compile condition"));
+    }
     found
 }
 
@@ -202,7 +253,7 @@ const PLANTED: [&str; 3] = [
     "logger.info(\"query=\\(query, privacy: .public)\")\n",
 ];
 
-/// Scans the shipped Swift code and refuses console output and unclassified public log values.
+/// Refuses production diagnostics, console output, and unclassified public QA log values.
 pub(super) fn check(root: &Path) -> Result<()> {
     let mut files = Vec::new();
     for directory in ROOTS {
@@ -229,7 +280,7 @@ pub(super) fn check(root: &Path) -> Result<()> {
         );
     }
     println!(
-        "PASS: {} Swift files log through Logger, {public} public values are classified, and {} planted lines fail",
+        "PASS: {} Swift files keep diagnostics in QA, {public} public values are classified, and {} planted lines fail",
         files.len(),
         PLANTED.len()
     );
@@ -239,6 +290,27 @@ pub(super) fn check(root: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn diagnostic_output_requires_the_verification_condition() {
+        let output = "let logger = Logger(subsystem: \"test\", category: \"test\")\n";
+        assert!(!findings(output, "a.swift").is_empty());
+        assert!(
+            findings(
+                &format!("#if PHONEBOOK_VERIFICATION_TOOLS\n{output}#endif\n"),
+                "a.swift"
+            )
+            .is_empty()
+        );
+        assert!(
+            !findings(
+                &format!("#if PHONEBOOK_VERIFICATION_TOOLS\n#else\n{output}#endif\n"),
+                "a.swift"
+            )
+            .is_empty()
+        );
+        assert!(!findings(&format!("#if DEBUG\n{output}#endif\n"), "a.swift").is_empty());
+    }
 
     #[test]
     fn console_calls_count_only_in_code() {

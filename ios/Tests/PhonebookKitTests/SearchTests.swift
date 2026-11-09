@@ -41,6 +41,20 @@ private func index(_ lines: [ArchiveLine]) async throws -> (LocalSearch, Snapsho
   #expect(try search.search([String(repeating: "館", count: 171)]).isEmpty)
 }
 
+@Test func localSearchUsesVerifiedPlaceReadings() async throws {
+  let lines = [
+    ArchiveLine(name: "中央館"), ArchiveLine(category: 1, name: "としょかん分室"),
+    ArchiveLine(category: 1, name: "分室"),
+  ]
+  let (search, _, _, root) = try await index(lines)
+  defer { try? FileManager.default.removeItem(at: root) }
+  #expect(try search.search(SearchInput.words("としょかん")).flatMap { $0 }.count == 2)
+  #expect(try search.search(SearchInput.words("とうきょう としょかん")).flatMap { $0 }.count == 2)
+  #expect(try search.search(SearchInput.words("とうきょう")).flatMap { $0 }.count == 3)
+  #expect(try search.search(SearchInput.words("と")).flatMap { $0 }.count == 1)
+  #expect(try search.search(SearchInput.words("としょこ")).isEmpty)
+}
+
 @Test func localSearchMatchesEveryWordInTheNameRegionOrCategory() async throws {
   let lines = [
     ArchiveLine(name: "市川市中央図書館"), ArchiveLine(region: "13", name: "中央図書館"),
@@ -131,7 +145,14 @@ private func index(_ lines: [ArchiveLine]) async throws -> (LocalSearch, Snapsho
   await model.more(group)?.value
   #expect(model.expanded(group))
   #expect(model.visible(group).count == 3 + DirectoryModel.pageSize)
-  while model.expandable(group) { await model.more(group)?.value }
+  for expected in [43, 60] {
+    try #require(model.expandable(group))
+    await model.more(group)?.value
+    try #require(!model.loadingMore)
+    #expect(model.visible(group).count == expected)
+  }
+  #expect(!model.expandable(group))
+  #expect(model.more(group) == nil)
   #expect(model.visible(group).map(\.name) == (0..<60).map { "図書館" + String(format: "%02d", $0) })
   model.query = "  "
   #expect(model.search() == nil)

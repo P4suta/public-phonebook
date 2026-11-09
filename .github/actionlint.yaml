@@ -1,7 +1,10 @@
-# Hosted preview label: https://github.com/actions/runner-images/issues/14404
+# actionlint 1.7.12 doesn't know these hosted labels.
+# The xcode-27 preview is https://github.com/actions/runner-images/issues/14404.
+# The ubuntu-26.04 release is https://github.blog/changelog/2026-09-17-ubuntu-26-generally-available-and-latest-migration/.
 self-hosted-runner:
   labels:
     - xcode-27
+    - ubuntu-26.04
 # actionlint 1.7.12 predates the `$/` self-repository syntax: https://github.blog/changelog/2026-07-30-reference-same-repository-actions-with-self-repository-syntax/
 paths:
   .github/workflows/**/*.{yml,yaml}:

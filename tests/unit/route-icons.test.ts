@@ -140,6 +140,30 @@ describe("the icon walk", () => {
     expect(usage.icons).toEqual(["check", "copy", "send"]);
   });
 
+  it("admits JSON data without interpreting its text as component source", () => {
+    const route = `
+      import data from "./labels.json" with { type: "json" };
+      import { Icon } from "../ui/icons.tsx";
+      export const Route = { component: Page };
+      function Page() { return <><Icon name="copy" /><span>{data.label}</span></>; }
+    `;
+    const sources = new Map([
+      ["src/routes/page.tsx", route],
+      [
+        "src/routes/labels.json",
+        JSON.stringify({ label: '<Icon name="send" />' }),
+      ],
+      ["src/ui/icons.tsx", icons],
+      ["src/ui/icon-catalog.ts", catalog],
+    ]);
+    const read = (path: string): string | undefined => sources.get(path);
+    const usage = iconUsage(read, "src/routes/page.tsx");
+    expect(usage.problems).toEqual([]);
+    expect(usage.icons).toEqual(["copy"]);
+    sources.set("src/routes/labels.json", '{ "label": }');
+    expect(() => iconUsage(read, "src/routes/page.tsx")).toThrow(SyntaxError);
+  });
+
   it.each([
     [
       "a local constant",

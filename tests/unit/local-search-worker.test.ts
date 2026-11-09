@@ -123,7 +123,118 @@ function harness(
 }
 
 describe("local search worker", () => {
-  it("defaults to literal matching with only the name index", async () => {
+  it.each([-1, 0, 1])(
+    "receives byte streams into the bounded admission buffer (%i extra bytes)",
+    async (extra) => {
+      const source = fixture();
+      const payload = new Uint8Array(source.index.length + extra);
+      payload.set(source.index.subarray(0, payload.length));
+      const byob: boolean[] = [];
+      let offset = 0;
+      const stream = new ReadableStream({
+        type: "bytes",
+        pull(controller: ReadableByteStreamController): void {
+          const request = controller.byobRequest;
+          byob.push(request !== null);
+          const length = Math.min(7, payload.length - offset);
+          if (request?.view) {
+            const view = new Uint8Array(
+              request.view.buffer,
+              request.view.byteOffset,
+              request.view.byteLength,
+            );
+            const count = Math.min(view.length, length);
+            view.set(payload.subarray(offset, offset + count));
+            offset += count;
+            request.respond(count);
+          } else {
+            controller.enqueue(payload.slice(offset, offset + length));
+            offset += length;
+          }
+          if (offset === payload.length) controller.close();
+        },
+      });
+      const worker = harness(
+        source,
+        async () =>
+          new Response(stream, {
+            headers: response(source.index, source.load.index).headers,
+          }),
+      );
+      await worker.handle({ type: "load", index: source.load.index });
+      expect(byob.length).toBeGreaterThan(1);
+      expect(byob.every(Boolean)).toBe(true);
+      expect(worker.replies.at(-1)).toMatchObject(
+        extra === 0
+          ? { type: "ready" }
+          : { type: "unavailable", reason: "length_mismatch" },
+      );
+    },
+  );
+
+  it("does not publish a literal index while a validation batch is suspended", async () => {
+    const source = fixture();
+    const replies: LocalSearchReply[] = [];
+    let resume: () => void = () => {
+      throw new Error("No suspended batch");
+    };
+    const paused = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    const yieldBatch = vi.fn(() => paused);
+    const ports = {
+      fetch: async (): Promise<Response> =>
+        response(source.index, source.load.index),
+      post: (reply: LocalSearchReply): void => {
+        replies.push(reply);
+      },
+      yield: yieldBatch,
+    };
+    const handle = localSearchService(ports);
+    const loading = handle({ type: "load", index: source.load.index });
+    await vi.waitFor(() => expect(yieldBatch).toHaveBeenCalledOnce());
+    expect(replies.some((reply) => reply.type === "ready")).toBe(false);
+    resume();
+    await loading;
+    expect(replies.filter((reply) => reply.type === "ready")).toHaveLength(1);
+  });
+
+  it("drops an obsolete literal decode after yielding instead of replacing its successor", async () => {
+    const source = fixture();
+    const newer = fixture(contacts.slice(1));
+    const replies: LocalSearchReply[] = [];
+    let resume: () => void = () => {
+      throw new Error("No suspended batch");
+    };
+    const paused = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    const yieldBatch = vi
+      .fn()
+      .mockImplementationOnce(() => paused)
+      .mockResolvedValue(undefined);
+    const ports = {
+      fetch: async (url: string): Promise<Response> =>
+        url === source.load.index.url
+          ? response(source.index, source.load.index)
+          : response(newer.index, newer.load.index),
+      post: (reply: LocalSearchReply): void => {
+        replies.push(reply);
+      },
+      yield: yieldBatch,
+    };
+    const handle = localSearchService(ports);
+    const old = handle({ type: "load", index: source.load.index });
+    await vi.waitFor(() => expect(yieldBatch).toHaveBeenCalledOnce());
+    await handle({ type: "load", index: newer.load.index });
+    resume();
+    await old;
+    expect(replies.filter((reply) => reply.type === "ready")).toHaveLength(1);
+    await handle({ type: "search", id: 10, query: "図書館" });
+    expect(replies.at(-1)).toMatchObject({ type: "results", total: 2 });
+  });
+
+  it("matches names and verified place readings with only the name index", async () => {
     const source = fixture();
     const replies: LocalSearchReply[] = [];
     const fetcher = vi.fn(async () =>
@@ -137,7 +248,8 @@ describe("local search worker", () => {
     expect(replies.at(-1)).toMatchObject({ type: "ready" });
     for (const [query, total] of [
       ["図書館", 3],
-      ["としょかん", 0],
+      ["としょかん", 2],
+      ["とうきょう としょかん", 2],
       ["東京 図書館", 3],
       ["03-3581-2331", 2],
     ] as const) {
@@ -191,6 +303,32 @@ describe("local search worker", () => {
       source.load.index.url,
       source.load.ranking.url,
     ]);
+  });
+
+  it("rejects malformed literal rows before replacing an admitted index", async () => {
+    const source = fixture();
+    const invalid = source.index.slice();
+    const headerEnd = invalid.indexOf(0x0a, invalid.indexOf(0x0a) + 1);
+    invalid[headerEnd + 1] = 0x62;
+    const changed = location("search-index", invalid);
+    const worker = harness(source, async (url) =>
+      url === changed.url
+        ? response(invalid, changed)
+        : response(source.index, source.load.index),
+    );
+    await worker.handle({ type: "load", index: source.load.index });
+    expect(worker.replies.at(-1)).toMatchObject({ type: "ready" });
+    await worker.handle({ type: "load", index: changed });
+    expect(worker.replies.at(-1)).toMatchObject({
+      type: "unavailable",
+      reason: "malformed",
+    });
+    await worker.handle({ type: "search", id: 1, query: "図書館" });
+    expect(worker.replies.at(-1)).toEqual({
+      type: "failed",
+      id: 1,
+      error: "not_ready",
+    });
   });
 
   it("passes original spelling to the exact-name guard", async () => {

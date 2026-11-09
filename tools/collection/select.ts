@@ -23,15 +23,20 @@ export async function selectCollectedSources(input: {
   const manifest = v.parse(CollectionManifestSchema, manifestValue);
   const reportValue: unknown = JSON.parse(await readFile(input.report, "utf8"));
   const report = v.parse(
-    v.object({ plans: v.array(PlanResultSchema) }),
+    v.object({
+      plans: v.array(PlanResultSchema),
+      failures: v.optional(v.array(v.object({ id: v.string() })), []),
+    }),
     reportValue,
   );
   const counts = new Map<string, number>();
+  const failed = new Set(report.failures.map((failure) => failure.id));
   for (const plan of report.plans)
     if (
-      input.acceptedOnly
+      !failed.has(plan.plan) &&
+      (input.acceptedOnly
         ? plan.contacts > 0
-        : plan.rows > plan.missingPhone + plan.invalid
+        : plan.rows > plan.missingPhone + plan.invalid)
     )
       counts.set(plan.plan, (counts.get(plan.plan) ?? 0) + plan.contacts);
   const sources = manifest.sources
@@ -39,7 +44,12 @@ export async function selectCollectedSources(input: {
     .map((source) => ({
       ...source,
       ...(input.acceptedOnly
-        ? { minimumContacts: counts.get(source.id) ?? 1 }
+        ? {
+            minimumContacts: Math.max(
+              source.minimumContacts,
+              counts.get(source.id) ?? 1,
+            ),
+          }
         : {}),
       ...(source.id.startsWith("odm:")
         ? { category: "public_facility" as const }

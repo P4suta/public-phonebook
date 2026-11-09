@@ -6,7 +6,17 @@ const maximumIdentifierLength = 512;
 const maximumSortableNameBytes = 384;
 
 export function normalizeName(name: string): string {
-  return name.normalize("NFKC").toLowerCase().trim();
+  return normalizeNameText(name).trim();
+}
+
+function normalizeNameText(text: string): string {
+  return text.normalize("NFKC").toLowerCase();
+}
+
+export function normalizeNameLines(lines: string): readonly string[] {
+  return normalizeNameText(lines)
+    .split("\n")
+    .map((name) => name.trim());
 }
 
 export async function sha256(text: string): Promise<string> {

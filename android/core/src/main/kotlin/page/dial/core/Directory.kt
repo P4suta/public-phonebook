@@ -62,6 +62,13 @@ data class Contact(
 
 data class SearchPage(val contacts: List<Contact>, val total: Long, val snapshot: SnapshotId?)
 
+data class SearchGroup(val category: Category, val contacts: List<Contact>, val total: Long)
+
+data class SearchResults(val groups: List<SearchGroup>, val snapshot: SnapshotId?) {
+    val total: Long
+        get() = groups.sumOf { it.total }
+}
+
 sealed interface SyncState {
     data object Preparing : SyncState
 
@@ -74,6 +81,8 @@ sealed interface SyncState {
 
 interface DirectoryRepository {
     suspend fun prepare(): SyncState.Ready
+
+    suspend fun preview(query: String): SearchResults
 
     suspend fun search(query: String, category: String? = null, offset: Int = 0): SearchPage
 
@@ -102,7 +111,7 @@ object SyncPolicy {
         last == null || (last >= 0 && now >= last && now - last >= UPDATE_INTERVAL_SECONDS)
 }
 
-class SearchText(pairs: List<String>) {
+class SearchText(pairs: List<String>, private val readings: PlaceReadings? = null) {
     private val standardSelectors = FIRST_STANDARD_SELECTOR..LAST_STANDARD_SELECTOR
     private val supplementarySelectors = FIRST_SUPPLEMENTARY_SELECTOR..LAST_SUPPLEMENTARY_SELECTOR
     private val whitespace =
@@ -153,6 +162,9 @@ class SearchText(pairs: List<String>) {
     }
 
     fun form(text: String): String = words(text).joinToString(" ")
+
+    fun readingPlaces(word: String): ReadingPlaces =
+        readings?.matching(word) ?: ReadingPlaces(emptyList(), emptyList())
 
     fun rank(name: String, places: List<String>, query: String): Int {
         val words = words(query)

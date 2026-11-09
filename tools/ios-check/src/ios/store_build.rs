@@ -13,14 +13,17 @@ pub(super) const CONDITION: &str = "PHONEBOOK_VERIFICATION_TOOLS";
 
 /// Byte strings that the verification tools put in a build: type names, file names, identifiers, and copy.
 /// Swift stores strings of up to 15 UTF-8 bytes inside instructions, so every marker is longer.
-pub(super) const MARKERS: [&str; 7] = [
+pub(super) const MARKERS: [&str; 10] = [
     "VerificationToolsScreen",
     "verification-number.json",
+    "verification-caller-held.callers",
     "verification-tools",
+    "--device-measurements",
+    "caller.load result=",
+    "caller.reload result=failed",
     "確認用の番号",
     "確認用の電話番号",
     "データの自動の受け取り",
-    "prepare-forgiving-search",
 ];
 const SMALL_STRING_BYTES: usize = 15;
 const _: () = {
@@ -31,6 +34,17 @@ const _: () = {
     }
 };
 const CONTROL_DERIVED_DATA: &str = "target/ios/store-build-control";
+const SEARCH_RESOURCE_CONTROLS: [&str; 9] = [
+    "search-index.br",
+    "search-index",
+    "search-ranking.br",
+    "search-ranking-packed.br",
+    "search-ranking",
+    "search.json",
+    "search-lines",
+    "search-rows",
+    "national-packed.json",
+];
 
 fn files(directory: &Path, found: &mut Vec<PathBuf>) -> Result<()> {
     for entry in fs::read_dir(directory).with_context(|| format!("Read {}", directory.display()))? {
@@ -130,6 +144,21 @@ pub(super) fn require_every_marker(bundle: &Path, build: &str) -> Result<()> {
     Ok(())
 }
 
+fn probe_search_resources(bundle: &Path) -> Result<()> {
+    for name in SEARCH_RESOURCE_CONTROLS {
+        let file = bundle.join(name);
+        fs::write(&file, b"")?;
+        ensure!(
+            findings(bundle)?
+                .iter()
+                .any(|(kind, path)| *kind == "forgiving-search resource" && path == name),
+            "The store-build check missed the planted {name}"
+        );
+        fs::remove_file(file)?;
+    }
+    Ok(())
+}
+
 /// Builds Release with the compile condition defined and requires the store-build check to reject it with every marker.
 pub(super) fn control(root: &Path) -> Result<()> {
     let derived = root.join(CONTROL_DERIVED_DATA);
@@ -163,12 +192,7 @@ pub(super) fn control(root: &Path) -> Result<()> {
     )?;
     println!("Expected rejection: {rejection}");
     require_every_marker(&bundle, "condition-defined Release")?;
-    for name in ["search-index.br", "search-ranking.br", "search.json"] {
-        ensure!(
-            bundle.join(name).is_file(),
-            "The negative control lacks {name}"
-        );
-    }
+    probe_search_resources(&bundle)?;
     println!(
         "PASS: the store-build check rejects a Release build that defines {CONDITION}, with all {} markers",
         MARKERS.len()
@@ -215,16 +239,20 @@ mod tests {
 
     #[test]
     fn the_absence_check_rejects_empty_search_resources() -> Result<()> {
-        for name in [
-            "search-index.br",
-            "search-ranking.br",
-            "search-ranking-packed.br",
-            "search.json",
-        ] {
+        for name in SEARCH_RESOURCE_CONTROLS {
             let planted = bundle(b"")?;
             fs::write(planted.path().join(name), b"")?;
             assert!(require_absent(planted.path()).is_err(), "{name}");
         }
+        Ok(())
+    }
+
+    #[test]
+    fn resource_controls_detect_each_planted_file_and_remove_the_fixture() -> Result<()> {
+        let clean = bundle(b"")?;
+        require_absent(clean.path())?;
+        probe_search_resources(clean.path())?;
+        require_absent(clean.path())?;
         Ok(())
     }
 

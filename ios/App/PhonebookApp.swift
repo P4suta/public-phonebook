@@ -7,24 +7,31 @@ struct PhonebookApp: App {
   @State private var integration: IntegrationModel?
   @State private var startupError: String?
 
+  private static var measuresDevice: Bool {
+    #if PHONEBOOK_VERIFICATION_TOOLS
+      return ProcessInfo.processInfo.arguments.contains("--device-measurements")
+    #else
+      return false
+    #endif
+  }
+
   init() {
     BackgroundRefresh.register()
+    if Self.measuresDevice { return }
     do {
       guard let url = URL(string: AppIdentity.apiOrigin) else { throw ServiceError.invalidURL }
       let api = try APIClient(origin: url, trace: SystemTraceSink())
       let store = try AppIdentity.store()
-      #if PHONEBOOK_VERIFICATION_TOOLS
-        _directory = State(initialValue: DirectoryModel(store: store, allowsForgivingSearch: true))
-      #else
-        _directory = State(initialValue: DirectoryModel(store: store))
-      #endif
+      _directory = State(initialValue: DirectoryModel(store: store))
       _integration = State(initialValue: IntegrationModel(api: api, store: store))
     } catch { _startupError = State(initialValue: "アプリを開けませんでした。アプリを開き直してください。") }
   }
 
   var body: some Scene {
     WindowGroup {
-      if let directory, let integration {
+      if Self.measuresDevice {
+        Rectangle().fill(.surface)
+      } else if let directory, let integration {
         RootView(directory: directory, integration: integration)
           .tint(.ink)
       } else {

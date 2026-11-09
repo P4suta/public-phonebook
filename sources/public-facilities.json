@@ -8,45 +8,3619 @@
   ],
   "sources": [
     {
+      "id": "official-mhlw-mental-health-centres",
+      "url": "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/hukushi_kaigo/seikatsuhogo/jisatsu/kokoro_dial_ip.html",
+      "title": "都道府県・政令指定都市の相談窓口（IP電話対応）",
+      "namePattern": "センター|相談所",
+      "publisher": "厚生労働省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.mhlw.go.jp/chosakuken/index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureValues": {
+        "北海道立精神保健福祉センター": "01",
+        "札幌こころのセンター(心の健康づくり電話相談)": "01",
+        "青森県立精神保健福祉センター": "02",
+        "岩手県精神保健福祉センター": "03",
+        "仙台市こころの絆センター": "04",
+        "宮城県精神保健福祉センター": "04",
+        "山形県精神保健福祉センター": "06",
+        "福島県精神保健福祉センター": "07",
+        "茨城県精神保健福祉センター": "08",
+        "栃木県精神保健福祉センター": "09",
+        "群馬県こころの健康センター": "10",
+        "さいたま市こころの健康センター(こころの電話)": "11",
+        "埼玉県立精神保健福祉センター(こころの電話)": "11",
+        "千葉市こころの健康センター": "12",
+        "千葉県精神保健福祉センター": "12",
+        "川崎市総合リハビリテーション推進センター(こころの電話相談)": "14",
+        "横浜市こころの健康相談センター(こころの電話相談)": "14",
+        "相模原市精神保健福祉センター(こころのホットライン)": "14",
+        "新潟市こころの健康センター": "15",
+        "新潟県精神保健福祉センター": "15",
+        "富山県心の健康センター": "16",
+        "石川県こころの健康センター": "17",
+        "福井県障がい福祉・精神保健相談所": "18",
+        "山梨県精神保健福祉センター": "19",
+        "長野県精神保健福祉センター": "20",
+        "岐阜県精神保健福祉センター(こころのダイヤル119番)": "21",
+        "浜松市精神保健福祉センター(こころのほっとライン)": "22",
+        "静岡市こころの健康センター(うつ病専門電話相談てるてる・ハート)": "22",
+        "静岡県精神保健福祉センターこころの電話(伊豆)": "22",
+        "名古屋市精神保健福祉センター(こころの健康電話相談)": "23",
+        "三重県こころの健康センター": "24",
+        "滋賀県立精神保健福祉センター(こころの電話相談)": "25",
+        "京都市こころの健康増進センター": "26",
+        "京都府精神保健福祉総合センター(こころの健康相談電話)": "26",
+        "堺市こころの健康センター(こころの電話相談)": "27",
+        "大阪市こころの健康センター(こころの悩み電話相談)": "27",
+        "大阪府こころの健康総合センター(こころの電話相談)": "27",
+        "兵庫県精神保健福祉センター(兵庫県こころの健康電話相談)": "28",
+        "神戸市精神保健福祉センター": "28",
+        "奈良県精神保健福祉センター": "29",
+        "和歌山県精神保健福祉センター(はあとライン)": "30",
+        "鳥取県立精神保健福祉センター": "31",
+        "島根県立心と体の相談センター": "32",
+        "岡山市こころの健康センター(相談専用電話)": "33",
+        "岡山県精神保健福祉センター": "33",
+        "広島市精神保健福祉センター": "34",
+        "山口県精神保健福祉センター": "35",
+        "徳島県精神保健福祉センター": "36",
+        "香川県精神保健福祉センター(こころの電話相談)": "37",
+        "愛媛県心と体の健康センター(こころのダイヤル)": "38",
+        "高知県立精神保健福祉センター(心のテレ相談)": "39",
+        "北九州市立精神保健福祉センター(自殺予防こころの相談電話)": "40",
+        "福岡市精神保健福祉センター": "40",
+        "福岡県精神保健福祉センター(心の健康相談電話)": "40",
+        "佐賀県精神保健福祉センター(心の電話相談)": "41",
+        "長崎県長崎こども・女性・障害者支援センター": "42",
+        "熊本市こころの健康センター(ハートまる)": "43",
+        "熊本県精神保健福祉センター": "43",
+        "大分県こころとからだの相談支援センター": "44",
+        "宮崎県精神保健福祉センター(こころの電話相談)": "45",
+        "沖縄県総合精神保健福祉センター": "47"
+      },
+      "category": "mental_health_center",
+      "format": "html",
+      "selector": "table",
+      "columns": {
+        "name": [
+          0
+        ],
+        "address": [],
+        "phone": [
+          1
+        ],
+        "prefecture": [
+          0
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 61
+    },
+    {
+      "id": "official-tokyo-fire-stations",
+      "url": "https://www.opendata.metro.tokyo.lg.jp/shoubou/2023/tokyoshouboutyoutyousyaichiran_R504.csv",
+      "indexUrl": "https://spec.api.metro.tokyo.lg.jp/spec/t000017d0000000001-3fee06f821a01a61cc449bab77f89346-0",
+      "title": "東京消防庁 本部及び消防署所在一覧",
+      "publisher": "東京消防庁",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://spec.api.metro.tokyo.lg.jp/spec/t000017d0000000001-3fee06f821a01a61cc449bab77f89346-0",
+      "dataAsOf": "2023-04",
+      "prefectureCode": "13",
+      "category": "fire_department",
+      "format": "csv",
+      "selector": "table",
+      "columns": {
+        "name": [
+          1
+        ],
+        "address": [
+          3
+        ],
+        "phone": [
+          4
+        ],
+        "postalCode": [
+          2
+        ]
+      },
+      "kindValues": {},
+      "phonePrefix": "0",
+      "minimumContacts": 309
+    },
+    {
+      "id": "official-hokkaido-municipal-passport-offices",
+      "url": "https://www.pref.hokkaido.lg.jp/ss/tsk/passport/menu.html",
+      "indexUrl": "https://www.pref.hokkaido.lg.jp/ss/tsk/passport/",
+      "title": "市町村別パスポート窓口一覧",
+      "namePrefix": "北海道 パスポート窓口",
+      "namePattern": "^(?![\\s\\S]*事務委託)",
+      "publisher": "北海道",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://www.dokyoi.pref.hokkaido.lg.jp/site-info/sitepolicy.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "01",
+      "category": "passport_office",
+      "format": "html",
+      "selector": "table",
+      "columns": {
+        "name": [
+          1
+        ],
+        "address": [],
+        "phone": [
+          2
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 123
+    },
+    {
+      "id": "official-hokkaido-regional-passport-offices",
+      "url": "https://www.pref.hokkaido.lg.jp/ss/tsk/passport/189232.html",
+      "indexUrl": "https://www.pref.hokkaido.lg.jp/ss/tsk/passport/",
+      "title": "総合振興局・振興局パスポート窓口一覧",
+      "namePrefix": "北海道 パスポート窓口",
+      "publisher": "北海道",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://www.dokyoi.pref.hokkaido.lg.jp/site-info/sitepolicy.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "01",
+      "category": "passport_office",
+      "format": "html",
+      "selector": "table",
+      "columns": {
+        "name": [
+          0
+        ],
+        "address": [],
+        "phone": [
+          1
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 13
+    },
+    {
+      "id": "official-tokyo-child-family-support",
+      "url": "https://www.opendata.metro.tokyo.lg.jp/fukushi/202510-madoguchi_04-kodomokatei.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/d14146cd-d0cc-4d6d-a270-f6274ed9a888",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E7%B2%BE%E7%A5%9E%E4%BF%9D%E5%81%A5%E7%A6%8F%E7%A5%89%E3%82%BB%E3%83%B3%E3%82%BF%E3%83%BC&rows=500&start=0&sort=id+asc",
+      "title": "社会福祉施設等一覧（令和7年10月１日時点）",
+      "resourceName": "子供家庭支援センター",
+      "publisher": "130001_東京都",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "dataAsOf": "2025-10-01",
+      "prefectureCode": "13",
+      "category": "child_family_support",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 62
+    },
+    {
+      "id": "official-tokyo-accessible-sports",
+      "url": "https://www.opendata.metro.tokyo.lg.jp/fukushi/202510-4-1_01-syougaisya.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/d14146cd-d0cc-4d6d-a270-f6274ed9a888",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E7%B2%BE%E7%A5%9E%E4%BF%9D%E5%81%A5%E7%A6%8F%E7%A5%89%E3%82%BB%E3%83%B3%E3%82%BF%E3%83%BC&rows=500&start=0&sort=id+asc",
+      "title": "社会福祉施設等一覧（令和7年10月１日時点）",
+      "resourceName": "障害者スポーツセンター",
+      "publisher": "130001_東京都",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "dataAsOf": "2025-10-01",
+      "prefectureCode": "13",
+      "category": "sports_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 2
+    },
+    {
+      "id": "odm:94020061-7b7d-4792-bfed-5ebd4d9b324d:0850f54c-46b6-4ce4-a398-58a71b954e99",
+      "url": "https://www.city.machida.tokyo.jp/shisei/opendata/shisetsu/iryoukikan.files/imuichiran.xlsx",
+      "indexUrl": "https://odm.bodik.jp/dataset/94020061-7b7d-4792-bfed-5ebd4d9b324d",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E4%BF%9D%E5%81%A5%E6%89%80&rows=500&start=0&sort=id+asc",
+      "title": "医療機関等の施設一覧",
+      "resourceName": "医務関係施設の一覧",
+      "publisher": "132098_東京都町田市",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://odm.bodik.jp/dataset/94020061-7b7d-4792-bfed-5ebd4d9b324d",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "public_facility",
+      "format": "workbook",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 1
+    },
+    {
+      "id": "odm:c78b2305-322e-4a9d-92a9-6d9f7eed01a0:c9dd0e9f-609e-4958-a88b-2f9d4474ae7a",
+      "url": "https://www.city.machida.tokyo.jp/shisei/opendata/shisetsu/aed.files/132098_aed.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/c78b2305-322e-4a9d-92a9-6d9f7eed01a0",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E4%BF%9D%E5%81%A5%E6%89%80&rows=500&start=0&sort=id+asc",
+      "title": "AED設置箇所一覧",
+      "resourceName": "AED設置箇所一覧",
+      "publisher": "132098_東京都町田市",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://odm.bodik.jp/dataset/c78b2305-322e-4a9d-92a9-6d9f7eed01a0",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 77
+    },
+    {
+      "id": "odm:c78b2305-322e-4a9d-92a9-6d9f7eed01a0:42c43808-6367-4371-a6e8-49ac7558cbdf",
+      "url": "https://www.city.machida.tokyo.jp/shisei/opendata/shisetsu/aed.files/132098_aed.xlsx",
+      "indexUrl": "https://odm.bodik.jp/dataset/c78b2305-322e-4a9d-92a9-6d9f7eed01a0",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E4%BF%9D%E5%81%A5%E6%89%80&rows=500&start=0&sort=id+asc",
+      "title": "AED設置箇所一覧",
+      "resourceName": "AED設置箇所一覧",
+      "publisher": "132098_東京都町田市",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://odm.bodik.jp/dataset/c78b2305-322e-4a9d-92a9-6d9f7eed01a0",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "public_facility",
+      "format": "workbook",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 77
+    },
+    {
+      "id": "odm:f2973027-2703-4ae9-bc77-5f0aedf07736:2c270190-8f22-42aa-94cc-3767b0a6066f",
+      "url": "https://opendata.pref.tokushima.lg.jp/dataset/6/resource/5/%E5%BE%B3%E5%B3%B6%E7%9C%8C%E4%BF%9D%E5%81%A5%E6%89%80%E4%B8%80%E8%A6%A7_20231130.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/f2973027-2703-4ae9-bc77-5f0aedf07736",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E4%BF%9D%E5%81%A5%E6%89%80&rows=500&start=0&sort=id+asc",
+      "title": "徳島県保健所一覧",
+      "resourceName": "徳島県保健所一覧.csv",
+      "publisher": "360007_徳島県",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://odm.bodik.jp/dataset/f2973027-2703-4ae9-bc77-5f0aedf07736",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "36",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 6
+    },
+    {
+      "id": "odm:41e3e5f3-04a1-427a-adb1-25caa6c5616a:d09847c4-e0b4-4707-84da-b784dfe84fdd",
+      "url": "https://www.city.bunkyo.lg.jp/documents/6059/tyugakko.xlsx",
+      "indexUrl": "https://odm.bodik.jp/dataset/41e3e5f3-04a1-427a-adb1-25caa6c5616a",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%95%99%E8%82%B2%E5%A7%94%E5%93%A1%E4%BC%9A&rows=500&start=0&sort=id+asc",
+      "title": "区立中学校",
+      "resourceName": "区立中学校",
+      "publisher": "131059_東京都文京区",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "public_facility",
+      "format": "workbook",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 9
+    },
+    {
+      "id": "odm:41e3e5f3-04a1-427a-adb1-25caa6c5616a:e2af6f65-c348-4362-9b8f-8d05b352bd63",
+      "url": "https://www.city.bunkyo.lg.jp/documents/6059/tyugakko.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/41e3e5f3-04a1-427a-adb1-25caa6c5616a",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%95%99%E8%82%B2%E5%A7%94%E5%93%A1%E4%BC%9A&rows=500&start=0&sort=id+asc",
+      "title": "区立中学校",
+      "resourceName": "区立中学校",
+      "publisher": "131059_東京都文京区",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 9
+    },
+    {
+      "id": "odm:e10dc32a-55ca-4a24-b16a-60a737971891:23f7dd90-4e72-4d72-8458-85421096a21c",
+      "url": "https://www.city.bunkyo.lg.jp/documents/6059/syogakko.xlsx",
+      "indexUrl": "https://odm.bodik.jp/dataset/e10dc32a-55ca-4a24-b16a-60a737971891",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%95%99%E8%82%B2%E5%A7%94%E5%93%A1%E4%BC%9A&rows=500&start=0&sort=id+asc",
+      "title": "区立小学校",
+      "resourceName": "区立小学校",
+      "publisher": "131059_東京都文京区",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "public_facility",
+      "format": "workbook",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 20
+    },
+    {
+      "id": "odm:e10dc32a-55ca-4a24-b16a-60a737971891:0baf421a-a4c9-4a47-b1f6-80f988b98efe",
+      "url": "https://www.city.bunkyo.lg.jp/documents/6059/syogakko.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/e10dc32a-55ca-4a24-b16a-60a737971891",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%95%99%E8%82%B2%E5%A7%94%E5%93%A1%E4%BC%9A&rows=500&start=0&sort=id+asc",
+      "title": "区立小学校",
+      "resourceName": "区立小学校",
+      "publisher": "131059_東京都文京区",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 20
+    },
+    {
+      "id": "odm:198d976a-8e86-4535-a836-a78dbe289a00:63f52a05-e307-45d8-9c5a-3435cf8f212a",
+      "url": "https://opendata.pref.saitama.lg.jp/resource_download/6471",
+      "indexUrl": "https://odm.bodik.jp/dataset/198d976a-8e86-4535-a836-a78dbe289a00",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%B6%88%E9%98%B2&rows=500&start=0&sort=id+asc",
+      "title": "【川越市】AED設置箇所一覧",
+      "resourceName": "【川越市】AED設置箇所一覧（令和7年3月31日現在）UTF-8",
+      "publisher": "112011_埼玉県川越市",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "2025-03-31",
+      "prefectureCode": "11",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 57
+    },
+    {
+      "id": "odm:198d976a-8e86-4535-a836-a78dbe289a00:5ad0c968-619c-4ab1-8b55-e32b549ff80b",
+      "url": "https://opendata.pref.saitama.lg.jp/resource_download/6470",
+      "indexUrl": "https://odm.bodik.jp/dataset/198d976a-8e86-4535-a836-a78dbe289a00",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%B6%88%E9%98%B2&rows=500&start=0&sort=id+asc",
+      "title": "【川越市】AED設置箇所一覧",
+      "resourceName": "【川越市】AED設置箇所一覧（令和7年3月31日現在）Shift_JIS",
+      "publisher": "112011_埼玉県川越市",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "2025-03-31",
+      "prefectureCode": "11",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 57
+    },
+    {
+      "id": "odm:37bf0a00-ce9a-48e3-bd64-f4806228c1b0:9d0301f6-55b9-4fb3-9e20-865caf642890",
+      "url": "https://opendata.pref.saitama.lg.jp/resource_download/5171",
+      "indexUrl": "https://odm.bodik.jp/dataset/37bf0a00-ce9a-48e3-bd64-f4806228c1b0",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%B6%88%E9%98%B2&rows=500&start=0&sort=id+asc",
+      "title": "【和光市】AED設置箇所一覧",
+      "resourceName": "【和光市】AED設置箇所一覧",
+      "publisher": "112291_埼玉県和光市",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "11",
+      "category": "public_facility",
+      "format": "workbook",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 25
+    },
+    {
+      "id": "odm:37bf0a00-ce9a-48e3-bd64-f4806228c1b0:9f5b4bea-981f-4f0c-aaef-b62b723fff11",
+      "url": "https://opendata.pref.saitama.lg.jp/resource_download/5170",
+      "indexUrl": "https://odm.bodik.jp/dataset/37bf0a00-ce9a-48e3-bd64-f4806228c1b0",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%B6%88%E9%98%B2&rows=500&start=0&sort=id+asc",
+      "title": "【和光市】AED設置箇所一覧",
+      "resourceName": "【和光市】AED設置箇所一覧",
+      "publisher": "112291_埼玉県和光市",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "11",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 25
+    },
+    {
+      "id": "odm:6463f5e6-4b94-442b-a5ff-2392cfde4248:8f6269f3-a6c3-4f73-be92-2514ecfe7c1f",
+      "url": "https://www.city.nagareyama.chiba.jp/_res/projects/default_project/_page_/001/015/909/kousyou2.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/6463f5e6-4b94-442b-a5ff-2392cfde4248",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%B6%88%E9%98%B2&rows=500&start=0&sort=id+asc",
+      "title": "公共施設所在地（消防・防災施設） （CSV 1.2 KB）",
+      "resourceName": "kousyou2.csv",
+      "publisher": "122203_千葉県流山市",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://odm.bodik.jp/dataset/6463f5e6-4b94-442b-a5ff-2392cfde4248",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "12",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 4
+    },
+    {
+      "id": "odm:9af3e412-503f-40ee-a23f-a7251ae08bc7:00c01d2e-f276-40e7-91e7-6343468008e5",
+      "url": "https://opendata.pref.saitama.lg.jp/resource_download/1064",
+      "indexUrl": "https://odm.bodik.jp/dataset/9af3e412-503f-40ee-a23f-a7251ae08bc7",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%B6%88%E9%98%B2&rows=500&start=0&sort=id+asc",
+      "title": "【新座市】AED設置箇所一覧",
+      "resourceName": "AED設置箇所一覧.xlsx",
+      "publisher": "112305_埼玉県新座市",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "11",
+      "category": "public_facility",
+      "format": "workbook",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 35
+    },
+    {
+      "id": "odm:9af3e412-503f-40ee-a23f-a7251ae08bc7:675f33b5-201f-4908-8dec-c14625b90f44",
+      "url": "https://opendata.pref.saitama.lg.jp/resource_download/1063",
+      "indexUrl": "https://odm.bodik.jp/dataset/9af3e412-503f-40ee-a23f-a7251ae08bc7",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%B6%88%E9%98%B2&rows=500&start=0&sort=id+asc",
+      "title": "【新座市】AED設置箇所一覧",
+      "resourceName": "AED設置箇所一覧.csv",
+      "publisher": "112305_埼玉県新座市",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "11",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 35
+    },
+    {
+      "id": "odm:b7c63035-1a5e-481f-851f-699f39affec8:784e1f91-21e0-4256-9919-cecb364bab32",
+      "url": "https://opendata.pref.saitama.lg.jp/resource_download/860",
+      "indexUrl": "https://odm.bodik.jp/dataset/b7c63035-1a5e-481f-851f-699f39affec8",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%B6%88%E9%98%B2&rows=500&start=0&sort=id+asc",
+      "title": "【毛呂山町】ＡＥＤ設置施設一覧",
+      "resourceName": "【毛呂山町】ＡＥＤ設置施設一覧",
+      "publisher": "113263_埼玉県毛呂山町",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "11",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 6
+    },
+    {
+      "id": "odm:b7c63035-1a5e-481f-851f-699f39affec8:52559677-d107-4769-99e7-b19cc1ba1c14",
+      "url": "https://opendata.pref.saitama.lg.jp/resource_download/859",
+      "indexUrl": "https://odm.bodik.jp/dataset/b7c63035-1a5e-481f-851f-699f39affec8",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%B6%88%E9%98%B2&rows=500&start=0&sort=id+asc",
+      "title": "【毛呂山町】ＡＥＤ設置施設一覧",
+      "resourceName": "【毛呂山町】ＡＥＤ設置施設一覧",
+      "publisher": "113263_埼玉県毛呂山町",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "11",
+      "category": "public_facility",
+      "format": "workbook",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 6
+    },
+    {
+      "id": "odm:bce44e1d-8c2e-4945-a9ec-8599d639b935:b14c309c-8de1-4c32-ab58-3fe635260664",
+      "url": "https://opendata.pref.saitama.lg.jp/resource_download/1070",
+      "indexUrl": "https://odm.bodik.jp/dataset/bce44e1d-8c2e-4945-a9ec-8599d639b935",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%B6%88%E9%98%B2&rows=500&start=0&sort=id+asc",
+      "title": "【新座市】施設一覧",
+      "resourceName": "施設一覧.xlsx",
+      "publisher": "112305_埼玉県新座市",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "11",
+      "category": "public_facility",
+      "format": "workbook",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 45
+    },
+    {
+      "id": "odm:bce44e1d-8c2e-4945-a9ec-8599d639b935:a441fd7e-321a-4164-a1c0-3acf088bc004",
+      "url": "https://opendata.pref.saitama.lg.jp/resource_download/1069",
+      "indexUrl": "https://odm.bodik.jp/dataset/bce44e1d-8c2e-4945-a9ec-8599d639b935",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%B6%88%E9%98%B2&rows=500&start=0&sort=id+asc",
+      "title": "【新座市】施設一覧",
+      "resourceName": "施設一覧.csv",
+      "publisher": "112305_埼玉県新座市",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "11",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 45
+    },
+    {
+      "id": "odm:ce389ad9-b8fa-4e24-b506-5ee022f4d060:12b680a3-9dbc-4469-a428-f61632193530",
+      "url": "https://www.city.nagareyama.chiba.jp/_res/projects/default_project/_page_/001/015/909/koukyou11.xlsx",
+      "indexUrl": "https://odm.bodik.jp/dataset/ce389ad9-b8fa-4e24-b506-5ee022f4d060",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%B6%88%E9%98%B2&rows=500&start=0&sort=id+asc",
+      "title": "公共施設所在地（消防・防災施設） （Excel 12.2 KB）",
+      "resourceName": "koukyou11.xlsx",
+      "publisher": "122203_千葉県流山市",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://odm.bodik.jp/dataset/ce389ad9-b8fa-4e24-b506-5ee022f4d060",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "12",
+      "category": "public_facility",
+      "format": "workbook",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 4
+    },
+    {
+      "id": "odm:f54d9a5e-0824-408b-883c-b857f63f3a60:79dd99ce-7561-474d-b7cb-9ecd173d6c08",
+      "url": "https://opendata.pref.saitama.lg.jp/resource_download/853",
+      "indexUrl": "https://odm.bodik.jp/dataset/f54d9a5e-0824-408b-883c-b857f63f3a60",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%B6%88%E9%98%B2&rows=500&start=0&sort=id+asc",
+      "title": "【富士見市】AED設置箇所一覧",
+      "resourceName": "【富士見市】AED設置箇所一覧",
+      "publisher": "112356_埼玉県富士見市",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "11",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 21
+    },
+    {
+      "id": "odm:03382a15-3e6a-4b3d-8519-8c14cacb5f47:44070d7c-52fe-4594-a887-3debf0612c34",
+      "url": "https://opendata.pref.saitama.lg.jp/resource_download/8623",
+      "indexUrl": "https://odm.bodik.jp/dataset/03382a15-3e6a-4b3d-8519-8c14cacb5f47",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E5%85%AC%E6%B0%91%E9%A4%A8&rows=500&start=0&sort=id+asc",
+      "title": "【川越市】公共施設一覧",
+      "resourceName": "【川越市】公共施設一覧（令和8年4月1日現在）Shift_JIS",
+      "publisher": "112011_埼玉県川越市",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "2026-04-01",
+      "prefectureCode": "11",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 12
+    },
+    {
+      "id": "odm:03382a15-3e6a-4b3d-8519-8c14cacb5f47:e3681d7d-4130-4096-8bc2-026a5a4a355e",
+      "url": "https://opendata.pref.saitama.lg.jp/resource_download/8624",
+      "indexUrl": "https://odm.bodik.jp/dataset/03382a15-3e6a-4b3d-8519-8c14cacb5f47",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E5%85%AC%E6%B0%91%E9%A4%A8&rows=500&start=0&sort=id+asc",
+      "title": "【川越市】公共施設一覧",
+      "resourceName": "【川越市】公共施設一覧（令和8年4月1日現在）UTF-8",
+      "publisher": "112011_埼玉県川越市",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "2026-04-01",
+      "prefectureCode": "11",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 12
+    },
+    {
+      "id": "odm:a7bb40e8-f94e-4596-9ead-4293b5fb7b1d:eed6a9d1-b875-48fd-b15c-f600370bad2a",
+      "url": "https://www.opendata.metro.tokyo.lg.jp/kyouiku/R3/skshubetu_1.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/a7bb40e8-f94e-4596-9ead-4293b5fb7b1d",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E5%85%AC%E6%B0%91%E9%A4%A8&rows=500&start=0&sort=id+asc",
+      "title": "施設関連情報_公民館",
+      "resourceName": "公民館",
+      "publisher": "130001_東京都",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 62
+    },
+    {
+      "id": "odm:299c5ff9-05ef-4056-8082-90cae2dacb4d:6517deac-be7b-4bbc-834f-68dd9bd9010f",
+      "url": "https://www.pref.ehime.jp/opendata-catalog/dataset/3121/resource/15866/source-url",
+      "indexUrl": "https://odm.bodik.jp/dataset/299c5ff9-05ef-4056-8082-90cae2dacb4d",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E5%85%AC%E6%B0%91%E9%A4%A8&rows=500&start=0&sort=id+asc",
+      "title": "公共施設一覧",
+      "resourceName": "公共施設一覧_384011_public_facility_小中学校_CC-BY",
+      "publisher": "384011_愛媛県松前町",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://odm.bodik.jp/dataset/299c5ff9-05ef-4056-8082-90cae2dacb4d",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "38",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 6
+    },
+    {
+      "id": "odm:299c5ff9-05ef-4056-8082-90cae2dacb4d:2161b54f-50ce-4f40-8939-f99d3093dac1",
+      "url": "https://www.pref.ehime.jp/opendata-catalog/dataset/3121/resource/15868/source-url",
+      "indexUrl": "https://odm.bodik.jp/dataset/299c5ff9-05ef-4056-8082-90cae2dacb4d",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E5%85%AC%E6%B0%91%E9%A4%A8&rows=500&start=0&sort=id+asc",
+      "title": "公共施設一覧",
+      "resourceName": "公共施設一覧_384011_public_facility_公民館・集会所一覧_CC-BY",
+      "publisher": "384011_愛媛県松前町",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://odm.bodik.jp/dataset/299c5ff9-05ef-4056-8082-90cae2dacb4d",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "38",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 9
+    },
+    {
+      "id": "odm:2e3c1bfc-44a3-40b5-816d-ee82bea56bab:2ff1f061-1b2a-49a0-9c3f-ea0db5a016b9",
+      "url": "https://www2.wagmap.jp/hiroshimacity/hiroshimacity/opendatafile/map_1/CSV/opendata_3.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/2e3c1bfc-44a3-40b5-816d-ee82bea56bab",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E5%85%AC%E6%B0%91%E9%A4%A8&rows=500&start=0&sort=id+asc",
+      "title": "広島市_公共施設一覧",
+      "resourceName": "広島市_文化施設（csv）",
+      "publisher": "341002_広島県広島市",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "34",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 8
+    },
+    {
+      "id": "odm:2e3c1bfc-44a3-40b5-816d-ee82bea56bab:42b4f9a5-af37-4cbb-b160-2c49bc4611dd",
+      "url": "https://www2.wagmap.jp/hiroshimacity/hiroshimacity/opendatafile/map_1/CSV/opendata_1.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/2e3c1bfc-44a3-40b5-816d-ee82bea56bab",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E5%85%AC%E6%B0%91%E9%A4%A8&rows=500&start=0&sort=id+asc",
+      "title": "広島市_公共施設一覧",
+      "resourceName": "広島市_市役所、区役所・出張所等（csv）",
+      "publisher": "341002_広島県広島市",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "34",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 1
+    },
+    {
+      "id": "odm:2e3c1bfc-44a3-40b5-816d-ee82bea56bab:14cd6636-6167-4782-8d15-2222372d0124",
+      "url": "https://www2.wagmap.jp/hiroshimacity/hiroshimacity/opendatafile/map_1/CSV/opendata_6.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/2e3c1bfc-44a3-40b5-816d-ee82bea56bab",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E5%85%AC%E6%B0%91%E9%A4%A8&rows=500&start=0&sort=id+asc",
+      "title": "広島市_公共施設一覧",
+      "resourceName": "広島市_公民館（csv）",
+      "publisher": "341002_広島県広島市",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "34",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 71
+    },
+    {
+      "id": "odm:2e3c1bfc-44a3-40b5-816d-ee82bea56bab:9b7f391f-bfd5-48fd-a57b-cadd952d9566",
+      "url": "https://www2.wagmap.jp/hiroshimacity/hiroshimacity/opendatafile/map_1/CSV/opendata_4.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/2e3c1bfc-44a3-40b5-816d-ee82bea56bab",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E5%85%AC%E6%B0%91%E9%A4%A8&rows=500&start=0&sort=id+asc",
+      "title": "広島市_公共施設一覧",
+      "resourceName": "広島市_スポーツ施設（csv）",
+      "publisher": "341002_広島県広島市",
+      "license": "PDL 1.0",
+      "licenseUrl": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "34",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 23
+    },
+    {
+      "id": "odm:1c43ccdb-a5ad-4822-a6ab-ad1322883752:a73d7e90-6d3b-4744-8dd3-18a3f32db374",
+      "url": "https://www.city.nagareyama.chiba.jp/_res/projects/default_project/_page_/001/015/903/opendate.xlsx",
+      "indexUrl": "https://odm.bodik.jp/dataset/1c43ccdb-a5ad-4822-a6ab-ad1322883752",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E3%82%B9%E3%83%9D%E3%83%BC%E3%83%84%E6%96%BD%E8%A8%AD&rows=500&start=0&sort=id+asc",
+      "title": "公共施設所在地（スポーツ施設） （Excel 11.3 KB）",
+      "resourceName": "opendate.xlsx",
+      "publisher": "122203_千葉県流山市",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://odm.bodik.jp/dataset/1c43ccdb-a5ad-4822-a6ab-ad1322883752",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "12",
+      "category": "public_facility",
+      "format": "workbook",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 4
+    },
+    {
+      "id": "odm:5cb33c07-35e5-4135-8fb8-c9fe936d88ba:b8ed11e6-1f47-49cd-ba7e-100a16dca393",
+      "url": "https://www2.wagmap.jp/nakanodatamap/nakanodatamap/opendatafile/map_21/CSV/opendata_5001291.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/5cb33c07-35e5-4135-8fb8-c9fe936d88ba",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E3%82%B9%E3%83%9D%E3%83%BC%E3%83%84%E6%96%BD%E8%A8%AD&rows=500&start=0&sort=id+asc",
+      "title": "スポーツ施設",
+      "resourceName": "スポーツ施設一覧",
+      "publisher": "131148_東京都中野区",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 7
+    },
+    {
+      "id": "odm:36c278c3-63a9-4f99-a104-9ef7acd282cf:b95d2656-e703-4a04-bf8b-71ab21514758",
+      "url": "https://www.city.machida.tokyo.jp/shisei/opendata/shisetsu/sportshisetsu.files/132098_sportsfacilities.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/36c278c3-63a9-4f99-a104-9ef7acd282cf",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E3%82%B9%E3%83%9D%E3%83%BC%E3%83%84%E6%96%BD%E8%A8%AD&rows=500&start=0&sort=id+asc",
+      "title": "スポーツ施設",
+      "resourceName": "スポーツ施設",
+      "publisher": "132098_東京都町田市",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://odm.bodik.jp/dataset/36c278c3-63a9-4f99-a104-9ef7acd282cf",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 18
+    },
+    {
+      "id": "odm:616c2dd4-a3fb-4a91-9ae1-5ef2e27c5d5b:654e26bf-b967-47c3-ab5c-a8651d1b4cd7",
+      "url": "https://www.city.nagareyama.chiba.jp/_res/projects/default_project/_page_/001/015/903/opendate.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/616c2dd4-a3fb-4a91-9ae1-5ef2e27c5d5b",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E3%82%B9%E3%83%9D%E3%83%BC%E3%83%84%E6%96%BD%E8%A8%AD&rows=500&start=0&sort=id+asc",
+      "title": "公共施設所在地（スポーツ施設） （CSV 1.4 KB）",
+      "resourceName": "opendate.csv",
+      "publisher": "122203_千葉県流山市",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://odm.bodik.jp/dataset/616c2dd4-a3fb-4a91-9ae1-5ef2e27c5d5b",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "12",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 4
+    },
+    {
+      "id": "odm:883f3ce1-959a-40e0-8ff5-c01c734f4183:0543676f-efc1-43b9-8d57-9647ae09feb7",
+      "url": "https://opdt.city.toyama.lg.jp/dataset/aa17e339-305e-4f35-ae6d-5bc74fb0210e/resource/f085250b-2ee4-4ddb-9779-145905dc4ee1/download/intfs01.int.toyama-city.localredirect111015downloads15supotusisetu.xlsx",
+      "indexUrl": "https://odm.bodik.jp/dataset/883f3ce1-959a-40e0-8ff5-c01c734f4183",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E3%82%B9%E3%83%9D%E3%83%BC%E3%83%84%E6%96%BD%E8%A8%AD&rows=500&start=0&sort=id+asc",
+      "title": "インフォマップとやま＿施設情報マップ＿文化・スポーツ関連施設",
+      "resourceName": "スポーツ施設",
+      "publisher": "162019_富山県富山市",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://odm.bodik.jp/dataset/883f3ce1-959a-40e0-8ff5-c01c734f4183",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "16",
+      "category": "public_facility",
+      "format": "workbook",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 34
+    },
+    {
+      "id": "odm:c5beac94-726f-48d4-91f2-38980a850ff3:65ba46f7-978e-4293-b408-4c84d38f5478",
+      "url": "https://www2.wagmap.jp/kobecity/kobecity/opendata/map_999/CSV/opendata_32.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/c5beac94-726f-48d4-91f2-38980a850ff3",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E3%82%B9%E3%83%9D%E3%83%BC%E3%83%84%E6%96%BD%E8%A8%AD&rows=500&start=0&sort=id+asc",
+      "title": "こうべバリアフリー情報",
+      "resourceName": "スポーツ施設",
+      "publisher": "281000_兵庫県神戸市",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://odm.bodik.jp/dataset/c5beac94-726f-48d4-91f2-38980a850ff3",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "28",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 10
+    },
+    {
+      "id": "odm:dfee5796-7ef5-4c41-abf2-90e5b40ad6a1:9d6b5fe1-475f-439a-ad06-469b7efe54a9",
+      "url": "https://www.city.bunkyo.lg.jp/documents/6059/bunka-sports.xlsx",
+      "indexUrl": "https://odm.bodik.jp/dataset/dfee5796-7ef5-4c41-abf2-90e5b40ad6a1",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E3%82%B9%E3%83%9D%E3%83%BC%E3%83%84%E6%96%BD%E8%A8%AD&rows=500&start=0&sort=id+asc",
+      "title": "文化・スポーツ施設",
+      "resourceName": "文化・スポーツ施設",
+      "publisher": "131059_東京都文京区",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "public_facility",
+      "format": "workbook",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 7
+    },
+    {
+      "id": "odm:dfee5796-7ef5-4c41-abf2-90e5b40ad6a1:4bbcd263-6cbc-48a2-89c3-e852ff177279",
+      "url": "https://www.city.bunkyo.lg.jp/documents/6059/bunka-sports.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/dfee5796-7ef5-4c41-abf2-90e5b40ad6a1",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E3%82%B9%E3%83%9D%E3%83%BC%E3%83%84%E6%96%BD%E8%A8%AD&rows=500&start=0&sort=id+asc",
+      "title": "文化・スポーツ施設",
+      "resourceName": "文化・スポーツ施設",
+      "publisher": "131059_東京都文京区",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 7
+    },
+    {
+      "id": "odm:70bacbbc-aefe-46e9-88b0-9eebebb8acd1:4f60ef02-b181-4bf6-82a1-c46e0d2e83a2",
+      "url": "https://www.city.nagareyama.chiba.jp/_res/projects/default_project/_page_/001/015/904/20230401shisetsu_bunka.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/70bacbbc-aefe-46e9-88b0-9eebebb8acd1",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%96%87%E5%8C%96%E6%96%BD%E8%A8%AD&rows=500&start=0&sort=id+asc",
+      "title": "公共施設所在地（文化施設） （CSV 3.2 KB）",
+      "resourceName": "20230401shisetsu_bunka.csv",
+      "publisher": "122203_千葉県流山市",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://odm.bodik.jp/dataset/70bacbbc-aefe-46e9-88b0-9eebebb8acd1",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "12",
+      "category": "public_facility",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 6
+    },
+    {
+      "id": "odm:fbfbf35e-e874-438c-9c90-e3ae325367eb:bfbce130-82d9-461e-8839-1d62e80006b4",
+      "url": "https://www.city.nagareyama.chiba.jp/_res/projects/default_project/_page_/001/015/904/20230401shisetsu_bunka.xls",
+      "indexUrl": "https://odm.bodik.jp/dataset/fbfbf35e-e874-438c-9c90-e3ae325367eb",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E6%96%87%E5%8C%96%E6%96%BD%E8%A8%AD&rows=500&start=0&sort=id+asc",
+      "title": "公共施設所在地（文化施設） （Excel 35.5 KB）",
+      "resourceName": "20230401shisetsu_bunka.xls",
+      "publisher": "122203_千葉県流山市",
+      "license": "CC BY (publisher metadata)",
+      "licenseUrl": "https://odm.bodik.jp/dataset/fbfbf35e-e874-438c-9c90-e3ae325367eb",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "12",
+      "category": "public_facility",
+      "format": "workbook",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 6
+    },
+    {
+      "id": "official-fdma-regional-fire-headquarters",
+      "url": "https://www.fdma.go.jp/publication/handbook/items/20260302_binran.pdf",
+      "indexUrl": "https://www.fdma.go.jp/publication/",
+      "title": "令和7年度 全国消防便覧 全国消防長会都府県・道地区一覧表",
+      "publisher": "総務省消防庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.fdma.go.jp/about/others/post3.html",
+      "dataAsOf": "2025",
+      "prefectureValues": {
+        "1道西地区": "01",
+        "2道南地区": "01",
+        "3道央地区": "01",
+        "4道北地区": "01",
+        "5道東地区": "01",
+        "6青森": "02",
+        "7岩手": "03",
+        "8宮城": "04",
+        "9秋田": "05",
+        "10山形": "06",
+        "11福島": "07",
+        "12茨城": "08",
+        "13栃木": "09",
+        "14群馬": "10",
+        "15埼玉": "11",
+        "16千葉": "12",
+        "17東京都": "13",
+        "18神奈川": "14",
+        "19新潟": "15",
+        "20富山": "16",
+        "21石川": "17",
+        "22福井": "18",
+        "23山梨": "19",
+        "24長野": "20",
+        "25岐阜": "21",
+        "26静岡": "22",
+        "27愛知": "23",
+        "28三重": "24",
+        "29滋賀": "25",
+        "30京都府": "26",
+        "31大阪府": "27",
+        "32兵庫": "28",
+        "33奈良": "29",
+        "34和歌山": "30",
+        "35鳥取": "31",
+        "36島根": "32",
+        "37岡山": "33",
+        "38広島": "34",
+        "39山口": "35",
+        "40徳島": "36",
+        "41香川": "37",
+        "42愛媛": "38",
+        "43高知": "39",
+        "44福岡": "40",
+        "45佐賀": "41",
+        "46長崎": "42",
+        "47熊本": "43",
+        "48大分": "44",
+        "49宮崎": "45",
+        "50鹿児島": "46",
+        "51沖縄": "47"
+      },
+      "category": "fire_department",
+      "format": "pdf",
+      "tablePattern": "^Page 527$",
+      "pdfColumns": [
+        40,
+        96,
+        253,
+        296,
+        500
+      ],
+      "selector": "table",
+      "columns": {
+        "name": [
+          1
+        ],
+        "address": [
+          3
+        ],
+        "phone": [
+          4
+        ],
+        "postalCode": [
+          2
+        ],
+        "prefecture": [
+          0
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 51
+    },
+    {
+      "id": "official-tokyo-health-directory-1",
+      "url": "https://www.opendata.metro.tokyo.lg.jp/fukushi/202510-madoguchi_02-hokensyo_1.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/d14146cd-d0cc-4d6d-a270-f6274ed9a888",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E7%B2%BE%E7%A5%9E%E4%BF%9D%E5%81%A5%E7%A6%8F%E7%A5%89%E3%82%BB%E3%83%B3%E3%82%BF%E3%83%BC&rows=500&start=0&sort=id+asc",
+      "title": "社会福祉施設等一覧（令和7年10月１日時点）",
+      "namePattern": "保健所|保健支所",
+      "resourceName": "区保健所・保健センター",
+      "publisher": "130001_東京都",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "dataAsOf": "2025-10-01",
+      "prefectureCode": "13",
+      "category": "health_center",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 55
+    },
+    {
+      "id": "official-tokyo-health-directory-2",
+      "url": "https://www.opendata.metro.tokyo.lg.jp/fukushi/202510-madoguchi_02-hokensyo_2.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/d14146cd-d0cc-4d6d-a270-f6274ed9a888",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E7%B2%BE%E7%A5%9E%E4%BF%9D%E5%81%A5%E7%A6%8F%E7%A5%89%E3%82%BB%E3%83%B3%E3%82%BF%E3%83%BC&rows=500&start=0&sort=id+asc",
+      "title": "社会福祉施設等一覧（令和7年10月１日時点）",
+      "namePattern": "保健所|保健支所",
+      "resourceName": "都保健所",
+      "publisher": "130001_東京都",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "dataAsOf": "2025-10-01",
+      "prefectureCode": "13",
+      "category": "health_center",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 12
+    },
+    {
+      "id": "official-tokyo-health-directory-3",
+      "url": "https://www.opendata.metro.tokyo.lg.jp/fukushi/202510-madoguchi_02-hokensyo_3.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/d14146cd-d0cc-4d6d-a270-f6274ed9a888",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E7%B2%BE%E7%A5%9E%E4%BF%9D%E5%81%A5%E7%A6%8F%E7%A5%89%E3%82%BB%E3%83%B3%E3%82%BF%E3%83%BC&rows=500&start=0&sort=id+asc",
+      "title": "社会福祉施設等一覧（令和7年10月１日時点）",
+      "namePattern": "保健所|保健支所",
+      "resourceName": "中核市・政令市保健所・保健センター",
+      "publisher": "130001_東京都",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "dataAsOf": "2025-10-01",
+      "prefectureCode": "13",
+      "category": "health_center",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 3
+    },
+    {
+      "id": "official-tokyo-health-directory-4",
+      "url": "https://www.opendata.metro.tokyo.lg.jp/fukushi/202510-madoguchi_10-seisinhoken.csv",
+      "indexUrl": "https://odm.bodik.jp/dataset/d14146cd-d0cc-4d6d-a270-f6274ed9a888",
+      "provenanceUrl": "https://odm.bodik.jp/api/3/action/package_search?q=%E7%B2%BE%E7%A5%9E%E4%BF%9D%E5%81%A5%E7%A6%8F%E7%A5%89%E3%82%BB%E3%83%B3%E3%82%BF%E3%83%BC&rows=500&start=0&sort=id+asc",
+      "title": "社会福祉施設等一覧（令和7年10月１日時点）",
+      "resourceName": "精神保健福祉センター",
+      "publisher": "130001_東京都",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "dataAsOf": "2025-10-01",
+      "prefectureCode": "13",
+      "category": "mental_health_center",
+      "format": "csv",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 3
+    },
+    {
+      "id": "official-hokkaido-private-schools",
+      "url": "https://www.pref.hokkaido.lg.jp/sm/gkj/allschoolseach.html",
+      "title": "私立学校の検索・一覧",
+      "publisher": "北海道",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://www.dokyoi.pref.hokkaido.lg.jp/site-info/sitepolicy.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "01",
+      "category": "school",
+      "format": "html",
+      "selector": "table",
+      "kindValues": {},
+      "minimumContacts": 177,
+      "discovery": {
+        "pattern": "/(?:ele|juni|high|tushin|ktushin|sen|kaku)_[^/]+\\.xlsx?$",
+        "depth": 1,
+        "maxPages": 64,
+        "formats": [
+          "workbook"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-sapporo",
+      "url": "https://houmukyoku.moj.go.jp/sapporo/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "札幌法務局 管内支局・出張所",
+      "namePrefix": "札幌法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "01",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 13,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-hakodate",
+      "url": "https://houmukyoku.moj.go.jp/hakodate/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "函館地方法務局 管内支局・出張所",
+      "namePrefix": "函館地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "01",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 2,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-asahikawa",
+      "url": "https://houmukyoku.moj.go.jp/asahikawa/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "旭川地方法務局 管内支局・出張所",
+      "namePrefix": "旭川地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "01",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 4,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-kushiro",
+      "url": "https://houmukyoku.moj.go.jp/kushiro/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "釧路地方法務局 管内支局・出張所",
+      "namePrefix": "釧路地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "01",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 4,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-sendai",
+      "url": "https://houmukyoku.moj.go.jp/sendai/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "仙台法務局 管内支局・出張所",
+      "namePrefix": "仙台法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "04",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 7,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-fukushima",
+      "url": "https://houmukyoku.moj.go.jp/fukushima/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "福島地方法務局 管内支局・出張所",
+      "namePrefix": "福島地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "07",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 8,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-yamagata",
+      "url": "https://houmukyoku.moj.go.jp/yamagata/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "山形地方法務局 管内支局・出張所",
+      "namePrefix": "山形地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "06",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 6,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-morioka",
+      "url": "https://houmukyoku.moj.go.jp/morioka/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "盛岡地方法務局 管内支局・出張所",
+      "namePrefix": "盛岡地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "03",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 5,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-akita",
+      "url": "https://houmukyoku.moj.go.jp/akita/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "秋田地方法務局 管内支局・出張所",
+      "namePrefix": "秋田地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "05",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 4,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-aomori",
+      "url": "https://houmukyoku.moj.go.jp/aomori/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "青森地方法務局 管内支局・出張所",
+      "namePrefix": "青森地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "02",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 5,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-tokyo",
+      "url": "https://houmukyoku.moj.go.jp/tokyo/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "東京法務局 管内支局・出張所・専門窓口",
+      "namePrefix": "東京法務局",
+      "namePattern": "支局|出張所|後見登録課|動産登録課|債権登録課|人権擁護部",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 26,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-yokohama",
+      "url": "https://houmukyoku.moj.go.jp/yokohama/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "横浜地方法務局 管内支局・出張所",
+      "namePrefix": "横浜地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "14",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 15,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-saitama",
+      "url": "https://houmukyoku.moj.go.jp/saitama/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "さいたま地方法務局 管内支局・出張所",
+      "namePrefix": "さいたま地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "11",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 16,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-chiba",
+      "url": "https://houmukyoku.moj.go.jp/chiba/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "千葉地方法務局 管内支局・出張所",
+      "namePrefix": "千葉地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "12",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 13,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-mito",
+      "url": "https://houmukyoku.moj.go.jp/mito/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "水戸地方法務局 管内支局・出張所",
+      "namePrefix": "水戸地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "08",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 9,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-utsunomiya",
+      "url": "https://houmukyoku.moj.go.jp/utsunomiya/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "宇都宮地方法務局 管内支局・出張所",
+      "namePrefix": "宇都宮地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "09",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 6,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-maebashi",
+      "url": "https://houmukyoku.moj.go.jp/maebashi/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "前橋地方法務局 管内支局・出張所",
+      "namePrefix": "前橋地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "10",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 8,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-shizuoka",
+      "url": "https://houmukyoku.moj.go.jp/shizuoka/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "静岡地方法務局 管内支局・出張所",
+      "namePrefix": "静岡地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "22",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 10,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-kofu",
+      "url": "https://houmukyoku.moj.go.jp/kofu/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "甲府地方法務局 管内支局・出張所",
+      "namePrefix": "甲府地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "19",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 4,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-nagano",
+      "url": "https://houmukyoku.moj.go.jp/nagano/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "長野地方法務局 管内支局・出張所",
+      "namePrefix": "長野地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "20",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 9,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-niigata",
+      "url": "https://houmukyoku.moj.go.jp/niigata/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "新潟地方法務局 管内支局・出張所",
+      "namePrefix": "新潟地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "15",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 11,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-nagoya",
+      "url": "https://houmukyoku.moj.go.jp/nagoya/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "名古屋法務局 管内支局・出張所",
+      "namePrefix": "名古屋法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "23",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 13,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-tsu",
+      "url": "https://houmukyoku.moj.go.jp/tsu/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "津地方法務局 管内支局・出張所",
+      "namePrefix": "津地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "24",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 8,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-gifu",
+      "url": "https://houmukyoku.moj.go.jp/gifu/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "岐阜地方法務局 管内支局・出張所",
+      "namePrefix": "岐阜地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "21",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 6,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-fukui",
+      "url": "https://houmukyoku.moj.go.jp/fukui/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "福井地方法務局 管内支局・出張所",
+      "namePrefix": "福井地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "18",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 3,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-kanazawa",
+      "url": "https://houmukyoku.moj.go.jp/kanazawa/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "金沢地方法務局 管内支局・出張所",
+      "namePrefix": "金沢地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "17",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 3,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-toyama",
+      "url": "https://houmukyoku.moj.go.jp/toyama/table/shikyokutou/all00.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "富山地方法務局 管内支局・出張所",
+      "namePrefix": "富山地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "16",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 3,
+      "discovery": {
+        "pattern": "/toyama/mapinfo[0-9]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-osaka",
+      "url": "https://houmukyoku.moj.go.jp/osaka/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "大阪法務局 管内支局・出張所",
+      "namePrefix": "大阪法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "27",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 10,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-kyoto",
+      "url": "https://houmukyoku.moj.go.jp/kyoto/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "京都地方法務局 管内支局・出張所",
+      "namePrefix": "京都地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "26",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 9,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-kobe",
+      "url": "https://houmukyoku.moj.go.jp/kobe/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "神戸地方法務局 管内支局・出張所",
+      "namePrefix": "神戸地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "28",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 16,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-nara",
+      "url": "https://houmukyoku.moj.go.jp/nara/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "奈良地方法務局 管内支局・出張所",
+      "namePrefix": "奈良地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "29",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 3,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-otsu",
+      "url": "https://houmukyoku.moj.go.jp/otsu/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "大津地方法務局 管内支局・出張所",
+      "namePrefix": "大津地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "25",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 5,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-wakayama",
+      "url": "https://houmukyoku.moj.go.jp/wakayama/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "和歌山地方法務局 管内支局・出張所",
+      "namePrefix": "和歌山地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "30",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 4,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-hiroshima",
+      "url": "https://houmukyoku.moj.go.jp/hiroshima/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "広島法務局 管内支局・出張所",
+      "namePrefix": "広島法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "34",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 7,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-yamaguchi",
+      "url": "https://houmukyoku.moj.go.jp/yamaguchi/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "山口地方法務局 管内支局・出張所",
+      "namePrefix": "山口地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "35",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 6,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-okayama",
+      "url": "https://houmukyoku.moj.go.jp/okayama/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "岡山地方法務局 管内支局・出張所",
+      "namePrefix": "岡山地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "33",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 5,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-tottori",
+      "url": "https://houmukyoku.moj.go.jp/tottori/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "鳥取地方法務局 管内支局・出張所",
+      "namePrefix": "鳥取地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "31",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 2,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-matsue",
+      "url": "https://houmukyoku.moj.go.jp/matsue/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "松江地方法務局 管内支局・出張所",
+      "namePrefix": "松江地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "32",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 4,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-takamatsu",
+      "url": "https://houmukyoku.moj.go.jp/takamatsu/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "高松法務局 管内支局・出張所・専門窓口",
+      "namePrefix": "高松法務局",
+      "namePattern": "支局|出張所|人権擁護部",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "37",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 4,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-tokushima",
+      "url": "https://houmukyoku.moj.go.jp/tokushima/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "徳島地方法務局 管内支局・出張所",
+      "namePrefix": "徳島地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "36",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 2,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-kochi",
+      "url": "https://houmukyoku.moj.go.jp/kochi/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "高知地方法務局 管内支局・出張所",
+      "namePrefix": "高知地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "39",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 4,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-matsuyama",
+      "url": "https://houmukyoku.moj.go.jp/matsuyama/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "松山地方法務局 管内支局・出張所",
+      "namePrefix": "松山地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "38",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 6,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-fukuoka",
+      "url": "https://houmukyoku.moj.go.jp/fukuoka/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "福岡法務局 管内支局・出張所",
+      "namePrefix": "福岡法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "40",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 14,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-saga",
+      "url": "https://houmukyoku.moj.go.jp/saga/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "佐賀地方法務局 管内支局・出張所",
+      "namePrefix": "佐賀地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "41",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 4,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-nagasaki",
+      "url": "https://houmukyoku.moj.go.jp/nagasaki/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "長崎地方法務局 管内支局・出張所",
+      "namePrefix": "長崎地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "42",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 7,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-oita",
+      "url": "https://houmukyoku.moj.go.jp/oita/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "大分地方法務局 管内支局・出張所",
+      "namePrefix": "大分地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "44",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 6,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-kumamoto",
+      "url": "https://houmukyoku.moj.go.jp/kumamoto/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "熊本地方法務局 管内支局・出張所",
+      "namePrefix": "熊本地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "43",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 7,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-kagoshima",
+      "url": "https://houmukyoku.moj.go.jp/kagoshima/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "鹿児島地方法務局 管内支局・出張所",
+      "namePrefix": "鹿児島地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "46",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 9,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-miyazaki",
+      "url": "https://houmukyoku.moj.go.jp/miyazaki/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "宮崎地方法務局 管内支局・出張所",
+      "namePrefix": "宮崎地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "45",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 5,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-legal-affairs-naha",
+      "url": "https://houmukyoku.moj.go.jp/naha/table/shikyokutou/all.html",
+      "indexUrl": "https://houmukyoku.moj.go.jp/homu/static/kankatsu_index.html",
+      "title": "那覇地方法務局 管内支局・出張所",
+      "namePrefix": "那覇地方法務局",
+      "namePattern": "支局|出張所",
+      "publisher": "法務省",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://houmukyoku.moj.go.jp/homu/static/qanda_index.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "47",
+      "category": "legal_affairs",
+      "format": "html",
+      "selector": "table.jurisdictiontable",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 5,
+      "discovery": {
+        "pattern": "/table/shikyokutou/all/[^/]+\\.html$",
+        "depth": 1,
+        "maxPages": 128,
+        "formats": [
+          "html"
+        ]
+      }
+    },
+    {
+      "id": "official-immigration-sapporo-departments",
+      "url": "https://www.moj.go.jp/isa/about/region/sapporo/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "札幌出入国在留管理局 所在地・連絡先",
+      "namePrefix": "札幌出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "01",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + th)",
+      "htmlLayout": "table",
+      "kindValues": {},
+      "minimumContacts": 6
+    },
+    {
+      "id": "official-immigration-sendai-departments",
+      "url": "https://www.moj.go.jp/isa/about/region/sendai/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "仙台出入国在留管理局 所在地・連絡先",
+      "namePrefix": "仙台出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "04",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + th)",
+      "htmlLayout": "table",
+      "kindValues": {},
+      "minimumContacts": 14
+    },
+    {
+      "id": "official-immigration-tokyo-departments",
+      "url": "https://www.moj.go.jp/isa/about/region/tokyo/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "東京出入国在留管理局 所在地・連絡先",
+      "namePrefix": "東京出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + th)",
+      "htmlLayout": "table",
+      "kindValues": {},
+      "minimumContacts": 7
+    },
+    {
+      "id": "official-immigration-yokohama-departments",
+      "url": "https://www.moj.go.jp/isa/about/region/yokohama/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "東京出入国在留管理局 横浜支局 所在地・連絡先",
+      "namePrefix": "東京出入国在留管理局 横浜支局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "14",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + th)",
+      "htmlLayout": "table",
+      "kindValues": {},
+      "minimumContacts": 8
+    },
+    {
+      "id": "official-immigration-nagoya-departments",
+      "url": "https://www.moj.go.jp/isa/about/region/nagoya/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "名古屋出入国在留管理局 所在地・連絡先",
+      "namePrefix": "名古屋出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "23",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + th)",
+      "htmlLayout": "table",
+      "kindValues": {},
+      "minimumContacts": 19
+    },
+    {
+      "id": "official-immigration-osaka-departments",
+      "url": "https://www.moj.go.jp/isa/about/region/osaka/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "大阪出入国在留管理局 所在地・連絡先",
+      "namePrefix": "大阪出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "27",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + th)",
+      "htmlLayout": "table",
+      "kindValues": {},
+      "minimumContacts": 19
+    },
+    {
+      "id": "official-immigration-kobe-departments",
+      "url": "https://www.moj.go.jp/isa/about/region/kobe/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "大阪出入国在留管理局 神戸支局 所在地・連絡先",
+      "namePrefix": "大阪出入国在留管理局 神戸支局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "28",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + th)",
+      "htmlLayout": "table",
+      "kindValues": {},
+      "minimumContacts": 4
+    },
+    {
+      "id": "official-immigration-hiroshima-departments",
+      "url": "https://www.moj.go.jp/isa/about/region/hiroshima/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "広島出入国在留管理局 所在地・連絡先",
+      "namePrefix": "広島出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "34",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + th)",
+      "htmlLayout": "table",
+      "kindValues": {},
+      "minimumContacts": 5
+    },
+    {
+      "id": "official-immigration-takamatsu-departments",
+      "url": "https://www.moj.go.jp/isa/about/region/takamatsu/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "高松出入国在留管理局 所在地・連絡先",
+      "namePrefix": "高松出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "37",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + th)",
+      "htmlLayout": "table",
+      "kindValues": {},
+      "minimumContacts": 4
+    },
+    {
+      "id": "official-immigration-fukuoka-departments",
+      "url": "https://www.moj.go.jp/isa/about/region/fukuoka/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "福岡出入国在留管理局 所在地・連絡先",
+      "namePrefix": "福岡出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "40",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + th)",
+      "htmlLayout": "table",
+      "kindValues": {},
+      "minimumContacts": 6
+    },
+    {
+      "id": "official-immigration-naha-departments",
+      "url": "https://www.moj.go.jp/isa/about/region/naha/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "福岡出入国在留管理局 那覇支局 所在地・連絡先",
+      "namePrefix": "福岡出入国在留管理局 那覇支局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "47",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + th)",
+      "htmlLayout": "table",
+      "kindValues": {},
+      "minimumContacts": 3
+    },
+    {
+      "id": "official-cabinet-domestic-violence-support",
+      "url": "https://www.gender.go.jp/policy/no_violence/e-vaw/soudankikan/pdf/center.pdf",
+      "indexUrl": "https://www.gender.go.jp/policy/no_violence/e-vaw/soudankikan/01.html",
+      "title": "配偶者暴力相談支援センターの機能を果たす施設一覧",
+      "publisher": "内閣府男女共同参画局",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.cao.go.jp/notice/rule.html",
+      "dataAsOf": "2026-10-20",
+      "category": "domestic_violence_support",
+      "format": "pdf",
+      "pdfColumns": [
+        77,
+        138,
+        218,
+        481,
+        624
+      ],
+      "pdfRecordColumn": 1,
+      "selector": "table",
+      "inheritPrefecture": true,
+      "columns": {
+        "name": [
+          2
+        ],
+        "address": [],
+        "phone": [
+          3
+        ],
+        "prefecture": [
+          0
+        ],
+        "website": []
+      },
+      "kindValues": {},
+      "minimumContacts": 326
+    },
+    {
+      "id": "official-immigration-sapporo",
+      "url": "https://www.moj.go.jp/isa/about/region/sapporo/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "札幌出入国在留管理局 所在地・連絡先",
+      "namePrefix": "札幌出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "01",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + td):not(:has(tr > th + th))",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 6
+    },
+    {
+      "id": "official-immigration-sendai",
+      "url": "https://www.moj.go.jp/isa/about/region/sendai/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "仙台出入国在留管理局 所在地・連絡先",
+      "namePrefix": "仙台出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "04",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + td):not(:has(tr > th + th))",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 7
+    },
+    {
+      "id": "official-immigration-tokyo",
+      "url": "https://www.moj.go.jp/isa/about/region/tokyo/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "東京出入国在留管理局 所在地・連絡先",
+      "namePrefix": "東京出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + td):not(:has(tr > th + th))",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 11
+    },
+    {
+      "id": "official-immigration-narita",
+      "url": "https://www.moj.go.jp/isa/about/region/narita/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "東京出入国在留管理局 成田空港支局 所在地・連絡先",
+      "namePrefix": "東京出入国在留管理局 成田空港支局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "12",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + th)",
+      "kindValues": {},
+      "minimumContacts": 17
+    },
+    {
+      "id": "official-immigration-haneda",
+      "url": "https://www.moj.go.jp/isa/about/region/haneda/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "東京出入国在留管理局 羽田空港支局 所在地・連絡先",
+      "namePrefix": "東京出入国在留管理局 羽田空港支局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "13",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + th)",
+      "kindValues": {},
+      "minimumContacts": 4
+    },
+    {
+      "id": "official-immigration-yokohama",
+      "url": "https://www.moj.go.jp/isa/about/region/yokohama/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "東京出入国在留管理局 横浜支局 所在地・連絡先",
+      "namePrefix": "東京出入国在留管理局 横浜支局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "14",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + td):not(:has(tr > th + th))",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 2
+    },
+    {
+      "id": "official-immigration-nagoya",
+      "url": "https://www.moj.go.jp/isa/about/region/nagoya/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "名古屋出入国在留管理局 所在地・連絡先",
+      "namePrefix": "名古屋出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "23",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + td):not(:has(tr > th + th))",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 9
+    },
+    {
+      "id": "official-immigration-chubu",
+      "url": "https://www.moj.go.jp/isa/about/region/chubu/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "名古屋出入国在留管理局 中部空港支局 所在地・連絡先",
+      "namePrefix": "名古屋出入国在留管理局 中部空港支局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "23",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + th)",
+      "kindValues": {},
+      "minimumContacts": 9
+    },
+    {
+      "id": "official-immigration-osaka",
+      "url": "https://www.moj.go.jp/isa/about/region/osaka/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "大阪出入国在留管理局 所在地・連絡先",
+      "namePrefix": "大阪出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "27",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + td):not(:has(tr > th + th))",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 6
+    },
+    {
+      "id": "official-immigration-kansai",
+      "url": "https://www.moj.go.jp/isa/about/region/kansai/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "大阪出入国在留管理局 関西空港支局 所在地・連絡先",
+      "namePrefix": "大阪出入国在留管理局 関西空港支局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "27",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + th)",
+      "kindValues": {},
+      "minimumContacts": 14
+    },
+    {
+      "id": "official-immigration-kobe",
+      "url": "https://www.moj.go.jp/isa/about/region/kobe/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "大阪出入国在留管理局 神戸支局 所在地・連絡先",
+      "namePrefix": "大阪出入国在留管理局 神戸支局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "28",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + td):not(:has(tr > th + th))",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 1
+    },
+    {
+      "id": "official-immigration-hiroshima",
+      "url": "https://www.moj.go.jp/isa/about/region/hiroshima/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "広島出入国在留管理局 所在地・連絡先",
+      "namePrefix": "広島出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "34",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + td):not(:has(tr > th + th))",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 7
+    },
+    {
+      "id": "official-immigration-takamatsu",
+      "url": "https://www.moj.go.jp/isa/about/region/takamatsu/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "高松出入国在留管理局 所在地・連絡先",
+      "namePrefix": "高松出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "37",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + td):not(:has(tr > th + th))",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 3
+    },
+    {
+      "id": "official-immigration-fukuoka",
+      "url": "https://www.moj.go.jp/isa/about/region/fukuoka/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "福岡出入国在留管理局 所在地・連絡先",
+      "namePrefix": "福岡出入国在留管理局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "40",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + td):not(:has(tr > th + th))",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 10
+    },
+    {
+      "id": "official-immigration-naha",
+      "url": "https://www.moj.go.jp/isa/about/region/naha/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "福岡出入国在留管理局 那覇支局 所在地・連絡先",
+      "namePrefix": "福岡出入国在留管理局 那覇支局",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "47",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + td):not(:has(tr > th + th))",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 4
+    },
+    {
+      "id": "official-immigration-higashi",
+      "url": "https://www.moj.go.jp/isa/about/region/higashi/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "東日本入国管理センター 所在地・連絡先",
+      "namePrefix": "東日本入国管理センター",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "08",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + td):not(:has(tr > th + th))",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 1
+    },
+    {
+      "id": "official-immigration-omura",
+      "url": "https://www.moj.go.jp/isa/about/region/omura/index.html",
+      "indexUrl": "https://www.moj.go.jp/isa/about/region/",
+      "title": "大村入国管理センター 所在地・連絡先",
+      "namePrefix": "大村入国管理センター",
+      "publisher": "出入国在留管理庁",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.moj.go.jp/isa/copyright/index2.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "42",
+      "category": "immigration_office",
+      "format": "html",
+      "selector": "table:has(tr > th + td):not(:has(tr > th + th))",
+      "htmlLayout": "definition",
+      "kindValues": {},
+      "minimumContacts": 1
+    },
+    {
+      "id": "official-mext-education-assistance",
+      "namePattern": "^(?!栗東市\\s)",
+      "url": "https://www.mext.go.jp/a_menu/shotou/career/05010502/1414943_00003.htm",
+      "indexUrl": "https://www.mext.go.jp/a_menu/shotou/career/05010502/1414943_00003.htm",
+      "title": "就学援助のお問合せ先",
+      "publisher": "文部科学省",
+      "license": "MEXT website reuse terms",
+      "licenseUrl": "https://www.mext.go.jp/b_menu/1351168.htm",
+      "dataAsOf": "2026-10",
+      "category": "education_board",
+      "format": "html",
+      "pdfColumns": [
+        50,
+        75,
+        160,
+        310,
+        390,
+        545,
+        878
+      ],
+      "pdfRecordColumn": 1,
+      "selector": "table",
+      "columns": {
+        "name": [
+          2
+        ],
+        "nameContext": [
+          1
+        ],
+        "address": [],
+        "phone": [
+          3
+        ],
+        "prefecture": [
+          0
+        ],
+        "website": []
+      },
+      "kindValues": {},
+      "minimumContacts": 1548,
+      "discovery": {
+        "pattern": "000018840_(?:[2-9]|1[0-35-9]|[23][0-9]|4[0-7])\\.pdf$",
+        "depth": 1,
+        "maxPages": 50,
+        "formats": [
+          "pdf"
+        ]
+      }
+    },
+    {
+      "id": "official-mext-education-assistance-hokkaido",
+      "url": "https://www.mext.go.jp/content/20260708-mxt_shuugaku-000018840_1.pdf",
+      "indexUrl": "https://www.mext.go.jp/a_menu/shotou/career/05010502/1414943_00003.htm",
+      "title": "就学援助のお問合せ先",
+      "publisher": "文部科学省",
+      "license": "MEXT website reuse terms",
+      "licenseUrl": "https://www.mext.go.jp/b_menu/1351168.htm",
+      "dataAsOf": "2026-10",
+      "category": "education_board",
+      "format": "pdf",
+      "pdfColumns": [
+        90,
+        150,
+        350,
+        685,
+        865,
+        1215,
+        1970
+      ],
+      "pdfRecordColumn": 1,
+      "selector": "table",
+      "columns": {
+        "name": [
+          2
+        ],
+        "nameContext": [
+          1
+        ],
+        "address": [],
+        "phone": [
+          3
+        ],
+        "prefecture": [
+          0
+        ],
+        "website": []
+      },
+      "kindValues": {},
+      "minimumContacts": 179
+    },
+    {
+      "id": "official-mext-education-assistance-kanagawa",
+      "url": "https://www.mext.go.jp/content/20261007-mxt_zaimu-000018840_14.pdf",
+      "indexUrl": "https://www.mext.go.jp/a_menu/shotou/career/05010502/1414943_00003.htm",
+      "title": "就学援助のお問合せ先",
+      "publisher": "文部科学省",
+      "license": "MEXT website reuse terms",
+      "licenseUrl": "https://www.mext.go.jp/b_menu/1351168.htm",
+      "dataAsOf": "2026-10",
+      "category": "education_board",
+      "format": "pdf",
+      "pdfColumns": [
+        100,
+        160,
+        390,
+        765,
+        965,
+        1360,
+        2210
+      ],
+      "pdfRecordColumn": 1,
+      "selector": "table",
+      "columns": {
+        "name": [
+          2
+        ],
+        "nameContext": [
+          1
+        ],
+        "address": [],
+        "phone": [
+          3
+        ],
+        "prefecture": [
+          0
+        ],
+        "website": []
+      },
+      "kindValues": {},
+      "minimumContacts": 33
+    },
+    {
+      "id": "official-hokkaido-health-centres",
+      "url": "https://www.pref.hokkaido.lg.jp/ks/ksk/healthwelfareoffice.html",
+      "title": "保健所所在地案内",
+      "publisher": "北海道",
+      "license": "CC BY (publisher policy)",
+      "licenseUrl": "https://www.dokyoi.pref.hokkaido.lg.jp/site-info/sitepolicy.html",
+      "dataAsOf": "Not specified by publisher",
+      "prefectureCode": "01",
+      "category": "health_center",
+      "format": "html",
+      "selector": "table",
+      "columns": {
+        "name": [
+          1
+        ],
+        "address": [
+          3
+        ],
+        "phone": [
+          4
+        ],
+        "postalCode": [
+          2
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 43
+    },
+    {
+      "id": "official-hokkaido-public-high-schools",
+      "url": "https://www.dokyoi.pref.hokkaido.lg.jp/hk/kki/gakkou.html",
+      "indexUrl": "https://www.dokyoi.pref.hokkaido.lg.jp/hk/kki/gakkou.html",
+      "title": "令和8年度公立高等学校一覧",
+      "publisher": "北海道教育委員会",
+      "license": "CC BY (publisher policy)",
+      "licenseUrl": "https://www.dokyoi.pref.hokkaido.lg.jp/site-info/sitepolicy.html",
+      "dataAsOf": "2026-04-01",
+      "prefectureCode": "01",
+      "category": "school",
+      "format": "html",
+      "pdfColumns": [
+        80,
+        120,
+        230,
+        280,
+        465
+      ],
+      "selector": "table",
+      "columns": {
+        "name": [
+          1
+        ],
+        "address": [
+          3
+        ],
+        "phone": [
+          4
+        ],
+        "postalCode": [
+          2
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 156,
+      "discovery": {
+        "pattern": "令和８年度公立高等学校一覧",
+        "depth": 1,
+        "maxPages": 4,
+        "formats": [
+          "pdf"
+        ]
+      }
+    },
+    {
+      "id": "official-customs-hakodate",
+      "url": "https://www.customs.go.jp/kyotsu/map/hakodate/hakodate_m.htm",
+      "indexUrl": "https://www.customs.go.jp/kyotsu/map/index.htm",
+      "title": "函館税関官署所在地一覧表",
+      "namePrefix": "函館税関",
+      "publisher": "財務省関税局",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.customs.go.jp/kyotsu/rules.htm",
+      "dataAsOf": "Not specified by publisher",
+      "category": "customs",
+      "format": "html",
+      "tablePattern": "所在地一覧",
+      "selector": "table",
+      "columns": {
+        "name": [
+          0,
+          1,
+          2
+        ],
+        "address": [
+          4
+        ],
+        "phone": [
+          5
+        ],
+        "postalCode": [
+          3
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 27
+    },
+    {
+      "id": "official-customs-tokyo",
+      "url": "https://www.customs.go.jp/kyotsu/map/tokyo/tokyo_m.htm",
+      "indexUrl": "https://www.customs.go.jp/kyotsu/map/index.htm",
+      "title": "東京税関官署所在地一覧表",
+      "namePrefix": "東京税関",
+      "publisher": "財務省関税局",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.customs.go.jp/kyotsu/rules.htm",
+      "dataAsOf": "Not specified by publisher",
+      "category": "customs",
+      "format": "html",
+      "tablePattern": "所在地一覧",
+      "selector": "table",
+      "columns": {
+        "name": [
+          0,
+          1,
+          2
+        ],
+        "address": [
+          4
+        ],
+        "phone": [
+          5
+        ],
+        "postalCode": [
+          3
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 16
+    },
+    {
+      "id": "official-customs-yokohama",
+      "url": "https://www.customs.go.jp/kyotsu/map/yokohama/yokohama_m.htm",
+      "indexUrl": "https://www.customs.go.jp/kyotsu/map/index.htm",
+      "title": "横浜税関官署所在地一覧表",
+      "namePrefix": "横浜税関",
+      "publisher": "財務省関税局",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.customs.go.jp/kyotsu/rules.htm",
+      "dataAsOf": "Not specified by publisher",
+      "category": "customs",
+      "format": "html",
+      "tablePattern": "所在地一覧",
+      "selector": "table",
+      "columns": {
+        "name": [
+          0,
+          1,
+          2
+        ],
+        "address": [
+          4
+        ],
+        "phone": [
+          5
+        ],
+        "postalCode": [
+          3
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 25
+    },
+    {
+      "id": "official-customs-nagoya",
+      "url": "https://www.customs.go.jp/kyotsu/map/nagoya/nagoya_m.htm",
+      "indexUrl": "https://www.customs.go.jp/kyotsu/map/index.htm",
+      "title": "名古屋税関官署所在地一覧表",
+      "namePrefix": "名古屋税関",
+      "publisher": "財務省関税局",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.customs.go.jp/kyotsu/rules.htm",
+      "dataAsOf": "Not specified by publisher",
+      "category": "customs",
+      "format": "html",
+      "tablePattern": "所在地一覧",
+      "selector": "table",
+      "columns": {
+        "name": [
+          0,
+          1,
+          2
+        ],
+        "address": [
+          4
+        ],
+        "phone": [
+          5
+        ],
+        "postalCode": [
+          3
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 18
+    },
+    {
+      "id": "official-customs-osaka",
+      "url": "https://www.customs.go.jp/kyotsu/map/osaka/osaka_m.htm",
+      "indexUrl": "https://www.customs.go.jp/kyotsu/map/index.htm",
+      "title": "大阪税関官署所在地一覧表",
+      "namePrefix": "大阪税関",
+      "publisher": "財務省関税局",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.customs.go.jp/kyotsu/rules.htm",
+      "dataAsOf": "Not specified by publisher",
+      "category": "customs",
+      "format": "html",
+      "tablePattern": "所在地一覧",
+      "selector": "table",
+      "columns": {
+        "name": [
+          0,
+          1,
+          2
+        ],
+        "address": [
+          4
+        ],
+        "phone": [
+          5
+        ],
+        "postalCode": [
+          3
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 18
+    },
+    {
+      "id": "official-customs-kobe",
+      "url": "https://www.customs.go.jp/kyotsu/map/kobe/kobe_m.htm",
+      "indexUrl": "https://www.customs.go.jp/kyotsu/map/index.htm",
+      "title": "神戸税関官署所在地一覧表",
+      "namePrefix": "神戸税関",
+      "publisher": "財務省関税局",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.customs.go.jp/kyotsu/rules.htm",
+      "dataAsOf": "Not specified by publisher",
+      "category": "customs",
+      "format": "html",
+      "tablePattern": "所在地一覧",
+      "selector": "table",
+      "columns": {
+        "name": [
+          0,
+          1,
+          2
+        ],
+        "address": [
+          4
+        ],
+        "phone": [
+          5
+        ],
+        "postalCode": [
+          3
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 31
+    },
+    {
+      "id": "official-customs-moji",
+      "url": "https://www.customs.go.jp/kyotsu/map/moji/moji_m.htm",
+      "indexUrl": "https://www.customs.go.jp/kyotsu/map/index.htm",
+      "title": "門司税関官署所在地一覧表",
+      "namePrefix": "門司税関",
+      "publisher": "財務省関税局",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.customs.go.jp/kyotsu/rules.htm",
+      "dataAsOf": "Not specified by publisher",
+      "category": "customs",
+      "format": "html",
+      "tablePattern": "所在地一覧",
+      "selector": "table",
+      "columns": {
+        "name": [
+          0,
+          1,
+          2
+        ],
+        "address": [
+          4
+        ],
+        "phone": [
+          5
+        ],
+        "postalCode": [
+          3
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 23
+    },
+    {
+      "id": "official-customs-nagasaki",
+      "url": "https://www.customs.go.jp/kyotsu/map/nagasaki/nagasaki_m.htm",
+      "indexUrl": "https://www.customs.go.jp/kyotsu/map/index.htm",
+      "title": "長崎税関官署所在地一覧表",
+      "namePrefix": "長崎税関",
+      "publisher": "財務省関税局",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.customs.go.jp/kyotsu/rules.htm",
+      "dataAsOf": "Not specified by publisher",
+      "category": "customs",
+      "format": "html",
+      "tablePattern": "^table-1$",
+      "selector": "table",
+      "columns": {
+        "name": [
+          0,
+          1,
+          2
+        ],
+        "address": [
+          4
+        ],
+        "phone": [
+          5
+        ],
+        "postalCode": [
+          3
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 20
+    },
+    {
+      "id": "official-customs-okinawa",
+      "url": "https://www.customs.go.jp/kyotsu/map/okinawa/okinawa_m.htm",
+      "indexUrl": "https://www.customs.go.jp/kyotsu/map/index.htm",
+      "title": "沖縄地区税関官署所在地一覧表",
+      "namePrefix": "沖縄地区税関",
+      "publisher": "財務省関税局",
+      "license": "Public Data License 1.0",
+      "licenseUrl": "https://www.customs.go.jp/kyotsu/rules.htm",
+      "dataAsOf": "Not specified by publisher",
+      "category": "customs",
+      "format": "html",
+      "tablePattern": "所在地一覧",
+      "selector": "table",
+      "columns": {
+        "name": [
+          0,
+          1,
+          2
+        ],
+        "address": [
+          4
+        ],
+        "phone": [
+          5
+        ],
+        "postalCode": [
+          3
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 9
+    },
+    {
       "id": "npa-police-headquarters",
       "url": "https://www.npa.go.jp/about/overview/kankatsu/R08_honbu.csv",
       "indexUrl": "https://www.npa.go.jp/about/overview/",
-      "publisher": "警察庁",
       "title": "全国警察施設名称位置等・警察本部",
+      "publisher": "警察庁",
       "license": "Public Data License 1.0",
       "licenseUrl": "https://www.npa.go.jp/rules/",
       "dataAsOf": "2026-04-01",
       "category": "police_station",
       "format": "csv",
-      "columns": { "name": [1], "address": [7], "phone": [2], "postalCode": [3], "prefecture": [4], "municipality": [6] },
-      "minimumContacts": 47
+      "selector": "table",
+      "columns": {
+        "name": [
+          1
+        ],
+        "address": [
+          7
+        ],
+        "phone": [
+          2
+        ],
+        "postalCode": [
+          3
+        ],
+        "municipality": [
+          6
+        ],
+        "prefecture": [
+          4
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 51
     },
     {
       "id": "npa-police-stations",
       "url": "https://www.npa.go.jp/about/overview/kankatsu/R08_keisatusyo.csv",
       "indexUrl": "https://www.npa.go.jp/about/overview/",
-      "publisher": "警察庁",
       "title": "全国警察施設名称位置等・警察署",
+      "publisher": "警察庁",
       "license": "Public Data License 1.0",
       "licenseUrl": "https://www.npa.go.jp/rules/",
       "dataAsOf": "2026-04-01",
       "category": "police_station",
       "format": "csv",
-      "columns": { "name": [6], "address": [12], "phone": [7], "postalCode": [8], "prefecture": [2], "municipality": [11] },
-      "minimumContacts": 1100
+      "selector": "table",
+      "columns": {
+        "name": [
+          6
+        ],
+        "address": [
+          12
+        ],
+        "phone": [
+          7
+        ],
+        "postalCode": [
+          8
+        ],
+        "municipality": [
+          11
+        ],
+        "prefecture": [
+          2
+        ]
+      },
+      "kindValues": {},
+      "minimumContacts": 1140
     },
     {
       "id": "npa-police-boxes",
       "url": "https://www.npa.go.jp/about/overview/kankatsu/R08_kouban.csv",
       "indexUrl": "https://www.npa.go.jp/about/overview/",
-      "publisher": "警察庁",
       "title": "全国警察施設名称位置等・交番・駐在所",
+      "publisher": "警察庁",
       "license": "Public Data License 1.0",
       "licenseUrl": "https://www.npa.go.jp/rules/",
       "dataAsOf": "2026-04-01",
       "category": "police_station",
       "format": "csv",
-      "columns": { "name": [6], "address": [12], "phone": [7], "postalCode": [8], "prefecture": [0], "municipality": [11] },
+      "selector": "table",
+      "columns": {
+        "name": [
+          6
+        ],
+        "address": [
+          12
+        ],
+        "phone": [
+          7
+        ],
+        "postalCode": [
+          8
+        ],
+        "municipality": [
+          11
+        ],
+        "prefecture": [
+          0
+        ]
+      },
+      "kindValues": {},
       "minimumContacts": 5446
     },
     {

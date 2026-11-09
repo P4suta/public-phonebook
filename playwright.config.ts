@@ -1,7 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const browserWorkers = 2;
-const testOrigin = "https://127.0.0.1:8787";
+const testPort = Number(process.env.DIAL_TEST_PORT ?? 8787);
+if (!Number.isSafeInteger(testPort) || testPort < 1024 || testPort > 65535)
+  throw new Error("DIAL_TEST_PORT must be an unprivileged TCP port");
+const testOrigin = `https://127.0.0.1:${testPort}`;
 const serverTimeoutMs = 120000;
 
 export default defineConfig({
@@ -47,7 +50,7 @@ export default defineConfig({
     { name: "api", testMatch: /api\.spec\.ts/ },
   ],
   webServer: {
-    command: "npm run preview",
+    command: `npm run preview -- --port ${testPort}`,
     url: `${testOrigin}/api/datasets`,
     ignoreHTTPSErrors: true,
     reuseExistingServer: false,

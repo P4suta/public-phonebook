@@ -1,10 +1,32 @@
 import { readdir, readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { gzipSync } from "node:zlib";
+import * as v from "valibot";
 
 const buildOutput = ".cloudflare/output/v0/workers/default";
 const bytesPerKibibyte = 1024;
 const searchWorkerChunk = /^local-search-worker-[\w-]+\.js$/u;
+const noDestinations = v.array(v.never());
+const RuntimePrivacySchema = v.object({
+  logpush: v.literal(false),
+  tailConsumers: noDestinations,
+  observability: v.strictObject({
+    enabled: v.literal(false),
+    redactQueryString: v.literal(true),
+    issues: v.strictObject({ enabled: v.literal(false) }),
+    logs: v.strictObject({
+      enabled: v.literal(false),
+      invocationLogs: v.literal(false),
+      persist: v.literal(false),
+      destinations: noDestinations,
+    }),
+    traces: v.strictObject({
+      enabled: v.literal(false),
+      persist: v.literal(false),
+      destinations: noDestinations,
+    }),
+  }),
+});
 
 /**
  * Size limits for the build, checked after every build.
@@ -38,6 +60,11 @@ async function files(directory: string): Promise<string[]> {
 
 /** Measures the gzip size of the Worker's modules and the raw size of the search Worker script. */
 export async function measureBuild(root = "."): Promise<BuildSizes> {
+  const configuration: unknown = JSON.parse(
+    await readFile(join(root, buildOutput, "worker.config.json"), "utf8"),
+  );
+  if (!v.safeParse(RuntimePrivacySchema, configuration).success)
+    throw new Error("The built Worker violates the collection policy");
   let workerCompressedBytes = 0;
   for (const path of await files(join(root, buildOutput, "bundle")))
     if ([".js", ".mjs"].includes(extname(path)))

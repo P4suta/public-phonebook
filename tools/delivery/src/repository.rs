@@ -71,7 +71,14 @@ pub fn classify(path: &str) -> Result<Change> {
                 .all(|segment| !segment.is_empty() && segment != "." && segment != ".."),
         "A changed input has an invalid repository path"
     );
-    if path == "src/core/kanji-variants.ts" || path == "src/ui/icons.tsx" || inside(path, "design")
+    if path == "src/core/kanji-variants.ts"
+        || path == "src/ui/icons.tsx"
+        || matches!(
+            path,
+            "ios/Sources/PhonebookKit/PlaceReadings.json"
+                | "ios/Tests/PhonebookKitTests/PlaceReadingContract.json"
+        )
+        || inside(path, "design")
     {
         return Ok(Change::SharedSource);
     }
@@ -277,6 +284,12 @@ mod tests {
             Change::SharedSource
         );
         assert_eq!(classify("src/unknown/runtime.ts")?, Change::Unknown);
+        for path in [
+            "ios/Sources/PhonebookKit/PlaceReadings.json",
+            "ios/Tests/PhonebookKitTests/PlaceReadingContract.json",
+        ] {
+            assert_eq!(classify(path)?, Change::SharedSource);
+        }
         Ok(())
     }
     #[test]

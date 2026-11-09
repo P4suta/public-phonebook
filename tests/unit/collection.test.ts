@@ -38,6 +38,76 @@ describe("official directory table readers", () => {
     ]);
   });
 
+  it("clips an overhanging row span to published rows and keeps the hard bound", () => {
+    const html = `<table><tr><td rowspan="35">東京税関</td><td>本関</td><td>03-3529-0700</td></tr>
+      <tr><td>出張所</td><td>03-5665-3755</td></tr></table>`;
+    expect(readHtmlTables(html)[0]?.rows).toEqual([
+      ["東京税関", "本関", "03-3529-0700"],
+      ["東京税関", "出張所", "03-5665-3755"],
+    ]);
+    expect(() =>
+      readHtmlTables(
+        '<table><tr><td rowspan="100001">oversized</td></tr></table>',
+      ),
+    ).toThrow("bounds");
+    expect(() =>
+      readHtmlTables(
+        '<table><tr><td colspan="257">oversized</td></tr></table>',
+      ),
+    ).toThrow("bounds");
+  });
+
+  it("reads labeled office records with their nearest published heading", () => {
+    const html = `<h1>Regional Bureau</h1><div><table><tr><th>所在地</th><td>東京都千代田区</td></tr><tr><th>電話</th><td>03-1234-5678</td></tr></table></div>
+      <h2>Branch Office</h2><div><table><tr><th>所在地</th><td>埼玉県さいたま市</td></tr><tr><th>電話</th><td>048-123-4567</td></tr></table></div>`;
+    expect(readHtmlTables(html, "table", "definition")).toEqual([
+      {
+        name: "Regional Bureau",
+        rows: [
+          ["名称", "所在地", "電話"],
+          ["Regional Bureau", "東京都千代田区", "03-1234-5678"],
+        ],
+      },
+      {
+        name: "Branch Office",
+        rows: [
+          ["名称", "所在地", "電話"],
+          ["Branch Office", "埼玉県さいたま市", "048-123-4567"],
+        ],
+      },
+    ]);
+    expect(() =>
+      readHtmlTables(
+        "<table><tr><th>電話</th><td>03-1234-5678</td></tr></table>",
+        "table",
+        "definition",
+      ),
+    ).toThrow("heading");
+  });
+
+  it("uses the office heading before a map caption in a labeled record", () => {
+    expect(
+      readHtmlTables(
+        "<h1>Branch Office</h1><table><caption>Access map</caption><tr><th>電話</th><td>03-1234-5678</td></tr></table>",
+        "table",
+        "definition",
+      )[0],
+    ).toEqual({
+      name: "Branch Office",
+      rows: [
+        ["名称", "電話"],
+        ["Branch Office", "03-1234-5678"],
+      ],
+    });
+    expect(
+      readHtmlTables(
+        "<table><caption>Branch Office</caption><tr><th>電話</th><td>03-1234-5678</td></tr></table>",
+        "table",
+        "definition",
+      )[0]?.name,
+    ).toBe("Branch Office");
+  });
+
   it.each(["xlsx", "xls"] as const)(
     "reads real %s workbook bytes and preserves merged regional context",
     (bookType) => {

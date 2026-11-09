@@ -71,9 +71,12 @@ final class DirectoryUITests: XCTestCase {
 
   func testSearchGroupsRankedResultsAndShowsMore() throws {
     let app = prepared()
+    search("とうきょう としょかん", in: app)
+    waitForGroup("library", "件", in: app)
+    capture(app, name: "reading-results")
     search("facility", in: app)
     waitForGroup("library", "件", in: app)
-    XCTAssertTrue(app.staticTexts["search-limit"].exists)
+    XCTAssertFalse(app.staticTexts["search-limit"].exists)
     XCTAssertTrue(app.staticTexts["contact-region"].firstMatch.exists)
     let more = app.buttons["more-library"]
     reveal(more, in: app)
@@ -115,23 +118,9 @@ final class DirectoryUITests: XCTestCase {
     }
   }
 
-  func testForgivingNamesFindTheSavedFacility() throws {
-    let app = prepared()
-    for query in ["こうかいとしょかん", "公開図書官", "コウカイトショカン"] {
-      search(query, in: app)
-      let name = app.staticTexts["contact-name"].firstMatch
-      XCTAssertTrue(name.waitForExistence(timeout: 10))
-      XCTAssertEqual(name.label, "公開図書館")
-      XCTAssertTrue(app.descendants(matching: .any)["group-library"].exists)
-      XCTAssertEqual(
-        app.staticTexts["contact-region"].firstMatch.label, "Test prefecture 13Test city 13")
-    }
-    capture(app, name: "forgiving-facility-name")
-  }
-
   func testRankedMetadataRemainsReadableAtLargestTextSize() throws {
     let app = prepared(textSize: "UICTContentSizeCategoryAccessibilityXXXL")
-    search("こうかいとしょかん", in: app)
+    search("公開図書館", in: app)
     XCTAssertEqual(app.staticTexts["contact-name"].firstMatch.label, "公開図書館")
     let heading = app.descendants(matching: .any)["group-library"]
     reveal(heading, in: app)
@@ -295,6 +284,11 @@ final class DirectoryUITests: XCTestCase {
       observed: { message.exists ? "It shows “\(message.label)”." : "It doesn't exist." })
     XCTAssertFalse(message.label.contains("もう一度"))
     capture(app, name: "verification-saved")
+    let replacement = app.buttons["verification-caller-replacement"]
+    reveal(replacement, in: app)
+    XCTAssertTrue(replacement.isEnabled)
+    XCTAssertEqual(replacement.label, "全件の再登録を確認する")
+    capture(app, name: "verification-caller-replacement")
     goBack(app)
     search("確認用", in: app)
     let result = app.descendants(matching: .any)["verification-result"]
@@ -639,6 +633,167 @@ final class DirectoryUITests: XCTestCase {
     capture(app, name: "landscape-large-settings")
   }
 
+  func testCommonTasksPassAccessibilityAudits() throws {
+    _ = try auditCommonTasks()
+  }
+
+  func testCommonTasksPassAccessibilityAuditsAtLargestTextSize() throws {
+    let enlarged = try auditCommonTasks(textSize: "UICTContentSizeCategoryAccessibilityXXXL")
+    let app = prepared()
+    search("試験", in: app)
+    app.buttons["contact-detail"].firstMatch.tap()
+    let map = app.buttons["map-button"]
+    reveal(map, in: app)
+    map.tap()
+    let confirmation = app.alerts["マップで開きます"]
+    XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+    let regular = mapConfirmationSize(in: confirmation)
+    XCTAssertGreaterThan(regular.message, 0)
+    XCTAssertGreaterThan(regular.actions, 0)
+    XCTAssertGreaterThan(enlarged.message, regular.message * 2)
+    XCTAssertGreaterThan(enlarged.actions, regular.actions * 2)
+    capture(app, name: "accessibility-map-default-text")
+    confirmation.buttons["キャンセル"].tap()
+  }
+
+  func testCommonTasksPassAccessibilityAuditsInDarkAppearance() throws {
+    _ = try auditCommonTasks()
+  }
+
+  private func auditCommonTasks(textSize: String = "UICTContentSizeCategoryL") throws
+    -> (message: CGFloat, actions: CGFloat)
+  {
+    let app = application(textSize: textSize)
+    app.launchEnvironment["PHONEBOOK_CALLER_STATUS"] = "off"
+    app.launch()
+    let start = app.buttons["onboarding-start"]
+    XCTAssertTrue(start.waitForExistence(timeout: 15))
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-onboarding")
+    start.tap()
+    let later = app.buttons["onboarding-later"]
+    XCTAssertTrue(later.waitForExistence(timeout: 10))
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-caller-onboarding")
+    reveal(later, in: app)
+    later.tap()
+    let finish = app.buttons["onboarding-finish"]
+    XCTAssertTrue(finish.waitForExistence(timeout: 10))
+    waitUntilSaved(finish, in: app, timeout: 60)
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-directory-ready")
+    reveal(finish, in: app)
+    finish.tap()
+
+    openSettings(in: app)
+    let caller = app.buttons["caller-settings"]
+    reveal(caller, in: app)
+    XCTAssertEqual(caller.label, "iPhoneの設定を開く")
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-settings")
+    goBack(app)
+
+    search("試験", in: app)
+    let detail = app.buttons["contact-detail"].firstMatch
+    XCTAssertTrue(detail.waitForExistence(timeout: 15))
+    let call = app.buttons["03-0000-0000に電話をかける"].firstMatch
+    reveal(call, in: app)
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-name-search")
+    reveal(detail, in: app, towardTop: true)
+    detail.tap()
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    reveal(call, in: app)
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-contact")
+
+    let map = app.buttons["map-button"]
+    reveal(map, in: app)
+    map.tap()
+    let confirmation = app.alerts["マップで開きます"]
+    XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+    let confirmationSize = mapConfirmationSize(in: confirmation)
+    XCTAssertTrue(confirmation.buttons["キャンセル"].isHittable)
+    XCTAssertTrue(confirmation.buttons["開く"].isHittable)
+    // The largest-text scenario checks the system confirmation's message and action growth.
+    try app.performAccessibilityAudit(for: .all.subtracting(.dynamicType))
+    capture(app, name: "accessibility-map-confirmation")
+    confirmation.buttons["キャンセル"].tap()
+    XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
+    let source = app.buttons["source-link"]
+    reveal(source, in: app)
+    source.tap()
+    XCTAssertTrue(app.navigationBars["電話番号のもとの情報"].waitForExistence(timeout: 10))
+    reveal(app.staticTexts["source-license"], in: app)
+    XCTAssertEqual(
+      app.staticTexts["source-license"].label,
+      "使うときの決まり：Creative Commons CC0 1.0 Universal")
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-source")
+    reveal(app.buttons["もとの資料を開く"], in: app)
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-source-actions")
+    goBack(app)
+    goBack(app)
+
+    search("03-0000-0000", in: app)
+    waitForGroup("library", "147件", in: app)
+    try app.performAccessibilityAudit()
+    capture(app, name: "accessibility-number-search")
+    try auditOpenSourceInformation(in: app)
+    app.terminate()
+    return confirmationSize
+  }
+
+  private func auditOpenSourceInformation(in app: XCUIApplication) throws {
+    let close = app.navigationBars.buttons["閉じる"]
+    XCTAssertTrue(close.waitForExistence(timeout: 5))
+    close.tap()
+    _ = dataDate(in: app)
+    reveal(app.staticTexts["無料で使えます"], in: app)
+    try auditVisibleAboutContent(in: app)
+    capture(app, name: "accessibility-about-free")
+    let code = app.buttons["source-code-link"]
+    reveal(code, in: app, swipes: 32)
+    try auditVisibleAboutContent(in: app)
+    capture(app, name: "accessibility-about-source")
+    code.tap()
+    let confirmation = app.alerts["ほかのサイトを開きます"]
+    XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+    XCTAssertTrue(confirmation.buttons["開く"].isHittable)
+    XCTAssertTrue(confirmation.buttons["キャンセル"].isHittable)
+    capture(app, name: "accessibility-source-code-confirmation")
+    confirmation.buttons["キャンセル"].tap()
+    XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
+  }
+
+  private func auditVisibleAboutContent(in app: XCUIApplication) throws {
+    try app.performAccessibilityAudit { issue in
+      guard issue.auditType == .contrast, let element = issue.element,
+        element.elementType == .staticText
+      else { return false }
+      // XCTest fills the offscreen part of a clipped paragraph's image with black.
+      let window = app.windows.firstMatch.frame
+      let visible = CGRect(
+        x: window.minX, y: app.navigationBars.firstMatch.frame.maxY,
+        width: window.width, height: window.maxY - app.navigationBars.firstMatch.frame.maxY)
+      return !visible.contains(element.frame)
+    }
+  }
+
+  private func mapConfirmationSize(in confirmation: XCUIElement)
+    -> (message: CGFloat, actions: CGFloat)
+  {
+    let disclosure = confirmation.staticTexts.matching(
+      NSPredicate(format: "label CONTAINS %@", "名前と住所をAppleに送ります。")
+    ).firstMatch
+    XCTAssertTrue(disclosure.waitForExistence(timeout: 5))
+    return (
+      disclosure.frame.height,
+      min(confirmation.buttons["キャンセル"].frame.height, confirmation.buttons["開く"].frame.height)
+    )
+  }
+
   func testAboutStaysInTheAppAndLicenseIsReadable() throws {
     let app = prepared()
     let date = dataDate(in: app)
@@ -647,7 +802,22 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertFalse(
       app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "名前の一部でも"))
         .firstMatch.exists)
+    reveal(app.scrollViews.staticTexts["Public Phonebookについて"], in: app, towardTop: true)
     capture(app, name: "about")
+    let code = app.buttons["source-code-link"]
+    XCTAssertTrue(code.waitForExistence(timeout: 5))
+    reveal(code, in: app)
+    capture(app, name: "about-open-source")
+    code.tap()
+    let confirmation = app.alerts["ほかのサイトを開きます"]
+    XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      confirmation.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "github.com"))
+        .firstMatch.exists)
+    capture(app, name: "source-code-confirmation")
+    confirmation.buttons["キャンセル"].tap()
+    XCTAssertFalse(confirmation.exists)
+    XCTAssertEqual(app.state, .runningForeground)
     let map = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "「地図で見る」から"))
       .firstMatch
     reveal(map, in: app)
@@ -693,7 +863,7 @@ final class DirectoryUITests: XCTestCase {
     let hint = app.descendants(matching: .any)["search-hint"]
     XCTAssertTrue(hint.waitForExistence(timeout: 180))
     let options = XCTMeasureOptions()
-    options.iterationCount = 3
+    options.iterationCount = 5
     options.invocationOptions = [.manuallyStart, .manuallyStop]
     measure(
       metrics: [
@@ -710,7 +880,7 @@ final class DirectoryUITests: XCTestCase {
     }
     search("市立図書館", in: app, timeout: 180)
     XCTAssertTrue(groupHeading(in: app).exists)
-    capture(app, name: "measured-national-ranked-results")
+    capture(app, name: "measured-national-literal-results")
   }
 
   func testBundledSearchMemoryMeasurement() throws {
@@ -722,7 +892,7 @@ final class DirectoryUITests: XCTestCase {
     let options = XCTMeasureOptions()
     options.iterationCount = 3
     measure(metrics: [XCTMemoryMetric(application: app)], options: options) {
-      for query in ["国立国会図書館", "としょかん", "東京都大学", "市立図書館"] {
+      for query in ["国立国会図書館", "図書館", "大学", "市立図書館"] {
         search(query, in: app, timeout: 180)
         XCTAssertTrue(groupHeading(in: app).exists)
       }
@@ -1040,13 +1210,24 @@ final class DirectoryUITests: XCTestCase {
         if frame.midY > app.windows.firstMatch.frame.maxY { scrollDown = false }
       }
       let window = app.windows.firstMatch
-      let start = window.coordinate(
-        withNormalizedOffset: CGVector(dx: 0.5, dy: scrollDown ? 0.45 : 0.7))
-      let end = window.coordinate(
-        withNormalizedOffset: CGVector(dx: 0.5, dy: scrollDown ? 0.7 : 0.45))
+      let frame = window.frame
+      let top =
+        app.navigationBars.firstMatch.exists ? app.navigationBars.firstMatch.frame.maxY : frame.minY
+      let keyboard = app.keyboards.firstMatch
+      let bottom = keyboard.exists ? min(frame.maxY, keyboard.frame.minY) : frame.maxY
+      guard bottom > top else { return false }
+      let origin = window.coordinate(withNormalizedOffset: .zero)
+      let start = origin.withOffset(
+        CGVector(
+          dx: frame.width / 2, dy: top - frame.minY + (bottom - top) * (scrollDown ? 0.45 : 0.7)))
+      let end = origin.withOffset(
+        CGVector(
+          dx: frame.width / 2, dy: top - frame.minY + (bottom - top) * (scrollDown ? 0.7 : 0.45)))
       start.press(forDuration: 0.01, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
     }
-    return element.exists && element.isHittable
+    guard element.exists, element.isHittable else { return false }
+    let frame = element.frame
+    return app.windows.firstMatch.frame.contains(CGPoint(x: frame.midX, y: frame.midY))
   }
 }
 

@@ -10,6 +10,8 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs, path::Path, process::Command};
 
+mod linked_targets;
+
 const STORE_TEXT_LIMITS: [(&str, usize); 6] = [
     ("name", 30),
     ("subtitle", 30),
@@ -495,6 +497,60 @@ fn admit_prepared(
     Ok(())
 }
 
+/// The unsigned job's record, which carries the linked targets because the signing job never evaluates the package manifest.
+fn prepared_record(
+    version: &str,
+    build: BuildNumber,
+    sources: &BTreeMap<String, String>,
+    files: &BTreeMap<String, String>,
+    targets: &[String],
+) -> Value {
+    json!({"format":1,"signing":"unsigned","version":version,"build":build.value(),"sourceSha256":sources,"files":files,"linkedTargets":targets})
+}
+
+fn recorded_targets(record: &Value) -> Result<Vec<String>> {
+    let targets = record["linkedTargets"]
+        .as_array()
+        .filter(|targets| !targets.is_empty())
+        .context("The unsigned archive record names no linked targets")?
+        .iter()
+        .map(|target| {
+            target
+                .as_str()
+                .map(str::to_owned)
+                .with_context(|| format!("Recorded linked target {target} isn't a name"))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    ensure!(
+        targets.windows(2).all(|pair| pair[0] < pair[1]),
+        "Recorded linked targets must be sorted and unique"
+    );
+    for target in &targets {
+        let mut characters = target.chars();
+        ensure!(
+            characters
+                .next()
+                .is_some_and(|first| first.is_ascii_alphabetic() || first == '_')
+                && characters
+                    .all(|character| character.is_ascii_alphanumeric() || character == '_'),
+            "Recorded linked target {target:?} isn't a Swift target name"
+        );
+    }
+    Ok(targets)
+}
+
+/// The CycloneDX SBOM of the signed package, with one library component for each linked local target.
+fn sbom(version: &str, sha256: &str, targets: &[String]) -> Value {
+    let libraries = targets.iter().map(|name| {
+        json!({"type":"library","name":name,"version":version,"licenses":[{"expression":"MIT OR Apache-2.0"}],"scope":"required"})
+    });
+    let notices = [
+        json!({"type":"data","name":"Lucide icons","licenses":[{"license":{"id":"ISC"}}],"scope":"required"}),
+        json!({"type":"data","name":"Feather-derived icons","licenses":[{"license":{"id":"MIT"}}],"scope":"required"}),
+    ];
+    json!({"bomFormat":"CycloneDX","specVersion":"1.6","version":1,"metadata":{"component":{"type":"application","name":Environment::Production.identity().1,"version":version,"hashes":[{"alg":"SHA-256","content":sha256}]}},"components":libraries.chain(notices).collect::<Vec<_>>(),"properties":[{"name":"phonebook:platform-dependencies","value":"Apple iOS frameworks, Swift runtime, and SQLite are supplied by iOS; no third-party Swift packages are linked."}]})
+}
+
 pub(super) fn prepare_archive(root: &Path, build: BuildNumber) -> Result<()> {
     ensure!(
         build.is_ci(),
@@ -518,12 +574,17 @@ pub(super) fn prepare_archive(root: &Path, build: BuildNumber) -> Result<()> {
     logged(root, "unsigned-store-archive", &mut command)?;
     let archive = directory.join("PublicPhonebook.xcarchive");
     let files = archive_files(&archive)?;
+    let targets = linked_targets::read(root)?;
     require_current_sources(root, &sources)?;
     fs::write(
         directory.join("candidate.json"),
-        serde_json::to_vec_pretty(
-            &json!({"format":1,"signing":"unsigned","version":super::marketing_version(root)?,"build":build.value(),"sourceSha256":sources,"files":files}),
-        )?,
+        serde_json::to_vec_pretty(&prepared_record(
+            &super::marketing_version(root)?,
+            build,
+            &sources,
+            &files,
+            &targets,
+        ))?,
     )?;
     Ok(())
 }
@@ -580,6 +641,38 @@ fn export_command(directory: &Path, root: &Path, manual: Option<&ManualSigning>)
     command
 }
 
+fn prepare_requested_entitlements(root: &Path, archive: &Path) -> Result<()> {
+    const GROUPS: &str = "com.apple.security.application-groups";
+    let template = plist(root, &root.join("ios/Config/Shared.entitlements"))?;
+    ensure!(
+        template == json!({GROUPS: ["$(PHONEBOOK_APP_GROUP)"]}),
+        "Unexpected archive entitlement request"
+    );
+    let bundle = Environment::Production.identity().0;
+    let request = json!({GROUPS: [format!("group.{bundle}")]});
+    let directory = archive.parent().context("The archive has no parent")?;
+    let path = directory.join("requested-entitlements.plist");
+    fs::write(&path, serde_json::to_vec(&request)?)?;
+    logged(
+        root,
+        "requested-entitlements-plist",
+        Command::new("plutil").args(["-convert", "xml1"]).arg(&path),
+    )?;
+    let app = archive.join("Products/Applications/PublicPhonebook.app");
+    for target in [app.join("PlugIns/CallDirectory.appex"), app] {
+        logged(
+            root,
+            "requested-entitlements-signature",
+            Command::new("codesign")
+                .args(["--force", "--sign", "-", "--entitlements"])
+                .arg(&path)
+                .arg("--generate-entitlement-der")
+                .arg(target),
+        )?;
+    }
+    Ok(())
+}
+
 pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
     let build = signing::admit_request(request.signing, request.require_receipts, request.build)?;
     let ci = request.signing == Signing::Ci;
@@ -601,7 +694,7 @@ pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
         Vec::new()
     };
     let bundle = Environment::Production.identity().0;
-    let prepared = if request.prepared {
+    let (prepared, recorded) = if request.prepared {
         let directory = root.join(UNSIGNED_DIRECTORY);
         let archive = directory.join("PublicPhonebook.xcarchive");
         let record: Value = serde_json::from_slice(&fs::read(directory.join("candidate.json"))?)?;
@@ -612,32 +705,35 @@ pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
             &sources,
             &archive_files(&archive)?,
         )?;
-        Some(archive)
+        (Some(archive), Some(recorded_targets(&record)?))
     } else {
-        None
+        (None, None)
     };
     ensure!(
         !ci || prepared.is_some(),
         "CI signing cannot compile candidate-controlled build hooks"
     );
+    let directory = tempfile::Builder::new()
+        .prefix("app-store-")
+        .tempdir_in(root.join("target/ios"))?
+        .keep();
+    let archive = directory.join("PublicPhonebook.xcarchive");
+    if let Some(prepared) = &prepared {
+        logged(
+            root,
+            "copy-unsigned-archive",
+            Command::new("ditto").arg(prepared).arg(&archive),
+        )?;
+        prepare_requested_entitlements(root, &archive)?;
+    }
+    require_current_sources(root, &sources)?;
     let ci_signing = if ci {
         Some(signing::prepare(bundle)?)
     } else {
         None
     };
     let manual: Option<&ManualSigning> = ci_signing.as_ref().map(|prepared| &prepared.manual);
-    let directory = tempfile::Builder::new()
-        .prefix("app-store-")
-        .tempdir_in(root.join("target/ios"))?
-        .keep();
-    let archive = directory.join("PublicPhonebook.xcarchive");
-    if let Some(prepared) = prepared {
-        logged(
-            root,
-            "copy-unsigned-archive",
-            Command::new("ditto").arg(prepared).arg(&archive),
-        )?;
-    } else {
+    if prepared.is_none() {
         logged(
             root,
             "app-store-archive",
@@ -702,7 +798,11 @@ pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
     );
     fs::copy(ipa, &preserved)?;
     let version = super::marketing_version(root)?;
-    let sbom = json!({"bomFormat":"CycloneDX","specVersion":"1.6","version":1,"metadata":{"component":{"type":"application","name":Environment::Production.identity().1,"version":version,"hashes":[{"alg":"SHA-256","content":sha256}]}},"components":[{"type":"library","name":"PhonebookCore","version":version,"licenses":[{"expression":"MIT OR Apache-2.0"}],"scope":"required"},{"type":"library","name":"PhonebookKit","version":version,"licenses":[{"expression":"MIT OR Apache-2.0"}],"scope":"required"},{"type":"data","name":"Lucide icons","licenses":[{"license":{"id":"ISC"}}],"scope":"required"},{"type":"data","name":"Feather-derived icons","licenses":[{"license":{"id":"MIT"}}],"scope":"required"}],"properties":[{"name":"phonebook:platform-dependencies","value":"Apple iOS frameworks, Swift runtime, and SQLite are supplied by iOS; no third-party Swift packages are linked."}]});
+    let targets = match recorded {
+        Some(targets) => targets,
+        None => linked_targets::read(root)?,
+    };
+    let sbom = sbom(&version, &sha256, &targets);
     fs::write(
         directory.join("sbom.cdx.json"),
         serde_json::to_vec_pretty(&sbom)?,
@@ -781,6 +881,111 @@ mod tests {
         );
         Ok(())
     }
+
+    fn targets(names: &[&str]) -> Vec<String> {
+        names.iter().map(|name| (*name).to_owned()).collect()
+    }
+
+    #[test]
+    fn the_sbom_lists_one_library_for_each_linked_target() {
+        let linked = targets(&["PhonebookCore", "PhonebookKit", "PhonebookRanking"]);
+        let document = sbom("1.2.0", "package-digest", &linked);
+        let components = document["components"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let libraries = components
+            .iter()
+            .filter(|component| component["type"] == "library")
+            .collect::<Vec<_>>();
+        assert_eq!(
+            libraries
+                .iter()
+                .map(|component| component["name"].clone())
+                .collect::<Vec<_>>(),
+            linked.iter().map(|name| json!(name)).collect::<Vec<_>>()
+        );
+        for library in libraries {
+            assert_eq!(library["version"], "1.2.0");
+            assert_eq!(library["scope"], "required");
+            assert_eq!(
+                library["licenses"],
+                json!([{"expression":"MIT OR Apache-2.0"}])
+            );
+        }
+        assert_eq!(
+            components
+                .iter()
+                .filter(|component| component["type"] == "data")
+                .map(|component| (component["name"].clone(), component["licenses"].clone()))
+                .collect::<Vec<_>>(),
+            [
+                (json!("Lucide icons"), json!([{"license":{"id":"ISC"}}])),
+                (
+                    json!("Feather-derived icons"),
+                    json!([{"license":{"id":"MIT"}}])
+                ),
+            ]
+        );
+        assert_eq!(components.len(), 5);
+        assert_eq!(
+            document["metadata"]["component"],
+            json!({"type":"application","name":"Public Phonebook","version":"1.2.0","hashes":[{"alg":"SHA-256","content":"package-digest"}]})
+        );
+        assert_eq!(document["bomFormat"], "CycloneDX");
+        assert_eq!(document["specVersion"], "1.6");
+        assert_eq!(
+            sbom("1.2.0", "package-digest", &targets(&["PhonebookCore"]))["components"]
+                .as_array()
+                .map(Vec::len),
+            Some(3)
+        );
+    }
+
+    #[test]
+    fn prepared_archives_carry_their_linked_targets_to_signing() -> Result<()> {
+        let build = BuildNumber::new(4201)?;
+        let sources = BTreeMap::from([("App.swift".to_owned(), "source".to_owned())]);
+        let files = BTreeMap::from([("PublicPhonebook".to_owned(), "unsigned-bytes".to_owned())]);
+        let linked = targets(&[
+            "PhonebookCore",
+            "PhonebookKit",
+            "PhonebookRanking",
+            "_Private",
+        ]);
+        let record = prepared_record("1.0.0", build, &sources, &files, &linked);
+        admit_prepared(&record, build, "1.0.0", &sources, &files)?;
+        assert_eq!(recorded_targets(&record)?, linked);
+        Ok(())
+    }
+
+    #[test]
+    fn malformed_recorded_targets_are_refused() {
+        for (linked, reason) in [
+            (Value::Null, "names no linked targets"),
+            (json!("PhonebookCore"), "names no linked targets"),
+            (json!([]), "names no linked targets"),
+            (json!(["PhonebookCore", 1]), "isn't a name"),
+            (
+                json!(["PhonebookKit", "PhonebookCore"]),
+                "sorted and unique",
+            ),
+            (
+                json!(["PhonebookCore", "PhonebookCore"]),
+                "sorted and unique",
+            ),
+            (json!(["Phonebook Core"]), "isn't a Swift target name"),
+            (json!(["1Core"]), "isn't a Swift target name"),
+            (json!([""]), "isn't a Swift target name"),
+            (json!(["Core-Kit"]), "isn't a Swift target name"),
+        ] {
+            let record = json!({"linkedTargets": linked});
+            let error = recorded_targets(&record)
+                .err()
+                .unwrap_or_else(|| panic!("expected a refusal for {linked}"));
+            assert!(error.to_string().contains(reason), "{linked}: {error}");
+        }
+    }
     use std::path::PathBuf;
 
     fn rendered(command: &Command) -> Vec<String> {
@@ -807,10 +1012,11 @@ mod tests {
     }
 
     #[test]
-    fn both_bundles_take_their_build_number_from_the_build_setting() -> Result<()> {
+    fn both_bundles_take_their_versions_from_build_settings() -> Result<()> {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         for file in [
             "ios/Config/App-Info.plist",
+            "ios/Config/App-Info-LocalNetworking.plist",
             "ios/Config/CallDirectory-Info.plist",
         ] {
             let xml = fs::read_to_string(root.join(file))?;
@@ -827,14 +1033,124 @@ mod tests {
                     .first_element_child()
                     .context("The property list is empty")?,
             )?;
-            let version = properties
-                .get("CFBundleVersion")
-                .copied()
-                .with_context(|| format!("{file} has no CFBundleVersion"))?;
+            for (key, setting) in [
+                ("CFBundleVersion", "$(CURRENT_PROJECT_VERSION)"),
+                ("CFBundleShortVersionString", "$(MARKETING_VERSION)"),
+            ] {
+                let version = properties
+                    .get(key)
+                    .copied()
+                    .with_context(|| format!("{file} has no {key}"))?;
+                assert_eq!(signing::text(version)?, setting, "{file}: {key}");
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn generation_preserves_both_bundle_version_settings() -> Result<()> {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let directory = tempfile::tempdir()?;
+        let output = directory.path().join("spec.json");
+        crate::checked(
+            Command::new("xcodegen")
+                .current_dir(root.join("ios"))
+                .args(["dump", "--type", "json", "--quiet", "--file"])
+                .arg(&output),
+        )?;
+        let specification: Value = serde_json::from_slice(&fs::read(output)?)?;
+        for target in ["PublicPhonebook", "CallDirectory"] {
+            for (key, setting) in [
+                ("CFBundleVersion", "$(CURRENT_PROJECT_VERSION)"),
+                ("CFBundleShortVersionString", "$(MARKETING_VERSION)"),
+            ] {
+                assert_eq!(
+                    specification["targets"][target]["info"]["properties"][key], setting,
+                    "{target}: {key}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn prepared_copies_carry_the_requested_app_group_without_private_keys() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let config = root.path().join("ios/Config");
+        fs::create_dir_all(&config)?;
+        let source_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        fs::copy(
+            source_root.join("ios/Config/Shared.entitlements"),
+            config.join("Shared.entitlements"),
+        )?;
+        let archive = root.path().join("PublicPhonebook.xcarchive");
+        let app = archive.join("Products/Applications/PublicPhonebook.app");
+        let extension = app.join("PlugIns/CallDirectory.appex");
+        fs::create_dir_all(&extension)?;
+        let source = root.path().join("fixture.c");
+        fs::write(&source, "int main(void) { return 0; }\n")?;
+        for (target, name, package) in [
+            (&app, "PublicPhonebook", "APPL"),
+            (&extension, "CallDirectory", "XPC!"),
+        ] {
+            fs::write(
+                target.join("Info.plist"),
+                format!(
+                    "<?xml version=\"1.0\"?><plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>page.dial.fixture.{name}</string><key>CFBundleExecutable</key><string>{name}</string><key>CFBundlePackageType</key><string>{package}</string></dict></plist>"
+                ),
+            )?;
+            crate::checked(
+                Command::new("xcrun")
+                    .arg("clang")
+                    .arg(&source)
+                    .arg("-o")
+                    .arg(target.join(name)),
+            )?;
+        }
+        let original = archive_files(&archive)?;
+        for invalid in [
+            json!({}),
+            json!({"com.apple.security.application-groups":["group.another"]}),
+            json!({"com.apple.security.application-groups":["$(PHONEBOOK_APP_GROUP)"],"get-task-allow":true}),
+        ] {
+            fs::write(
+                config.join("Shared.entitlements"),
+                serde_json::to_vec(&invalid)?,
+            )?;
+            let error = prepare_requested_entitlements(root.path(), &archive)
+                .err()
+                .context("An unexpected request was accepted")?;
+            assert!(
+                error
+                    .to_string()
+                    .contains("Unexpected archive entitlement request")
+            );
+            assert_eq!(archive_files(&archive)?, original);
+        }
+        fs::copy(
+            source_root.join("ios/Config/Shared.entitlements"),
+            config.join("Shared.entitlements"),
+        )?;
+        prepare_requested_entitlements(root.path(), &archive)?;
+        for target in [extension, app] {
+            crate::checked(
+                Command::new("codesign")
+                    .args(["--verify", "--deep", "--strict"])
+                    .arg(&target),
+            )?;
+            let entitlement_path = root.path().join("observed-entitlements.plist");
+            crate::checked(
+                Command::new("codesign")
+                    .args(["-d", "--entitlements"])
+                    .arg(&entitlement_path)
+                    .arg("--xml")
+                    .arg(&target),
+            )?;
             assert_eq!(
-                signing::text(version)?,
-                "$(CURRENT_PROJECT_VERSION)",
-                "{file}"
+                plist(root.path(), &entitlement_path)?,
+                json!({"com.apple.security.application-groups":["group.page.dial.publicphonebook"]})
             );
         }
         Ok(())

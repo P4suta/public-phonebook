@@ -1,7 +1,8 @@
 # Verification contracts
 
-All owned application, API, data tooling, and test implementation is TypeScript.
-The previous Rust checks describe the previous implementation and do not verify this one.
+The website, API, collection tools, and browser tests use TypeScript.
+The iPhone app uses Swift, and the Android app uses Kotlin.
+Rust implements verification and delivery tools.
 
 ## Required fast gate
 
@@ -264,6 +265,13 @@ These checks do not prove the complete service or the truth of a publisher's dat
 Collection parsers, Unicode normalization, regular expressions, PDF rendering, HTTP transport, and SQLite iterators cross the translator's supported semantics.
 The supported evidence-selection and row-accounting decisions are proved under Boolean and validated finite-integer assumptions.
 The checked alternatives use planted UTF-8 and Shift-JIS CSV, merged spreadsheets, spanned HTML tables, ambiguous school records, conflicting regions, fax-only fields, cache corruption, rate limits, and incomplete publication inputs.
+Native PDF fixtures cover rotated pages, shifted page boxes, wrapped records, unequal row heights, font changes, and page-number footers.
+HTML fixtures cover clipped row spans, labeled office records, and office headings beside map captions.
+Collection selection excludes plans with a failed resource and preserves reviewed contact floors.
+Source adapters preserve reviewed region labels and qualified agency names.
+The numeric telephone fixture restores a source-declared trunk prefix while excluding fax-only and unconfigured values.
+Extraction fixtures cover agency names with line breaks and complete telephone numbers before numeric parenthetical notes.
+The website fixture rejects a cell containing two addresses separated by a line break.
 Address checks include named-place counterexamples and 500 fixed-seed idempotence cases.
 The complete data gate rejects a stored address that is not canonical and rejects incomplete or duplicate catalog partitions.
 Canonical native preparation also checks the JSONL, CSV, and vCard representations against the same contact contract.
@@ -324,11 +332,13 @@ The tests also plant a defect in each workflow and require the property that it 
 A condition outside the supported grammar fails the policy, so a new construct needs a model first.
 
 `pipeline-controls.yml` fails unless each refusal happens for its expected reason.
-- The fake-provider tests refuse an unverified, displaced, removed, or different candidate, a second lease holder, and evidence from another tree, manifest, or signer.
-- The observe identity exchanges its GitHub token with Doppler and requests the `ci_production` config, and the step requires a 403 answer that carries a Doppler error message.
-  A failed exchange, a network failure, another status, or an answer without that message fails the control, and a successful read fails it without printing the secrets.
-- The read-only token tries to deploy a version that doesn't exist, and the step requires an authorization refusal rather than a missing-version error.
-- The withdrawal drill stages an attested build at 0%, runs the real candidate checks, injects a probe failure, and requires the withdrawal to leave production unchanged.
+The fake-provider tests refuse an unverified, displaced, removed, or different candidate, a second lease holder, and evidence from another tree, manifest, or signer.
+
+The observe identity exchanges its GitHub token with Doppler and requests the `ci_production` config, and the step requires a 403 answer that carries a Doppler error message.
+A failed exchange, a network failure, another status, or an answer without that message fails the control, and a successful read fails it without printing the secrets.
+The read-only token tries to deploy a version that doesn't exist, and the step requires an authorization refusal rather than a missing-version error.
+
+The withdrawal drill stages an attested build at 0%, runs the real candidate checks, injects a probe failure, and requires the withdrawal to leave production unchanged.
 
 The drill and the two token controls need the owner's Cloudflare tokens and Doppler configs, so they haven't run yet.
 The authorization refusal's exact message is an assumption about the Cloudflare API, and the first run confirms it.
@@ -363,13 +373,14 @@ It also compares every literal row with the archive row at its position and requ
 The bundle doesn't hold the base, so the check can't read copied rows; preparation applies each delta to its base and requires identical bytes before it records the delta.
 Fixed-seed properties over generated pairs, including renumbered dictionaries and recollections, require the same exact reconstruction.
 The original publication is opened read-only.
-The active retained snapshot has 667,696 contacts, 561,495 distinct telephone numbers, 1,179 sources, 62 populated categories, and 47 prefectures.
+The expanded local snapshot has 672,133 contacts, 565,766 distinct telephone numbers, 1,719 sources, 65 populated categories, and 47 prefectures.
 The data audit identifies the exact snapshot in its output.
 Run `npm run data:phones -- .local/phonebook .local/phone-quality.json` for the source-bound telephone profile and complete metadata review queue.
 The earlier archived publication had 651,500 contact/phone relations, including 12,693 unseparated spellings and 11,326 spellings containing non-ASCII characters.
 Its common display formatter changed 36,527 source spellings without changing their canonical digits.
 Its audit found 160 relations outside the pinned full metadata's recognized patterns.
 They require source investigation and are preserved without speculative digit repairs.
+The expanded overlay adds no relations outside those metadata patterns.
 The audit requires zero unparseable spellings, source/canonical disagreements, formatting round-trip disagreements, and duplicate numbers within a contact.
 
 The release gate checks the build and the device search with these entry points, and the candidate stages below call them.
@@ -394,7 +405,7 @@ For the first category of 4 to 100 rows, it also compares the complete ordered c
 It checks 100 row positions with the row locator, the lookup that opens a device result's details.
 The run fails on any difference between the server and its literal reference.
 The shipped device worker uses the same literal matching contract and the same category previews.
-The QA scorer follows its separate shared ranking fixture and quality gate, because forgiving ranking intentionally differs from server matching.
+The explicit local website scorer follows its separate shared ranking fixture and quality gate, because forgiving ranking intentionally differs from server matching.
 Each D1 statement opens a loopback connection from Node to workerd, and macOS keeps a closed one for 30 seconds within 16,384 ephemeral ports.
 A read that fails with `EADDRNOTAVAIL` therefore waits a second and runs again, up to 60 times, while any other error fails the run at once.
 It also requires two controls to differ: previews with their first two rows swapped, and an index whose adjacent same-name rows with different details are swapped.
@@ -408,11 +419,16 @@ The report binds its verdict to the corpus manifest, candidate snapshot, and bot
 The quality report remains local and accompanies no release candidate.
 Small deterministic fixtures and a source-translated threshold proof check the gate without putting national data or morphology in the fast pull-request checks.
 
-Run `mise x -- node tools/search-performance.ts BUNDLE` with the build and the seeded state to record the device search's performance in `.local/search-performance.json`.
+Run `mise x -- node tools/search-performance.ts BUNDLE` with the seeded state to rebuild current sources and record device-search performance in `.local/search-performance.json`.
 It serves the build like the browser campaign and runs Chromium, Chromium with 4x CPU throttling, desktop WebKit, and the iPhone 13 profile.
-It records both artifacts' transfer bytes, navigation-to-ready time, worker admission time, and the p50 and p95 of search round trips for up to 50 distinct sampled queries.
+It records artifact transfer bytes, navigation-to-ready time, worker admission time, and the p50 and p95 of search round trips for up to 50 distinct sampled queries.
 It also records input events of 16 ms or longer while typing, long tasks in Chromium, and the main-thread heap in Chromium.
-The separate Node heap estimate covers only the decoded name index.
+The separate Node heap estimates compare the compact in-memory reference with complete row objects.
+The compact reference holds the decoded byte buffer, whose external allocation falls outside the JavaScript heap estimate.
+The production browser Worker uses [bounded file-backed search](search-ranking.md#literal-search-from-temporary-files).
+The [compact-column decision](adr/keep-validated-search-columns-compact.md) preserves complete row validation before admission.
+Both decoders must reject the corruption corpus and match generated directories, while a scan test refuses display-row reads.
+Native D1 fixtures and the national parity command exercise the server's compact column view.
 The literal-reference work counters describe the server matching reference, while the browser timings measure the production device worker.
 The optional `--contract FILE` retrieves every category of each query through the actual worker and its category continuations after 32 warm-up queries.
 The contract must match the snapshot, contact count, and both decoded digests.
@@ -420,14 +436,25 @@ It groups the fixture's ranked row-and-score pairs by category in rank order and
 Its timing field covers retrieval of every category of the returned ranking.
 The report counts inputs that the website's query parser rejects.
 The optional `--process-tools DIRECTORY` samples resident memory across the owned browser process tree every 250 milliseconds.
+On macOS, it also samples physical footprint.
 The directory supplies the macOS browser launcher and process-responsibility inspector from the search-engine experiment.
 The report records both helper digests and the installed `procs` version.
 WebKit memory sampling requires an attributed WebContent process and refuses an incomplete process inventory.
 The memory result includes browser infrastructure and may count shared pages more than once or miss peaks between samples.
 The sampling, viewport emulation, and Chromium CPU setting don't establish physical-phone performance.
-Safari on a physical iPhone and an isolated worker-heap measurement remain unrun.
+Chromium's [`Runtime.getHeapUsage`](https://chromedevtools.github.io/devtools-protocol/tot/Runtime/#method-getHeapUsage) reports main-thread and Worker heaps after the timed workload.
+Physical footprint for the Worker alone and Safari on a physical iPhone remain unmeasured.
 Each profile also counts search messages and returned JSON bytes during the UI sample.
-The record holds measurements, not thresholds.
+The report keeps measurements and the [mode-specific budget verdicts](search-ranking.md#literal-search-from-temporary-files).
+
+On 2026-11-08, the compact column view used 33,658,360 bytes of JavaScript heap for 672,133 contacts in Node.
+Complete row objects used 170,825,272 bytes in the same measurement.
+The compact view also holds the 41,395,723-byte decoded buffer outside that heap estimate.
+Across the four browser profiles, compact admission took 959 to 1,372.6 milliseconds, compared with 673 to 1,083.2 milliseconds before the change.
+The sampled search p95 ranged from 33.6 to 38 milliseconds, compared with 34.4 to 37 milliseconds before the change.
+Each profile ran the same 50 sampled queries and seven input prefixes.
+The measurements show smaller JavaScript heap use with extra startup decoding time.
+They establish neither browser resident memory nor physical-phone performance.
 
 On 2026-11-05, before the category previews returned, all four profiles matched the 2,200 national contract queries in one list with zero divergences and no parser rejections.
 Chromium worker admission took 7,820.9 milliseconds, with a 9.4-millisecond p95 across 57 UI search round trips.
@@ -457,7 +484,11 @@ It covers automatic search, Japanese composition, early input, on-device search 
 It also queries every prefecture and category against native D1.
 Browser failures retain screenshots, videos, traces, and structured diagnostics under `test-results`.
 Design cases retain native video even on success.
-WebKit uses native video instead of Playwright screenshots because its screenshot synchronizer injects a stylesheet that violates CSP.
+WebKit's screenshot preparation injects an inline style sheet that the app's Content Security Policy rejects.
+WebKit captures use native video and Playwright's public [`Screencast` frames](https://playwright.dev/docs/api/class-screencast) without changing that policy.
+Capture waits for a changed viewport and its restored dimensions to distinguish a fresh frame from a replayed frame.
+Existing video recording can limit the frame's resolution.
+Full-page captures scroll through viewport tiles and restore the original scroll position.
 The console and CSP gates remain enabled, and no context bypasses CSP.
 WebKit reports a fetch that a navigation cancelled as an access-control failure, so the console gate ignores that report only for same-origin URLs, which can't fail access control.
 The page also stops an unfinished index load when it's hidden and starts it again when it's shown.

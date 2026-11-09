@@ -78,11 +78,50 @@ private func synchronizationPublishesOnlyCompleteValidatedArchives(_ mode: SyncF
   let records = trace.events.withLock { $0 }
   #expect(!records.isEmpty)
   #expect(Set(records.map(\.operation)).count == 1)
+  #expect(records.filter { $0.phase == .discovery }.map(\.outcome) == [.started, .completed])
+  if [.wrongPrefecture, .truncated, .countMismatch, .headerMismatch, .cancellation].contains(mode) {
+    #expect(
+      records.last { $0.phase == .stage }?.outcome
+        == (mode == .cancellation ? .cancelled : .rejected))
+  }
 }
 
 private actor ProgressLog {
   var values: [Double] = []
   func append(_ value: Double) { values.append(value) }
+}
+
+@Test func synchronizationProgressUsesTheDeclaredTransferAndRebuildShares() {
+  #expect(!SyncProgress(stage: 0, done: 0, total: 0, rows: 0, fraction: 0).waiting)
+  let cases: [(TransferProgress, Double, SyncProgress)] = [
+    (
+      TransferProgress(resumed: 0, received: 0, total: 0, waiting: true), 0.4,
+      SyncProgress(stage: 0, done: 0, total: 0, rows: 7, fraction: 0, waiting: true)
+    ),
+    (
+      TransferProgress(resumed: 20, received: 30, total: 100), 0.4,
+      SyncProgress(stage: 0, done: 30, total: 80, rows: 7, fraction: 0.2, waiting: false)
+    ),
+    (
+      TransferProgress(resumed: 20, received: 30, total: 100), 0.2,
+      SyncProgress(stage: 0, done: 30, total: 80, rows: 7, fraction: 0.1, waiting: false)
+    ),
+    (
+      TransferProgress(resumed: 20, received: 80, total: 100), 0.4,
+      SyncProgress(stage: 0, done: 80, total: 80, rows: 7, fraction: 0.4, waiting: false)
+    ),
+  ]
+  for (part, share, expected) in cases {
+    #expect(SyncProgress.receiving(part, rows: 7, share: share) == expected)
+  }
+  for (fraction, done, expected) in [
+    (-0.1, 0, 0.2), (0, 0, 0.2), (0.25, 250, 0.25), (0.5, 500, 0.3), (1, 1000, 0.4),
+    (2, 1000, 0.4),
+  ] {
+    let value = SyncProgress.rebuilding(fraction, rows: 7)
+    #expect(value.stage == 0 && value.done == done && value.total == 1000 && value.rows == 7)
+    #expect(!value.waiting && abs(value.fraction - expected) < 1e-12)
+  }
 }
 
 /// Serves one listed archive of `rows` distinct rows, which the reader passes on in several batches.

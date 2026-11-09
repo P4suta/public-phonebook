@@ -18,6 +18,7 @@ internal class GenerationWriter(private val forms: SearchText) {
                 val header =
                     DatabaseTransaction(db).use { transaction ->
                         val imported = index(db, decoder, File(directory, "archive.tsv"), entry)
+                        db.version = SearchOrder.SCHEMA_VERSION
                         db.execSQL("CREATE INDEX phone_number ON phones(number,contact)")
                         db.execSQL("CREATE INDEX contact_category ON contacts(category)")
                         transaction.commit()
@@ -38,7 +39,7 @@ internal class GenerationWriter(private val forms: SearchText) {
         db.execSQL(
             "CREATE TABLE contacts(" +
                 "id INTEGER PRIMARY KEY, raw TEXT NOT NULL, name TEXT NOT NULL, " +
-                "place TEXT NOT NULL, category TEXT NOT NULL)"
+                "place TEXT NOT NULL, category TEXT NOT NULL, sort_name TEXT NOT NULL)"
         )
         db.execSQL("CREATE TABLE phones(number TEXT NOT NULL, contact INTEGER NOT NULL)")
         db.execSQL("CREATE VIRTUAL TABLE terms USING fts4(tokens, tokenize=simple)")
@@ -102,7 +103,7 @@ internal class GenerationWriter(private val forms: SearchText) {
 }
 
 private class RowStatements(db: SQLiteDatabase, private val forms: SearchText) : java.io.Closeable {
-    private val contacts = db.compileStatement("INSERT INTO contacts VALUES(?,?,?,?,?)")
+    private val contacts = db.compileStatement("INSERT INTO contacts VALUES(?,?,?,?,?,?)")
     private val phones = db.compileStatement("INSERT INTO phones VALUES(?,?)")
     private val terms = db.compileStatement("INSERT INTO terms(rowid,tokens) VALUES(?,?)")
 
@@ -119,6 +120,7 @@ private class RowStatements(db: SQLiteDatabase, private val forms: SearchText) :
         contacts.bindString(NAME_COLUMN, name)
         contacts.bindString(PLACE_COLUMN, place)
         contacts.bindString(CATEGORY_COLUMN, record.category.id)
+        contacts.bindString(SORT_COLUMN, SearchOrder.key(record.name))
         contacts.executeInsert()
         terms.bindLong(1, record.row)
         terms.bindString(2, IndexTerms.tokens("$name $place").joinToString(" "))
@@ -138,6 +140,7 @@ private class RowStatements(db: SQLiteDatabase, private val forms: SearchText) :
         private const val NAME_COLUMN = 3
         private const val PLACE_COLUMN = 4
         private const val CATEGORY_COLUMN = 5
+        private const val SORT_COLUMN = 6
     }
 }
 

@@ -38,17 +38,18 @@ test("the page uses local assets and a fresh, server-controlled CSP nonce", asyn
   expect(first.headers()["set-cookie"]).toBeUndefined();
 });
 
-test("the browser keeps only screen positions for the tab, no index copy, and never the search words", async ({
+test("the browser stores public search files and tab positions without recording queries", async ({
   page,
 }) => {
   const query = "国立国会図書館";
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
+  await waitForLocalSearch(page);
   await page.getByRole("searchbox").fill(query);
   const result = page.locator("article").first();
   await expect(result).toBeVisible();
   await result.getByRole("link", { name: detailActionName }).click();
-  await expect(page).toHaveURL(/\/contacts\/[^/?]+\?from=/u);
+  await expect(page).toHaveURL(/\/contacts\/[^/?#]+#from=/u);
   await expect(
     page.getByRole("heading", { level: 1, name: query }),
   ).toBeVisible();
@@ -62,12 +63,31 @@ test("the browser keeps only screen positions for the tab, no index copy, and ne
     databases: (await indexedDB.databases()).map((database) => database.name),
     workers: (await navigator.serviceWorker.getRegistrations()).length,
     caches: await caches.keys(),
+    searchFiles: await (async (): Promise<string[]> => {
+      const root = await navigator.storage.getDirectory();
+      const parent = await root.getDirectoryHandle("public-phonebook-search");
+      const names = new Set<string>();
+      for await (const directory of parent.values()) {
+        if (directory.kind !== "directory")
+          throw new Error(
+            "Unexpected search file outside a temporary directory",
+          );
+        for await (const name of directory.keys()) names.add(name);
+      }
+      return [...names].sort();
+    })(),
   }));
   expect(stored.cookie).toBe("");
   expect(stored.local).toEqual([]);
   expect(stored.databases).toEqual([]);
   expect(stored.workers).toBe(0);
   expect(stored.caches).toEqual([]);
+  expect(stored.searchFiles).toEqual([
+    "folded-names",
+    "index",
+    "name-offsets",
+    "telephone-offsets",
+  ]);
   for (const [key, value] of stored.session) {
     expect(key).toMatch(/^tsr-scroll-restoration/u);
     for (const form of [query, encodeURIComponent(query)])

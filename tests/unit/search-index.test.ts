@@ -12,8 +12,10 @@ import { compareUtf8 } from "../../src/core/directory-archive.ts";
 import { normalizeName } from "../../src/core/identity.ts";
 import {
   compareRowOrder,
+  decodeLiteralSearchIndex,
   decodeSearchIndex,
   encodeSearchIndex,
+  literalSearchIndexBatches,
   type SearchIndexHeader,
   SearchIndexHeaderSchema,
   type SearchIndexInput,
@@ -205,7 +207,99 @@ function sorted(rows: readonly SearchIndexRow[]): SearchIndexRow[] {
   );
 }
 
-describe("search index", () => {
+describe.each([
+  { storage: "materialized", decode: decodeSearchIndex },
+  { storage: "compact", decode: decodeLiteralSearchIndex },
+])("search index: $storage", ({ decode }) => {
+  it("owns admitted column data independently of the transport buffer", () => {
+    const expected = [library, clinic];
+    const bytes = encodeSearchIndex(expected, input);
+    const index = decode(bytes);
+    bytes.fill(0);
+    expect([...index.rows]).toEqual(expected);
+    expect(index.nameAt?.(0) ?? index.rows[0]?.name).toBe(library.name);
+    expect(index.columns?.categoryAt(1) ?? index.rows[1]?.category).toBe(
+      clinic.category,
+    );
+    expect(index.columns?.regionAt(1) ?? index.rows[1]?.region).toBe(
+      clinic.region,
+    );
+    if (index.telephoneRows)
+      expect(index.telephoneRows(clinic.phones[0] ?? "")).toEqual([1]);
+  });
+
+  it("validates every name in a large part before admitting the index", () => {
+    const rows = Array.from({ length: 10_000 }, (_, row): SearchIndexRow => {
+      const name = `contact-${String(row).padStart(5, "0")}`;
+      return { ...library, name, normalizedName: name, searchName: name };
+    });
+    const bytes = encodeSearchIndex(rows, input);
+    const index = decode(bytes);
+    expect([...index.rows]).toEqual(rows);
+    if (index.columns?.nameRanks) {
+      const rank = index.columns.nameRanks;
+      for (const position of [
+        0, 511, 512, 1023, 1024, 4095, 4096, 8191, 8192, 9999,
+      ]) {
+        const name = rows[position]?.name ?? "missing";
+        const exact = rank([name])[0];
+        expect(exact?.[position]).toBe(1);
+        expect(exact?.filter((value) => value !== 0)).toHaveLength(1);
+        expect(rank([name.slice(0, -1)])[0]?.[position]).toBe(2);
+        expect(rank([name.slice(1)])[0]?.[position]).toBe(3);
+        expect(rank([`${name}\n`])[0]?.[position]).toBe(0);
+      }
+    }
+    const names = `${rows.map((row) => row.name).join("\n")}\n`;
+    if (index.columns) {
+      const batches = literalSearchIndexBatches(bytes);
+      for (let batch = 0; batch < 20; batch += 1)
+        expect(batches.next().done).toBe(false);
+      expect(batches.next().done).toBe(true);
+      const invalid = literalSearchIndexBatches(
+        withNames(bytes, names.replace("contact-09999", "Contact-09999")),
+      );
+      for (let batch = 0; batch < 19; batch += 1)
+        expect(invalid.next().done).toBe(false);
+      expect(() => invalid.next()).toThrow("normalized form");
+    }
+    expect(() =>
+      decode(withNames(bytes, names.replace("contact-05000", "Contact-05000"))),
+    ).toThrow("normalized form");
+    expect(() =>
+      decode(withNames(bytes, names.replace("contact-05000", "contact-00000"))),
+    ).toThrow("normalized name order");
+  });
+
+  it("keeps complete telephone-token validation across row boundaries", () => {
+    const bytes = encodeSearchIndex([library, clinic], input);
+    for (const phones of [
+      "0335812331 09012345678 0774981200 0120123456",
+      "0123456789",
+      "09999999999",
+    ])
+      expect(
+        decode(withPhones(bytes, `${phones}\n0774981200\n`)).rows[0]?.phones,
+      ).toEqual(phones.split(" "));
+    for (const phones of [
+      "0335812331 09012345678 0774981200 09012345678",
+      "0335812331 09012345678 0774981200 0335812331",
+      "0335812331 ",
+      " 0335812331",
+      "0335812331  09012345678",
+      "0035812331",
+      "1335812331",
+      "033581233",
+      "033581233100",
+      "0335812331\t09012345678",
+      "0335812331\r",
+      "０３３５８１２３３１",
+    ])
+      expect(() =>
+        decode(withPhones(bytes, `${phones}\n0774981200\n`)),
+      ).toThrow("distinct national");
+  });
+
   it("encodes the documented signature, header, and parts", () => {
     const bytes = encodeSearchIndex([library, clinic], input);
     const lines = new TextDecoder().decode(bytes).split("\n");
@@ -249,7 +343,7 @@ describe("search index", () => {
     expect(new TextDecoder().decode(phones)).toBe(
       "0335812331 09012345678\n0774981200\n",
     );
-    expect(decodeSearchIndex(bytes).rows).toEqual([library, clinic]);
+    expect([...decode(bytes).rows]).toEqual([library, clinic]);
   });
 
   it("round-trips every row in normalized name order", () => {
@@ -257,8 +351,8 @@ describe("search index", () => {
       fc.property(fc.array(rowArbitrary, { maxLength: 24 }), (generated) => {
         const rows = sorted(generated);
         const bytes = encodeSearchIndex(rows, input);
-        const decoded = decodeSearchIndex(bytes);
-        expect(decoded.rows).toEqual(rows);
+        const decoded = decode(bytes);
+        expect([...decoded.rows]).toEqual(rows);
         expect(decoded.header.contacts).toBe(rows.length);
         expect(decoded.header.regions).toEqual(
           [...new Set(rows.map((row) => row.region))].sort(compareUtf8),
@@ -325,11 +419,11 @@ describe("search index", () => {
     const older = withHeader(bytes, (header) => {
       delete header.rowsWithoutAddress;
     });
-    expect(decodeSearchIndex(older).rows).toEqual([
+    expect([...decode(older).rows]).toEqual([
       library,
       { ...clinic, hasAddress: true },
     ]);
-    expect(decodeSearchIndex(bytes).rows).toEqual([library, clinic]);
+    expect([...decode(bytes).rows]).toEqual([library, clinic]);
   });
 
   it("rejects rows the format can't carry", () => {
@@ -457,12 +551,10 @@ describe("search index", () => {
       [withPhones(single, "0335812331\n0774981200\n"), "contact count"],
     ];
     for (const [archive, message] of cases)
-      expect(() => decodeSearchIndex(archive), message).toThrow(message);
+      expect(() => decode(archive), message).toThrow(message);
     const empty = encodeSearchIndex([], input);
-    expect(decodeSearchIndex(empty).rows).toEqual([]);
-    expect(() => decodeSearchIndex(withNames(empty, "\n"))).toThrow(
-      "extra lines",
-    );
+    expect([...decode(empty).rows]).toEqual([]);
+    expect(() => decode(withNames(empty, "\n"))).toThrow("extra lines");
   });
 
   it("caps the compressed index at 8 MiB in the prepared manifest", () => {

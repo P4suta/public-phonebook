@@ -1,21 +1,29 @@
 import CallKit
-import Darwin
 import Foundation
-import OSLog
 import PhonebookCore
+
+#if PHONEBOOK_VERIFICATION_TOOLS
+  import Darwin
+  import OSLog
+#endif
 
 /// Streams the caller file into CallKit within the extension's 12 MB memory limit.
 ///
 /// The request runs synchronously with only Foundation, CallKit, and the caller file reader, so no database, actor, or task stays in memory.
 final class CallDirectoryHandler: CXCallDirectoryProvider, CXCallDirectoryExtensionContextDelegate {
-  private let logger = Logger(subsystem: "page.dial.publicphonebook", category: "caller")
-  private let signposter = OSSignposter(subsystem: "page.dial.publicphonebook", category: "caller")
+  #if PHONEBOOK_VERIFICATION_TOOLS
+    private let logger = Logger(subsystem: "page.dial.publicphonebook", category: "caller")
+    private let signposter = OSSignposter(
+      subsystem: "page.dial.publicphonebook", category: "caller")
+  #endif
 
   override func beginRequest(with context: CXCallDirectoryExtensionContext) {
     context.delegate = self
-    let signpost = signposter.makeSignpostID()
-    let interval = signposter.beginInterval("load", id: signpost)
-    defer { signposter.endInterval("load", interval) }
+    #if PHONEBOOK_VERIFICATION_TOOLS
+      let signpost = signposter.makeSignpostID()
+      let interval = signposter.beginInterval("load", id: signpost)
+      defer { signposter.endInterval("load", interval) }
+    #endif
     do {
       let directory = try Self.directory()
       let active = try CallerFile.active(in: directory)
@@ -33,49 +41,72 @@ final class CallDirectoryHandler: CXCallDirectoryProvider, CXCallDirectoryExtens
       }
       var entries = 0
       var removed = 0
-      var peak = Self.footprint()
-      if context.isIncremental, let held = Self.held(in: directory) {
-        // iOS holds what the record names, so the request sends the difference alone.
-        try CallerFile.changes(
-          held: held, wanted: wanted,
-          remove: { number in
-            context.removeIdentificationEntry(withPhoneNumber: number)
-            removed += 1
-          },
-          add: { number, label in
-            autoreleasepool {
-              context.addIdentificationEntry(withNextSequentialPhoneNumber: number, label: label)
+      #if PHONEBOOK_VERIFICATION_TOOLS
+        var peak = Self.footprint()
+      #else
+        let peak: UInt64 = 0
+      #endif
+      let incremental = context.isIncremental
+      var held = incremental ? Self.held(in: directory) : nil
+      #if PHONEBOOK_VERIFICATION_TOOLS
+        let probe = try VerificationNumberStore.takeCallerProbe(
+          in: VerificationNumberStore.container())
+        defer {
+          if let probe {
+            do { try FileManager.default.removeItem(at: probe) } catch {
+              let failure = error as NSError
+              logger.error(
+                "caller.probe result=cleanup_failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public)"
+              )
             }
-            entries += 1
-          })
-      } else {
-        if context.isIncremental { context.removeAllIdentificationEntries() }
-        let reader = try wanted()
-        while true {
-          let read = try autoreleasepool {
-            try reader.read(upTo: 1000) { number, label in
-              context.addIdentificationEntry(withNextSequentialPhoneNumber: number, label: label)
-            }
-          }
-          guard read > 0 else { break }
-          entries += read
-          if entries % 50_000 < read {
-            signposter.emitEvent("batch", id: signpost)
-            peak = max(peak, Self.footprint())
-            logger.debug(
-              "caller.load entries=\(entries, privacy: .public) footprintKB=\(peak / 1024, privacy: .public)"
-            )
           }
         }
-      }
+        if incremental, let probe {
+          held = { try CallerFile.Merged(national: CallerFile.Reader(url: probe), extra: nil) }
+        }
+      #endif
+      let plan = try CallerFile.load(
+        held: held, wanted: wanted,
+        removeAll: { if incremental { context.removeAllIdentificationEntries() } },
+        remove: { number in
+          context.removeIdentificationEntry(withPhoneNumber: number)
+          removed += 1
+          if removed % 1000 == 0 {
+            #if PHONEBOOK_VERIFICATION_TOOLS
+              peak = max(peak, Self.footprint())
+              logger.debug(
+                "caller.load phase=remove removed=\(removed, privacy: .public) footprintKB=\(peak / 1024, privacy: .public)"
+              )
+            #endif
+          }
+        },
+        add: { number, label in
+          context.addIdentificationEntry(withNextSequentialPhoneNumber: number, label: label)
+          entries += 1
+          if entries % 50_000 == 0 {
+            #if PHONEBOOK_VERIFICATION_TOOLS
+              signposter.emitEvent("batch", id: signpost)
+              peak = max(peak, Self.footprint())
+              logger.debug(
+                "caller.load entries=\(entries, privacy: .public) footprintKB=\(peak / 1024, privacy: .public)"
+              )
+            #endif
+          }
+        })
+      #if PHONEBOOK_VERIFICATION_TOOLS
+        logger.debug("caller.load plan=\(plan.rawValue, privacy: .public)")
+      #endif
       complete(
         context, entries: entries, removed: removed, peak: max(peak, Self.footprint()),
+        incremental: incremental, plan: plan,
         loaded: target, in: directory)
     } catch {
-      let failure = error as NSError
-      logger.error(
-        "caller.load result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public) description=\(failure.localizedDescription, privacy: .private)"
-      )
+      #if PHONEBOOK_VERIFICATION_TOOLS
+        let failure = error as NSError
+        logger.error(
+          "caller.load result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public) description=\(failure.localizedDescription, privacy: .private)"
+        )
+      #endif
       context.cancelRequest(withError: error)
     }
   }
@@ -91,16 +122,21 @@ final class CallDirectoryHandler: CXCallDirectoryProvider, CXCallDirectoryExtens
     }
   }
 
-  /// Logs one summary when iOS has taken the entries, because an expired request adds none of them.
+  /// Records the loaded generation only after iOS takes the entries.
   private func complete(
     _ context: CXCallDirectoryExtensionContext, entries: Int, removed: Int, peak: UInt64,
+    incremental: Bool, plan: CallerLoadPlan,
     loaded: CallerFile.Loaded, in directory: URL
   ) {
-    let logger = logger
+    #if PHONEBOOK_VERIFICATION_TOOLS
+      let logger = logger
+    #endif
     context.completeRequest { expired in
-      logger.notice(
-        "caller.load entries=\(entries, privacy: .public) removed=\(removed, privacy: .public) peakFootprintKB=\(peak / 1024, privacy: .public) expired=\(expired, privacy: .public)"
-      )
+      #if PHONEBOOK_VERIFICATION_TOOLS
+        logger.notice(
+          "caller.load result=\(expired ? "expired" : "complete", privacy: .public) entries=\(entries, privacy: .public) removed=\(removed, privacy: .public) peakFootprintKB=\(peak / 1024, privacy: .public) incremental=\(incremental, privacy: .public) plan=\(plan.rawValue, privacy: .public)"
+        )
+      #endif
       // The app reads this record and skips asking iOS to load the same generation again, and the next load sends the difference from it.
       guard !expired else { return }
       try? CallerFile.recordLoaded(loaded, in: directory)
@@ -110,10 +146,12 @@ final class CallDirectoryHandler: CXCallDirectoryProvider, CXCallDirectoryExtens
   func requestFailed(
     for extensionContext: CXCallDirectoryExtensionContext, withError error: any Error
   ) {
-    let failure = error as NSError
-    logger.error(
-      "caller.request result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public) description=\(failure.localizedDescription, privacy: .private)"
-    )
+    #if PHONEBOOK_VERIFICATION_TOOLS
+      let failure = error as NSError
+      logger.error(
+        "caller.request result=failed domain=\(failure.domain, privacy: .public) code=\(failure.code, privacy: .public) description=\(failure.localizedDescription, privacy: .private)"
+      )
+    #endif
   }
 
   private static func directory() throws -> URL {
@@ -126,14 +164,18 @@ final class CallDirectoryHandler: CXCallDirectoryProvider, CXCallDirectoryExtens
   }
 
   private static func footprint() -> UInt64 {
-    var info = task_vm_info_data_t()
-    var count = mach_msg_type_number_t(
-      MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
-    let result = withUnsafeMutablePointer(to: &info) {
-      $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-        task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+    #if PHONEBOOK_VERIFICATION_TOOLS
+      var info = task_vm_info_data_t()
+      var count = mach_msg_type_number_t(
+        MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+      let result = withUnsafeMutablePointer(to: &info) {
+        $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+          task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+        }
       }
-    }
-    return result == KERN_SUCCESS ? info.phys_footprint : 0
+      return result == KERN_SUCCESS ? info.phys_footprint : 0
+    #else
+      return 0
+    #endif
   }
 }
