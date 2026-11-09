@@ -62,7 +62,7 @@ jobs:
   native:
     name: Android assurance
     needs: [delivery-checks]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     permissions:
       contents: read
@@ -86,7 +86,7 @@ jobs:
   candidate:
     name: Preserve unsigned production artifacts
     needs: [delivery-checks, native]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: candidate
     timeout-minutes: 30
     permissions:
