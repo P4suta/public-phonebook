@@ -13,8 +13,15 @@ A successful signature proves installation eligibility, not feature execution.
 
 ## Read-only search
 
+Run `mise x -- just ios-ui-test --live --device UDID` with the selected iPhone unlocked and connected.
+The command checks readiness before building, uses local signing with VerificationRelease and the QA identity, and runs one case with a five-minute execution allowance.
+Keep the command within the authorized verification window.
+The result bundle and source-bound result live under `target/ios/device-ui`.
+An empty suite, skipped case, unexpected case, or runtime warning fails verification.
+The command preserves installed production data and changes no caller settings.
+
 Run only `PhonebookUITests/DirectoryUITests/testLivePublicDirectorySearchAndSource` on a personal phone.
-This case searches the service, opens provenance, and checks its source date.
+The case searches the saved national directory and opens a result and its provenance.
 Never run the full simulator harness on the personal device.
 Never call an unrelated public telephone number as an E2E fixture.
 

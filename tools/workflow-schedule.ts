@@ -608,10 +608,8 @@ export const scheduleSpecifications: Readonly<
   },
   "ios.yml": {
     properties: [
-      requires("proofs", ["delivery-checks"]),
-      requires("native", ["delivery-checks"]),
       requires("unsigned", ["delivery-checks", "proofs", "native"]),
-      requires("signing", ["unsigned"]),
+      requires("signing", ["delivery-checks", "proofs", "native", "unsigned"]),
       requires("upload", ["signing"]),
     ],
     promises: [

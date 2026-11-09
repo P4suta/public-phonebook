@@ -53,8 +53,12 @@ A private local archive is never eligible for release, and only the TestFlight w
 The `TestFlight` workflow in `.github/workflows/ios.yml` delivers a signed production build to TestFlight.
 Prepare an iOS plan and request `ios-testflight` through the [independent delivery command](delivery.md).
 Its controller refuses a source that differs from protected `main`, a changed plan, or another workflow identity.
-The shared dependency gate runs before the native jobs.
-A Linux job runs `just ios-prove`, and a macOS job runs `just ios-check`, `just ios-sanitize`, and `just ios-mutate` at the same commit.
+Dependency checks, formal assurance, and native assurance run independently at the same commit.
+A Linux job runs `just ios-prove`, and a macOS job runs `just delivery platform ios --scope check`, `just ios-sanitize`, and `just ios-mutate`.
+Candidate and TestFlight share the check-only result when sources, commands, toolchains, and the native output receipt's digest match.
+Missing or changed outputs rerun verification.
+Jobs for the same source commit serialize their native work.
+The unsigned job waits for every required dependency, formal, and native check.
 The unsigned job downloads their source-bound receipts and runs `just ios-prepare-archive N` without signing credentials or account provisioning.
 It preserves and attests the unsigned archive, source inventory, and receipts.
 
@@ -83,6 +87,29 @@ Original package and upload-attempt artifacts are essential retry evidence and r
 Preserve them in the authorized owner archive before they expire.
 A missing original artifact or attempt record stops reconciliation rather than authorizing a replacement upload.
 The [delivery decision](adr/select-delivery-operations-independently-from-required-checks.md) records the changed retry contract and the counter's allocation assumptions.
+
+## Submit an app update
+
+Prepare an iOS version proposal with the delivery command, verify its checks, and merge the proposal before preparing the distribution plan.
+Use the same App Store Connect app record, a higher display version, and a fresh TestFlight build number, following [Apple's version procedure](https://developer.apple.com/help/app-store-connect/update-your-app/create-a-new-version/).
+Read the changes since the published version when writing the required What's New text.
+Copy the promotional text from `ios/AppStore/metadata.json` when the draft leaves that field empty.
+
+Run `mise x -- just ios-ui-test --live --device UDID` with the connected iPhone unlocked for the source-level QA check.
+The command uses VerificationRelease and the separate QA identity.
+It keeps production data and doesn't perform calls, collect device logs, or change caller-identification settings.
+Its result doesn't replace testing the distributed package.
+
+After TestFlight processing succeeds, install the preserved build through TestFlight on the iPhone.
+Check an update over the installed version, the saved directory, search, details, source, and settings before selecting that same build in App Store Connect.
+Keep the existing caller-identification setting and check incoming labels with an owned line when caller behavior changed.
+Keep incoming numbers on the phone.
+Repeat VoiceOver, Voice Control, and large-text checks when affected screens or accessibility behavior changed.
+[Apple's release testing guidance](https://developer.apple.com/documentation/xcode/testing-a-release-build) explains why a development-signed QA build doesn't establish the distributed build's behavior.
+
+Use Safari for the authenticated App Store Connect session.
+Save the draft, verify the selected version and build, and submit the update for App Review only after the distributed build check passes.
+An upload or review submission doesn't establish App Store availability.
 
 ### Doppler values
 

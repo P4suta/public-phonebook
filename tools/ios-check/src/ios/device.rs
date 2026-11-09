@@ -30,6 +30,7 @@ const CONFIGURATION: &str = "VerificationRelease";
 const BUNDLE_IDENTIFIER: &str = "page.dial.publicphonebook.devicechecks";
 const QA_DIRECTORY: &str = "target/ios/qa-install";
 const QA_DERIVED_DATA: &str = "target/ios/qa-install/DerivedData";
+const UI_DIRECTORY: &str = "target/ios/device-ui";
 const LOCAL_SIGNING: &str = "ios/Signing.local.xcconfig";
 const QA_SCHEME: &str = "PublicPhonebookVerification";
 const LISTING_PATH: &str = "/api/datasets";
@@ -894,7 +895,15 @@ pub(super) fn prepare_qa(root: &Path, requested: Option<&str>) -> Result<Device>
     Ok(device)
 }
 
-fn qa_build(root: &Path, device: &Device) -> Command {
+pub(super) fn prepare_ui(root: &Path, requested: &str) -> Result<Device> {
+    let receipt = root.join(UI_DIRECTORY).join("receipt.json");
+    if receipt.exists() {
+        fs::remove_file(receipt)?;
+    }
+    prepare_qa(root, Some(requested))
+}
+
+fn qa_command(root: &Path, device: &Device) -> Command {
     let mut command = Command::new("xcodebuild");
     command.current_dir(root).args([
         "-quiet",
@@ -913,9 +922,78 @@ fn qa_build(root: &Path, device: &Device) -> Command {
         "-allowProvisioningUpdates",
         "-jobs",
         "2",
-        "build",
     ]);
     command
+}
+
+fn qa_build(root: &Path, device: &Device) -> Command {
+    let mut command = qa_command(root, device);
+    command.arg("build");
+    command
+}
+
+fn smoke_command(root: &Path, device: &Device) -> Command {
+    let mut command = qa_command(root, device);
+    command.args([
+        "-only-testing:PhonebookUITests/DirectoryUITests/testLivePublicDirectorySearchAndSource",
+        "-parallel-testing-enabled",
+        "NO",
+        "-maximum-concurrent-test-device-destinations",
+        "1",
+        "-test-timeouts-enabled",
+        "YES",
+        "-default-test-execution-time-allowance",
+        "300",
+        "-maximum-test-execution-time-allowance",
+        "300",
+        "-resultBundlePath",
+        "target/ios/device-ui/search.xcresult",
+        "test-without-building",
+    ]);
+    command
+}
+
+pub(super) fn smoke(root: &Path, device: &Device) -> Result<()> {
+    let sources = super::source_hashes(root)?;
+    let directory = root.join(UI_DIRECTORY);
+    fresh(&directory)?;
+    let mut build = qa_command(root, device);
+    logged(root, "device-ui-build", build.arg("build-for-testing"))?;
+    let app = root.join(QA_DERIVED_DATA).join(BUILT_APP);
+    require_qa_build(root, &app)?;
+    let bundle = directory.join("search.xcresult");
+    let execution = logged(root, "device-ui", &mut smoke_command(root, device));
+    let read_result = |kind| -> Result<Value> {
+        let output = logged(
+            root,
+            &format!("device-ui-{kind}"),
+            Command::new("xcrun")
+                .args(["xcresulttool", "get", "test-results", kind, "--path"])
+                .arg(&bundle),
+        )?;
+        Ok(serde_json::from_slice(&output.stdout)?)
+    };
+    execution?;
+    super::require_ui_case(
+        &read_result("summary")?,
+        &read_result("tests")?,
+        super::LIVE_UI_TEST,
+    )?;
+    super::require_current_sources(root, &sources)?;
+    fs::write(
+        directory.join("receipt.json"),
+        serde_json::to_vec_pretty(&json!({
+            "result":"passed", "configuration":CONFIGURATION, "bundleIdentifier":BUNDLE_IDENTIFIER,
+            "version":super::plist_string(&app.join("Info.plist"), "CFBundleShortVersionString")?,
+            "device":{"model":device.model,"os":device.os,"build":device.build},
+            "test":super::LIVE_UI_TEST, "source_sha256":super::source_records(&sources),
+        }))?,
+    )?;
+    println!(
+        "PASS: read-only QA search, detail, and source on {} with iOS {}",
+        device.model, device.os
+    );
+    Ok(())
 }
 
 fn installed_qa(report: &Value) -> Result<()> {
@@ -934,25 +1012,30 @@ fn installed_qa(report: &Value) -> Result<()> {
     Ok(())
 }
 
+fn require_qa_build(root: &Path, app: &Path) -> Result<()> {
+    ensure!(
+        super::plist_string(&app.join("Info.plist"), "CFBundleIdentifier")? == BUNDLE_IDENTIFIER,
+        "The build isn't the QA application identity"
+    );
+    bundled::check_built(root, app, CONFIGURATION)?;
+    super::store_build::require_every_marker(app, CONFIGURATION)?;
+    logged(
+        root,
+        "qa-signature",
+        Command::new(CODESIGN)
+            .args(["--verify", "--deep", "--strict"])
+            .arg(app),
+    )?;
+    Ok(())
+}
+
 pub(super) fn install_qa(root: &Path, device: &Device) -> Result<()> {
     let sources = super::source_hashes(root)?;
     let directory = root.join(QA_DIRECTORY);
     fs::create_dir_all(&directory)?;
     logged(root, "qa-build", &mut qa_build(root, device))?;
     let app = root.join(QA_DERIVED_DATA).join(BUILT_APP);
-    ensure!(
-        super::plist_string(&app.join("Info.plist"), "CFBundleIdentifier")? == BUNDLE_IDENTIFIER,
-        "The build isn't the QA application identity"
-    );
-    bundled::check_built(root, &app, CONFIGURATION)?;
-    super::store_build::require_every_marker(&app, CONFIGURATION)?;
-    logged(
-        root,
-        "qa-signature",
-        Command::new(CODESIGN)
-            .args(["--verify", "--deep", "--strict"])
-            .arg(&app),
-    )?;
+    require_qa_build(root, &app)?;
     logged(
         root,
         "qa-install",
@@ -1174,6 +1257,63 @@ pub(super) fn run(root: &Path, device: &Device, delta: &DeltaInput) -> Result<()
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn device_ui_runs_only_the_read_only_case_with_release_qa_identity() -> Result<()> {
+        let device = connected_iphone(&report(vec![phone("connected", true, "phone")]), None)?;
+        let command = smoke_command(Path::new("/project"), &device);
+        let args = command
+            .get_args()
+            .map(|value| value.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        for pair in [
+            ["-configuration", CONFIGURATION],
+            ["-scheme", QA_SCHEME],
+            ["-destination", "id=phone"],
+            ["-xcconfig", LOCAL_SIGNING],
+            ["-maximum-test-execution-time-allowance", "300"],
+        ] {
+            assert!(args.windows(2).any(|window| window == pair));
+        }
+        assert_eq!(
+            args.iter()
+                .filter(|arg| arg.starts_with("-only-testing:"))
+                .collect::<Vec<_>>(),
+            [&format!(
+                "-only-testing:PhonebookUITests/DirectoryUITests/{}",
+                super::super::LIVE_UI_TEST
+            )]
+        );
+        assert_eq!(
+            args.last().map(String::as_str),
+            Some("test-without-building")
+        );
+        assert!(
+            !args
+                .iter()
+                .any(|arg| arg.contains("uninstall") || arg.contains("erase"))
+        );
+        for arguments in [
+            vec!["ios-check", "ui-test", "--live", "--device", "phone"],
+            vec!["ios-check", "ui-test", "--device", "phone"],
+            vec![
+                "ios-check",
+                "ui-test",
+                "--live",
+                "--device",
+                "phone",
+                "--test",
+                "testSearch",
+            ],
+        ] {
+            let valid = arguments.len() == 5;
+            assert_eq!(
+                <crate::Arguments as clap::Parser>::try_parse_from(arguments).is_ok(),
+                valid
+            );
+        }
+        Ok(())
+    }
 
     #[test]
     fn qa_installation_builds_the_verification_release_with_local_signing() -> Result<()> {

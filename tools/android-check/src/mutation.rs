@@ -646,6 +646,14 @@ mod tests {
             ),
             ("LICENSE-APACHE".to_owned(), "fixture license".to_owned()),
             ("mise.lock".to_owned(), "fixture tool lock".to_owned()),
+            (
+                "ios/Sources/PhonebookKit/PlaceReadings.json".to_owned(),
+                "fixture readings".to_owned(),
+            ),
+            (
+                "ios/Tests/PhonebookKitTests/PlaceReadingContract.json".to_owned(),
+                "fixture reading contract".to_owned(),
+            ),
         ] {
             let path = root.path().join(path);
             fs::create_dir_all(path.parent().context("Missing fixture parent")?)?;
@@ -660,6 +668,8 @@ mod tests {
             "tools/delivery/core/src/identities.rs",
             "LICENSE-APACHE",
             "mise.lock",
+            "ios/Sources/PhonebookKit/PlaceReadings.json",
+            "ios/Tests/PhonebookKitTests/PlaceReadingContract.json",
         ] {
             assert_eq!(
                 fs::read(root.path().join(path))?,

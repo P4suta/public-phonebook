@@ -127,6 +127,19 @@ describe("test stages", () => {
     }
   });
 
+  it("admits reusable iOS check outputs before recording a candidate stage", async () => {
+    const invoked: { executable: string; args: readonly string[] }[] = [];
+    await stageRunner("fixture", async (executable, args): Promise<void> => {
+      invoked.push({ executable, args });
+    })["ios-check"]();
+    expect(invoked).toEqual([
+      {
+        executable: "just",
+        args: ["delivery", "platform", "ios", "--scope", "check"],
+      },
+    ]);
+  });
+
   it("writes one receipt per stage under the digest of its inputs", async () => {
     const directory = await mkdtemp(join(tmpdir(), "phonebook-stages-"));
     try {

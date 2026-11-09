@@ -396,6 +396,8 @@ pub enum Action {
         tests: Vec<String>,
         #[arg(long, conflicts_with = "tests")]
         live: bool,
+        #[arg(long, requires = "live")]
+        device: Option<String>,
     },
     Affected {
         #[arg(long)]
@@ -1348,6 +1350,10 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
     };
     let qa_device = match &action {
         Action::QaInstall { device } => Some(device::prepare_qa(root, device.as_deref())?),
+        Action::UiTest {
+            device: Some(device),
+            ..
+        } => Some(device::prepare_ui(root, device)?),
         _ => None,
     };
     let _machine_lease = (!matches!(action, Action::Prove | Action::UnitTest))
@@ -1446,8 +1452,16 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
             device::install_qa(root, &qa_device.context("The QA device wasn't prepared")?)
         }
         Action::StoreBuildControl => store_build::control(root),
-        Action::UiTest { tests, live } => {
-            ui_test(root, &tests, live)?;
+        Action::UiTest {
+            tests,
+            live,
+            device,
+        } => {
+            if device.is_some() {
+                device::smoke(root, &qa_device.context("The QA device wasn't prepared")?)?;
+            } else {
+                ui_test(root, &tests, live)?;
+            }
             Ok(())
         }
         Action::Check | Action::UnitTest => {
@@ -2025,7 +2039,7 @@ mod tests {
     #[test]
     fn ui_inventory_rejects_missing_wrong_duplicate_failed_and_skipped_cases() -> Result<()> {
         let summary = json!({"failedTests":0,"passedTests":1,"skippedTests":0,"expectedFailures":0,"totalTestCount":1,"result":"Passed","runtimeWarnings":[]});
-        for name in UI_TESTS {
+        for name in UI_TESTS.into_iter().chain([LIVE_UI_TEST]) {
             let case = json!({"nodeType":"Test Case","nodeIdentifier":format!("DirectoryUITests/{name}()"),"result":"Passed"});
             let tree = json!({"testNodes":[{"children":[case.clone()]}]});
             require_ui_case(&summary, &tree, name)?;

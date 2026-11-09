@@ -5,6 +5,7 @@ use crate::{
     versions::App,
 };
 use anyhow::{Context, Result, ensure};
+use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
@@ -16,11 +17,29 @@ use std::{
 const IOS_COMMANDS: [&str; 3] = ["ios-check", "ios-sanitize", "ios-mutate"];
 const ANDROID_COMMANDS: [&str; 2] = ["android-check", "android-mutate"];
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
+#[serde(rename_all = "lowercase")]
+pub enum Scope {
+    Check,
+    #[default]
+    Full,
+}
+
+impl Scope {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Check => "check",
+            Self::Full => "full",
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct PlatformInputs {
     format: u32,
     app: App,
+    scope: Scope,
     sources: BTreeMap<String, Digest>,
     commands: Vec<String>,
     environment: BTreeMap<String, String>,
@@ -31,6 +50,7 @@ pub struct PlatformInputs {
 pub struct Receipt {
     pub inputs: PlatformInputs,
     pub passed: bool,
+    pub outputs: BTreeMap<String, Digest>,
 }
 
 fn under(path: &str, prefix: &str) -> bool {
@@ -77,7 +97,7 @@ fn output(program: &str, arguments: &[&str]) -> Result<String> {
     .to_owned())
 }
 
-pub fn inputs(root: &Path, app: App) -> Result<PlatformInputs> {
+pub fn inputs(root: &Path, app: App, scope: Scope) -> Result<PlatformInputs> {
     let mut git = Command::new("git");
     git.current_dir(root).args([
         "ls-files",
@@ -144,9 +164,14 @@ pub fn inputs(root: &Path, app: App) -> Result<PlatformInputs> {
             ANDROID_COMMANDS.as_slice()
         }
     };
+    let commands = match scope {
+        Scope::Full => commands,
+        Scope::Check => &commands[..1],
+    };
     Ok(PlatformInputs {
-        format: 1,
+        format: 2,
         app,
+        scope,
         sources,
         commands: commands
             .iter()
@@ -156,33 +181,68 @@ pub fn inputs(root: &Path, app: App) -> Result<PlatformInputs> {
     })
 }
 
-pub fn reusable(receipt: &Receipt, current: &PlatformInputs) -> bool {
+fn output_paths(app: App, scope: Scope) -> &'static [&'static str] {
+    match (app, scope) {
+        (App::Ios, Scope::Check) => &["target/ios/receipt.json"],
+        (App::Ios, Scope::Full) => &[
+            "target/ios/receipt.json",
+            "target/ios/sanitizer-receipt.json",
+            "target/ios/mutation-receipt.json",
+        ],
+        (App::Android, Scope::Check) => &["target/android/gradle-check.txt"],
+        (App::Android, Scope::Full) => &[
+            "target/android/gradle-check.txt",
+            "target/android/mutation/receipt.json",
+        ],
+    }
+}
+
+fn outputs(root: &Path, current: &PlatformInputs) -> Result<BTreeMap<String, Digest>> {
+    output_paths(current.app, current.scope)
+        .iter()
+        .map(|path| Ok(((*path).to_owned(), Digest::of(&fs::read(root.join(path))?))))
+        .collect()
+}
+
+pub fn reusable(root: &Path, receipt: &Receipt, current: &PlatformInputs) -> bool {
     delivery_core::reuse_evidence(
-        receipt.inputs.format == 1
+        receipt.inputs.format == 2
             && receipt.inputs.app == current.app
+            && receipt.inputs.scope == current.scope
             && receipt.inputs.sources == current.sources,
         receipt.inputs.commands == current.commands,
         receipt.inputs.environment == current.environment,
-        receipt.passed,
+        receipt.passed && outputs(root, current).is_ok_and(|actual| actual == receipt.outputs),
     )
 }
 
-pub fn key(root: &Path, app: App) -> Result<Digest> {
-    Ok(Digest::of(&serde_json::to_vec(&inputs(root, app)?)?))
+pub fn key(root: &Path, app: App, scope: Scope) -> Result<Digest> {
+    Ok(Digest::of(&serde_json::to_vec(&inputs(root, app, scope)?)?))
 }
 
-pub fn verify(root: &Path, app: App) -> Result<()> {
-    let current = inputs(root, app)?;
-    let path = root.join(format!("target/delivery/platforms/{}.json", app.name()));
+pub fn verify(root: &Path, app: App, scope: Scope) -> Result<()> {
+    let current = inputs(root, app, scope)?;
+    let suffix = if scope == Scope::Check { "-check" } else { "" };
+    let path = root.join(format!(
+        "target/delivery/platforms/{}{suffix}.json",
+        app.name()
+    ));
     if path.exists() {
-        let receipt: Receipt = read_json(&path)?;
-        if reusable(&receipt, &current) {
+        if let Ok(receipt) = read_json::<Receipt>(&path)
+            && reusable(root, &receipt, &current)
+        {
             println!("Reused matching {} assurance evidence", app.name());
             return Ok(());
         }
         fs::remove_file(&path)?;
     }
-    for recipe in &current.commands {
+    let commands = if scope == Scope::Full {
+        verify(root, app, Scope::Check)?;
+        &current.commands[1..]
+    } else {
+        &current.commands[..]
+    };
+    for recipe in commands {
         let status = Command::new("just")
             .current_dir(root)
             .arg(recipe)
@@ -194,12 +254,13 @@ pub fn verify(root: &Path, app: App) -> Result<()> {
         );
     }
     ensure!(
-        current == inputs(root, app)?,
+        current == inputs(root, app, scope)?,
         "Platform inputs changed during verification"
     );
     write_json(
         &path,
         &Receipt {
+            outputs: outputs(root, &current)?,
             inputs: current,
             passed: true,
         },
@@ -234,10 +295,37 @@ mod tests {
         Ok(())
     }
     #[test]
-    fn receipts_refuse_changed_added_removed_inputs_commands_and_environments() {
+    fn matching_metadata_without_native_outputs_cannot_replace_verification() -> Result<()> {
+        let root = tempfile::tempdir()?;
         let current = PlatformInputs {
-            format: 1,
+            format: 2,
             app: App::Ios,
+            scope: Scope::Check,
+            sources: BTreeMap::from([("App.swift".to_owned(), Digest::of(b"source"))]),
+            commands: vec!["ios-check".to_owned()],
+            environment: BTreeMap::new(),
+        };
+        let receipt = Receipt {
+            inputs: current.clone(),
+            passed: true,
+            outputs: BTreeMap::new(),
+        };
+        assert!(!reusable(root.path(), &receipt, &current));
+        Ok(())
+    }
+
+    #[test]
+    fn receipts_refuse_changed_added_removed_inputs_commands_and_environments() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        fs::create_dir_all(root.path().join("target/ios"))?;
+        fs::write(
+            root.path().join("target/ios/receipt.json"),
+            b"native result",
+        )?;
+        let current = PlatformInputs {
+            format: 2,
+            app: App::Ios,
+            scope: Scope::Check,
             sources: BTreeMap::from([("App.swift".to_owned(), Digest::of(b"source"))]),
             commands: vec!["ios-check".to_owned()],
             environment: BTreeMap::from([("xcode".to_owned(), "pinned".to_owned())]),
@@ -245,23 +333,33 @@ mod tests {
         let mut receipt = Receipt {
             inputs: current.clone(),
             passed: true,
+            outputs: outputs(root.path(), &current)?,
         };
-        assert!(reusable(&receipt, &current));
+        assert!(reusable(root.path(), &receipt, &current));
         receipt
             .inputs
             .sources
             .insert("New.swift".to_owned(), Digest::of(b"added"));
-        assert!(!reusable(&receipt, &current));
+        assert!(!reusable(root.path(), &receipt, &current));
         receipt.inputs.sources.clear();
-        assert!(!reusable(&receipt, &current));
+        assert!(!reusable(root.path(), &receipt, &current));
         receipt.inputs = current.clone();
         receipt.inputs.commands.clear();
-        assert!(!reusable(&receipt, &current));
+        assert!(!reusable(root.path(), &receipt, &current));
         receipt.inputs = current.clone();
         receipt.inputs.environment.clear();
-        assert!(!reusable(&receipt, &current));
+        assert!(!reusable(root.path(), &receipt, &current));
+        receipt.inputs = current.clone();
+        receipt.inputs.scope = Scope::Full;
+        assert!(!reusable(root.path(), &receipt, &current));
+        receipt.inputs = current.clone();
+        fs::write(root.path().join("target/ios/receipt.json"), b"changed")?;
+        assert!(!reusable(root.path(), &receipt, &current));
+        fs::remove_file(root.path().join("target/ios/receipt.json"))?;
+        assert!(!reusable(root.path(), &receipt, &current));
         receipt.inputs = current;
         receipt.passed = false;
-        assert!(!reusable(&receipt, &receipt.inputs));
+        assert!(!reusable(root.path(), &receipt, &receipt.inputs));
+        Ok(())
     }
 }

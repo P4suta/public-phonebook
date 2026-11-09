@@ -28,6 +28,8 @@ const BUILD_INPUT_PATHS: &[&str] = &[
     "tools/delivery",
     "ios/Tests/PhonebookCoreTests/SearchContract.json",
     "ios/Tests/PhonebookKitTests/DirectoryContract.json",
+    "ios/Sources/PhonebookKit/PlaceReadings.json",
+    "ios/Tests/PhonebookKitTests/PlaceReadingContract.json",
     "src/core/kanji-variants.ts",
     "LICENSE-APACHE",
     "mise.toml",

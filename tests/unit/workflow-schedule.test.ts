@@ -116,6 +116,30 @@ describe("workflow schedules", () => {
     }
   });
 
+  it("runs independent iOS checks while every failed check blocks archive preparation and signing", async () => {
+    const text = await workflowText("ios.yml");
+    const schedule = workflowSchedule(parse(text));
+    for (const failed of ["delivery-checks", "proofs", "native"]) {
+      const results = followRun(schedule, {}, { [failed]: "failure" });
+      for (const job of ["delivery-checks", "proofs", "native"])
+        expect(results[job]).toBe(job === failed ? "failure" : "success");
+      for (const job of ["unsigned", "signing", "upload"])
+        expect(results[job]).toBe("skipped");
+    }
+    expect(
+      findings(
+        "ios.yml",
+        planted(
+          text,
+          "    needs: [delivery-checks, proofs, native]\n",
+          "    needs: [proofs, native]\n",
+        ),
+      ),
+    ).toContain(
+      "unsigned runs only after delivery-checks, proofs, native succeeded",
+    );
+  });
+
   it("finds a planted defect in each release-path workflow", async () => {
     expect(
       findings(

@@ -12,7 +12,6 @@
 - [Review physical-device verification boundaries](ios-device-verification.md).
 - [Maintain the shared Figma icon library](icons.md).
 - [Prepare the native App Store distribution](ios-store-distribution.md).
-- [Track native release readiness](ios-release-readiness.md).
 - [Read the native Cloudflare architecture decision](adr/native-cloudflare-typescript-services.md).
 - [Serve the directory JSON to the site only](adr/serve-directory-json-to-the-site-only.md).
 - [Declare dataset file formats instead of API versions](adr/declare-dataset-file-formats-instead-of-api-versions.md).
