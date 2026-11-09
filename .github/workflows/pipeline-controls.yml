@@ -62,7 +62,11 @@ jobs:
           messages=$(jq --exit-status --raw-output '.messages | select(length > 0) | join(" ")' "$body")
           rm -f "$body"
           echo "Doppler answered $status: $messages"
-          test "$status" = 403
+          if [ "$status" = 400 ]; then
+            test "$messages" = "This token does not have access to requested config 'ci_production'"
+          else
+            test "$status" = 403
+          fi
   read-only-deploy:
     name: Refuse a deployment with the read-only token
     runs-on: ubuntu-26.04
