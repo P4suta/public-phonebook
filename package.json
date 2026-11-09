@@ -25,13 +25,13 @@
   "dependencies": {
     "@geolonia/japanese-numeral": "1.1.0",
     "@noble/hashes": "2.4.0",
-    "@tanstack/react-query": "5.105.0",
+    "@tanstack/react-query": "5.106.1",
     "@tanstack/react-router": "1.170.46",
     "@tanstack/react-start": "1.169.4",
     "@vanilla-extract/css": "1.21.3",
     "csv-stringify": "6.9.0",
     "drizzle-orm": "0.45.4",
-    "hono": "4.13.14",
+    "hono": "4.13.16",
     "libphonenumber-js": "1.13.15",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -41,7 +41,7 @@
     "@axe-core/playwright": "4.14.0",
     "@cloudflare/vite-plugin": "2.0.0-beta.v.8",
     "@cloudflare/workers-types": "5.20261029.1",
-    "@playwright/test": "1.64.1",
+    "@playwright/test": "1.65.0",
     "@types/node": "26.6.6",
     "@types/proper-lockfile": "4.1.4",
     "@types/react": "19.3.0",
@@ -54,25 +54,25 @@
     "csv-parse": "7.0.3",
     "fast-check": "4.10.2",
     "fflate": "0.8.3",
-    "lemmascript": "0.6.5",
+    "lemmascript": "0.6.6",
     "miniflare": "5.20261023.3-beta",
-    "oxlint": "1.90.0",
-    "oxlint-tsgolint": "7.0.2005",
-    "pdfjs-dist": "6.4.299",
+    "oxlint": "1.91.0",
+    "oxlint-tsgolint": "7.0.2006",
+    "pdfjs-dist": "6.5.438",
     "proper-lockfile": "4.1.2",
     "release-please": "17.11.2",
     "typescript": "7.0.2",
     "vite": "8.3.5",
-    "vitest": "5.0.5",
+    "vitest": "5.1.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "yaml": "2.9.1"
   },
   "overrides": {
     "@google-automations/git-file-utils": {
-      "minimatch": "11.0.4"
+      "minimatch": "11.0.5"
     },
     "@ts-morph/common": {
-      "minimatch": "11.0.4"
+      "minimatch": "11.0.5"
     }
   },
   "allowScripts": {
