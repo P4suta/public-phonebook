@@ -240,7 +240,11 @@ fn output_paths(app: App, scope: Scope) -> &'static [&'static str] {
 fn outputs(root: &Path, current: &PlatformInputs) -> Result<BTreeMap<String, Digest>> {
     output_paths(current.app, current.scope)
         .iter()
-        .map(|path| Ok(((*path).to_owned(), Digest::of(&fs::read(root.join(path))?))))
+        .map(|path| {
+            let bytes = fs::read(root.join(path))
+                .with_context(|| format!("Cannot read platform verification output {path}"))?;
+            Ok(((*path).to_owned(), Digest::of(&bytes)))
+        })
         .collect()
 }
 
@@ -391,6 +395,10 @@ mod tests {
             outputs: BTreeMap::new(),
         };
         assert!(!reusable(root.path(), &receipt, &current));
+        let error = outputs(root.path(), &current)
+            .err()
+            .context("The native output should be missing")?;
+        assert!(error.to_string().contains("target/ios/receipt.json"));
         Ok(())
     }
 

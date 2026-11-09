@@ -170,6 +170,7 @@ jobs:
         with:
           path: |
             target/delivery/platforms/ios.json
+            target/delivery/platforms/ios-check.json
             target/ios/receipt.json
             target/ios/sanitizer-receipt.json
             target/ios/mutation-receipt.json
@@ -197,6 +198,7 @@ jobs:
         with:
           path: |
             target/delivery/platforms/android.json
+            target/delivery/platforms/android-check.json
             target/android/gradle-check.txt
             target/android/mutation/receipt.json
           key: android-assurance-${{ steps.inputs.outputs.key }}

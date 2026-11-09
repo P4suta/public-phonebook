@@ -934,6 +934,7 @@ fn qa_build(root: &Path, device: &Device) -> Command {
 
 fn smoke_command(root: &Path, device: &Device) -> Command {
     let mut command = qa_command(root, device);
+    let allowance = super::SCENARIO_ALLOWANCE_SECONDS.to_string();
     command.args([
         "-only-testing:PhonebookUITests/DirectoryUITests/testLivePublicDirectorySearchAndSource",
         "-parallel-testing-enabled",
@@ -943,9 +944,9 @@ fn smoke_command(root: &Path, device: &Device) -> Command {
         "-test-timeouts-enabled",
         "YES",
         "-default-test-execution-time-allowance",
-        "300",
+        &allowance,
         "-maximum-test-execution-time-allowance",
-        "300",
+        &allowance,
         "-resultBundlePath",
         "target/ios/device-ui/search.xcresult",
         "test-without-building",
@@ -1262,6 +1263,7 @@ mod tests {
     fn device_ui_runs_only_the_read_only_case_with_release_qa_identity() -> Result<()> {
         let device = connected_iphone(&report(vec![phone("connected", true, "phone")]), None)?;
         let command = smoke_command(Path::new("/project"), &device);
+        let allowance = super::super::SCENARIO_ALLOWANCE_SECONDS.to_string();
         let args = command
             .get_args()
             .map(|value| value.to_string_lossy().into_owned())
@@ -1271,7 +1273,8 @@ mod tests {
             ["-scheme", QA_SCHEME],
             ["-destination", "id=phone"],
             ["-xcconfig", LOCAL_SIGNING],
-            ["-maximum-test-execution-time-allowance", "300"],
+            ["-default-test-execution-time-allowance", &allowance],
+            ["-maximum-test-execution-time-allowance", &allowance],
         ] {
             assert!(args.windows(2).any(|window| window == pair));
         }

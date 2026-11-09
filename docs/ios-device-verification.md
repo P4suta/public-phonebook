@@ -15,7 +15,7 @@ A successful signature proves installation eligibility, not feature execution.
 
 Run `mise x -- just ios-ui-test --live --device` with one iPhone unlocked and connected.
 If you connect two or more iPhones, select one with `--device UDID`.
-The command checks readiness before building, uses local signing with VerificationRelease and the QA identity, and runs one case with a five-minute execution allowance.
+The command checks readiness before building, uses local signing with VerificationRelease and the QA identity, and runs one case with the shared ten-minute execution allowance.
 Keep the command within the authorized verification window.
 The result bundle and source-bound result live under `target/ios/device-ui`.
 An empty suite, skipped case, unexpected case, or runtime warning fails verification.
