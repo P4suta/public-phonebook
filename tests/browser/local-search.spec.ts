@@ -103,22 +103,24 @@ test("built device search matches verified place readings with only the name ind
     "都道府県名と主な分類名は、2文字以上の読み仮名でもさがせます。",
   );
   const library = page.locator('[data-result-category="library"]');
-  for (const [reading, canonical] of [
-    ["としょかん", "図書館"],
-    ["とうきょう としょかん", "東京 図書館"],
+  for (const text of [
+    "図書館",
+    "としょかん",
+    "東京 図書館",
+    "とうきょう としょかん",
   ] as const) {
     const response: unknown = await (
       await request.get(
-        `/api/contact-groups?${new URLSearchParams({ q: canonical })}`,
+        `/api/contact-groups?${new URLSearchParams({ q: text })}`,
       )
     ).json();
     const expected = v
       .parse(GroupedSearchResponseSchema, response)
       .groups.find((group) => group.category === "library");
     if (!expected)
-      throw new Error(`The served data has no libraries for ${canonical}`);
+      throw new Error(`The served data has no libraries for ${text}`);
     expect(expected.results.data.length).toBeGreaterThan(0);
-    await page.getByRole("searchbox").fill(reading);
+    await page.getByRole("searchbox").fill(text);
     await expect(
       library.getByRole("heading", { level: 2 }),
     ).toHaveAccessibleName(
