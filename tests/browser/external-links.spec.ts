@@ -98,12 +98,6 @@ test("every external link type confirms its destination before opening a tab", a
   });
   const cases = [
     {
-      path: "/",
-      link: (): Locator =>
-        page.getByRole("link", { name: /^プログラムと決まりを見る/u }),
-      description: destinations.sourceCode,
-    },
-    {
       path: "/about",
       link: (): Locator =>
         page.getByRole("link", { name: /^プログラムと決まりを見る/u }),
@@ -217,46 +211,44 @@ test("every external link type confirms its destination before opening a tab", a
 test("the App Store confirmation delegates the published destination to the browser", async ({
   page,
 }) => {
-  for (const path of ["/", "/about"]) {
-    await openPage(page, path);
-    await page.evaluate(() => {
-      window.open = (url, target, features): null => {
-        document.documentElement.dataset.externalOpen = JSON.stringify([
-          String(url),
-          target,
-          features,
-        ]);
-        return null;
-      };
-    });
-    const link = page.getByRole("link", {
-      name: /^App Storeでアプリを見る/u,
-    });
-    await expect(link).toHaveAttribute("href", appStoreUrl);
-    const dialog = confirmation(page);
-    const html = page.locator("html");
-    await link.click();
-    await expect(dialog).toHaveAccessibleDescription(
-      `${destinations.appStore} ${uiCopy.external.host("apps.apple.com")} ${uiCopy.external.newTab}`,
-    );
-    await page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden();
-    expect(await isActive(link)).toBe(true);
-    await expect(html).not.toHaveAttribute("data-external-open");
-    await link.click();
-    await dialog.getByRole("button", { name: uiCopy.external.cancel }).click();
-    await expect(dialog).toBeHidden();
-    expect(await isActive(link)).toBe(true);
-    await expect(html).not.toHaveAttribute("data-external-open");
-    await link.click();
-    await dialog.getByRole("button", { name: uiCopy.external.open }).click();
-    await expect(html).toHaveAttribute(
-      "data-external-open",
-      JSON.stringify([appStoreUrl, "_blank", "noopener,noreferrer"]),
-    );
-    await expect(dialog).toBeHidden();
-    expect(await isActive(link)).toBe(true);
-  }
+  await openPage(page, "/about");
+  await page.evaluate(() => {
+    window.open = (url, target, features): null => {
+      document.documentElement.dataset.externalOpen = JSON.stringify([
+        String(url),
+        target,
+        features,
+      ]);
+      return null;
+    };
+  });
+  const link = page.getByRole("link", {
+    name: /^App Storeでアプリを見る/u,
+  });
+  await expect(link).toHaveAttribute("href", appStoreUrl);
+  const dialog = confirmation(page);
+  const html = page.locator("html");
+  await link.click();
+  await expect(dialog).toHaveAccessibleDescription(
+    `${destinations.appStore} ${uiCopy.external.host("apps.apple.com")} ${uiCopy.external.newTab}`,
+  );
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  expect(await isActive(link)).toBe(true);
+  await expect(html).not.toHaveAttribute("data-external-open");
+  await link.click();
+  await dialog.getByRole("button", { name: uiCopy.external.cancel }).click();
+  await expect(dialog).toBeHidden();
+  expect(await isActive(link)).toBe(true);
+  await expect(html).not.toHaveAttribute("data-external-open");
+  await link.click();
+  await dialog.getByRole("button", { name: uiCopy.external.open }).click();
+  await expect(html).toHaveAttribute(
+    "data-external-open",
+    JSON.stringify([appStoreUrl, "_blank", "noopener,noreferrer"]),
+  );
+  await expect(dialog).toBeHidden();
+  expect(await isActive(link)).toBe(true);
 });
 
 test("modified and middle-button activations leave external links to the browser", async ({
@@ -321,11 +313,6 @@ test("external links keep isolated navigation without JavaScript", async ({
         "https://www.cloudflare.com/privacypolicy/",
       ],
       [
-        "/",
-        "プログラムと決まりを見る",
-        "https://github.com/P4suta/public-phonebook",
-      ],
-      [
         "/about",
         "プログラムと決まりを見る",
         "https://github.com/P4suta/public-phonebook",
@@ -343,16 +330,14 @@ test("external links keep isolated navigation without JavaScript", async ({
       await popup.close();
       await expect(confirmation(page)).toBeHidden();
     }
-    for (const path of ["/", "/about"]) {
-      await page.goto(path);
-      const link = page.getByRole("link", {
-        name: /^App Storeでアプリを見る/u,
-      });
-      await expect(link).toHaveAttribute("href", appStoreUrl);
-      await expect(link).toHaveAttribute("target", "_blank");
-      await expect(link).toHaveAttribute("rel", "noopener noreferrer");
-      await expect(confirmation(page)).toBeHidden();
-    }
+    await page.goto("/about");
+    const link = page.getByRole("link", {
+      name: /^App Storeでアプリを見る/u,
+    });
+    await expect(link).toHaveAttribute("href", appStoreUrl);
+    await expect(link).toHaveAttribute("target", "_blank");
+    await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    await expect(confirmation(page)).toBeHidden();
   } finally {
     await context.close();
   }
