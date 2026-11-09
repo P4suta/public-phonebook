@@ -75,7 +75,11 @@ The `campaigns` input adds the sanitizer and mutation campaigns to the native jo
 `candidate.yml` calls it through `workflow_call` for each release candidate.
 No pull request, merge group, or push starts it, and a manual run gates nothing by itself.
 The national multi-browser campaign stays out of it and runs in `just test`.
-The manual TestFlight workflow reruns the native, Lean, sanitizer, and mutation checks for one `main` commit before its signed delivery.
+The manual TestFlight workflow requires native, Lean, sanitizer, and mutation checks for one `main` commit before its signed delivery.
+Candidate and TestFlight share matching check-only native results through the platform verifier.
+The verifier compares source inputs, command scope, toolchain and OS builds, simulator runtime identities, and every required output digest.
+A missing, malformed, or changed result reruns verification.
+Independent TestFlight checks run concurrently, and unsigned archive preparation waits for every required check.
 
 No owned source may use unchecked assertions, explicit any, floating promises, or unsafe dynamic values.
 External inputs are unknown until Valibot validates them.

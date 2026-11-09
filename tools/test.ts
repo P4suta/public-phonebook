@@ -112,7 +112,8 @@ export function stageRunner(
     e2e: () =>
       execute("npm", ["run", "e2e"], undefined, e2eEnvironment(bundle)),
     "ios-prove": () => execute("cargo", [...iosCheckManifest, "prove"]),
-    "ios-check": () => execute("cargo", [...iosCheckManifest, "check"]),
+    "ios-check": () =>
+      execute("just", ["delivery", "platform", "ios", "--scope", "check"]),
   };
 }
 

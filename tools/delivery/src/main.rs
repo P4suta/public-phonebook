@@ -101,6 +101,8 @@ enum Action {
     PlatformKey {
         #[arg(value_enum)]
         app: delivery::versions::App,
+        #[arg(long, value_enum, default_value_t = delivery::platforms::Scope::Full)]
+        scope: delivery::platforms::Scope,
         #[arg(long)]
         output: Option<PathBuf>,
     },
@@ -108,6 +110,8 @@ enum Action {
     Platform {
         #[arg(value_enum)]
         app: delivery::versions::App,
+        #[arg(long, value_enum, default_value_t = delivery::platforms::Scope::Full)]
+        scope: delivery::platforms::Scope,
     },
     /// Refuse incomplete or unexpectedly skipped candidate jobs.
     Gate {
@@ -317,14 +321,14 @@ fn main() -> Result<()> {
             );
         }
         Action::VersionProposal { app } => delivery::versions::prepare(&root, &mut GithubCli, app)?,
-        Action::PlatformKey { app, output } => {
-            let key = delivery::platforms::key(&root, app)?;
+        Action::PlatformKey { app, scope, output } => {
+            let key = delivery::platforms::key(&root, app, scope)?;
             if let Some(path) = output {
                 writeln!(OpenOptions::new().append(true).open(path)?, "key={key}")?;
             }
             println!("{key}");
         }
-        Action::Platform { app } => delivery::platforms::verify(&root, app)?,
+        Action::Platform { app, scope } => delivery::platforms::verify(&root, app, scope)?,
         Action::Gate {
             operation,
             plan,
