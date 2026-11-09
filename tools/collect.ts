@@ -29,6 +29,9 @@ const options = parseArgs({
     sheet: { type: "string" },
     row: { type: "string" },
     columns: { type: "string" },
+    "pdf-columns": { type: "string" },
+    "record-column": { type: "string" },
+    limit: { type: "string" },
     summary: { type: "boolean", default: false },
     pattern: { type: "string" },
     output: { type: "string" },
@@ -65,7 +68,7 @@ if (command === "profile") {
 } else if (command === "catalog") {
   if (!url || !options.values.output)
     throw new Error(
-      "Usage: collect catalog BASE_MANIFEST --output MANIFEST [--query QUERY,...]",
+      "Usage: collect catalog BASE_MANIFEST --output MANIFEST [--query QUERY,...] [--pattern PATTERN]",
     );
   await discoverCatalog({
     baseManifest: url,
@@ -73,6 +76,7 @@ if (command === "profile") {
     cache: options.values.cache,
     offline: options.values.offline,
     query: options.values.query,
+    ...(options.values.pattern ? { pattern: options.values.pattern } : {}),
   });
 } else if (command === "run") {
   if (!url || !options.values.output)
@@ -126,7 +130,23 @@ if (command === "profile") {
         : format === "workbook"
           ? readWorkbookTables(bytes)
           : format === "pdf"
-            ? await readPdfTables(bytes)
+            ? await readPdfTables(
+                bytes,
+                options.values["pdf-columns"]
+                  ?.split(",")
+                  .map((value) =>
+                    v.parse(
+                      v.pipe(v.number(), v.finite(), v.minValue(0)),
+                      Number(value),
+                    ),
+                  ),
+                options.values["record-column"] === undefined
+                  ? undefined
+                  : v.parse(
+                      v.pipe(v.number(), v.safeInteger(), v.minValue(0)),
+                      Number(options.values["record-column"]),
+                    ),
+              )
             : readHtmlTables(decodeSourceText(bytes));
     const start = v.parse(
       v.pipe(v.number(), v.safeInteger(), v.minValue(0)),
@@ -140,6 +160,10 @@ if (command === "profile") {
           Number(value),
         ),
       );
+    const limit = v.parse(
+      v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(1000)),
+      Number(options.values.limit ?? inspectionRowCount),
+    );
     console.info(
       JSON.stringify(
         (options.values.summary
@@ -152,7 +176,7 @@ if (command === "profile") {
           rowCount: table.rows.length,
           rows: options.values.summary
             ? []
-            : table.rows.slice(start, start + inspectionRowCount).map((row) =>
+            : table.rows.slice(start, start + limit).map((row) =>
                 columns
                   ? columns.map((column) => ({
                       column,

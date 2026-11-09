@@ -264,6 +264,13 @@ These checks do not prove the complete service or the truth of a publisher's dat
 Collection parsers, Unicode normalization, regular expressions, PDF rendering, HTTP transport, and SQLite iterators cross the translator's supported semantics.
 The supported evidence-selection and row-accounting decisions are proved under Boolean and validated finite-integer assumptions.
 The checked alternatives use planted UTF-8 and Shift-JIS CSV, merged spreadsheets, spanned HTML tables, ambiguous school records, conflicting regions, fax-only fields, cache corruption, rate limits, and incomplete publication inputs.
+Native PDF fixtures cover rotated pages, shifted page boxes, wrapped records, unequal row heights, font changes, and page-number footers.
+HTML fixtures cover clipped row spans, labeled office records, and office headings beside map captions.
+Collection selection excludes plans with a failed resource and preserves reviewed contact floors.
+Source adapters preserve reviewed region labels and qualified agency names.
+The numeric telephone fixture restores a source-declared trunk prefix while excluding fax-only and unconfigured values.
+Extraction fixtures cover agency names with line breaks and complete telephone numbers before numeric parenthetical notes.
+The website fixture rejects a cell containing two addresses separated by a line break.
 Address checks include named-place counterexamples and 500 fixed-seed idempotence cases.
 The complete data gate rejects a stored address that is not canonical and rejects incomplete or duplicate catalog partitions.
 Canonical native preparation also checks the JSONL, CSV, and vCard representations against the same contact contract.
@@ -324,11 +331,13 @@ The tests also plant a defect in each workflow and require the property that it 
 A condition outside the supported grammar fails the policy, so a new construct needs a model first.
 
 `pipeline-controls.yml` fails unless each refusal happens for its expected reason.
-- The fake-provider tests refuse an unverified, displaced, removed, or different candidate, a second lease holder, and evidence from another tree, manifest, or signer.
-- The observe identity exchanges its GitHub token with Doppler and requests the `ci_production` config, and the step requires a 403 answer that carries a Doppler error message.
-  A failed exchange, a network failure, another status, or an answer without that message fails the control, and a successful read fails it without printing the secrets.
-- The read-only token tries to deploy a version that doesn't exist, and the step requires an authorization refusal rather than a missing-version error.
-- The withdrawal drill stages an attested build at 0%, runs the real candidate checks, injects a probe failure, and requires the withdrawal to leave production unchanged.
+The fake-provider tests refuse an unverified, displaced, removed, or different candidate, a second lease holder, and evidence from another tree, manifest, or signer.
+
+The observe identity exchanges its GitHub token with Doppler and requests the `ci_production` config, and the step requires a 403 answer that carries a Doppler error message.
+A failed exchange, a network failure, another status, or an answer without that message fails the control, and a successful read fails it without printing the secrets.
+The read-only token tries to deploy a version that doesn't exist, and the step requires an authorization refusal rather than a missing-version error.
+
+The withdrawal drill stages an attested build at 0%, runs the real candidate checks, injects a probe failure, and requires the withdrawal to leave production unchanged.
 
 The drill and the two token controls need the owner's Cloudflare tokens and Doppler configs, so they haven't run yet.
 The authorization refusal's exact message is an assumption about the Cloudflare API, and the first run confirms it.
@@ -363,13 +372,14 @@ It also compares every literal row with the archive row at its position and requ
 The bundle doesn't hold the base, so the check can't read copied rows; preparation applies each delta to its base and requires identical bytes before it records the delta.
 Fixed-seed properties over generated pairs, including renumbered dictionaries and recollections, require the same exact reconstruction.
 The original publication is opened read-only.
-The active retained snapshot has 667,696 contacts, 561,495 distinct telephone numbers, 1,179 sources, 62 populated categories, and 47 prefectures.
+The expanded local snapshot has 672,133 contacts, 565,766 distinct telephone numbers, 1,719 sources, 65 populated categories, and 47 prefectures.
 The data audit identifies the exact snapshot in its output.
 Run `npm run data:phones -- .local/phonebook .local/phone-quality.json` for the source-bound telephone profile and complete metadata review queue.
 The earlier archived publication had 651,500 contact/phone relations, including 12,693 unseparated spellings and 11,326 spellings containing non-ASCII characters.
 Its common display formatter changed 36,527 source spellings without changing their canonical digits.
 Its audit found 160 relations outside the pinned full metadata's recognized patterns.
 They require source investigation and are preserved without speculative digit repairs.
+The expanded overlay adds no relations outside those metadata patterns.
 The audit requires zero unparseable spellings, source/canonical disagreements, formatting round-trip disagreements, and duplicate numbers within a contact.
 
 The release gate checks the build and the device search with these entry points, and the candidate stages below call them.

@@ -35,6 +35,14 @@ const fieldAliases = {
     "施設名",
     "保健所名",
     "教育委員会名",
+    "官署名",
+    "裁判所名",
+    "福祉事務所名",
+    "消防本部名",
+    "高等学校名",
+    "センター名",
+    "支援センター名",
+    "設置場所_名称",
   ],
   address: [
     "所在地",
@@ -45,6 +53,7 @@ const fieldAliases = {
     "施設所在地",
     "所在地(住所)",
     "施設_住所_表記",
+    "設置場所_住所",
   ],
   phone: [
     "電話",
@@ -56,12 +65,16 @@ const fieldAliases = {
     "施設_電話番号",
     "telephonenumber",
     "連絡先電話番号",
+    "施設電話番号",
+    "設置場所_電話番号",
+    "所在地電話番号",
   ],
   phoneAreaCode: ["市外局番", "局番"],
   postalCode: ["郵便", "郵便番号", "〒", "所在地(郵便番号)"],
   website: ["url", "ホームページ", "学校ホームページ"],
   recordId: ["学校コード"],
   kind: ["学校種別", "学校種", "校種"],
+  prefecture: ["都道府県", "都道府県名", "所在地_都道府県"],
 } as const;
 
 function label(value: string): string {
@@ -91,6 +104,7 @@ export function findColumns(row: readonly string[]): SourceColumns | null {
       website: v.array(v.number()),
       recordId: v.array(v.number()),
       kind: v.array(v.number()),
+      prefecture: v.array(v.number()),
     }),
     fields,
   );
@@ -101,13 +115,20 @@ export function extractPhones(
   value: string,
   prefix?: string,
 ): Contact["phones"] {
-  const text = value.normalize("NFKC").replace(/[‐‑‒–—―−ー]/gu, "-");
+  const text = value
+    .normalize("NFKC")
+    .replace(/[‐‑‒–—―−ー]/gu, "-")
+    .replace(/-[ \t]*\r?\n[ \t]*(?=[0-9]{1,4}(?:[^0-9]|$))/gu, "-");
   const numbers = new Map<string, Contact["phones"][number]>();
   for (const line of text.split(/[\r\n/、,;]/u)) {
     const voice = line.split(/(?:fax|ファックス|ファクス)\s*[:：]?/iu)[0] ?? "";
     const cleaned = voice
       .replace(/(?:電話(?:番号)?|tel(?:ephone)?)\s*[:：]?/giu, "")
       .replace(/\((?:代表|代|職員室|事務室)\)/gu, "")
+      .replace(
+        /\b(0[0-9]{1,4}-[0-9]{1,4}-[0-9]{3,4})\([0-9]{1,6}\)(?=$|[\s/、,;])/gu,
+        "$1",
+      )
       .trim();
     const direct = normalizePhone(cleaned);
     const candidates = direct.ok
@@ -176,6 +197,7 @@ export function extractTables(input: {
   let missingPhone = 0;
   let invalid = 0;
   let duplicate = 0;
+  let inheritedPrefecture = "";
   for (const table of input.tables) {
     if (
       source.tablePattern &&
@@ -198,12 +220,47 @@ export function extractTables(input: {
         )
       )
         continue;
-      const name = field(row, columns.name)
+      const namedPrefecture = field(
+        row,
+        source.columns?.prefecture || !source.prefectureCode
+          ? columns.prefecture
+          : [],
+      )
+        .normalize("NFKC")
+        .replace(/\s/gu, "");
+      if (
+        source.inheritPrefecture &&
+        prefectureNames.some((prefecture) => prefecture === namedPrefecture)
+      )
+        inheritedPrefecture = namedPrefecture;
+      const publishedName = field(row, columns.name)
         .replace(/^[○〇△◇◎※\s]+/u, "")
         .trim();
-      if (!name || fieldAliases.name.some((alias) => alias === label(name)))
+      if (
+        !publishedName ||
+        fieldAliases.name.some((alias) => alias === label(publishedName))
+      )
         continue;
+      const context = field(row, columns.nameContext);
+      const contextualName =
+        context && !publishedName.startsWith(context)
+          ? `${context} ${publishedName}`
+          : publishedName;
+      const qualifiedName =
+        source.namePrefix && !contextualName.startsWith(source.namePrefix)
+          ? `${source.namePrefix} ${contextualName}`
+          : contextualName;
+      const name = /[\r\n\t]/u.test(qualifiedName)
+        ? qualifiedName.replace(/\s+/gu, " ")
+        : qualifiedName;
       rows += 1;
+      if (
+        source.namePattern &&
+        !new RegExp(source.namePattern, "u").test(name)
+      ) {
+        issues.excluded_name_filter = (issues.excluded_name_filter ?? 0) + 1;
+        continue;
+      }
       const excluded = /閉校|廃校|休校|募集停止|☆/u.test(name);
       if (excluded) {
         issues.excluded_inactive = (issues.excluded_inactive ?? 0) + 1;
@@ -229,11 +286,14 @@ export function extractTables(input: {
         /^〒\s*[0-9０-９]{3}[-－]?[0-9０-９]{4}\s*/u,
         "",
       );
-      const namedPrefecture = field(row, columns.prefecture);
+      const mappedPrefecture =
+        source.prefectureValues?.[namedPrefecture || inheritedPrefecture];
       const addressPrefecture = prefectureNames.findIndex(
-        (prefecture) =>
+        (prefecture, prefectureIndex) =>
           address.normalize("NFKC").startsWith(prefecture) ||
-          namedPrefecture === prefecture,
+          (namedPrefecture || inheritedPrefecture) === prefecture ||
+          mappedPrefecture ===
+            String(prefectureIndex + 1).padStart(prefectureCodeWidth, "0"),
       );
       const prefectureCode =
         addressPrefecture >= 0
@@ -286,7 +346,7 @@ export function extractTables(input: {
         continue;
       }
       const parsedWebsite = v.safeParse(
-        PublicUrlSchema,
+        v.pipe(PublicUrlSchema, v.regex(/^\S+$/u)),
         field(row, columns.website),
       );
       const parsed = v.safeParse(ContactSchema, {

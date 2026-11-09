@@ -56,6 +56,7 @@ export async function discoverCatalog(input: {
   cache: string;
   offline: boolean;
   query: string;
+  pattern?: string;
 }): Promise<void> {
   const baseValue: unknown = JSON.parse(
     await readFile(input.baseManifest, "utf8"),
@@ -63,10 +64,9 @@ export async function discoverCatalog(input: {
   const base = v.parse(CollectionManifestSchema, baseValue);
   const store = new ArtifactStore(input.cache, { offline: input.offline });
   const sources = new Map<string, DirectorySource>(
-    base.sources
-      .filter((source) => !source.id.startsWith("odm:"))
-      .map((source) => [source.id, source]),
+    base.sources.map((source) => [source.id, source]),
   );
+  const pattern = input.pattern ? new RegExp(input.pattern, "iu") : null;
   const excluded: Record<string, number> = {};
   for (const query of input.query.split(",")) {
     for (
@@ -119,8 +119,10 @@ export async function discoverCatalog(input: {
               ? japaneseAttributionLicenseUrl
               : indexUrl;
         for (const resource of item.resources) {
+          if (pattern && !pattern.test(`${item.title}\n${resource.name ?? ""}`))
+            continue;
           if (
-            /統計|調査|通学区域|給食|児童数|生徒数|教員数|学校数|面積|財政|財務|人口|決算|予算|健康|体育|募集|行事|イベント|献立|学力|図書|就学/u.test(
+            /統計|調査|通学区域|給食|児童数|生徒数|教員数|学校数|面積|財政|財務|人口|決算|予算|健康診断|募集|行事|イベント|献立|学力|就学/u.test(
               resource.name ?? "",
             )
           )
@@ -138,6 +140,7 @@ export async function discoverCatalog(input: {
           )
             continue;
           const id = `odm:${item.id}:${resource.id}`;
+          if (sources.has(id)) continue;
           sources.set(
             id,
             v.parse(DirectorySourceSchema, {
