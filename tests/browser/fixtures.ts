@@ -131,6 +131,18 @@ export const test = base.extend<{
   diagnostics: void;
   httpFailures: Set<number>;
 }>({
+  context: async ({ context, browserName, playwright }, use): Promise<void> => {
+    if (browserName !== "webkit") {
+      await use(context);
+      return;
+    }
+    const regular = await playwright.webkit.launchPersistentContext("");
+    try {
+      await use(regular);
+    } finally {
+      await regular.close();
+    }
+  },
   httpFailures: async ({ baseURL }, use): Promise<void> => {
     if (!baseURL) throw new Error("The browser test server URL is required");
     await use(new Set());

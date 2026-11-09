@@ -133,23 +133,28 @@ export function placeHolds(
  * Ranks a row's comparison name against folded words, or returns -1 when a word occurs neither in the name nor in the row's places.
  * `placed` answers whether the row's region or category holds the word at an index.
  */
-export function rankWords(
+export function rankWords<Context>(
   name: string,
   words: readonly string[],
-  placed: (index: number) => boolean,
+  placed: (index: number, context: Context) => boolean,
+  context: Context,
 ): number {
-  let named = 0;
-  let inPlaces = 0;
-  for (const [index, word] of words.entries()) {
-    if (name.includes(word)) named += 1;
-    else if (placed(index)) inPlaces += 1;
-    else return unmatchedRank;
-  }
   const [single] = words;
   if (single === undefined) return unmatchedRank;
-  const nameRank =
-    words.length === 1 && named === 1
-      ? nameRankAt(name.indexOf(single), name.length, single.length)
-      : substringRank;
-  return wordRank(words.length, named, inPlaces, nameRank);
+  if (words.length === 1) {
+    const at = name.indexOf(single);
+    return at >= 0
+      ? nameRankAt(at, name.length, single.length)
+      : wordRank(1, 0, placed(0, context) ? 1 : 0, substringRank);
+  }
+  let named = 0;
+  let inPlaces = 0;
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index];
+    if (word === undefined) return unmatchedRank;
+    if (name.includes(word)) named += 1;
+    else if (placed(index, context)) inPlaces += 1;
+    else return unmatchedRank;
+  }
+  return wordRank(words.length, named, inPlaces, substringRank);
 }

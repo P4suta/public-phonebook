@@ -1,10 +1,12 @@
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { normalizeName, normalizeNameLines } from "../../src/core/identity.ts";
 import { parseSearch, searchQuery } from "../../src/core/search.ts";
 import {
   foldedCharacters,
   maximumQueryWords,
   searchForm,
+  searchNameLines,
   searchWords,
 } from "../../src/core/search-text.ts";
 import { referenceForm, referenceWords } from "./search-reference.ts";
@@ -55,6 +57,47 @@ const variantPieces = [
 ] as const;
 
 describe("search text", () => {
+  it("folds a name column without merging or changing individual names", () => {
+    const name = textArbitrary.filter((text) => !text.includes("\n"));
+    fc.assert(
+      fc.property(fc.array(name, { minLength: 1, maxLength: 20 }), (names) => {
+        expect(searchNameLines(names.join("\n"))).toEqual(
+          names.map((name) => referenceForm(name)),
+        );
+      }),
+      { seed: 20261108, numRuns: 2000 },
+    );
+    const names = [
+      "ΟΣ",
+      "Α",
+      "Σ",
+      "",
+      "\uFE00",
+      "\u3099",
+      "\u0085",
+      "\uFEFF",
+      " 😀 Ａ ",
+    ];
+    expect(searchNameLines(names.join("\n"))).toEqual(
+      names.map((name) => referenceForm(name)),
+    );
+    expect(normalizeNameLines(names.join("\n"))).toEqual(
+      names.map((name) => normalizeName(name)),
+    );
+  });
+
+  it("normalizes a name column like individual names at every Unicode boundary", () => {
+    const name = textArbitrary.filter((text) => !text.includes("\n"));
+    fc.assert(
+      fc.property(fc.array(name, { minLength: 1, maxLength: 20 }), (names) => {
+        expect(normalizeNameLines(names.join("\n"))).toEqual(
+          names.map((name) => normalizeName(name)),
+        );
+      }),
+      { seed: 20261109, numRuns: 2000 },
+    );
+  });
+
   it("splits and folds like the reference for every generated text", () => {
     fc.assert(
       fc.property(textArbitrary, (text) => {

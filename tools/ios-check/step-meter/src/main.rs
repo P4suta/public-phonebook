@@ -4,8 +4,7 @@ use std::path::PathBuf;
 use std::process::{Command, ExitCode};
 use std::sync::atomic::{AtomicI32, Ordering};
 
-const USAGE: &str =
-    "Usage: step-meter run --record PATH -- COMMAND [ARGUMENT...] | step-meter self --pid PID";
+const USAGE: &str = "Usage: step-meter run --record PATH -- COMMAND [ARGUMENT...] | step-meter self --pid PID | step-meter memory PID...";
 const FORWARDED_SIGNALS: [libc::c_int; 3] = [libc::SIGTERM, libc::SIGINT, libc::SIGHUP];
 const FAILED_START: u8 = 127;
 const SIGNAL_EXIT_BASE: i32 = 128;
@@ -29,6 +28,9 @@ enum Request {
     },
     Current {
         pid: u32,
+    },
+    Memory {
+        pids: Vec<u32>,
     },
 }
 
@@ -64,6 +66,22 @@ fn parse(arguments: Vec<OsString>) -> Result<Request, String> {
                 .and_then(|pid| pid.parse().ok())
                 .ok_or_else(|| USAGE.to_owned())?;
             Ok(Request::Current { pid })
+        }
+        Some("memory") => {
+            let pids = arguments
+                .map(|pid| {
+                    pid.to_str()
+                        .and_then(|pid| pid.parse::<u32>().ok())
+                        .filter(|pid| *pid > 0)
+                        .ok_or_else(|| USAGE.to_owned())
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            if pids.is_empty()
+                || pids.iter().collect::<std::collections::BTreeSet<_>>().len() != pids.len()
+            {
+                return Err(USAGE.to_owned());
+            }
+            Ok(Request::Memory { pids })
         }
         _ => Err(USAGE.to_owned()),
     }
@@ -135,6 +153,23 @@ fn run(record_path: &PathBuf, command: &[OsString]) -> ExitCode {
 fn main() -> ExitCode {
     match parse(std::env::args_os().skip(1).collect()) {
         Ok(Request::Run { record, command }) => run(&record, &command),
+        Ok(Request::Memory { pids }) => {
+            let readings = pids
+                .into_iter()
+                .map(|pid| step_meter::process_memory(pid).map(|memory| (pid, memory)))
+                .collect::<std::io::Result<Vec<_>>>();
+            match readings {
+                Ok(readings) => {
+                    let rows = readings.into_iter().map(|(pid,memory)|format!("{{\"pid\":{pid},\"physicalFootprintBytes\":{},\"lifetimePeakPhysicalFootprintBytes\":{}}}", memory.physical_footprint_bytes(),memory.lifetime_peak_physical_footprint_bytes())).collect::<Vec<_>>();
+                    println!("[{}]", rows.join(","));
+                    ExitCode::SUCCESS
+                }
+                Err(error) => {
+                    eprintln!("step-meter: memory counters unavailable: {error}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
         Ok(Request::Current { pid }) => match step_meter::process_instructions(pid) {
             Ok(instructions) => {
                 println!("{{\"instructions\":{instructions}}}");
@@ -162,6 +197,9 @@ mod tests {
 
     #[test]
     fn requests_need_their_exact_flags() {
+        assert!(
+            matches!(parse(words("memory 42 43")), Ok(Request::Memory { pids }) if pids == [42,43])
+        );
         assert!(matches!(
             parse(words("run --record out.json -- node tools/check.ts")),
             Ok(Request::Run { command, .. }) if command.len() == 2
@@ -177,6 +215,11 @@ mod tests {
             "self --pid forty",
             "self --pid 42 extra",
             "measure",
+            "memory",
+            "memory 0",
+            "memory -1",
+            "memory forty",
+            "memory 42 42",
         ] {
             assert!(parse(words(invalid)).is_err(), "{invalid} was accepted");
         }

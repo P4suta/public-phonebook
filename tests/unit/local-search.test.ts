@@ -332,6 +332,99 @@ describe.each([
   { storage: "materialized", decode: decodeSearchIndex },
   { storage: "compact", decode: decodeLiteralSearchIndex },
 ])("local search: $storage", ({ decode }) => {
+  it("matches names and places without reading individual comparison strings", () => {
+    const directory = modelDirectory(
+      ["Ａ図書館", "別室😀", "東京分室", "神奈川分室"].map((name, row) => ({
+        id: `c:${row}`,
+        name,
+        category: row === 3 ? "museum" : "library",
+        prefectureCode: row === 3 ? "14" : "13",
+        municipalityCode: row === 1 ? "13101" : null,
+        phones: [{ e164: "+81774981200" }],
+      })),
+      snapshot,
+    );
+    const compact = decodeLiteralSearchIndex(directory.bytes);
+    const columns = compact.columns;
+    if (!columns) throw new Error("Expected compact search columns");
+    const observed = {
+      ...compact,
+      columns: {
+        ...columns,
+        comparisonNames: new Proxy(columns.comparisonNames, {
+          get(target, property, receiver): unknown {
+            if (typeof property === "string" && /^\d+$/u.test(property))
+              throw new Error("A scan decoded an individual comparison name");
+            return Reflect.get(target, property, receiver);
+          },
+        }),
+      },
+    };
+    for (const input of [
+      "図書館",
+      "😀",
+      "東京",
+      "とうきょう 分室",
+      "0774981200",
+      "該当なし",
+    ]) {
+      const query = localQuery(input);
+      if (!query.ok) throw new Error("Expected a valid query");
+      expect(matchIndex(observed, query.value)).toEqual(
+        matchIndex(decode(directory.bytes), query.value),
+      );
+    }
+    const across = { kind: "words", words: ["館\n別"] } as const;
+    expect(matchIndex(observed, across)).toEqual({ categories: [], total: 0 });
+  });
+
+  it("reads place columns only when a word can match a place", () => {
+    const directory = modelDirectory(
+      ["北館", "南館", "北南館"].map((name, row) => ({
+        id: `c:${row}`,
+        name,
+        category: "library",
+        prefectureCode: "13",
+        municipalityCode: null,
+        phones: [{ e164: "+81774981200" }],
+      })),
+      snapshot,
+    );
+    const index = decodeLiteralSearchIndex(directory.bytes);
+    const columns = index.columns;
+    if (!columns) throw new Error("Expected compact search columns");
+    let regions = 0;
+    const categories: number[] = [];
+    const observed = {
+      ...index,
+      columns: {
+        ...columns,
+        categoryAt: (row: number): string => {
+          categories.push(row);
+          return columns.categoryAt(row);
+        },
+        regionAt: (row: number): string => {
+          regions += 1;
+          return columns.regionAt(row);
+        },
+      },
+    };
+    for (const input of ["北", "北 南", "該当なし"]) {
+      categories.length = 0;
+      regions = 0;
+      const query = localQuery(input);
+      if (!query.ok) throw new Error("Expected a valid query");
+      const expected = matchIndex(decode(directory.bytes), query.value);
+      expect(matchIndex(observed, query.value)).toEqual(expected);
+      expect(categories).toEqual(
+        expected.categories
+          .flatMap((category) => category.rows)
+          .sort((left, right) => left - right),
+      );
+      expect(regions).toBe(0);
+    }
+  });
+
   it("scans names and complete telephone tokens without decoding display rows", () => {
     const directory = modelDirectory(
       ["Ａ図書館", "北診療所", "南図書館"].map((name, row) => ({

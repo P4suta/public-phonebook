@@ -264,17 +264,9 @@ function directoryRouter(family: RouteFamily): Hono<ApiEnvironment> {
     await next();
   });
   router.notFound((c) => problem(c, "not_found", httpStatus.notFound));
-  router.onError((_error, c) => {
-    console.error(
-      JSON.stringify({
-        operation: "directory.read",
-        outcome: "unavailable",
-        requestId: c.get("requestId"),
-        route: c.req.routePath,
-      }),
-    );
-    return problem(c, "unavailable", httpStatus.unavailable);
-  });
+  router.onError((_error, c) =>
+    problem(c, "unavailable", httpStatus.unavailable),
+  );
   return router;
 }
 

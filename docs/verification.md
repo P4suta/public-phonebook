@@ -480,7 +480,11 @@ It covers automatic search, Japanese composition, early input, on-device search 
 It also queries every prefecture and category against native D1.
 Browser failures retain screenshots, videos, traces, and structured diagnostics under `test-results`.
 Design cases retain native video even on success.
-WebKit uses native video instead of Playwright screenshots because its screenshot synchronizer injects a stylesheet that violates CSP.
+WebKit's screenshot preparation injects an inline style sheet that the app's Content Security Policy rejects.
+WebKit captures use native video and Playwright's public [`Screencast` frames](https://playwright.dev/docs/api/class-screencast) without changing that policy.
+Capture waits for a changed viewport and its restored dimensions to distinguish a fresh frame from a replayed frame.
+Existing video recording can limit the frame's resolution.
+Full-page captures scroll through viewport tiles and restore the original scroll position.
 The console and CSP gates remain enabled, and no context bypasses CSP.
 WebKit reports a fetch that a navigation cancelled as an access-control failure, so the console gate ignores that report only for same-origin URLs, which can't fail access control.
 The page also stops an unfinished index load when it's hidden and starts it again when it's shown.

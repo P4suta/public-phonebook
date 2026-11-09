@@ -207,10 +207,15 @@ function pick<T>(items: readonly T[], random: () => number): T {
 function rank(name: string, places: readonly string[], query: string): number {
   const words = searchWords(query);
   const forms = places.map(searchForm);
-  return rankWords(searchForm(name), words, (index) => {
-    const word = words[index] ?? "";
-    return forms.some((form) => form.includes(word));
-  });
+  return rankWords(
+    searchForm(name),
+    words,
+    (index) => {
+      const word = words[index] ?? "";
+      return forms.some((form) => form.includes(word));
+    },
+    undefined,
+  );
 }
 
 export function searchContract(): SearchContract {

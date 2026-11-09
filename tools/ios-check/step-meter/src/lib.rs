@@ -1,4 +1,4 @@
-//! Reads the retired-instruction counts that macOS keeps for each process.
+//! Reads the instruction and memory counters that macOS keeps for each process.
 //!
 //! A count covers one process and the programs it execs, never the processes it forks.
 
@@ -36,6 +36,70 @@ pub fn process_instructions(pid: u32) -> io::Result<u64> {
 
 #[cfg(not(target_os = "macos"))]
 pub fn process_instructions(_pid: u32) -> io::Result<u64> {
+    Err(io::ErrorKind::Unsupported.into())
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProcessMemory {
+    physical_footprint: u64,
+    lifetime_peak_physical_footprint: u64,
+}
+
+impl ProcessMemory {
+    #[cfg(any(target_os = "macos", test))]
+    fn checked(current: u64, peak: u64) -> io::Result<Self> {
+        if current == 0 || peak == 0 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "Missing physical footprint counters: current={current}, lifetime_peak={peak}"
+                ),
+            ));
+        }
+        Ok(Self {
+            physical_footprint: current,
+            lifetime_peak_physical_footprint: peak,
+        })
+    }
+    pub fn physical_footprint_bytes(self) -> u64 {
+        self.physical_footprint
+    }
+    pub fn lifetime_peak_physical_footprint_bytes(self) -> u64 {
+        self.lifetime_peak_physical_footprint
+    }
+}
+
+#[cfg(any(target_os = "macos", test))]
+fn read_memory(mut read: impl FnMut() -> io::Result<(u64, u64)>) -> io::Result<ProcessMemory> {
+    let (current, peak) = read()?;
+    let mut sample = ProcessMemory::checked(current, peak);
+    for _ in 1..3 {
+        if sample.is_ok() {
+            return sample;
+        }
+        let (current, peak) = read()?;
+        sample = ProcessMemory::checked(current, peak);
+    }
+    sample
+}
+
+#[cfg(target_os = "macos")]
+pub fn process_memory(pid: u32) -> io::Result<ProcessMemory> {
+    if pid == 0 {
+        return Err(io::ErrorKind::InvalidInput.into());
+    }
+    let pid = libc::pid_t::try_from(pid).map_err(|_| io::ErrorKind::InvalidInput)?;
+    read_memory(|| {
+        let snapshot = usage(pid)?;
+        Ok((
+            snapshot.ri_phys_footprint,
+            snapshot.ri_lifetime_max_phys_footprint,
+        ))
+    })
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn process_memory(_pid: u32) -> io::Result<ProcessMemory> {
     Err(io::ErrorKind::Unsupported.into())
 }
 
@@ -123,11 +187,71 @@ pub fn output_measured(command: &mut Command) -> io::Result<(Output, io::Result<
     ))
 }
 
+#[cfg(test)]
+mod memory_tests {
+    use super::*;
+
+    #[test]
+    fn lagging_lifetime_peaks_do_not_discard_the_current_footprint() -> io::Result<()> {
+        let memory = read_memory(|| Ok((57_623_944, 57_607_560)))?;
+        assert_eq!(memory.physical_footprint_bytes(), 57_623_944);
+        assert_eq!(memory.lifetime_peak_physical_footprint_bytes(), 57_607_560);
+        Ok(())
+    }
+
+    #[test]
+    fn counter_reads_require_positive_values_within_three_attempts() -> io::Result<()> {
+        let mut readings = [(0, 0), (5, 0), (5, 6)].into_iter();
+        let memory = read_memory(|| {
+            readings
+                .next()
+                .ok_or_else(|| io::ErrorKind::UnexpectedEof.into())
+        })?;
+        assert_eq!(memory.physical_footprint_bytes(), 5);
+        assert_eq!(memory.lifetime_peak_physical_footprint_bytes(), 6);
+        let mut calls = 0;
+        let missing = read_memory(|| {
+            calls += 1;
+            Ok((0, 4))
+        });
+        assert_eq!(
+            missing.map_err(|error| error.kind()),
+            Err(io::ErrorKind::InvalidData)
+        );
+        assert_eq!(calls, 3);
+        Ok(())
+    }
+
+    #[test]
+    fn native_read_errors_are_not_replaced_with_zero_or_retried() {
+        let mut calls = 0;
+        let missing = read_memory(|| {
+            calls += 1;
+            Err(io::ErrorKind::PermissionDenied.into())
+        });
+        assert_eq!(
+            missing.map_err(|error| error.kind()),
+            Err(io::ErrorKind::PermissionDenied)
+        );
+        assert_eq!(calls, 1);
+    }
+}
+
 #[cfg(all(test, target_os = "macos"))]
 mod tests {
     use super::*;
 
     const SHELL: &str = "/bin/sh";
+
+    #[test]
+    fn native_memory_has_positive_footprints_and_rejects_invalid_processes() -> io::Result<()> {
+        let memory = process_memory(std::process::id())?;
+        assert!(memory.physical_footprint_bytes() > 0);
+        assert!(memory.lifetime_peak_physical_footprint_bytes() > 0);
+        assert!(process_memory(0).is_err());
+        assert!(process_memory(u32::MAX).is_err());
+        Ok(())
+    }
 
     fn measured(script: &str) -> io::Result<ChildUsage> {
         let mut child = Command::new(SHELL).args(["-c", script]).spawn()?;
@@ -183,6 +307,10 @@ mod tests {
 
     #[test]
     fn other_systems_report_no_count_and_keep_the_exit_status() -> io::Result<()> {
+        assert_eq!(
+            process_memory(std::process::id()).map_err(|error| error.kind()),
+            Err(io::ErrorKind::Unsupported)
+        );
         assert_eq!(
             process_instructions(std::process::id()).map_err(|error| error.kind()),
             Err(io::ErrorKind::Unsupported)

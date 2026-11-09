@@ -5,6 +5,9 @@ export default defineConfig({
   plugins: ["typescript", "react", "jsx-a11y", "import"],
   options: { typeAware: true },
   categories: { correctness: "error" },
+  overrides: [
+    { files: ["src/**/*.{ts,tsx}"], rules: { "no-console": "error" } },
+  ],
   rules: {
     "typescript/no-explicit-any": "error",
     "typescript/no-unsafe-assignment": "error",
