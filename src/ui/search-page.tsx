@@ -33,6 +33,7 @@ import {
   webSearchParameters,
 } from "../core/web-search.ts";
 import { Route } from "../routes/index.tsx";
+import { AppInvitation } from "./app-invitation.tsx";
 import { DirectoryError, getContactGroups, getRowLocation } from "./client.ts";
 import { LinkButton, LoadingError } from "./components.tsx";
 import { uiCopy } from "./copy.ts";
@@ -50,6 +51,7 @@ import {
   type LocalResults,
   useLocalIndex,
 } from "./local-index.ts";
+import { OpenSourceInformation } from "./open-source-information.tsx";
 import {
   catalogRegions,
   localCard,
@@ -405,10 +407,18 @@ export function SearchPage(): ReactElement {
               </button>
             </div>
           </form>
+        </search>
+        <div className={css.searchAfter}>
           <p id="search-readings" className={css.searchHint}>
             {uiCopy.search.readings}
           </p>
-        </search>
+          {!active && (
+            <>
+              <AppInvitation />
+              <OpenSourceInformation />
+            </>
+          )}
+        </div>
         {active && (
           <>
             <h1 className={css.srOnly}>検索結果</h1>

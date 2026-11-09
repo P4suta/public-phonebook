@@ -16,6 +16,14 @@
     <string name="query_label">検索語</string>
     <string name="settings">着信とデータ更新</string>
     <string name="about">アプリ情報</string>
+    <string name="about_caller_heading">電話の相手が分かります</string>
+    <string name="about_caller">病院や役所などからの電話で、施設の名前を表示できます。\n「着信とデータ更新」で設定してから使えます。\nアプリに番号がある施設の名前が出ます。</string>
+    <string name="free_heading">無料で使えます</string>
+    <string name="free_use">アプリもウェブサイトも、無料で使えます。</string>
+    <string name="open_source_description">プログラムの中身を公開する「オープンソース」です。</string>
+    <string name="open_source_freedom">決まりにそって、だれでも使ったり、作りかえたりできます。</string>
+    <string name="source_code">プログラムと決まりを見る</string>
+    <string name="source_code_confirmation">GitHubで、Public Phonebookのプログラムを開きます。\n%1$s</string>
     <string name="application_website">公式Webサイト</string>
     <string name="privacy_policy">プライバシーポリシー</string>
     <string name="software_licenses">オープンソースの利用条件</string>

@@ -74,7 +74,7 @@ export const searchLayout = style({
       minHeight: 0,
       display: "grid",
       gridTemplateColumns: "minmax(0, 1fr)",
-      gridTemplateRows: "1fr auto 1fr",
+      gridTemplateRows: "1fr auto minmax(0, 1fr)",
     },
   },
 });
@@ -96,10 +96,7 @@ export const searchArea = style({
   minWidth: 0,
   selectors: {
     [`${home} &`]: {
-      gridRow: "2 / 4",
-      display: "grid",
-      gridTemplateColumns: "minmax(0, 1fr)",
-      gridTemplateRows: "subgrid",
+      gridRow: "2",
     },
   },
 });
@@ -109,7 +106,19 @@ export const searchForm = style({
   minWidth: 0,
   selectors: { [`${home} &`]: { display: "contents" } },
 });
-globalStyle(`${searchArea} ~ *`, { marginBlockStart: tokens.space["24"] });
+export const searchAfter = style({
+  display: "flex",
+  flexDirection: "column",
+  gap: tokens.space["24"],
+  minWidth: 0,
+  selectors: {
+    [`${home} &`]: {
+      alignSelf: "start",
+      paddingBlockEnd: tokens.space["24"],
+    },
+  },
+});
+globalStyle(`${searchAfter} ~ *`, { marginBlockStart: tokens.space["24"] });
 export const brand = style({
   ...typography("brand"),
   "@media": { [viewport.compact]: { ...typography("brandCompact") } },

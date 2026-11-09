@@ -87,7 +87,7 @@ struct PhoneActions: View {
 }
 
 enum ExternalDestination {
-  case facility, publication, license, source, other
+  case facility, publication, license, source, sourceCode, other
 
   var description: String {
     switch self {
@@ -95,6 +95,7 @@ enum ExternalDestination {
     case .publication: "このデータを公開しているページを開きます。"
     case .license: "データを使うときの決まりのページを開きます。"
     case .source: "電話番号のもとになった資料を開きます。"
+    case .sourceCode: "GitHubで、Public Phonebookのプログラムを開きます。"
     case .other: "ほかのサイトのページを開きます。"
     }
   }

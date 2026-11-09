@@ -740,8 +740,45 @@ final class DirectoryUITests: XCTestCase {
     waitForGroup("library", "147件", in: app)
     try app.performAccessibilityAudit()
     capture(app, name: "accessibility-number-search")
+    try auditOpenSourceInformation(in: app)
     app.terminate()
     return confirmationSize
+  }
+
+  private func auditOpenSourceInformation(in app: XCUIApplication) throws {
+    let close = app.navigationBars.buttons["閉じる"]
+    XCTAssertTrue(close.waitForExistence(timeout: 5))
+    close.tap()
+    _ = dataDate(in: app)
+    reveal(app.staticTexts["無料で使えます"], in: app)
+    try auditVisibleAboutContent(in: app)
+    capture(app, name: "accessibility-about-free")
+    let code = app.buttons["source-code-link"]
+    reveal(code, in: app, swipes: 32)
+    try auditVisibleAboutContent(in: app)
+    capture(app, name: "accessibility-about-source")
+    code.tap()
+    let confirmation = app.alerts["ほかのサイトを開きます"]
+    XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+    XCTAssertTrue(confirmation.buttons["開く"].isHittable)
+    XCTAssertTrue(confirmation.buttons["キャンセル"].isHittable)
+    capture(app, name: "accessibility-source-code-confirmation")
+    confirmation.buttons["キャンセル"].tap()
+    XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
+  }
+
+  private func auditVisibleAboutContent(in app: XCUIApplication) throws {
+    try app.performAccessibilityAudit { issue in
+      guard issue.auditType == .contrast, let element = issue.element,
+        element.elementType == .staticText
+      else { return false }
+      // XCTest fills the offscreen part of a clipped paragraph's image with black.
+      let window = app.windows.firstMatch.frame
+      let visible = CGRect(
+        x: window.minX, y: app.navigationBars.firstMatch.frame.maxY,
+        width: window.width, height: window.maxY - app.navigationBars.firstMatch.frame.maxY)
+      return !visible.contains(element.frame)
+    }
   }
 
   private func mapConfirmationSize(in confirmation: XCUIElement)
@@ -765,7 +802,22 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertFalse(
       app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "名前の一部でも"))
         .firstMatch.exists)
+    reveal(app.scrollViews.staticTexts["Public Phonebookについて"], in: app, towardTop: true)
     capture(app, name: "about")
+    let code = app.buttons["source-code-link"]
+    XCTAssertTrue(code.waitForExistence(timeout: 5))
+    reveal(code, in: app)
+    capture(app, name: "about-open-source")
+    code.tap()
+    let confirmation = app.alerts["ほかのサイトを開きます"]
+    XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      confirmation.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "github.com"))
+        .firstMatch.exists)
+    capture(app, name: "source-code-confirmation")
+    confirmation.buttons["キャンセル"].tap()
+    XCTAssertFalse(confirmation.exists)
+    XCTAssertEqual(app.state, .runningForeground)
     let map = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "「地図で見る」から"))
       .firstMatch
     reveal(map, in: app)
@@ -1173,7 +1225,9 @@ final class DirectoryUITests: XCTestCase {
           dx: frame.width / 2, dy: top - frame.minY + (bottom - top) * (scrollDown ? 0.7 : 0.45)))
       start.press(forDuration: 0.01, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
     }
-    return element.exists && element.isHittable
+    guard element.exists, element.isHittable else { return false }
+    let frame = element.frame
+    return app.windows.firstMatch.frame.contains(CGPoint(x: frame.midX, y: frame.midY))
   }
 }
 

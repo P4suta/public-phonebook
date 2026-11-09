@@ -11,9 +11,23 @@ struct AboutScreen: View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
         Text("Public Phonebookについて").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+        Text("病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前が出ます。")
+        Text("アプリに番号がある施設の名前が出ます。")
         Text("学校や役所、病院などの電話番号を、名前でさがせるアプリです。")
         Text("国や自治体などが公開しているデータをもとにしています。")
         Text("国や自治体の公式アプリではありません。")
+
+        section("無料で使えます")
+        Text("アプリもウェブサイトも、無料で使えます。")
+        Text("プログラムの中身を公開する「オープンソース」です。")
+        Text("決まりにそって、だれでも使ったり、作りかえたりできます。")
+        if let url = URL(string: "https://github.com/P4suta/public-phonebook") {
+          ExternalLink(url: url, destination: .sourceCode) {
+            IconLabel(icon: "external", text: "プログラムと決まりを見る")
+          }
+          .buttonStyle(MonoButtonStyle())
+          .accessibilityIdentifier("source-code-link")
+        }
 
         section("使い方")
         Text("検索欄に施設の名前を入れます。")

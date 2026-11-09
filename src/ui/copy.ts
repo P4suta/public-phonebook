@@ -17,6 +17,21 @@ export const uiCopy = {
       "名前の一部を入れるか、別の言葉でさがしてください。" satisfies Instruction,
   },
   about: "Public Phonebookについてくわしく知る" satisfies Action,
+  app: {
+    heading: "iPhoneで、電話の相手が分かります",
+    description: "無料のアプリで、病院や役所などからの電話に名前が出ます。",
+    coverage: "アプリに番号がある施設の名前が出ます。",
+    setup:
+      "使いはじめに、iPhoneの設定でPublic Phonebookをオンにしてください。" satisfies Instruction,
+    store: "App Storeでアプリを見る" satisfies Action,
+  },
+  openSource: {
+    heading: "無料で使えます",
+    price: "アプリもウェブサイトも、無料で使えます。",
+    description: "プログラムの中身を公開する「オープンソース」です。",
+    freedom: "決まりにそって、だれでも使ったり、作りかえたりできます。",
+    source: "プログラムと決まりを見る" satisfies Action,
+  },
   searchReturn: "さがす画面にもどる" satisfies Action,
   rowUpdated: {
     title: "電話番号のデータが新しくなりました",
@@ -55,6 +70,10 @@ export const uiCopy = {
       source: "電話番号のもとになった資料を開きます。" satisfies Statement,
       cloudflarePrivacy:
         "Cloudflareのプライバシーのページを開きます。" satisfies Statement,
+      appStore:
+        "App Storeで、Public Phonebookのページを開きます。" satisfies Statement,
+      sourceCode:
+        "GitHubで、Public Phonebookのプログラムを開きます。" satisfies Statement,
       other: "ほかのサイトのページを開きます。" satisfies Statement,
     },
     host: (host: string): `行き先：${string}` => `行き先：${host}`,
