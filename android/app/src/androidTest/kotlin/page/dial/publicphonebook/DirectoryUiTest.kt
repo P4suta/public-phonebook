@@ -85,6 +85,13 @@ class DirectoryUiTest {
             .assertWidthIsAtLeast(48.dp)
             .performClick()
         capture("about")
+        selectAction("プログラムと決まりを見る")
+        rule
+            .onNodeWithText("https://github.com/P4suta/public-phonebook", substring = true)
+            .assertIsDisplayed()
+        capture("source-code-confirmation")
+        rule.onNodeWithText("キャンセル").performClick()
+        capture("about-open-source")
         selectAction("オープンソースの利用条件")
         rule.waitUntil(SEARCH_TIMEOUT_MILLIS) {
             rule
