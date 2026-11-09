@@ -232,7 +232,7 @@ class SynchronizationTest {
                 0,
                 true,
                 true,
-            )
+            ),
         )
     }
 }

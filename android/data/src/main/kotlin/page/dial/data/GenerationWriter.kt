@@ -39,7 +39,7 @@ internal class GenerationWriter(private val forms: SearchText) {
         db.execSQL(
             "CREATE TABLE contacts(" +
                 "id INTEGER PRIMARY KEY, raw TEXT NOT NULL, name TEXT NOT NULL, " +
-                "place TEXT NOT NULL, category TEXT NOT NULL, sort_name TEXT NOT NULL)"
+                "place TEXT NOT NULL, category TEXT NOT NULL, sort_name TEXT NOT NULL)",
         )
         db.execSQL("CREATE TABLE phones(number TEXT NOT NULL, contact INTEGER NOT NULL)")
         db.execSQL("CREATE VIRTUAL TABLE terms USING fts4(tokens, tokenize=simple)")
@@ -97,7 +97,7 @@ internal class GenerationWriter(private val forms: SearchText) {
             count == header.contacts &&
                 header.prefectures.all {
                     prefectureCounts[it.getString("code").toInt()] == it.getLong("contacts")
-                }
+                },
         )
     }
 }
@@ -111,7 +111,7 @@ private class RowStatements(db: SQLiteDatabase, private val forms: SearchText) :
         val name = forms.form(record.name)
         val place =
             listOf(record.prefecture, record.municipality, record.category.label).joinToString(
-                " "
+                " ",
             ) {
                 forms.form(it)
             }
@@ -159,7 +159,7 @@ internal fun compareBytes(left: ByteArray, right: ByteArray): Int {
     for (index in 0 until minOf(left.size, right.size)) {
         val comparison =
             (left[index].toInt() and UNSIGNED_BYTE_MASK).compareTo(
-                right[index].toInt() and UNSIGNED_BYTE_MASK
+                right[index].toInt() and UNSIGNED_BYTE_MASK,
             )
         if (comparison != 0) return comparison
     }

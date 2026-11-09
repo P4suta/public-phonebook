@@ -59,7 +59,7 @@ class ArchiveAdversarialTest {
             val file = temporary.newFile().apply { writeText(text) }
             assertThrows("$column: $value", IOException::class.java) {
                 store.install(
-                    RebuiltArchive(file, candidate, file.length(), FileDigest.sha256(file))
+                    RebuiltArchive(file, candidate, file.length(), FileDigest.sha256(file)),
                 )
             }
             assertEquals(saved.snapshot, store.search("図書館").snapshot)

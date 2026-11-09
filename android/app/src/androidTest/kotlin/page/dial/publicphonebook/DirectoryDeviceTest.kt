@@ -37,7 +37,7 @@ class DirectoryDeviceTest {
         }
         val found =
             application.directory.find(
-                results.groups.first().contacts.first().phones.first().number
+                results.groups.first().contacts.first().phones.first().number,
             )
         assertNotNull(found)
         val readings = application.directory.preview("とうきょう としょかん")

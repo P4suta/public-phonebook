@@ -76,7 +76,12 @@ impl fmt::Display for Digest {
 }
 impl Digest {
     pub fn of(bytes: &[u8]) -> Self {
-        Self(format!("{:x}", Sha256::digest(bytes)))
+        Self(
+            Sha256::digest(bytes)
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect(),
+        )
     }
     pub fn as_str(&self) -> &str {
         &self.0
@@ -329,6 +334,21 @@ pub fn category(change: Change) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn digest_keeps_canonical_sha256_vectors() {
+        for (input, expected) in [
+            (
+                "",
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            ),
+            (
+                "abc",
+                "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            ),
+        ] {
+            assert_eq!(Digest::of(input.as_bytes()).as_str(), expected);
+        }
+    }
     #[test]
     fn wire_identities_reject_abbreviated_uppercase_and_non_hex_values() {
         for bad in [

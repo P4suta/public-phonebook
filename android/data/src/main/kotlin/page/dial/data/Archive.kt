@@ -95,13 +95,13 @@ internal class Lines(private val input: InputStream) : Closeable {
                         total,
                         count.toLong(),
                         DirectoryLimits.MAXIMUM_DECODED_BYTES,
-                    )
+                    ),
             )
             line.write(buffer, start, count)
             total += count
             if (position < available) {
                 requireDirectory(
-                    TransferPolicy.chunk(total, 1, DirectoryLimits.MAXIMUM_DECODED_BYTES)
+                    TransferPolicy.chunk(total, 1, DirectoryLimits.MAXIMUM_DECODED_BYTES),
                 )
                 position++
                 total++
@@ -143,7 +143,7 @@ internal class ArchiveHeader(val json: JSONObject) {
                 categories
                     .map { it.text("id", DirectoryLimits.MAXIMUM_IDENTIFIER_BYTES) }
                     .distinct()
-                    .size == categories.size
+                    .size == categories.size,
         )
         categories.forEach {
             it.text("label")
@@ -153,7 +153,9 @@ internal class ArchiveHeader(val json: JSONObject) {
         }
         requireDirectory(
             prefectures.map { it.getString("code") } ==
-                (1..DirectoryLimits.PREFECTURE_COUNT).map { String.format(Locale.ROOT, "%02d", it) }
+                (1..DirectoryLimits.PREFECTURE_COUNT).map {
+                    String.format(Locale.ROOT, "%02d", it)
+                },
         )
         prefectures.forEach {
             it.text("name")
@@ -164,7 +166,7 @@ internal class ArchiveHeader(val json: JSONObject) {
         requireDirectory(
             sources.size <= DirectoryLimits.MAXIMUM_SOURCES &&
                 provenances.size <= DirectoryLimits.MAXIMUM_PROVENANCES &&
-                links.size <= DirectoryLimits.MAXIMUM_LINKS
+                links.size <= DirectoryLimits.MAXIMUM_LINKS,
         )
         sources.forEach {
             it.text("id", DirectoryLimits.MAXIMUM_IDENTIFIER_BYTES)
@@ -184,7 +186,7 @@ internal class ArchiveHeader(val json: JSONObject) {
     private fun regionNames(): Map<String, Pair<String, String>> {
         requireDirectory(
             municipalities.size <= DirectoryLimits.MAXIMUM_MUNICIPALITIES &&
-                municipalities.map { it.getString("code") }.distinct().size == municipalities.size
+                municipalities.map { it.getString("code") }.distinct().size == municipalities.size,
         )
         val names =
             prefectures
@@ -196,7 +198,7 @@ internal class ArchiveHeader(val json: JSONObject) {
             requireDirectory(
                 code.matches(municipalityPattern) &&
                     code.startsWith(prefecture) &&
-                    names.containsKey(prefecture)
+                    names.containsKey(prefecture),
             )
             names[code] = names.getValue(prefecture).first to it.text("name")
         }
@@ -239,11 +241,11 @@ internal class ArchiveHeader(val json: JSONObject) {
         requireDirectory(
             name.isNotEmpty() &&
                 name.toByteArray().size <= DirectoryLimits.MAXIMUM_NAME_BYTES &&
-                address.toByteArray().size <= DirectoryLimits.MAXIMUM_ADDRESS_BYTES
+                address.toByteArray().size <= DirectoryLimits.MAXIMUM_ADDRESS_BYTES,
         )
         requireDirectory(
             name.none { it == '\u001e' || it == '\u001f' } &&
-                address.none { it == '\u001e' || it == '\u001f' }
+                address.none { it == '\u001e' || it == '\u001f' },
         )
     }
 
@@ -260,7 +262,7 @@ internal class ArchiveHeader(val json: JSONObject) {
         val phones = field.split('\u001f').map(::phone)
         requireDirectory(
             phones.size in 1..DirectoryLimits.MAXIMUM_PHONES &&
-                phones.map { it.number }.distinct().size == phones.size
+                phones.map { it.number }.distinct().size == phones.size,
         )
         return phones
     }
@@ -272,7 +274,7 @@ internal class ArchiveHeader(val json: JSONObject) {
         requireDirectory(
             national.matches(nationalPhonePattern) &&
                 parts.last().isNotEmpty() &&
-                parts.last().toByteArray().size <= DirectoryLimits.MAXIMUM_PHONE_DISPLAY_BYTES
+                parts.last().toByteArray().size <= DirectoryLimits.MAXIMUM_PHONE_DISPLAY_BYTES,
         )
         return Phone(
             CanonicalPhone.parse(national) ?: throw InvalidDirectory("Invalid phone"),

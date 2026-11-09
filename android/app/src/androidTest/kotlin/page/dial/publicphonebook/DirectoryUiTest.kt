@@ -120,7 +120,7 @@ class DirectoryUiTest {
             rule.activity.startActivity(
                 Intent(rule.activity, CallerActivity::class.java)
                     .putExtra("name", "表示確認用の施設")
-                    .putExtra("address", "東京都千代田区")
+                    .putExtra("address", "東京都千代田区"),
             )
         }
         rule.waitUntil(SEARCH_TIMEOUT_MILLIS) {
@@ -234,8 +234,8 @@ class DirectoryUiTest {
             rule.runOnIdle {
                 check(
                     requireNotNull(node.config[SemanticsActions.GetTextLayoutResult].action)(
-                        layouts
-                    )
+                        layouts,
+                    ),
                 )
             }
             layouts.forEach { layout ->

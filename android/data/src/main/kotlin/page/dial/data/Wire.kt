@@ -22,7 +22,7 @@ internal fun InputStream.readBounded(maximum: Int): ByteArray {
         val count = read(buffer)
         if (count < 0) break
         requireDirectory(
-            TransferPolicy.chunk(output.size().toLong(), count.toLong(), maximum.toLong())
+            TransferPolicy.chunk(output.size().toLong(), count.toLong(), maximum.toLong()),
         )
         output.write(buffer, 0, count)
     }
@@ -85,7 +85,7 @@ internal fun publicUrl(value: String): String {
             url.protocol in listOf("http", "https") &&
             authorityValid &&
             url.userInfo == null &&
-            url.port in -1..DirectoryLimits.MAXIMUM_TCP_PORT
+            url.port in -1..DirectoryLimits.MAXIMUM_TCP_PORT,
     )
     return value
 }
@@ -99,7 +99,7 @@ internal fun servicePath(value: String): String {
             uri.scheme == null &&
             uri.rawAuthority == null &&
             uri.fragment == null &&
-            uri.normalize() == uri
+            uri.normalize() == uri,
     )
     return value
 }
@@ -127,7 +127,7 @@ data class DatasetListing(val archive: ArchiveEntry, val deltas: String?) {
             val hash = digest(file.getString("sha256"))
             val path = servicePath(file.getString("url"))
             requireDirectory(
-                path == "/api/datasets/${snapshot.value}/${hash.value}/directory.tsv.br"
+                path == "/api/datasets/${snapshot.value}/${hash.value}/directory.tsv.br",
             )
             val entry =
                 ArchiveEntry(

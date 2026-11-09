@@ -48,7 +48,7 @@ private constructor(
                 .use { cursor ->
                     buildList {
                         while (cursor.moveToNext()) add(
-                            header.record(cursor.getString(1), cursor.getLong(0))
+                            header.record(cursor.getString(1), cursor.getLong(0)),
                         )
                     }
                 }
@@ -76,7 +76,7 @@ private constructor(
                 val group =
                     groups.getOrPut(category) {
                         CategoryPreview(
-                            definitions[category] ?: throw InvalidDirectory("Unknown category")
+                            definitions[category] ?: throw InvalidDirectory("Unknown category"),
                         )
                     }
                 group.total++

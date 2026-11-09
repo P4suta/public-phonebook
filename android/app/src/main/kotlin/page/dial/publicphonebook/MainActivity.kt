@@ -84,7 +84,7 @@ class MainActivity : ComponentActivity() {
                             initializer {
                                 DirectoryViewModel(app.directory, createSavedStateHandle())
                             }
-                        }
+                        },
                 )
             PhonebookTheme { Phonebook(model) { app.scheduleUpdates() } }
         }

@@ -37,7 +37,7 @@ class PlaceReadingsTest {
         prefectures.forEachIndexed { index, kana ->
             assertTrue(
                 (index + 1).toString().padStart(2, '0') in
-                    readings.matching(forms.form(kana)).prefectures
+                    readings.matching(forms.form(kana)).prefectures,
             )
         }
         categories.forEach { (id, values) ->

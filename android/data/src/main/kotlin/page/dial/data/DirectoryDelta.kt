@@ -39,7 +39,7 @@ internal object DirectoryDelta {
             val metadata =
                 parseObject(
                     lines.next(DirectoryLimits.MAXIMUM_JSON_BYTES)
-                        ?: throw InvalidDirectory("Missing delta header")
+                        ?: throw InvalidDirectory("Missing delta header"),
                 )
             val targetText =
                 lines.next(DirectoryLimits.MAXIMUM_JSON_BYTES)
@@ -58,7 +58,7 @@ internal object DirectoryDelta {
                 }
             }
             requireDirectory(
-                output.length() == contract.bytes && FileDigest.sha256(output) == contract.hash
+                output.length() == contract.bytes && FileDigest.sha256(output) == contract.hash,
             )
             decoded?.let {
                 requireDirectory(lines.consumed == it.bytes)
@@ -66,8 +66,8 @@ internal object DirectoryDelta {
                     digest(
                         hash.digest().joinToString("") { byte ->
                             "%02x".format(java.util.Locale.ROOT, byte)
-                        }
-                    ) == it.sha256
+                        },
+                    ) == it.sha256,
                 )
             }
             RebuiltArchive(output, target, contract.bytes, contract.hash)
@@ -131,7 +131,7 @@ private class DeltaContract(
                 kept + json.count("removed") == base.contacts &&
                 kept + added == entry.contacts &&
                 target.snapshot == entry.snapshot &&
-                target.contacts == entry.contacts
+                target.contacts == entry.contacts,
         )
     }
 
@@ -181,7 +181,7 @@ private class DeltaRows(
             val count = countText.toLong()
             requireDirectory(
                 TransferPolicy.copy(start, count, base.header.contacts) &&
-                    TransferPolicy.chunk(copiedCount, count, contract.kept)
+                    TransferPolicy.chunk(copiedCount, count, contract.kept),
             )
             for (index in start until start + count) copy(index.toInt())
         }
@@ -196,7 +196,7 @@ private class DeltaRows(
         input.readFully(bytes)
         row(
             ArchiveFields.parse(bytes.toString(Charsets.UTF_8))
-                .remap(contract.categories, contract.provenances, contract.links)
+                .remap(contract.categories, contract.provenances, contract.links),
         )
         copiedCount++
     }
@@ -223,7 +223,7 @@ private class DeltaRows(
             copiedCount == contract.kept &&
                 addedCount == contract.added &&
                 rows == contract.target.contacts &&
-                written == contract.bytes
+                written == contract.bytes,
         )
         writer.fd.sync()
     }

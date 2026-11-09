@@ -25,7 +25,7 @@ class PhonebookApplication : Application() {
         val check =
             PeriodicWorkRequestBuilder<DirectoryCheckWorker>(24, TimeUnit.HOURS)
                 .setConstraints(
-                    Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+                    Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build(),
                 )
                 .build()
         manager.enqueueUniquePeriodicWork("directory-check", ExistingPeriodicWorkPolicy.KEEP, check)
@@ -39,7 +39,7 @@ class PhonebookApplication : Application() {
                     Constraints.Builder()
                         .setRequiredNetworkType(NetworkType.UNMETERED)
                         .setRequiresStorageNotLow(true)
-                        .build()
+                        .build(),
                 )
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                 .build()

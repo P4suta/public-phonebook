@@ -157,10 +157,10 @@ export function SearchPage(): ReactElement {
 
   useEffect(() => {
     if (!local || !active || !index.regions) return;
-    let current = true;
+    const request = new AbortController();
     const { snapshot, generation, regions: names } = index;
     const view = (results: LocalResults): void => {
-      if (current)
+      if (!request.signal.aborted)
         setLocalView({
           key: localKey,
           generation,
@@ -185,7 +185,7 @@ export function SearchPage(): ReactElement {
         if (results) view(results);
       });
     return (): void => {
-      current = false;
+      request.abort();
     };
   }, [local, active, localKey, search.q, search.category, index, client]);
 

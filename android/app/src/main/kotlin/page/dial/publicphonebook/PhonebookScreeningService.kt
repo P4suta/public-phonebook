@@ -94,8 +94,8 @@ class PhonebookScreeningService(
                 .addFlags(
                     Intent.FLAG_ACTIVITY_NEW_TASK or
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
-                )
+                        Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS,
+                ),
         )
     }
 
