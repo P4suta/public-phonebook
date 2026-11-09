@@ -958,6 +958,25 @@ pub fn generate(root: &Path, check: bool) -> Result<()> {
         {"filename":"tinted.png","idiom":"universal","platform":"ios","size":"1024x1024","appearances":[{"appearance":"luminosity","value":"tinted"}]}],"info":{"author":"xcode","version":1}}))?,
             check,
         )?;
+        output(
+            root,
+            &format!("ios/GeneratedAssets.xcassets/Watch{catalog}.appiconset/default.png"),
+            &raster(
+                source(&format!("app-icon-{environment}default"))?,
+                APP_ICON_SIZE,
+                APP_ICON_SIZE,
+                Pixels::Opaque,
+            )?,
+            check,
+        )?;
+        output(
+            root,
+            &format!("ios/GeneratedAssets.xcassets/Watch{catalog}.appiconset/Contents.json"),
+            &serde_json::to_vec_pretty(
+                &json!({"images":[{"filename":"default.png","idiom":"universal","platform":"watchos","size":"1024x1024"}],"info":{"author":"xcode","version":1}}),
+            )?,
+            check,
+        )?;
     }
     for (name, target) in manifest
         .assets
@@ -999,7 +1018,7 @@ pub fn generate(root: &Path, check: bool) -> Result<()> {
     }
     reconcile(root, &web, check)?;
     println!(
-        "PASS: {UI_ICON_COUNT} Figma UI icons, {CATEGORY_MAPPING_COUNT} category mappings, {ALIAS_COUNT} native aliases, 9 native app icon appearances, and {} web outputs",
+        "PASS: {UI_ICON_COUNT} Figma UI icons, {CATEGORY_MAPPING_COUNT} category mappings, {ALIAS_COUNT} native aliases, 12 native app icon appearances, and {} web outputs",
         web.len()
     );
     Ok(())

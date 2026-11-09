@@ -30,6 +30,7 @@ mod search_measurement;
 mod signing;
 mod store_build;
 mod testflight;
+mod watch;
 
 use build_number::BuildNumber;
 use signing::Signing;
@@ -380,6 +381,11 @@ pub enum Action {
     },
     Check,
     UnitTest,
+    WatchCheck,
+    ImportWatchProfile {
+        #[arg(long)]
+        profile: PathBuf,
+    },
     SearchMeasure,
     Prove,
     Sanitize,
@@ -417,11 +423,12 @@ pub enum Action {
     },
 }
 
-const SECRET_ENVIRONMENT: [&str; 16] = [
+const SECRET_ENVIRONMENT: [&str; 17] = [
     signing::CERTIFICATE,
     signing::CERTIFICATE_PASSWORD,
     signing::APP_PROFILE,
     signing::EXTENSION_PROFILE,
+    signing::WATCH_PROFILE,
     testflight::KEY_ID,
     testflight::ISSUER_ID,
     testflight::PRIVATE_KEY,
@@ -860,6 +867,10 @@ fn ui_build_command(root: &Path, identifier: &str, configuration: &str) -> Comma
 }
 
 fn require_ui_case(summary: &Value, tree: &Value, expected: &str) -> Result<()> {
+    require_named_ui_case(summary, tree, "DirectoryUITests", expected)
+}
+
+fn require_named_ui_case(summary: &Value, tree: &Value, class: &str, expected: &str) -> Result<()> {
     fn cases(node: &Value, names: &mut Vec<(String, String)>) {
         if node["nodeType"] == "Test Case" {
             names.push((
@@ -888,11 +899,7 @@ fn require_ui_case(summary: &Value, tree: &Value, expected: &str) -> Result<()> 
             && summary["runtimeWarnings"]
                 .as_array()
                 .is_some_and(Vec::is_empty)
-            && observed
-                == [(
-                    format!("DirectoryUITests/{expected}()"),
-                    "Passed".to_owned()
-                )],
+            && observed == [(format!("{class}/{expected}()"), "Passed".to_owned())],
         "The iOS UI gate requires the exact declared test, no skips or runtime warnings, and a successful result"
     );
     Ok(())
@@ -1309,6 +1316,9 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
 }
 
 pub fn run(root: &Path, action: Action) -> Result<()> {
+    if let Action::ImportWatchProfile { profile } = action {
+        return signing::import_watch_profile(&profile);
+    }
     if matches!(action, Action::Audit) {
         return super::audit(root);
     }
@@ -1443,6 +1453,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         }
         Action::Screenshots { origin } => screenshots::capture(root, &origin),
         Action::Generate => Ok(()),
+        Action::WatchCheck => watch::check(root).map(|_| ()),
         Action::SearchMeasure => search_measurement::run(root),
         Action::DeviceRecord { .. } => {
             let (device, delta) = prepared.context("The device record was not prepared")?;
@@ -1497,6 +1508,8 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "ios/Sources",
                     "ios/Tests",
                     "ios/UITests",
+                    "ios/Watch",
+                    "ios/WatchUITests",
                     "ios/Package.swift",
                 ]),
             )?;
@@ -1710,13 +1723,14 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                 "Release",
             )?;
             let results = ui_test(root, &[], false)?;
+            let watch_results = watch::check(root)?;
             require_current_sources(root, &sources)?;
             fs::write(
                 receipt,
                 serde_json::to_vec_pretty(&json!({
                     "result":"passed",
                     "xcode":fs::read_to_string(root.join("ios/.xcode-version"))?.trim(),
-                    "ui_results":results.directory, "ui_tests":results.count, "finite_feed_inputs":FINITE_FEED_INPUTS, "finite_publication_inputs":FINITE_PUBLICATION_INPUTS,
+                    "ui_results":results.directory, "ui_tests":results.count, "watch_ui_results":watch_results, "finite_feed_inputs":FINITE_FEED_INPUTS, "finite_publication_inputs":FINITE_PUBLICATION_INPUTS,
                     "publication_transitions":PUBLICATION_TRANSITIONS, "receive_budget_boundary_cases":RECEIVE_BUDGET_BOUNDARY_CASES,
                     "delta_admission_cases":DELTA_ADMISSION_CASES,
                     "unit_tests":unit_tests, "coverage":coverage,
@@ -1741,6 +1755,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         Action::Mutate { .. } => bail!("The iOS mutation gate was not handled"),
         Action::Icons { .. } => bail!("The shared icon gate was not handled"),
         Action::Audit => bail!("The dependency audit was not handled"),
+        Action::ImportWatchProfile { .. } => bail!("The Watch profile import was not handled"),
     }
 }
 

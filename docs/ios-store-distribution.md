@@ -22,7 +22,7 @@ App Store and TestFlight use the same production archive.
 The `DEV` and `QA` icons identify separate installations.
 The [Figma library](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=317-1020) owns all nine app icon masters.
 
-`mise x -- just ios-generate` inspects all six Xcode configurations and both native targets.
+`mise x -- just ios-generate` inspects all six Xcode configurations and the phone, extension, and Watch targets.
 It checks that production, development, and verification identities match their resolved Xcode settings.
 Its finite negative controls change and remove each environment field and require rejection.
 This check covers the declared configuration inventory.
@@ -64,10 +64,12 @@ It preserves and attests the unsigned archive, source inventory, and receipts.
 
 The signing job waits for review in `testflight-signing` and verifies the unsigned artifact's source and controller attestation before fetching credentials from `ci_testflight_signing`.
 Before importing a private key, the controller copies the original archive and gives both bundles an ad hoc signature containing the declared App Group request.
+The embedded Watch app receives an ad hoc signature without an App Group.
 That signature uses no certificate or private key and preserves the request that Xcode needs during export.
 The original attested archive stays unchanged.
 `just ios-archive --prepared --require-receipts --build-number N --signing ci` refuses a dirty checkout, mismatched archive bytes, or failed and stale receipts.
 It checks both profiles for their identifiers, team, App Group, and App Store distribution type.
+It checks the Watch profile for the companion's team, distribution certificate, and App Store type without an App Group.
 The helper imports the distribution identity into a temporary keychain and exports the already prepared archive with manual signing.
 It executes no project generation or archive build after importing that identity.
 It removes the keychain and profiles and verifies the exported signatures, entitlements, metadata, and bundled dataset.
@@ -113,10 +115,15 @@ An upload or review submission doesn't establish App Store availability.
 
 ### Doppler values
 
-The signing job reads `APPLE_DISTRIBUTION_CERTIFICATE_BASE64`, `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD`, `APP_PROVISIONING_PROFILE_BASE64`, and `CALL_DIRECTORY_PROVISIONING_PROFILE_BASE64` from `ci_testflight_signing` in the `public-phonebook` Doppler project.
+The signing job reads `APPLE_DISTRIBUTION_CERTIFICATE_BASE64`, `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD`, `APP_PROVISIONING_PROFILE_BASE64`, `CALL_DIRECTORY_PROVISIONING_PROFILE_BASE64`, and `WATCH_PROVISIONING_PROFILE_BASE64` from `ci_testflight_signing` in the `public-phonebook` Doppler project.
 The certificate value contains the Apple Distribution certificate and its private key as a password-protected `.p12` file.
 The app profile covers `page.dial.publicphonebook`, and the extension profile covers `page.dial.publicphonebook.CallDirectory`.
 Both profiles require the `group.page.dial.publicphonebook` App Group and the selected distribution certificate.
+The Watch profile covers `page.dial.publicphonebook.watchkitapp` with the same distribution certificate and no App Group.
+Import a downloaded Watch profile with `mise x -- just ios-watch-profile PATH`.
+The importer checks the App Store identity, team, certificate, and expiry before writing through Doppler's standard input.
+It refuses a different existing value and verifies the saved value without printing profile contents.
+The export verifies the embedded Watch app's identity, companion identifier, icon, version, privacy manifest, and signature.
 
 The upload job reads `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, and `APP_STORE_CONNECT_PRIVATE_KEY_BASE64` from `ci_testflight_upload`.
 The key ID is the ten-character identifier of the App Manager API key, the issuer is the team issuer identifier, and the private-key value contains the downloaded `AuthKey_KEY_ID.p8` file.

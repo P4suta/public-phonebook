@@ -13,13 +13,14 @@ use std::{
     io::{Read, Write as _},
     os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
-    process::{Command, Output},
+    process::{Command, Output, Stdio},
 };
 
 pub(super) const CERTIFICATE: &str = "APPLE_DISTRIBUTION_CERTIFICATE_BASE64";
 pub(super) const CERTIFICATE_PASSWORD: &str = "APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD";
 pub(super) const APP_PROFILE: &str = "APP_PROVISIONING_PROFILE_BASE64";
 pub(super) const EXTENSION_PROFILE: &str = "CALL_DIRECTORY_PROVISIONING_PROFILE_BASE64";
+pub(super) const WATCH_PROFILE: &str = "WATCH_PROVISIONING_PROFILE_BASE64";
 pub(super) const KEYCHAIN: &str = "PHONEBOOK_SIGNING_KEYCHAIN";
 pub(super) const EXTENSION_SUFFIX: &str = ".CallDirectory";
 const KEYCHAIN_EXTENSION: &str = ".keychain-db";
@@ -276,6 +277,27 @@ pub(super) fn admit_profiles(app: &Profile, extension: &Profile, bundle: &str) -
     Ok(app.team.clone())
 }
 
+fn admit_watch_profile(
+    app: &Profile,
+    extension: &Profile,
+    watch: &Profile,
+    bundle: &str,
+) -> Result<()> {
+    let team = admit_profiles(app, extension, bundle)?;
+    ensure!(
+        watch.team == team && watch.uuid != app.uuid && watch.uuid != extension.uuid,
+        "The Watch profile must have its own identity in the same team"
+    );
+    ensure!(
+        watch.application_identifier == format!("{team}.{bundle}.watchkitapp")
+            && !watch.device_scoped
+            && !watch.get_task_allow
+            && watch.app_groups.is_empty(),
+        "The Watch profile must grant the companion's App Store identity without an App Group"
+    );
+    Ok(())
+}
+
 pub(super) fn identity(listing: &str, team: &str) -> Result<String> {
     let identities = listing
         .lines()
@@ -516,7 +538,7 @@ impl Drop for Keychain {
 struct InstalledProfiles(Vec<PathBuf>);
 
 impl InstalledProfiles {
-    fn install(directory: &Path, profiles: [(&Profile, &[u8]); 2]) -> Result<Self> {
+    fn install<const N: usize>(directory: &Path, profiles: [(&Profile, &[u8]); N]) -> Result<Self> {
         fs::create_dir_all(directory)?;
         let mut installed = Self(Vec::new());
         for (profile, bytes) in profiles {
@@ -553,12 +575,185 @@ fn decode_profile(bytes: &[u8], scratch: &Path, name: &str) -> Result<Profile> {
         .with_context(|| format!("The {name} provisioning profile is invalid"))
 }
 
+fn doppler_value(name: &str) -> Result<String> {
+    let output = Command::new("doppler")
+        .args([
+            "secrets",
+            "get",
+            name,
+            "--plain",
+            "--project",
+            "public-phonebook",
+            "--config",
+            "ci_testflight_signing",
+            "--no-read-env",
+        ])
+        .output()
+        .context("Read the selected signing profile from Doppler")?;
+    ensure!(output.status.success(), "Doppler couldn't read {name}");
+    String::from_utf8(output.stdout).context("The signing profile isn't UTF-8")
+}
+
+struct ProfileMaterial {
+    certificates: Vec<Vec<u8>>,
+    expires: u64,
+}
+
+fn profile_material(bytes: &[u8], scratch: &Path, name: &str) -> Result<ProfileMaterial> {
+    let file = scratch.join(format!("{name}-certificates.mobileprovision"));
+    write_private(&file, bytes)?;
+    let decoded = security(
+        &arguments(&["cms".as_ref(), "-D".as_ref(), "-i".as_ref(), file.as_ref()]),
+        "profile certificate verification",
+    );
+    fs::remove_file(file)?;
+    let xml = String::from_utf8(decoded?.stdout)?;
+    let document = roxmltree::Document::parse_with_options(
+        &xml,
+        roxmltree::ParsingOptions {
+            allow_dtd: true,
+            ..Default::default()
+        },
+    )?;
+    let top = entries(
+        document
+            .root_element()
+            .children()
+            .find(roxmltree::Node::is_element)
+            .context("The profile is empty")?,
+    )?;
+    let expiration = top
+        .get("ExpirationDate")
+        .context("The profile has no expiration")?;
+    ensure!(
+        expiration.has_tag_name("date"),
+        "The profile expiration isn't a date"
+    );
+    let output = Command::new("/bin/date")
+        .args([
+            "-u",
+            "-j",
+            "-f",
+            "%Y-%m-%dT%H:%M:%SZ",
+            expiration.text().unwrap_or_default(),
+            "+%s",
+        ])
+        .output()?;
+    ensure!(output.status.success(), "The profile expiration is invalid");
+    let expires = String::from_utf8(output.stdout)?.trim().parse::<u64>()?;
+    let certificates = top
+        .get("DeveloperCertificates")
+        .context("The profile has no certificate")?;
+    ensure!(
+        certificates.has_tag_name("array"),
+        "The profile certificates aren't an array"
+    );
+    let certificates = certificates
+        .children()
+        .filter(roxmltree::Node::is_element)
+        .map(|node| {
+            ensure!(
+                node.has_tag_name("data"),
+                "The profile certificate isn't data"
+            );
+            decode_secret("Profile certificate", node.text().unwrap_or_default())
+        })
+        .collect::<Result<_>>()?;
+    Ok(ProfileMaterial {
+        certificates,
+        expires,
+    })
+}
+
+fn admit_profile_material(
+    app: &ProfileMaterial,
+    watch: &ProfileMaterial,
+    now: u64,
+    current: &str,
+    proposed: &str,
+) -> Result<()> {
+    ensure!(
+        !watch.certificates.is_empty() && watch.certificates == app.certificates,
+        "The Watch profile doesn't use the existing app profile's distribution certificate"
+    );
+    ensure!(
+        watch.expires > now && app.expires > now,
+        "The provisioning profile has expired"
+    );
+    ensure!(
+        current.trim().is_empty() || current.trim() == proposed,
+        "Doppler already holds a different Watch profile"
+    );
+    Ok(())
+}
+
+pub(super) fn import_watch_profile(path: &Path) -> Result<()> {
+    let mut bytes = Vec::new();
+    fs::File::open(path)?
+        .take(262_145)
+        .read_to_end(&mut bytes)?;
+    ensure!(
+        !bytes.is_empty() && bytes.len() <= 262_144,
+        "The profile must fit within 256 KiB"
+    );
+    let scratch = scratch_directory("watch-profile-import-")?;
+    let app_bytes = decode_secret(APP_PROFILE, &doppler_value(APP_PROFILE)?)?;
+    let extension_bytes = decode_secret(EXTENSION_PROFILE, &doppler_value(EXTENSION_PROFILE)?)?;
+    let current = doppler_value(WATCH_PROFILE)?;
+    let app = decode_profile(&app_bytes, scratch.path(), "app")?;
+    let extension = decode_profile(&extension_bytes, scratch.path(), "extension")?;
+    let watch = decode_profile(&bytes, scratch.path(), "watch")?;
+    admit_watch_profile(&app, &extension, &watch, "page.dial.publicphonebook")?;
+    let app_material = profile_material(&app_bytes, scratch.path(), "app")?;
+    let watch_material = profile_material(&bytes, scratch.path(), "watch")?;
+    let encoded = STANDARD.encode(bytes);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_secs();
+    admit_profile_material(&app_material, &watch_material, now, &current, &encoded)?;
+    if current.trim().is_empty() {
+        let mut child = Command::new("doppler")
+            .args([
+                "secrets",
+                "set",
+                WATCH_PROFILE,
+                "--project",
+                "public-phonebook",
+                "--config",
+                "ci_testflight_signing",
+                "--silent",
+                "--no-interactive",
+                "--no-read-env",
+            ])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?;
+        child
+            .stdin
+            .take()
+            .context("Doppler has no input pipe")?
+            .write_all(encoded.as_bytes())?;
+        ensure!(
+            child.wait()?.success(),
+            "Doppler couldn't save the Watch profile"
+        );
+    }
+    ensure!(
+        doppler_value(WATCH_PROFILE)?.trim() == encoded,
+        "The saved Watch profile doesn't match the admitted profile"
+    );
+    println!("PASS: matching Watch App Store profile registered in ci_testflight_signing");
+    Ok(())
+}
+
 pub(super) struct ManualSigning {
     pub team: String,
     pub identity: String,
     pub keychain: PathBuf,
     pub app_profile: String,
     pub extension_profile: String,
+    pub watch_profile: String,
 }
 
 pub(super) fn archive_settings(signing: Option<&ManualSigning>, build: BuildNumber) -> Vec<String> {
@@ -577,6 +772,7 @@ pub(super) fn archive_settings(signing: Option<&ManualSigning>, build: BuildNumb
                 "PHONEBOOK_CALL_DIRECTORY_PROFILE={}",
                 signing.extension_profile
             ),
+            format!("PHONEBOOK_WATCH_PROFILE={}", signing.watch_profile),
         ]);
     }
     settings
@@ -600,13 +796,15 @@ pub(super) fn export_options(signing: Option<&ManualSigning>, bundle: &str) -> S
         Some(signing) => {
             entries.push_str("<key>signingStyle</key><string>manual</string>");
             entries.push_str(&format!(
-                "<key>teamID</key><string>{}</string><key>signingCertificate</key><string>{}</string><key>provisioningProfiles</key><dict><key>{}</key><string>{}</string><key>{}</key><string>{}</string></dict>",
+                "<key>teamID</key><string>{}</string><key>signingCertificate</key><string>{}</string><key>provisioningProfiles</key><dict><key>{}</key><string>{}</string><key>{}</key><string>{}</string><key>{}</key><string>{}</string></dict>",
                 xml_text(&signing.team),
                 xml_text(&signing.identity),
                 xml_text(bundle),
                 xml_text(&signing.app_profile),
                 xml_text(&format!("{bundle}{EXTENSION_SUFFIX}")),
                 xml_text(&signing.extension_profile),
+                xml_text(&format!("{bundle}.watchkitapp")),
+                xml_text(&signing.watch_profile),
             ));
         }
     }
@@ -629,12 +827,15 @@ pub(super) fn prepare(bundle: &str) -> Result<CiSigning> {
     let keychain_path = PathBuf::from(secret(KEYCHAIN)?);
     let app_bytes = decoded_secret(APP_PROFILE)?;
     let extension_bytes = decoded_secret(EXTENSION_PROFILE)?;
+    let watch_bytes = decoded_secret(WATCH_PROFILE)?;
     let certificate = decoded_secret(CERTIFICATE)?;
     let certificate_password = secret(CERTIFICATE_PASSWORD)?;
     let scratch = scratch_directory("signing-")?;
     let app = decode_profile(&app_bytes, scratch.path(), "app")?;
     let extension = decode_profile(&extension_bytes, scratch.path(), "extension")?;
+    let watch = decode_profile(&watch_bytes, scratch.path(), "watch")?;
     let team = admit_profiles(&app, &extension, bundle)?;
+    admit_watch_profile(&app, &extension, &watch, bundle)?;
     let keychain = Keychain::create(
         &keychain_path,
         &certificate,
@@ -645,9 +846,13 @@ pub(super) fn prepare(bundle: &str) -> Result<CiSigning> {
     let home = std::env::var_os("HOME").context("Set HOME")?;
     let profiles = InstalledProfiles::install(
         &Path::new(&home).join(PROVISIONING_PROFILES),
-        [(&app, &app_bytes), (&extension, &extension_bytes)],
+        [
+            (&app, &app_bytes),
+            (&extension, &extension_bytes),
+            (&watch, &watch_bytes),
+        ],
     )?;
-    println!("iOS check: temporary signing keychain and both App Store profiles installed");
+    println!("iOS check: temporary signing keychain and three App Store profiles installed");
     Ok(CiSigning {
         manual: ManualSigning {
             team,
@@ -655,6 +860,7 @@ pub(super) fn prepare(bundle: &str) -> Result<CiSigning> {
             keychain: keychain_path,
             app_profile: app.uuid,
             extension_profile: extension.uuid,
+            watch_profile: watch.uuid,
         },
         _profiles: profiles,
         _keychain: keychain,
@@ -686,6 +892,71 @@ mod tests {
                 "",
             ))?,
         ))
+    }
+
+    #[test]
+    fn imported_watch_profile_requires_the_current_certificate_and_an_empty_or_identical_destination()
+    -> Result<()> {
+        let app = ProfileMaterial {
+            certificates: vec![vec![1, 2]],
+            expires: 20,
+        };
+        admit_profile_material(&app, &app, 10, "", "encoded")?;
+        admit_profile_material(&app, &app, 10, "encoded\n", "encoded")?;
+        for (certificates, expires, current) in [
+            (vec![vec![3]], 20, ""),
+            (vec![], 20, ""),
+            (vec![vec![1, 2]], 10, ""),
+            (vec![vec![1, 2]], 20, "another profile"),
+        ] {
+            assert!(
+                admit_profile_material(
+                    &app,
+                    &ProfileMaterial {
+                        certificates,
+                        expires
+                    },
+                    10,
+                    current,
+                    "encoded"
+                )
+                .is_err()
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn watch_profile_requires_its_own_store_identity_without_shared_data() -> Result<()> {
+        let (app, extension) = profiles()?;
+        let watch = || Profile {
+            uuid: "12345678-1234-1234-1234-123456789012".to_owned(),
+            team: TEAM.to_owned(),
+            application_identifier: format!("{TEAM}.{BUNDLE}.watchkitapp"),
+            app_groups: Vec::new(),
+            get_task_allow: false,
+            device_scoped: false,
+        };
+        admit_watch_profile(&app, &extension, &watch(), BUNDLE)?;
+        let mut changed = watch();
+        changed.uuid = app.uuid.clone();
+        assert!(admit_watch_profile(&app, &extension, &changed, BUNDLE).is_err());
+        let mut changed = watch();
+        changed.team = "ZZZZZ99999".to_owned();
+        assert!(admit_watch_profile(&app, &extension, &changed, BUNDLE).is_err());
+        let mut changed = watch();
+        changed.application_identifier = format!("{TEAM}.{BUNDLE}");
+        assert!(admit_watch_profile(&app, &extension, &changed, BUNDLE).is_err());
+        let mut changed = watch();
+        changed.get_task_allow = true;
+        assert!(admit_watch_profile(&app, &extension, &changed, BUNDLE).is_err());
+        let mut changed = watch();
+        changed.device_scoped = true;
+        assert!(admit_watch_profile(&app, &extension, &changed, BUNDLE).is_err());
+        let mut changed = watch();
+        changed.app_groups = app.app_groups.clone();
+        assert!(admit_watch_profile(&app, &extension, &changed, BUNDLE).is_err());
+        Ok(())
     }
 
     #[test]
@@ -920,6 +1191,7 @@ mod tests {
             keychain: PathBuf::from("/runner/temp/testflight-signing.keychain-db"),
             app_profile: APP_UUID.to_owned(),
             extension_profile: EXTENSION_UUID.to_owned(),
+            watch_profile: "12345678-1234-1234-1234-123456789012".to_owned(),
         };
         assert_eq!(
             archive_settings(Some(&signing), build),
@@ -932,6 +1204,7 @@ mod tests {
                     .to_owned(),
                 format!("PHONEBOOK_APP_PROFILE={APP_UUID}"),
                 format!("PHONEBOOK_CALL_DIRECTORY_PROFILE={EXTENSION_UUID}"),
+                "PHONEBOOK_WATCH_PROFILE=12345678-1234-1234-1234-123456789012".to_owned(),
             ]
         );
         let options = export_options(Some(&signing), BUNDLE);
@@ -968,11 +1241,15 @@ mod tests {
                 .copied()
                 .context("Missing profiles")?,
         )?;
-        assert_eq!(profiles.len(), 2);
+        assert_eq!(profiles.len(), 3);
         assert_eq!(text(profiles[BUNDLE])?, APP_UUID);
         assert_eq!(
             text(profiles[&format!("{BUNDLE}{EXTENSION_SUFFIX}")])?,
             EXTENSION_UUID
+        );
+        assert_eq!(
+            text(profiles[&format!("{BUNDLE}.watchkitapp")])?,
+            signing.watch_profile
         );
         assert!(!boolean(top["manageAppVersionAndBuildNumber"])?);
         assert!(boolean(top["uploadSymbols"])?);

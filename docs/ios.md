@@ -2,6 +2,13 @@
 
 The SwiftUI app and its Call Directory extension live under `ios/`.
 The deployment target is iOS 18.0.
+The paired Apple Watch app requires watchOS 11.0.
+It sends a search request to the iPhone and receives at most ten facilities with telephone numbers, publishers, and license links.
+The iPhone searches its saved generation without changing its visible search.
+The Watch keeps the last successful result in memory and stores no national directory.
+Search terms stay between the paired devices, and neither app collects usage or diagnostic records.
+Run `mise x -- just ios-watch-check` for paired simulator messaging and Watch UI checks after installing the declared watchOS runtime.
+Apple describes the supported [watchOS test targets](https://developer.apple.com/documentation/watchos-apps/setting-up-tests-for-your-watchos-app).
 The project pins Xcode 27.2 and Swift 6 language mode.
 A deployment target and a successful device build don't establish execution on an iOS 18 runtime.
 

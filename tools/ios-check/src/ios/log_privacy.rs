@@ -9,7 +9,13 @@ use std::{
 };
 
 /// The directories whose Swift code ships in the app, the extension, or the packages.
-pub(super) const ROOTS: [&str; 4] = ["ios/App", "ios/Native", "ios/CallDirectory", "ios/Sources"];
+pub(super) const ROOTS: [&str; 5] = [
+    "ios/App",
+    "ios/Native",
+    "ios/CallDirectory",
+    "ios/Sources",
+    "ios/Watch",
+];
 /// Functions that write to standard output or the console instead of the unified logging system.
 const CONSOLE_CALLS: [&str; 4] = ["print", "debugPrint", "dump", "NSLog"];
 const PUBLIC: &str = "privacy: .public)";
@@ -351,5 +357,28 @@ mod tests {
     #[test]
     fn the_shipped_swift_code_passes() -> Result<()> {
         check(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."))
+    }
+
+    #[test]
+    fn watch_console_output_is_rejected() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        for directory in [
+            "ios/App",
+            "ios/Native",
+            "ios/CallDirectory",
+            "ios/Sources",
+            "ios/Watch",
+        ] {
+            fs::create_dir_all(root.path().join(directory))?;
+        }
+        fs::write(
+            root.path().join("ios/App/QA.swift"),
+            "#if PHONEBOOK_VERIFICATION_TOOLS\nlogger.notice(\"count=\\(entries, privacy: .public)\")\n#endif\n",
+        )?;
+        let watch = root.path().join("ios/Watch/Search.swift");
+        fs::write(&watch, "print(\"query\")\n")?;
+        assert!(check(root.path()).is_err());
+        fs::write(watch, "struct Search {}\n")?;
+        check(root.path())
     }
 }
