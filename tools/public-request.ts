@@ -1,6 +1,6 @@
+import { environments } from "@public-phonebook/directory/environment";
 import * as v from "valibot";
-import { environments } from "../src/core/environment.ts";
-import { versionHeader } from "../src/server/version-header.ts";
+import { versionHeader } from "../apps/web/src/server/version-header.ts";
 
 import {
   ledgerBudget,

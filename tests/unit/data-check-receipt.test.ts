@@ -8,8 +8,6 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as v from "valibot";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type CheckedFile,
   checkDataBundle,
@@ -17,11 +15,13 @@ import {
   checkedFileNames,
   dataCheckKey,
   reusesDataCheck,
-} from "../../tools/check-data.ts";
+} from "@public-phonebook/data/check-data";
+import { fileDigest } from "@public-phonebook/data/snapshot";
+import type { ArchiveForms } from "@public-phonebook/data/telephone-parity";
+import * as v from "valibot";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { writeCheckFixture } from "../../tools/check-fixture.ts";
-import { fileDigest } from "../../tools/snapshot.ts";
 import type { TrackedFile } from "../../tools/stage-inputs.ts";
-import type { ArchiveForms } from "../../tools/telephone-parity.ts";
 
 const key = "a".repeat(64);
 const catalogFile: CheckedFile = {
@@ -112,8 +112,8 @@ describe("data check reuse decision", () => {
   });
 });
 
-const checker = "tools/check-data.ts";
-const nativeFile = "ios/Sources/App.swift";
+const checker = "data/src/check-data.ts";
+const nativeFile = "apps/ios/Sources/App.swift";
 
 function tracked(changed?: string): readonly TrackedFile[] {
   return [checker, nativeFile].map((path) => ({

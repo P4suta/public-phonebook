@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
 import {
   admitsContentCoding,
   matchesEntityTag,
-} from "../../src/core/content-negotiation.ts";
+} from "@public-phonebook/directory/content-negotiation";
+import { describe, expect, it } from "vitest";
 
 describe("content coding negotiation", () => {
   it("admits Brotli only when Accept-Encoding names it or a wildcard with a nonzero weight", () => {

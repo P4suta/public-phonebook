@@ -1,8 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { brotliDecompressSync } from "node:zlib";
-import * as v from "valibot";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { sha256Digest } from "@public-phonebook/data/directory-delta";
 import {
   type DatasetFileListing,
   DatasetFileListingSchema,
@@ -10,12 +9,13 @@ import {
   datasetFileFormats,
   SearchIndexLocationSchema,
   SearchRankingLocationSchema,
-} from "../../src/core/dataset-storage.ts";
-import { decodeDirectoryArchive } from "../../src/core/directory-archive.ts";
-import { applyDirectoryDelta } from "../../src/core/directory-delta.ts";
-import { DigestSchema } from "../../src/core/models.ts";
-import { snapshotAdmission } from "../../src/core/snapshot-policy.ts";
-import { sha256Digest } from "../../tools/directory-delta.ts";
+} from "@public-phonebook/directory/dataset-storage";
+import { decodeDirectoryArchive } from "@public-phonebook/directory/directory-archive";
+import { applyDirectoryDelta } from "@public-phonebook/directory/directory-delta";
+import { DigestSchema } from "@public-phonebook/directory/models";
+import { snapshotAdmission } from "@public-phonebook/directory/snapshot-policy";
+import * as v from "valibot";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   contractOrigin,
   directoryFixture,
@@ -142,7 +142,7 @@ describe("shared native API contract", () => {
   it("reproduces the exact provider corpus consumed by Swift", async () => {
     const expected: unknown = JSON.parse(
       await readFile(
-        "ios/Tests/PhonebookKitTests/DirectoryContract.json",
+        "apps/ios/Tests/PhonebookKitTests/DirectoryContract.json",
         "utf8",
       ),
     );

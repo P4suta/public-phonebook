@@ -2,17 +2,20 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   applyControlImport,
   planControlImport,
-} from "../../tools/control-import.ts";
+} from "@public-phonebook/cloudflare/control-import";
 import {
   controlKeys,
   fileControlStore,
   readObject,
-} from "../../tools/control-store.ts";
-import { loadRelease, releaseHistory } from "../../tools/release-store.ts";
+} from "@public-phonebook/cloudflare/control-store";
+import {
+  loadRelease,
+  releaseHistory,
+} from "@public-phonebook/cloudflare/release-store";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const digest = (text: string): string =>
   createHash("sha256").update(text).digest("hex");

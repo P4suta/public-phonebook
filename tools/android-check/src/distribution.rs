@@ -32,7 +32,7 @@ mod tests {
             fs::write(directory.path().join(name), name)?;
         }
         let files = unsigned_files(directory.path())?;
-        let sources = BTreeMap::from([("android/version.txt".to_owned(), "a".repeat(64))]);
+        let sources = BTreeMap::from([("apps/android/version.txt".to_owned(), "a".repeat(64))]);
         let candidate = serde_json::to_value(UnsignedCandidate {
             format: 1,
             source_commit: "a".repeat(40),
@@ -89,7 +89,7 @@ mod tests {
 
 pub fn store_assets(project: &Path, check: bool) -> Result<()> {
     for name in ["icon", "feature-graphic"] {
-        let source = project.join(format!("android/store/{name}.svg"));
+        let source = project.join(format!("apps/android/store/{name}.svg"));
         let destination = source.with_extension("png");
         let tree =
             resvg::usvg::Tree::from_data(&fs::read(&source)?, &resvg::usvg::Options::default())?;
@@ -172,10 +172,9 @@ pub fn prepare(project: &Path, build_number: u32) -> Result<()> {
     let build_number = delivery_core::BuildNumber::new(build_number)
         .context("The build number is outside the Android store range")?;
     let sources = crate::source_refinement_with_model(project)?;
-    let mut command = Command::new("gradle");
-    crate::without_credentials(&mut command);
+    let mut command = crate::gradle_command(project);
     command
-        .current_dir(project.join("android"))
+        .env("ANDROID_HOME", crate::sdk()?)
         .env("PHONEBOOK_ANDROID_VERSION_CODE", build_number.to_string())
         .args([
             "--no-daemon",
@@ -191,15 +190,15 @@ pub fn prepare(project: &Path, build_number: u32) -> Result<()> {
     let directory = temporary.path();
     for (source, name) in [
         (
-            "android/app/build/outputs/apk/production/release/app-production-release-unsigned.apk",
+            "apps/android/app/build/outputs/apk/production/release/app-production-release-unsigned.apk",
             "unsigned.apk",
         ),
         (
-            "android/app/build/outputs/bundle/productionRelease/app-production-release.aab",
+            "apps/android/app/build/outputs/bundle/productionRelease/app-production-release.aab",
             "unsigned.aab",
         ),
         (
-            "android/app/build/reports/cyclonedx-direct/bom.json",
+            "apps/android/app/build/reports/cyclonedx-direct/bom.json",
             "sbom.cdx.json",
         ),
     ] {
@@ -410,7 +409,7 @@ fn private(_: &Path, _: bool) -> Result<()> {
 }
 
 fn app_version(project: &Path) -> Result<String> {
-    let path = project.join("android/version.txt");
+    let path = project.join("apps/android/version.txt");
     ensure!(
         fs::metadata(&path)?.len() <= (delivery_core::Version::MAXIMUM_BYTES + 1) as u64,
         "Oversized Android version input"

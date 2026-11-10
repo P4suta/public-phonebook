@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { fileDigest } from "@public-phonebook/data/snapshot";
+import { DigestSchema } from "@public-phonebook/directory/models";
 import * as v from "valibot";
-import { DigestSchema } from "../src/core/models.ts";
-import { fileDigest } from "./snapshot.ts";
 
 export const proofReceiptFormat = 1;
 

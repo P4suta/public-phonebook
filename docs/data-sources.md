@@ -8,7 +8,7 @@ Private address books and personal account synchronization are outside the data 
 
 ## Source families
 
-The retained registries in `sources/` record the publications, release inventories, dates, and reuse metadata used during collection.
+The retained registries in `data/sources/` record the publications, release inventories, dates, and reuse metadata used during collection.
 They include the archived input and the current TypeScript collection manifests.
 The preparation tool reads canonical native publications or the retained legacy archive without modifying either input.
 The collector downloads explicitly licensed public directories, reconciles school identities, and creates an overlay that the data gate checks.
@@ -90,8 +90,8 @@ Source truth and freshness remain properties of the retained publications and re
 
 ## Repeatable collection
 
-`sources/public-facilities.json` selects 598 directory plans with observed contact floors.
-`sources/contact-directories.json` retains the manually reviewed prefectural school adapters.
+`data/sources/public-facilities.json` selects 598 directory plans with observed contact floors.
+`data/sources/contact-directories.json` retains the manually reviewed prefectural school adapters.
 Run `mise x -- just data-collect .local/collection/current` to retrieve and verify the selected sources.
 Run `mise x -- just data-replay .local/collection/replayed` to reproduce contact and source output from the verified byte cache without network access.
 Use `mise x -- just data-discover .local/collection/candidates.json` to discover licensed candidates for review.
@@ -102,13 +102,13 @@ A collection writes `contacts.jsonl`, `sources.json`, `artifacts.json`, and `col
 Each entry records its digest and retrieval metadata.
 The report lists plans, conflicts, failures, and coverage in a fixed order, whichever order the sources finished in.
 It also records the digest and size of the other three files, so its own digest identifies the complete output.
-`mise x -- node tools/collection-store.ts compare .local/collection/current .local/collection/replayed` requires a replay to match its collection byte for byte.
+`mise x -- node infrastructure/cloudflare/src/collection-store.ts compare .local/collection/current .local/collection/replayed` requires a replay to match its collection byte for byte.
 
 Source artifacts have SHA-256 identities, byte limits, timeouts, and conditional requests.
 The collector keeps one request in flight per origin and waits five seconds between requests to it.
 An origin that answers HTTP 403 or HTTP 429 receives no further request during the run.
 Each remaining source of that origin fails with a message that names the refusal.
-`mise x -- node tools/collect.ts run sources/public-facilities.json --output .local/collection/current --reuse-cache` later keeps the retrieved files and requests only the missing ones.
+`mise x -- node data/src/collect.ts run sources/public-facilities.json --output .local/collection/current --reuse-cache` later keeps the retrieved files and requests only the missing ones.
 Each accepted school has a unique compatible active school code, a matching name, and either a matching postal code, address, or exact qualified identity.
 Telephone numbers come from explicit voice fields.
 The collector excludes fax fields and incomplete local numbers without a published area code.
@@ -164,7 +164,7 @@ It holds no credentials because it parses publisher files with the PDF, workbook
 It hands the collection and its source cache to the next job as an artifact that expires after one day.
 
 The `store` job runs in the `data` environment and fetches the Doppler `ci_data` config through GitHub OIDC.
-It downloads the base database that `sources/base-dataset.json` pins and refuses one whose manifest, size, or digest differs from the pin.
+It downloads the base database that `data/sources/base-dataset.json` pins and refuses one whose manifest, size, or digest differs from the pin.
 It fetches the delta bases that the next section describes, and it fails before any write when it can't fetch or verify one.
 It prepares the publication from that base, the collection, and the delta bases with `just data-prepare`.
 Then it runs `just data-check` and `just phone-quality` on the complete publication.
@@ -190,8 +190,8 @@ Change the pin only together with a reviewed base in `dial-control`.
 
 ### Delta bases
 
-`node tools/collection-store.ts delta-bases DIRECTORY` chooses the datasets that the new publication gets deltas from.
-It takes every dataset in `sources/shipped-snapshots.json`.
+`node infrastructure/cloudflare/src/collection-store.ts delta-bases DIRECTORY` chooses the datasets that the new publication gets deltas from.
+It takes every dataset in `data/sources/shipped-snapshots.json`.
 The file lists each dataset that a TestFlight or App Store build bundles by its ready manifest digest and snapshot.
 Each entry names the first app version that ships the dataset.
 It also takes the datasets of the 12 most recent verified production releases in the `dial-control` release records, counting each snapshot once.
@@ -202,7 +202,7 @@ It requires each manifest to match its digest and snapshot, and each archive to 
 It writes only local files, so a base that it can't fetch or verify fails the job before the store step writes anything.
 Preparation keeps the rule that a delta's Brotli bytes stay at or below half of the complete archive, and it logs each base and the size of its delta.
 The store step reports each shipped dataset that gets no delta as a warning, because that calls for a newer bundle in the next app release.
-An entry leaves `sources/shipped-snapshots.json` in a reviewed change, at least 12 months after the App Store stopped offering a version that bundles it.
+An entry leaves `data/sources/shipped-snapshots.json` in a reviewed change, at least 12 months after the App Store stopped offering a version that bundles it.
 
 ### Owner setup
 

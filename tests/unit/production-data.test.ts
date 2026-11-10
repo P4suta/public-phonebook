@@ -1,10 +1,10 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { checkedProductionDataBundle } from "@public-phonebook/data/check-data";
+import { PreparedDatasetManifestSchema } from "@public-phonebook/directory/dataset-storage";
 import * as v from "valibot";
 import { expect, it } from "vitest";
-import { PreparedDatasetManifestSchema } from "../../src/core/dataset-storage.ts";
-import { checkedProductionDataBundle } from "../../tools/check-data.ts";
 import { writeCheckFixture } from "../../tools/check-fixture.ts";
 
 it("rejects a local ranking bundle before starting production data verification", async () => {

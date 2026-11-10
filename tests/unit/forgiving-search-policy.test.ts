@@ -1,12 +1,12 @@
-import fc from "fast-check";
-import { expect, it } from "vitest";
 import {
   diceScore,
   mixedNameScore,
   preferredNameScore,
   readingGate,
   readingNameScore,
-} from "../../src/core/forgiving-search-policy.ts";
+} from "@public-phonebook/directory/forgiving-search-policy";
+import fc from "fast-check";
+import { expect, it } from "vitest";
 
 it("matches independent integer division for every admitted preference score", () => {
   for (let score = 0; score <= 1_000_000; score += 1) {

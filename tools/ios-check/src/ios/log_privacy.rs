@@ -9,7 +9,12 @@ use std::{
 };
 
 /// The directories whose Swift code ships in the app, the extension, or the packages.
-pub(super) const ROOTS: [&str; 4] = ["ios/App", "ios/Native", "ios/CallDirectory", "ios/Sources"];
+pub(super) const ROOTS: [&str; 4] = [
+    "apps/ios/App",
+    "apps/ios/Native",
+    "apps/ios/CallDirectory",
+    "apps/ios/Sources",
+];
 /// Functions that write to standard output or the console instead of the unified logging system.
 const CONSOLE_CALLS: [&str; 4] = ["print", "debugPrint", "dump", "NSLog"];
 const PUBLIC: &str = "privacy: .public)";

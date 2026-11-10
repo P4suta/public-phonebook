@@ -1,0 +1,27 @@
+{
+  "forbidden": [
+    {
+      "name": "directory-node-effects",
+      "severity": "error",
+      "from": { "path": "(^|/)packages/directory/src/" },
+      "to": { "dependencyTypes": ["core"] }
+    },
+    {
+      "name": "directory-dependency-direction",
+      "severity": "error",
+      "from": { "path": "(^|/)packages/directory/src/" },
+      "to": { "path": "(^|/)(apps|tools|data|infrastructure)/" }
+    },
+    {
+      "name": "web-preparation-boundary",
+      "severity": "error",
+      "from": { "path": "(^|/)apps/web/src/" },
+      "to": { "path": "(^|/)(tools|data|infrastructure)/" }
+    }
+  ],
+  "options": {
+    "parser": "swc",
+    "doNotFollow": { "path": "node_modules" },
+    "tsConfig": { "fileName": "tsconfig.json" }
+  }
+}

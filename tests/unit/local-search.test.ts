@@ -1,7 +1,5 @@
-import * as fc from "fast-check";
-import { describe, expect, it } from "vitest";
-import { compareUtf8 } from "../../src/core/directory-archive.ts";
-import { normalizeName } from "../../src/core/identity.ts";
+import { compareUtf8 } from "@public-phonebook/directory/directory-archive";
+import { normalizeName } from "@public-phonebook/directory/identity";
 import {
   continueCategory,
   type LocalMatches,
@@ -12,13 +10,15 @@ import {
   orderedIndexRows,
   previewGroups,
   searchLocalIndex,
-} from "../../src/core/local-search.ts";
-import { normalizePhone } from "../../src/core/phone.ts";
+} from "@public-phonebook/directory/local-search";
+import { normalizePhone } from "@public-phonebook/directory/phone";
 import {
   decodeLiteralSearchIndex,
   decodeSearchIndex,
-} from "../../src/core/search-index.ts";
-import { maximumQueryWords } from "../../src/core/search-text.ts";
+} from "@public-phonebook/directory/search-index";
+import { maximumQueryWords } from "@public-phonebook/directory/search-text";
+import * as fc from "fast-check";
+import { describe, expect, it } from "vitest";
 import {
   indexInput,
   type ModelContact,

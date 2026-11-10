@@ -3,7 +3,7 @@ import { extname, join } from "node:path";
 import { gzipSync } from "node:zlib";
 import * as v from "valibot";
 
-const buildOutput = ".cloudflare/output/v0/workers/default";
+const buildOutput = "apps/web/.cloudflare/output/v0/workers/default";
 const bytesPerKibibyte = 1024;
 const searchWorkerChunk = /^local-search-worker-[\w-]+\.js$/u;
 const noDestinations = v.array(v.never());

@@ -4,6 +4,12 @@ description: Install the pinned Android SDK platform and build tools through the
 runs:
   using: composite
   steps:
+    - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c
+      with:
+        cache-provider: basic
+        dependency-graph: disabled
+        build-scan-publish: "false"
+        validate-wrappers: "true"
     - name: Install the pinned Android SDK packages
       shell: bash
       run: '"${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0"'

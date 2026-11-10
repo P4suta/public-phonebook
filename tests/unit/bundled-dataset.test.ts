@@ -1,10 +1,10 @@
-import { expect, it } from "vitest";
+import { readShippedSnapshots } from "@public-phonebook/cloudflare/collection-store";
 import {
   checkBundledDeclaration,
   readBundledDeclaration,
   requireShippedDeclaration,
-} from "../../tools/bundled-dataset.ts";
-import { readShippedSnapshots } from "../../tools/collection-store.ts";
+} from "@public-phonebook/data/bundled-dataset";
+import { expect, it } from "vitest";
 
 it("finds the iPhone app's bundled dataset in the shipped list", async () => {
   await expect(checkBundledDeclaration()).resolves.toBeUndefined();

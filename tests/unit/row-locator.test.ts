@@ -1,5 +1,5 @@
+import { rowLocatorDecision } from "@public-phonebook/directory/row-locator-policy";
 import { describe, expect, it } from "vitest";
-import { rowLocatorDecision } from "../../src/core/row-locator-policy.ts";
 
 const contactCounts = [0, 1, 3];
 const rows = [-2, -1, 0, 1, 2, 3, 4];

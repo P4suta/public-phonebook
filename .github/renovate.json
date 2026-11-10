@@ -5,7 +5,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^package\\.json$/"],
+      "managerFilePatterns": ["/(^|/)package\\.json$/"],
       "matchStrings": [
         "\"xlsx\": \"https://cdn\\.sheetjs\\.com/xlsx-(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)/xlsx-[0-9]+\\.[0-9]+\\.[0-9]+\\.tgz\""
       ],
@@ -63,7 +63,8 @@
         "docker.io/jdxcode/mise",
         "dopplerhq/secrets-fetch-action",
         "actions/attest-build-provenance",
-        "actions/attest-sbom"
+        "actions/attest",
+        "gradle/actions/setup-gradle"
       ],
       "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
       "groupName": "deployment dependencies",
@@ -71,7 +72,7 @@
       "automerge": false,
       "addLabels": ["release-rehearsal"],
       "prBodyNotes": [
-        "> [!IMPORTANT]\n> This update changes the deployed Worker, its build, or a release path, so it doesn't merge on its own.\n> Merge it only after the owner reviews it, and run the withdrawal drill in `pipeline-controls.yml` on `main` before the next release.\n> When it changes the TestFlight workflow or its tools, also run `mise x -- just ios-archive`."
+        "> [!IMPORTANT]\n> This update changes the deployed Worker, its build, or a release path, so it doesn't merge on its own.\n> Review the change and require the applicable build, deployment dry run, browser, and recovery checks before publication.\n> Changes to TestFlight or its tools also require the native archive and distribution checks."
       ]
     },
     {
@@ -83,7 +84,7 @@
       "automerge": false,
       "addLabels": ["release-rehearsal"],
       "prBodyNotes": [
-        "> [!IMPORTANT]\n> This refresh can rebuild the Worker with different bundler and CSS tool releases, so it doesn't merge on its own.\n> Merge it only after the owner reviews it, and run the withdrawal drill in `pipeline-controls.yml` on `main` before the next release."
+        "> [!IMPORTANT]\n> This refresh can rebuild the Worker with different bundler and CSS tool releases, so it doesn't merge on its own.\n> Review the change and require the applicable build, deployment dry run, browser, and recovery checks before publication."
       ]
     }
   ]

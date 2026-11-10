@@ -1,8 +1,8 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { probeHold } from "@public-phonebook/directory/publication-policy";
 import { lock } from "proper-lockfile";
 import * as v from "valibot";
-import { probeHold } from "../src/core/publication-policy.ts";
 
 export const probeWindowMs = 10_000;
 export const probeLimit = 40;

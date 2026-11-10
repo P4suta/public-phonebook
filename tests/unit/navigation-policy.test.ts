@@ -1,5 +1,5 @@
+import { confirmsNavigation } from "@public-phonebook/directory/navigation-policy";
 import { expect, it } from "vitest";
-import { confirmsNavigation } from "../../src/core/navigation-policy.ts";
 
 it("confirms only a plain primary activation of a new-tab link to another site", () => {
   const flags = [false, true] as const;

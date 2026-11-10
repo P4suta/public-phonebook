@@ -1,92 +1,47 @@
-name: Candidate
+name: Web release checks
 
 on:
   workflow_dispatch:
-    inputs:
-      dataset:
-        description: SHA-256 of the dataset's ready manifest
-        type: string
-        required: true
   workflow_call:
-    inputs:
-      dataset:
-        description: SHA-256 of the dataset's ready manifest
-        type: string
-        required: true
 
 permissions: {}
 
+env:
+  MISE_AUTO_INSTALL: "false"
+
 concurrency:
-  group: candidate-${{ github.ref }}-${{ inputs.dataset }}
+  group: web-checks-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  plan:
-    name: Find the stages without evidence for their inputs
-    runs-on: ubuntu-26.04
-    environment: candidate
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_candidate config.
-    outputs:
-      missing: ${{ steps.plan.outputs.missing }}
-    steps:
-      - name: Require the main branch
-        run: test "$GITHUB_REF" = refs/heads/main
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/toolchain
-        with:
-          tools: node just
-          dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
-      - id: doppler
-        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
-        with:
-          auth-method: oidc
-          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
-          doppler-project: public-phonebook
-          doppler-config: ci_candidate
-          inject-env-vars: "false"
-      - id: plan
-        name: List the stages whose inputs have no passing evidence
-        env:
-          DATASET: ${{ inputs.dataset }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/candidate-evidence.ts plan --dataset "$DATASET"
   check:
-    name: Fast and build checks
-    needs: [plan]
-    if: contains(fromJSON(needs.plan.outputs.missing), 'check')
+    name: Repository and browser contracts
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     permissions:
       contents: read
     env:
       CARGO_BUILD_JOBS: "2"
+      CF_SEND_TELEMETRY: "false"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
+        with:
+          tools: rust node just biome actionlint zizmor gitleaks github:rustsec/rustsec
       - run: mise x -- npm exec --no -- playwright install --with-deps chromium
-      - run: mise x -- just test --stage check
+      - run: mise x -- just check
+      - run: mise x -- just check-build
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: failure()
         with:
-          name: check-failure-evidence
+          name: web-contract-failures
           path: test-results
           if-no-files-found: ignore
           retention-days: 7
   prove:
-    name: Formal assurance
-    needs: [plan]
-    if: contains(fromJSON(needs.plan.outputs.missing), 'prove')
+    name: Directory proofs
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
@@ -98,273 +53,62 @@ jobs:
         with:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
-      - run: mise x -- just test --stage prove
-  ios-prove:
-    name: iOS proofs
-    needs: [plan]
-    if: contains(fromJSON(needs.plan.outputs.missing), 'ios-prove')
+        with:
+          tools: rust node just
+      - run: mise x -- just prove
+  browser:
+    name: Production dataset and four browsers
     runs-on: ubuntu-26.04
-    timeout-minutes: 20
+    environment: observe
+    timeout-minutes: 60
     permissions:
       contents: read
+      id-token: write # Fetches the pinned dataset with read-only credentials.
     env:
-      CARGO_BUILD_JOBS: "2"
+      CF_SEND_TELEMETRY: "false"
+      DIAL_LOCAL_BUNDLE: target/web-dataset
     steps:
+      - name: Require the main branch
+        run: test "$GITHUB_REF" = refs/heads/main
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
-      - run: mise x -- just test --stage ios-prove
+        with:
+          tools: node just
+          dependencies: "false"
+      - run: npm ci --ignore-scripts
+      - run: npm exec --no -- playwright install --with-deps chromium firefox webkit
+      - id: doppler
+        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
+          doppler-project: public-phonebook
+          doppler-config: ci_observe
+          inject-env-vars: "false"
+      - name: Fetch and verify the pinned dataset
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
+        run: node infrastructure/cloudflare/src/remote-data.ts --fetch-production target/web-dataset
+      - run: just data-check target/web-dataset
+      - run: just phone-quality target/web-dataset target/phone-quality.json
+      - run: npm run build
+      - run: just data-local target/web-dataset
+      - run: node tools/search-parity.ts target/web-dataset
+      - run: npm run e2e
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: failure()
         with:
-          name: ios-proof-failure-evidence
-          path: target/ios
-          if-no-files-found: ignore
-          retention-days: 7
-  ios-check:
-    name: iOS checks
-    concurrency:
-      group: ios-native-${{ github.sha }}
-      cancel-in-progress: false
-    needs: [plan]
-    if: contains(fromJSON(needs.plan.outputs.missing), 'ios-check')
-    runs-on: xcode-27
-    timeout-minutes: 90
-    permissions:
-      contents: read
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
-      CARGO_BUILD_JOBS: "2"
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/toolchain
-      - id: inputs
-        run: mise x -- just delivery platform-key ios --scope check --output "$GITHUB_OUTPUT"
-      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
-        with:
-          path: |
-            target/delivery/platforms/ios-check.json
-            target/ios/receipt.json
-          key: ios-check-${{ steps.inputs.outputs.key }}
-      - run: mise x -- just test --stage ios-check
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: failure() || cancelled()
-        with:
-          name: native-failure-evidence
-          path: target/ios
+          name: web-dataset
+          path: target/web-dataset
           if-no-files-found: error
-          retention-days: 7
-  data:
-    name: Dataset and telephone checks
-    needs: [plan]
-    if: contains(fromJSON(needs.plan.outputs.missing), 'data') || contains(fromJSON(needs.plan.outputs.missing), 'phones')
-    runs-on: ubuntu-26.04
-    environment: candidate
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_candidate config.
-    steps:
-      - name: Require the main branch
-        run: test "$GITHUB_REF" = refs/heads/main
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/toolchain
-        with:
-          tools: node just
-          dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
-      - id: doppler
-        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
-        with:
-          auth-method: oidc
-          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
-          doppler-project: public-phonebook
-          doppler-config: ci_candidate
-          inject-env-vars: "false"
-      - name: Fetch the dataset and check every file, which is the data stage
-        env:
-          DATASET: ${{ inputs.dataset }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/remote-data.ts --fetch "$DATASET" ".local/datasets/$DATASET"
-      - name: Check every telephone number in the dataset
-        env:
-          DATASET: ${{ inputs.dataset }}
-        run: node tools/test.ts --bundle ".local/datasets/$DATASET" --stage phones
-  parity:
-    name: Literal search parity
-    needs: [plan]
-    if: contains(fromJSON(needs.plan.outputs.missing), 'parity')
-    runs-on: ubuntu-26.04
-    environment: candidate
-    timeout-minutes: 60
-    permissions:
-      contents: read
-      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_candidate config.
-    steps:
-      - name: Require the main branch
-        run: test "$GITHUB_REF" = refs/heads/main
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/toolchain
-        with:
-          tools: node just
-          dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
-      - name: Install the browsers for the parity and performance checks
-        run: npm exec --no -- playwright install --with-deps chromium webkit
-      - id: doppler
-        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
-        with:
-          auth-method: oidc
-          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
-          doppler-project: public-phonebook
-          doppler-config: ci_candidate
-          inject-env-vars: "false"
-      - name: Fetch the dataset and check every file
-        env:
-          DATASET: ${{ inputs.dataset }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/remote-data.ts --fetch "$DATASET" ".local/datasets/$DATASET"
-      - name: Seed the local D1 and R2 state from the dataset
-        env:
-          DATASET: ${{ inputs.dataset }}
-        run: node tools/local-data.ts ".local/datasets/$DATASET"
-      - name: Build the client and Worker
-        run: npm run build
-      - name: Check literal search parity and measure performance
-        env:
-          DATASET: ${{ inputs.dataset }}
-        run: node tools/test.ts --bundle ".local/datasets/$DATASET" --stage parity
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: always()
-        with:
-          name: candidate-search-reports
-          path: |
-            .local/search-parity.json
-            .local/search-performance.json
-          if-no-files-found: ignore
-          retention-days: 90
-  e2e:
-    name: Browser and API checks on the national dataset
-    needs: [plan]
-    if: contains(fromJSON(needs.plan.outputs.missing), 'e2e')
-    runs-on: ubuntu-26.04
-    environment: candidate
-    timeout-minutes: 60
-    permissions:
-      contents: read
-      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_candidate config.
-    steps:
-      - name: Require the main branch
-        run: test "$GITHUB_REF" = refs/heads/main
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/toolchain
-        with:
-          tools: node just
-          dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
-      - name: Install the browsers for the national campaign
-        run: npm exec --no -- playwright install --with-deps chromium firefox webkit
-      - id: doppler
-        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
-        with:
-          auth-method: oidc
-          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
-          doppler-project: public-phonebook
-          doppler-config: ci_candidate
-          inject-env-vars: "false"
-      - name: Fetch the dataset and check every file
-        env:
-          DATASET: ${{ inputs.dataset }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/remote-data.ts --fetch "$DATASET" ".local/datasets/$DATASET"
-      - name: Seed the local D1 and R2 state from the dataset
-        env:
-          DATASET: ${{ inputs.dataset }}
-        run: node tools/local-data.ts ".local/datasets/$DATASET"
-      - name: Build the client and Worker
-        run: npm run build
-      - name: Run the browser and API checks
-        env:
-          DATASET: ${{ inputs.dataset }}
-        run: node tools/test.ts --bundle ".local/datasets/$DATASET" --stage e2e
+          retention-days: 1
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: failure()
         with:
-          name: candidate-evidence-failure
-          path: |
-            test-results
-            playwright-report
+          name: web-browser-failures
+          path: test-results
           if-no-files-found: ignore
           retention-days: 7
-  record:
-    name: Record the evidence of every passing stage
-    needs: [plan, check, prove, ios-prove, ios-check, data, parity, e2e]
-    if: always() && needs.plan.result == 'success'
-    runs-on: ubuntu-26.04
-    environment: candidate
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_candidate config.
-    steps:
-      - name: Require the main branch
-        run: test "$GITHUB_REF" = refs/heads/main
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/toolchain
-        with:
-          tools: node just
-          dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        if: needs.parity.result == 'success'
-        with:
-          name: candidate-search-reports
-          path: .local
-      - id: doppler
-        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
-        with:
-          auth-method: oidc
-          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
-          doppler-project: public-phonebook
-          doppler-config: ci_candidate
-          inject-env-vars: "false"
-      - name: Record the planned stages whose jobs passed
-        env:
-          DATASET: ${{ inputs.dataset }}
-          MISSING: ${{ needs.plan.outputs.missing }}
-          CHECK: ${{ needs.check.result }}
-          PROVE: ${{ needs.prove.result }}
-          IOS_PROVE: ${{ needs.ios-prove.result }}
-          IOS_CHECK: ${{ needs.ios-check.result }}
-          DATA: ${{ needs.data.result }}
-          PARITY: ${{ needs.parity.result }}
-          E2E: ${{ needs.e2e.result }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: >-
-          node tools/candidate-evidence.ts record --dataset "$DATASET" --missing "$MISSING"
-          --result "check=$CHECK" --result "prove=$PROVE" --result "ios-prove=$IOS_PROVE"
-          --result "ios-check=$IOS_CHECK" --result "data=$DATA" --result "parity=$PARITY"
-          --result "e2e=$E2E"

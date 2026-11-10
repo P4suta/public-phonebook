@@ -2,20 +2,21 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { databaseVerification } from "../../src/core/publication-policy.ts";
 import {
   type ControlStore,
   controlKeys,
   fileControlStore,
   r2ControlStore,
-} from "../../tools/control-store.ts";
+} from "@public-phonebook/cloudflare/control-store";
 import {
   importIdentity,
   importTransformation,
-} from "../../tools/import-identity.ts";
-import type { ReleaseJournal } from "../../tools/release-lifecycle.ts";
-import { encodeRecord, saveRelease } from "../../tools/release-store.ts";
+} from "@public-phonebook/cloudflare/import-identity";
+import type { ReleaseJournal } from "@public-phonebook/cloudflare/release-lifecycle";
+import {
+  encodeRecord,
+  saveRelease,
+} from "@public-phonebook/cloudflare/release-store";
 import {
   databaseFacts,
   fetchDataset,
@@ -25,7 +26,9 @@ import {
   recordDatabaseVerification,
   storeDataset,
   writeArchives,
-} from "../../tools/remote-data.ts";
+} from "@public-phonebook/cloudflare/remote-data";
+import { databaseVerification } from "@public-phonebook/directory/publication-policy";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const digest = (text: string): string =>
   createHash("sha256").update(text).digest("hex");
@@ -106,6 +109,19 @@ it("refuses ranking companions before storing dataset bytes", async () => {
 });
 
 describe("remote data arguments", () => {
+  it("fetches the dataset pinned for production without a second digest input", () => {
+    expect(parseRemoteDataArguments(["--fetch-production", "target"])).toEqual({
+      kind: "fetch",
+      manifestSha256:
+        "fb88903d7d10991897dc0fbc875fabd4f96de112640b185703b167d9c1480e13",
+      directory: resolve("target"),
+    });
+    expect(() => parseRemoteDataArguments(["--fetch-production"])).toThrow();
+    expect(() =>
+      parseRemoteDataArguments(["--fetch-production", "target", "extra"]),
+    ).toThrow();
+  });
+
   it("parses preparation, fetch, and store commands and refuses anything else", () => {
     expect(parseRemoteDataArguments(["production", "bundle"])).toEqual({
       kind: "prepare",
@@ -280,19 +296,51 @@ describe("database verification evidence", () => {
     prefectures: 3,
   };
   const local = { kind: "local" } as const;
+  const boundDatabases = async (): Promise<ReadonlySet<string>> =>
+    new Set([servedId]);
   const lockedStore = (): ControlStore =>
     fileControlStore(join(root, "control"), { lockedPrefixes: ["evidence/"] });
 
-  it("refuses to decide without the publication journal", async () => {
-    await expect(
-      databaseFacts(lockedStore(), "production", served, servedId),
-    ).rejects.toThrow("publication journal");
+  it("protects a live binding without publication history", async () => {
+    const facts = await databaseFacts(
+      lockedStore(),
+      "production",
+      served,
+      servedId,
+      boundDatabases,
+    );
+    expect(facts.verification.bound).toBe(true);
+    expect(facts.verification.publicationVerified).toBe(false);
+    expect(facts.journalSequence).toBe(0);
+    expect(facts.verifiedRelease).toBeNull();
+  });
+
+  it("uses live bindings when publication history names an earlier database", async () => {
+    const store = lockedStore();
+    await saveRelease(store, "production", published, local, null);
+    const facts = await databaseFacts(
+      store,
+      "production",
+      fresh,
+      freshId,
+      async (): Promise<ReadonlySet<string>> => new Set([freshId]),
+    );
+    expect(facts.verification.bound).toBe(true);
+    expect(facts.verification.publicationVerified).toBe(false);
   });
 
   it("reads the journal's binding and the evidence of exactly this import identity and resource", async () => {
     const store = lockedStore();
     await saveRelease(store, "production", published, local, null);
-    expect(await databaseFacts(store, "production", served, servedId)).toEqual({
+    expect(
+      await databaseFacts(
+        store,
+        "production",
+        served,
+        servedId,
+        boundDatabases,
+      ),
+    ).toEqual({
       verification: {
         importSha256: served.importSha256,
         resource: servedId,
@@ -303,7 +351,9 @@ describe("database verification evidence", () => {
       journalSequence: 1,
       verifiedRelease: releaseId,
     });
-    expect(await databaseFacts(store, "production", fresh, freshId)).toEqual({
+    expect(
+      await databaseFacts(store, "production", fresh, freshId, boundDatabases),
+    ).toEqual({
       verification: {
         importSha256: fresh.importSha256,
         resource: freshId,
@@ -339,11 +389,23 @@ describe("database verification evidence", () => {
       store,
       "production",
       earlier,
-      await databaseFacts(store, "production", earlier, servedId),
+      await databaseFacts(
+        store,
+        "production",
+        earlier,
+        servedId,
+        boundDatabases,
+      ),
       { verification: "accept-publication" },
       local,
     );
-    const facts = await databaseFacts(store, "production", served, freshId);
+    const facts = await databaseFacts(
+      store,
+      "production",
+      served,
+      freshId,
+      boundDatabases,
+    );
     expect(facts).toEqual({
       verification: {
         importSha256: served.importSha256,
@@ -356,8 +418,15 @@ describe("database verification evidence", () => {
       verifiedRelease: null,
     });
     expect(
-      (await databaseFacts(store, "production", served, servedId)).verification
-        .evidence,
+      (
+        await databaseFacts(
+          store,
+          "production",
+          served,
+          servedId,
+          boundDatabases,
+        )
+      ).verification.evidence,
     ).toBeNull();
     expect(
       databaseVerification(
@@ -376,7 +445,13 @@ describe("database verification evidence", () => {
   it("records a full verification and a verified publication once each, and nothing for accepted evidence", async () => {
     const store = lockedStore();
     await saveRelease(store, "production", published, local, null);
-    const freshFacts = await databaseFacts(store, "production", fresh, freshId);
+    const freshFacts = await databaseFacts(
+      store,
+      "production",
+      fresh,
+      freshId,
+      boundDatabases,
+    );
     const verified = await recordDatabaseVerification(
       store,
       "production",
@@ -387,8 +462,8 @@ describe("database verification evidence", () => {
     );
     expect(verified?.verification).toEqual({ source: "verification", counts });
     expect(
-      (await databaseFacts(store, "production", fresh, freshId)).verification
-        .evidence,
+      (await databaseFacts(store, "production", fresh, freshId, boundDatabases))
+        .verification.evidence,
     ).toEqual(verified);
     expect(
       await recordDatabaseVerification(
@@ -416,6 +491,7 @@ describe("database verification evidence", () => {
       "production",
       served,
       servedId,
+      boundDatabases,
     );
     expect(
       (
@@ -429,7 +505,13 @@ describe("database verification evidence", () => {
         )
       )?.verification,
     ).toEqual({ source: "publication", sequence: 1, releaseId });
-    const accepted = await databaseFacts(store, "production", served, servedId);
+    const accepted = await databaseFacts(
+      store,
+      "production",
+      served,
+      servedId,
+      boundDatabases,
+    );
     expect(accepted.verification.evidence).toMatchObject({
       ...served,
       database: servedId,
@@ -472,7 +554,13 @@ describe("database verification evidence", () => {
       encodeRecord(foreign),
       { kind: "create" },
     );
-    const facts = await databaseFacts(store, "production", served, servedId);
+    const facts = await databaseFacts(
+      store,
+      "production",
+      served,
+      servedId,
+      boundDatabases,
+    );
     expect(
       databaseVerification(
         facts.verification.evidence !== null,

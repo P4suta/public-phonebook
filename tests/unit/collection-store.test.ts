@@ -9,15 +9,6 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
-import * as v from "valibot";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { maximumShippedDeltaBases } from "../../src/core/dataset-storage.ts";
-import { ContactSchema, SourceSchema } from "../../src/core/models.ts";
-import type { SourceArtifact } from "../../tools/collection/artifacts.ts";
-import {
-  encodeCollectionReport,
-  fileIdentity,
-} from "../../tools/collection/report.ts";
 import {
   type BaseDatasetPin,
   BaseDatasetPinSchema,
@@ -32,14 +23,26 @@ import {
   ShippedSnapshotsSchema,
   storeCollection,
   unservedShippedBases,
-} from "../../tools/collection-store.ts";
+} from "@public-phonebook/cloudflare/collection-store";
 import {
   type ControlStore,
   controlKeys,
   fileControlStore,
   writeOnce,
-} from "../../tools/control-store.ts";
-import type { ReleaseJournal } from "../../tools/release-lifecycle.ts";
+} from "@public-phonebook/cloudflare/control-store";
+import type { ReleaseJournal } from "@public-phonebook/cloudflare/release-lifecycle";
+import type { SourceArtifact } from "@public-phonebook/data/collection/artifacts";
+import {
+  encodeCollectionReport,
+  fileIdentity,
+} from "@public-phonebook/data/collection/report";
+import { maximumShippedDeltaBases } from "@public-phonebook/directory/dataset-storage";
+import {
+  ContactSchema,
+  SourceSchema,
+} from "@public-phonebook/directory/models";
+import * as v from "valibot";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const encoder = new TextEncoder();
 const digest = (text: string | Uint8Array): string =>
@@ -517,15 +520,25 @@ describe("delta bases", () => {
     return { phase, candidate: target, previous: null };
   }
 
-  it("lists the dataset of each verified release, oldest first", () => {
+  it("keeps historical verified datasets and the current committed production pin", () => {
     expect(
-      publishedDatasets([
-        journal("verified", bases.shipped),
-        journal("withdrawn", bases.unarchived),
-        journal("staged", bases.unarchived),
-        journal("verified", bases.published),
-      ]),
-    ).toEqual([candidate(bases.shipped), candidate(bases.published)]);
+      publishedDatasets(
+        [
+          journal("verified", bases.shipped),
+          journal("withdrawn", bases.unarchived),
+          journal("staged", bases.unarchived),
+          journal("verified", bases.published),
+        ],
+        candidate(bases.unarchived),
+      ),
+    ).toEqual([
+      candidate(bases.shipped),
+      candidate(bases.published),
+      candidate(bases.unarchived),
+    ]);
+    expect(publishedDatasets([], candidate(bases.published))).toEqual([
+      candidate(bases.published),
+    ]);
   });
 
   it("fetches each base's manifest and archive, skips a published dataset without an archive, and writes nothing to the store", async () => {

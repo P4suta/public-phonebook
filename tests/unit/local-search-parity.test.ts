@@ -1,18 +1,19 @@
 import { DatabaseSync } from "node:sqlite";
-import { Miniflare, type Response as WorkerResponse } from "miniflare";
-import * as v from "valibot";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { SqlStatement } from "@public-phonebook/cloudflare/remote-statements";
+import { databaseSchema } from "@public-phonebook/data/database-schema";
+import { readSearchIndex } from "@public-phonebook/data/search-index";
+import { contactRowNumbers } from "@public-phonebook/data/snapshot";
 import {
   categoryDefinitions,
   prefectureNames,
-} from "../../src/core/catalog.ts";
+} from "@public-phonebook/directory/catalog";
 import {
   continueCategory,
   type LocalMatches,
   localQuery,
   matchIndex,
   previewGroups,
-} from "../../src/core/local-search.ts";
+} from "@public-phonebook/directory/local-search";
 import {
   type Catalog,
   CatalogSchema,
@@ -22,26 +23,25 @@ import {
   ProblemSchema,
   type SearchResponse,
   SearchResponseSchema,
-} from "../../src/core/models.ts";
-import { normalizeName } from "../../src/core/search.ts";
+} from "@public-phonebook/directory/models";
+import { normalizeName } from "@public-phonebook/directory/search";
 import {
   compareRowOrder,
   decodeLiteralSearchIndex,
   type SearchIndex,
-} from "../../src/core/search-index.ts";
-import { uiCopy } from "../../src/ui/copy.ts";
-import { localRow } from "../../src/ui/local-search-service.ts";
+} from "@public-phonebook/directory/search-index";
+import { Miniflare, type Response as WorkerResponse } from "miniflare";
+import * as v from "valibot";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { uiCopy } from "../../apps/web/src/ui/copy.ts";
+import { localRow } from "../../apps/web/src/ui/local-search-service.ts";
 import {
   catalogRegions,
   localCard,
   serverCard,
-} from "../../src/ui/result-cards.ts";
+} from "../../apps/web/src/ui/result-cards.ts";
 import { checkFixtureContacts } from "../../tools/check-fixture.ts";
-import { databaseSchema } from "../../tools/database-schema.ts";
 import { contactSeedStatements } from "../../tools/directory-fixture.ts";
-import type { SqlStatement } from "../../tools/remote-statements.ts";
-import { readSearchIndex } from "../../tools/search-index.ts";
-import { contactRowNumbers } from "../../tools/snapshot.ts";
 import { apiWorkerEntry, bundledApi } from "./workerd-fixture.ts";
 
 const snapshot = "c".repeat(64);

@@ -1,17 +1,17 @@
-import fc from "fast-check";
-import * as v from "valibot";
-import { describe, expect, it } from "vitest";
+import { buildRankingArtifact } from "@public-phonebook/data/search-ranking";
 import {
   createRankedSearch,
   type RankedSearch,
-} from "../../src/core/local-search.ts";
+} from "@public-phonebook/directory/local-search";
 import {
   decodeSearchIndex,
   type SearchIndex,
   SearchIndexHeaderSchema,
-} from "../../src/core/search-index.ts";
-import type { RankingArtifact } from "../../src/core/search-ranking-artifact.ts";
-import { buildRankingArtifact } from "../../tools/search-ranking.ts";
+} from "@public-phonebook/directory/search-index";
+import type { RankingArtifact } from "@public-phonebook/directory/search-ranking-artifact";
+import fc from "fast-check";
+import * as v from "valibot";
+import { describe, expect, it } from "vitest";
 import { modelDirectory } from "./local-search-fixture.ts";
 
 interface Example {

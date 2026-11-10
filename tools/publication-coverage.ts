@@ -1,7 +1,10 @@
+import { prefectureNames } from "@public-phonebook/directory/catalog";
+import {
+  type Catalog,
+  CatalogSchema,
+} from "@public-phonebook/directory/models";
+import { retainsCoverage } from "@public-phonebook/directory/publication-policy";
 import * as v from "valibot";
-import { prefectureNames } from "../src/core/catalog.ts";
-import { type Catalog, CatalogSchema } from "../src/core/models.ts";
-import { retainsCoverage } from "../src/core/publication-policy.ts";
 
 const maximumContacts = 10000000;
 const regionCodeWidth = 2;

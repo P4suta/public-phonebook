@@ -172,7 +172,7 @@ pub(super) fn control(root: &Path) -> Result<()> {
                 "-toolchain",
                 "com.apple.dt.toolchain.XcodeDefault",
                 "-project",
-                "ios/PublicPhonebook.xcodeproj",
+                "apps/ios/PublicPhonebook.xcodeproj",
                 "-scheme",
                 "PublicPhonebook",
                 "-configuration",

@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import { Miniflare } from "miniflare";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { versionHeader } from "../../src/server/version-header.ts";
+import { versionHeader } from "../../apps/web/src/server/version-header.ts";
 
 const entry = `
 import { withVersionHeader } from "./version-header.js";
@@ -28,7 +28,7 @@ export default {
 
 async function runtime(binding: boolean): Promise<Miniflare> {
   const wrapper = stripTypeScriptTypes(
-    await readFile("src/server/version-header.ts", "utf8"),
+    await readFile("apps/web/src/server/version-header.ts", "utf8"),
   );
   return new Miniflare({
     cf: false,
@@ -106,7 +106,7 @@ describe("Worker version header", () => {
   });
 
   it("wraps the whole Worker entry, so assets and errors carry the version", async () => {
-    const source = await readFile("src/server.ts", "utf8");
+    const source = await readFile("apps/web/src/server.ts", "utf8");
     expect(source).toMatch(/fetch: withVersionHeader\(async function fetch\(/u);
   });
 });

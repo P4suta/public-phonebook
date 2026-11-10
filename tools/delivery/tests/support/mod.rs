@@ -26,8 +26,8 @@ impl Repository {
             "origin",
             "https://github.com/P4suta/public-phonebook.git",
         ])?;
-        result.write("ios/version.txt", "1.0.0\n")?;
-        result.write("android/version.txt", "1.0.0\n")?;
+        result.write("apps/ios/version.txt", "1.0.0\n")?;
+        result.write("apps/android/version.txt", "1.0.0\n")?;
         result.write("releases/ios/manifest.json", "{\".\":\"1.0.0\"}\n")?;
         result.write("releases/android/manifest.json", "{\".\":\"1.0.0\"}\n")?;
         result.write(".gitignore", "target/\n")?;

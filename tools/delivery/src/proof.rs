@@ -338,7 +338,7 @@ pub fn run(root: &Path) -> Result<()> {
         production.status.success(),
         "Kani process failed despite its report"
     );
-    let core = project.join("src/lib.rs");
+    let core = project.join("apps/web/src/lib.rs");
     let source = fs::read_to_string(&core)?;
     const GUARD: &str = "if !facts.checks_passed {";
     ensure!(

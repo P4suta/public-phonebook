@@ -1,13 +1,13 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { categoryDefinitions } from "@public-phonebook/directory/catalog";
 import { describe, expect, it } from "vitest";
-import { categoryDefinitions } from "../../src/core/catalog.ts";
 import {
   categoryFallbackIcon,
   categoryIcons,
-} from "../../src/ui/icon-catalog.ts";
-import { categoryIcon } from "../../src/ui/icons.tsx";
-import { pageIcons, routeIcons } from "../../src/ui/route-icons.ts";
-import { serviceInformation } from "../../src/ui/service-information.ts";
+} from "../../apps/web/src/ui/icon-catalog.ts";
+import { categoryIcon } from "../../apps/web/src/ui/icons.tsx";
+import { pageIcons, routeIcons } from "../../apps/web/src/ui/route-icons.ts";
+import { serviceInformation } from "../../apps/web/src/ui/service-information.ts";
 import {
   declarationSource,
   type IconSite,
@@ -15,10 +15,10 @@ import {
   iconUsage,
 } from "./icon-usage.ts";
 
-const routesDirectory = "src/routes";
-const rootModule = "src/routes/__root.tsx";
+const routesDirectory = "apps/web/src/routes";
+const rootModule = "apps/web/src/routes/__root.tsx";
 const rootId = "__root__";
-const contactModule = "src/routes/contacts.$id.tsx";
+const contactModule = "apps/web/src/routes/contacts.$id.tsx";
 const everyCategory = [...Object.values(categoryIcons), categoryFallbackIcon];
 
 /** The contact page draws only the category of the contact its loader returns, which `pageIcons` adds. */
@@ -26,14 +26,14 @@ const loaderCategories: ReadonlyMap<string, IconSite> = new Map([
   [
     "/contacts/$id",
     {
-      declaration: "src/ui/components.tsx#ContactCard",
+      declaration: "apps/web/src/ui/components.tsx#ContactCard",
       expression: "contact.category",
     },
   ],
 ]);
 /** Both information pages pass an entry of `serviceInformation`, so a link's icon is one of its links' icons. */
 const serviceLinkRead: IconSite = {
-  declaration: "src/ui/information-page.tsx#InformationPage",
+  declaration: "apps/web/src/ui/information-page.tsx#InformationPage",
   expression: "link.icon",
 };
 const serviceLinkIcons = serviceInformation.flatMap((information) =>
@@ -108,10 +108,10 @@ describe("the icon walk", () => {
 
   function walk(page: string): IconUsage {
     const sources = new Map([
-      ["src/ui/icon-catalog.ts", catalog],
-      ["src/ui/icons.tsx", icons],
+      ["apps/web/src/ui/icon-catalog.ts", catalog],
+      ["apps/web/src/ui/icons.tsx", icons],
       [
-        "src/routes/page.tsx",
+        "apps/web/src/routes/page.tsx",
         `
           import { createFileRoute } from "@tanstack/react-router";
           import { categoryIcons } from "../ui/icon-catalog.ts";
@@ -124,7 +124,10 @@ describe("the icon walk", () => {
         `,
       ],
     ]);
-    return iconUsage((path) => sources.get(path), "src/routes/page.tsx");
+    return iconUsage(
+      (path) => sources.get(path),
+      "apps/web/src/routes/page.tsx",
+    );
   }
 
   it("collects both branches of a condition and the icons a forwarding component receives", () => {
@@ -148,20 +151,22 @@ describe("the icon walk", () => {
       function Page() { return <><Icon name="copy" /><span>{data.label}</span></>; }
     `;
     const sources = new Map([
-      ["src/routes/page.tsx", route],
+      ["apps/web/src/routes/page.tsx", route],
       [
-        "src/routes/labels.json",
+        "apps/web/src/routes/labels.json",
         JSON.stringify({ label: '<Icon name="send" />' }),
       ],
-      ["src/ui/icons.tsx", icons],
-      ["src/ui/icon-catalog.ts", catalog],
+      ["apps/web/src/ui/icons.tsx", icons],
+      ["apps/web/src/ui/icon-catalog.ts", catalog],
     ]);
     const read = (path: string): string | undefined => sources.get(path);
-    const usage = iconUsage(read, "src/routes/page.tsx");
+    const usage = iconUsage(read, "apps/web/src/routes/page.tsx");
     expect(usage.problems).toEqual([]);
     expect(usage.icons).toEqual(["copy"]);
-    sources.set("src/routes/labels.json", '{ "label": }');
-    expect(() => iconUsage(read, "src/routes/page.tsx")).toThrow(SyntaxError);
+    sources.set("apps/web/src/routes/labels.json", '{ "label": }');
+    expect(() => iconUsage(read, "apps/web/src/routes/page.tsx")).toThrow(
+      SyntaxError,
+    );
   });
 
   it.each([
@@ -247,12 +252,15 @@ describe("the icon walk", () => {
     expect(usage.icons).toEqual(["copy"]);
     expect(usage.categorySites).toEqual([
       {
-        declaration: "src/routes/page.tsx#Page",
+        declaration: "apps/web/src/routes/page.tsx#Page",
         expression: "contact.category",
       },
     ]);
     expect(usage.dataSites).toEqual([
-      { declaration: "src/routes/page.tsx#Page", expression: "link.icon" },
+      {
+        declaration: "apps/web/src/routes/page.tsx#Page",
+        expression: "link.icon",
+      },
     ]);
   });
 });
@@ -292,7 +300,8 @@ describe("route icons", () => {
     const pages = [...usages.values()].flatMap((usage) =>
       usage.uses.filter(
         (use) =>
-          use.component === "src/ui/information-page.tsx#InformationPage",
+          use.component ===
+          "apps/web/src/ui/information-page.tsx#InformationPage",
       ),
     );
     expect(pages.length).toBeGreaterThan(0);
@@ -309,7 +318,10 @@ describe("route icons", () => {
     ]);
     expect(
       usage.uses
-        .filter((use) => use.component === "src/ui/components.tsx#ContactCard")
+        .filter(
+          (use) =>
+            use.component === "apps/web/src/ui/components.tsx#ContactCard",
+        )
         .map((use) => [use.from, use.attributes.contact]),
     ).toEqual([[`${contactModule}#ContactPage`, "contact"]]);
     expect(

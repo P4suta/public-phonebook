@@ -1,15 +1,12 @@
-import * as fc from "fast-check";
-import * as v from "valibot";
-import { describe, expect, it } from "vitest";
 import {
   categoryDefinitions,
   MunicipalityCodeSchema,
   PrefectureCodeSchema,
   prefectureNames,
-} from "../../src/core/catalog.ts";
-import { PreparedDatasetManifestSchema } from "../../src/core/dataset-storage.ts";
-import { compareUtf8 } from "../../src/core/directory-archive.ts";
-import { normalizeName } from "../../src/core/identity.ts";
+} from "@public-phonebook/directory/catalog";
+import { PreparedDatasetManifestSchema } from "@public-phonebook/directory/dataset-storage";
+import { compareUtf8 } from "@public-phonebook/directory/directory-archive";
+import { normalizeName } from "@public-phonebook/directory/identity";
 import {
   compareRowOrder,
   decodeLiteralSearchIndex,
@@ -22,8 +19,11 @@ import {
   type SearchIndexRow,
   searchIndexLimits,
   searchIndexRow,
-} from "../../src/core/search-index.ts";
-import { searchForm } from "../../src/core/search-text.ts";
+} from "@public-phonebook/directory/search-index";
+import { searchForm } from "@public-phonebook/directory/search-text";
+import * as fc from "fast-check";
+import * as v from "valibot";
+import { describe, expect, it } from "vitest";
 
 const snapshot = "a".repeat(64);
 const libraryIndex = categoryDefinitions.findIndex(

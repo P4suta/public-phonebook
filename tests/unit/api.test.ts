@@ -1,13 +1,10 @@
 import { createHash } from "node:crypto";
 import { brotliCompressSync } from "node:zlib";
-import { SQLiteAsyncDialect } from "drizzle-orm/sqlite-core";
-import { Miniflare, type Response as WorkerResponse } from "miniflare";
-import * as v from "valibot";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { databaseSchema } from "@public-phonebook/data/database-schema";
 import {
   categoryDefinitions,
   prefectureNames,
-} from "../../src/core/catalog.ts";
+} from "@public-phonebook/directory/catalog";
 import {
   DatasetFileListingSchema,
   DirectoryDeltaListingSchema,
@@ -16,8 +13,8 @@ import {
   PreparedDatasetManifestSchema,
   SearchIndexLocationSchema,
   searchIndexObjectKey,
-} from "../../src/core/dataset-storage.ts";
-import { sha256 } from "../../src/core/identity.ts";
+} from "@public-phonebook/directory/dataset-storage";
+import { sha256 } from "@public-phonebook/directory/identity";
 import {
   CatalogSchema,
   type Contact,
@@ -27,33 +24,36 @@ import {
   ProblemSchema,
   RowLocationSchema,
   SearchResponseSchema,
-} from "../../src/core/models.ts";
-import { checkPageChain } from "../../src/core/page-chain.ts";
+} from "@public-phonebook/directory/models";
+import { checkPageChain } from "@public-phonebook/directory/page-chain";
 import {
   encodeCursor,
   normalizeName,
   parseSearch,
   searchKey,
-} from "../../src/core/search.ts";
+} from "@public-phonebook/directory/search";
+import { SQLiteAsyncDialect } from "drizzle-orm/sqlite-core";
+import { Miniflare, type Response as WorkerResponse } from "miniflare";
+import * as v from "valibot";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   api,
   type DirectoryApiBindings,
   openDataPath,
-} from "../../src/server/api.ts";
+} from "../../apps/web/src/server/api.ts";
 import {
   categoryPreviews,
   contactPage,
   directoryDatabase,
   readCatalog,
   searchSelection,
-} from "../../src/server/database.ts";
+} from "../../apps/web/src/server/database.ts";
 import type {
   DatasetByteRange,
   DatasetObject,
   DatasetObjectMetadata,
-} from "../../src/server/datasets.ts";
-import type { SearchCache } from "../../src/server/search-cache.ts";
-import { databaseSchema } from "../../tools/database-schema.ts";
+} from "../../apps/web/src/server/datasets.ts";
+import type { SearchCache } from "../../apps/web/src/server/search-cache.ts";
 import { contactSeedStatements } from "../../tools/directory-fixture.ts";
 import { apiWorkerEntry, bundledApi } from "./workerd-fixture.ts";
 

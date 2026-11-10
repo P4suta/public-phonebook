@@ -1,6 +1,6 @@
+import { normalizePhone } from "@public-phonebook/directory/phone";
+import { decodeSearchIndex } from "@public-phonebook/directory/search-index";
 import { describe, expect, it } from "vitest";
-import { normalizePhone } from "../../src/core/phone.ts";
-import { decodeSearchIndex } from "../../src/core/search-index.ts";
 import {
   type ComparedResults,
   compareResults,

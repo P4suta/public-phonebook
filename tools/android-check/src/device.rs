@@ -28,7 +28,7 @@ pub fn check(root: &Path, serial: &str, fresh: bool) -> Result<u32> {
             "Cannot clear the verification app's data"
         );
     }
-    let test_apk = root.join("android/app/build/outputs/apk/androidTest/verification/debug/app-verification-debug-androidTest.apk");
+    let test_apk = root.join("apps/android/app/build/outputs/apk/androidTest/verification/debug/app-verification-debug-androidTest.apk");
     let mut command = adb(serial)?;
     command.args(["install", "-r"]).arg(&test_apk);
     completed(command)?;
@@ -79,8 +79,8 @@ pub fn check(root: &Path, serial: &str, fresh: bool) -> Result<u32> {
             .parse()
             .context("Invalid device metric")
     };
-    let apk =
-        root.join("android/app/build/outputs/apk/verification/debug/app-verification-debug.apk");
+    let apk = root
+        .join("apps/android/app/build/outputs/apk/verification/debug/app-verification-debug.apk");
     write_json(
         &destination.join("receipt.json"),
         &json!({"sdk":api,"model":model,"apkSha256":file_digest(&apk)?,"testApkSha256":file_digest(&test_apk)?,"freshPreparation":fresh,"tests":2,"preparationMs":metric("preparationMs")?,"searchMs":metric("searchMs")?,"totalPssKiB":metric("totalPssKiB")?,"callerIdentification":"unverified","physicalDevice":!serial.starts_with("emulator-")}),

@@ -3,24 +3,30 @@ import { mkdir, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { brotliDecompressSync } from "node:zlib";
-import * as fc from "fast-check";
-import * as v from "valibot";
-import { describe, expect, it } from "vitest";
+import {
+  type DeltaArchive,
+  type DeltaBaseCandidate,
+  type DeltaSource,
+  deltaBasePlan,
+  requireDistinctSources,
+  writeDirectoryDeltas,
+} from "@public-phonebook/data/directory-delta";
+import { compressDirectoryArchive } from "@public-phonebook/data/snapshot";
 import {
   categoryDefinitions,
   PrefectureCodeSchema,
   prefectureNames,
-} from "../../src/core/catalog.ts";
+} from "@public-phonebook/directory/catalog";
 import {
   maximumDirectoryDeltas,
   maximumPublishedDeltaBases,
-} from "../../src/core/dataset-storage.ts";
+} from "@public-phonebook/directory/dataset-storage";
 import {
   type DirectoryArchiveContact,
   type DirectoryArchiveSource,
   decodeDirectoryArchive,
   encodeDirectoryArchive,
-} from "../../src/core/directory-archive.ts";
+} from "@public-phonebook/directory/directory-archive";
 import {
   applyDirectoryDelta,
   type DeltaDigest,
@@ -31,28 +37,22 @@ import {
   directoryDeltaFilePattern,
   encodeDirectoryDelta,
   readDirectoryText,
-} from "../../src/core/directory-delta.ts";
+} from "@public-phonebook/directory/directory-delta";
 import {
   copyAdmission,
   deltaAdmission,
   deltaBaseRetained,
   deltaPublication,
-} from "../../src/core/directory-delta-policy.ts";
+} from "@public-phonebook/directory/directory-delta-policy";
 import {
   type Contact,
   ContactSchema,
   PhoneSchema,
   PublicUrlSchema,
-} from "../../src/core/models.ts";
-import {
-  type DeltaArchive,
-  type DeltaBaseCandidate,
-  type DeltaSource,
-  deltaBasePlan,
-  requireDistinctSources,
-  writeDirectoryDeltas,
-} from "../../tools/directory-delta.ts";
-import { compressDirectoryArchive } from "../../tools/snapshot.ts";
+} from "@public-phonebook/directory/models";
+import * as fc from "fast-check";
+import * as v from "valibot";
+import { describe, expect, it } from "vitest";
 
 const largeArchiveBytes = 1_000_000;
 const baseSnapshot = "a".repeat(64);

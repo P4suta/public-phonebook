@@ -1,11 +1,7 @@
-use crate::model::{
-    ChangedInput, Digest, PLAN_FORMAT, PlanBody, PlanRecord, REPOSITORY, Revision, Target,
-    Versions, category,
-};
+use crate::model::{REPOSITORY, Revision};
 use anyhow::{Context, Result, ensure};
-use delivery_core::{Change, Impact, Plan, Version, impact};
+use delivery_core::{Change, Version};
 use std::{
-    collections::BTreeSet,
     path::Path,
     process::{Command, Output},
 };
@@ -71,47 +67,52 @@ pub fn classify(path: &str) -> Result<Change> {
                 .all(|segment| !segment.is_empty() && segment != "." && segment != ".."),
         "A changed input has an invalid repository path"
     );
-    if path == "src/core/kanji-variants.ts"
-        || path == "src/ui/icons.tsx"
+    if path == "packages/directory/src/kanji-variants.ts"
+        || path == "apps/web/src/ui/icons.tsx"
         || matches!(
             path,
-            "ios/Sources/PhonebookKit/PlaceReadings.json"
-                | "ios/Tests/PhonebookKitTests/PlaceReadingContract.json"
+            "apps/ios/Sources/PhonebookKit/PlaceReadings.json"
+                | "apps/ios/Tests/PhonebookKitTests/PlaceReadingContract.json"
         )
         || inside(path, "design")
     {
         return Ok(Change::SharedSource);
     }
-    if inside(path, "src/core") {
+    if inside(path, "packages/directory/src") {
         return Ok(Change::SharedSource);
     }
-    if inside(path, "src/server")
-        || path == "ios/Tests/PhonebookCoreTests/SearchContract.json"
-        || path == "ios/Tests/PhonebookKitTests/DirectoryContract.json"
+    if inside(path, "apps/web/src/server")
+        || path == "apps/ios/Tests/PhonebookCoreTests/SearchContract.json"
+        || path == "apps/ios/Tests/PhonebookKitTests/DirectoryContract.json"
     {
         return Ok(Change::ServerContract);
     }
-    if inside(path, "ios") {
+    if inside(path, "apps/ios") {
         return Ok(Change::Ios);
     }
-    if inside(path, "android") {
+    if inside(path, "apps/android") {
         return Ok(Change::Android);
     }
-    if inside(path, "src/ui")
-        || inside(path, "src/routes")
-        || inside(path, "public")
-        || path == "src/entry-client.tsx"
-        || path == "src/entry-server.tsx"
+    if inside(path, "apps/web/src/ui")
+        || inside(path, "apps/web/src/routes")
+        || inside(path, "apps/web/public")
+        || path == "apps/web/src/entry-client.tsx"
+        || path == "apps/web/src/entry-server.tsx"
     {
         return Ok(Change::Presentation);
     }
-    if path.starts_with("wrangler.") || path == "vite.config.ts" || path == "app.config.ts" {
+    if path.starts_with("wrangler.") || path == "apps/web/vite.config.ts" || path == "app.config.ts"
+    {
         return Ok(Change::WorkerConfiguration);
     }
-    if path == "tools/cloudflare-alerts.ts" || path == "tools/cloudflare-alerts-plan.ts" {
+    if path == "infrastructure/cloudflare/src/cloudflare-alerts.ts"
+        || path == "infrastructure/cloudflare/src/cloudflare-alerts-plan.ts"
+    {
         return Ok(Change::CloudflareAlerts);
     }
-    if path == "tools/uptime.ts" || path == "tools/uptime-plan.ts" {
+    if path == "infrastructure/cloudflare/src/uptime.ts"
+        || path == "infrastructure/cloudflare/src/uptime-plan.ts"
+    {
         return Ok(Change::Monitors);
     }
     if inside(path, "sources") || inside(path, "data") {
@@ -136,25 +137,9 @@ pub fn classify(path: &str) -> Result<Change> {
     Ok(Change::Unknown)
 }
 
-fn source_version(root: &Path, source: &Revision, target: &str) -> Result<String> {
-    let object = format!("{source}:{target}/version.txt");
-    let size = String::from_utf8(git(root, &["cat-file", "-s", &object])?)?
-        .trim()
-        .parse::<usize>()?;
-    ensure!(
-        size <= Version::MAXIMUM_BYTES + 1,
-        "Oversized {target} version input"
-    );
-    let bytes = git(root, &["show", &object])?;
-    let value = bytes.strip_suffix(b"\n").unwrap_or(&bytes);
-    let version = Version::parse(value)
-        .map_err(|error| anyhow::anyhow!("Invalid {target} version: {error:?}"))?;
-    Ok(version.to_string())
-}
-
 pub fn current_version(root: &Path, target: &str) -> Result<Version> {
     ensure!(["ios", "android"].contains(&target), "Unknown app version");
-    let path = root.join(target).join("version.txt");
+    let path = root.join("apps").join(target).join("version.txt");
     ensure!(
         std::fs::metadata(&path)?.len() <= (Version::MAXIMUM_BYTES + 1) as u64,
         "Oversized app version input"
@@ -164,129 +149,49 @@ pub fn current_version(root: &Path, target: &str) -> Result<Version> {
         .map_err(|error| anyhow::anyhow!("Invalid {target} version: {error:?}"))
 }
 
-pub fn plan(
-    root: &Path,
-    source: Revision,
-    base: Option<Revision>,
-    requested: Option<Vec<Target>>,
-    dataset: Option<Digest>,
-) -> Result<PlanRecord> {
-    require_repository(root)?;
-    let versions = Versions {
-        ios: source_version(root, &source, "ios")?,
-        android: source_version(root, &source, "android")?,
-    };
-    let paths = if let Some(base) = &base {
-        git(
-            root,
-            &[
-                "merge-base",
-                "--is-ancestor",
-                base.as_str(),
-                source.as_str(),
-            ],
-        )?;
-        git(
-            root,
-            &[
-                "diff",
-                "--name-only",
-                "--no-renames",
-                "-z",
-                base.as_str(),
-                source.as_str(),
-                "--",
-            ],
-        )?
-    } else {
-        Vec::new()
-    };
-    let mut changed = Vec::new();
-    let mut affected = if base.is_some() {
-        Impact::NONE
-    } else {
-        impact(Change::Unknown)
-    };
-    let unique: BTreeSet<_> = paths
-        .split(|byte| *byte == 0)
-        .filter(|path| !path.is_empty())
-        .map(|path| std::str::from_utf8(path).context("Changed paths must be UTF-8"))
-        .collect::<Result<_>>()?;
-    for path in unique {
-        let change = classify(path)?;
-        affected = affected.union(impact(change));
-        changed.push(ChangedInput {
-            path: path.to_owned(),
-            category: category(change).to_owned(),
-        });
-    }
-    let requested = requested.map(|targets| {
-        targets
-            .into_iter()
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>()
-    });
-    let decision = Plan::new(affected, requested.as_deref().map(Target::combine));
-    PlanRecord::seal(PlanBody {
-        format: PLAN_FORMAT,
-        repository: REPOSITORY.to_owned(),
-        source,
-        base,
-        requested,
-        dataset,
-        versions,
-        changed,
-        targets: Target::members(decision.targets),
-        checks: crate::model::Check::members(decision.checks),
-        selection_required: decision.selection_required,
-    })
-}
-
-pub fn validate_plan(root: &Path, record: &PlanRecord) -> Result<()> {
-    record.validate_digest()?;
-    let expected = plan(
-        root,
-        record.plan.source.clone(),
-        record.plan.base.clone(),
-        record.plan.requested.clone(),
-        record.plan.dataset.clone(),
-    )?;
-    ensure!(
-        expected == *record,
-        "The delivery plan doesn't match the committed source or current planning rules"
-    );
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
     fn native_worker_and_account_configuration_paths_have_distinct_owners() -> Result<()> {
-        for path in ["src/ui/search.css", "src/routes/index.tsx"] {
+        for path in [
+            "apps/web/src/ui/search.css",
+            "apps/web/src/routes/index.tsx",
+        ] {
             assert_eq!(classify(path)?, Change::Presentation);
         }
         assert_eq!(classify("wrangler.jsonc")?, Change::WorkerConfiguration);
-        assert_eq!(classify("ios/Sources/Phonebook/App.swift")?, Change::Ios);
         assert_eq!(
-            classify("android/app/src/main/Example.kt")?,
+            classify("apps/ios/Sources/Phonebook/App.swift")?,
+            Change::Ios
+        );
+        assert_eq!(
+            classify("apps/android/app/src/main/Example.kt")?,
             Change::Android
         );
         assert_eq!(
-            classify("tools/cloudflare-alerts-plan.ts")?,
+            classify("infrastructure/cloudflare/src/cloudflare-alerts-plan.ts")?,
             Change::CloudflareAlerts
         );
-        assert_eq!(classify("tools/uptime-plan.ts")?, Change::Monitors);
-        assert_eq!(classify("src/server/api.ts")?, Change::ServerContract);
         assert_eq!(
-            classify("src/core/kanji-variants.ts")?,
+            classify("infrastructure/cloudflare/src/uptime-plan.ts")?,
+            Change::Monitors
+        );
+        assert_eq!(
+            classify("apps/web/src/server/api.ts")?,
+            Change::ServerContract
+        );
+        assert_eq!(
+            classify("packages/directory/src/kanji-variants.ts")?,
             Change::SharedSource
         );
-        assert_eq!(classify("src/unknown/runtime.ts")?, Change::Unknown);
+        assert_eq!(
+            classify("apps/web/src/unknown/runtime.ts")?,
+            Change::Unknown
+        );
         for path in [
-            "ios/Sources/PhonebookKit/PlaceReadings.json",
-            "ios/Tests/PhonebookKitTests/PlaceReadingContract.json",
+            "apps/ios/Sources/PhonebookKit/PlaceReadings.json",
+            "apps/ios/Tests/PhonebookKitTests/PlaceReadingContract.json",
         ] {
             assert_eq!(classify(path)?, Change::SharedSource);
         }
@@ -298,10 +203,10 @@ mod tests {
             "",
             "../ios/app.swift",
             "/ios/app.swift",
-            "ios//app.swift",
-            "ios/../app.swift",
+            "apps/ios//app.swift",
+            "apps/ios/../app.swift",
             "ios\\app.swift",
-            "ios/app\n.swift",
+            "apps/ios/app\n.swift",
         ] {
             assert!(classify(path).is_err());
         }

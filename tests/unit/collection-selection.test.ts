@@ -1,8 +1,8 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { selectCollectedSources } from "@public-phonebook/data/collection/select";
 import { expect, it } from "vitest";
-import { selectCollectedSources } from "../../tools/collection/select.ts";
 
 it("excludes partially failed plans and preserves reviewed contact floors", async () => {
   const root = await mkdtemp(join(tmpdir(), "phonebook-selection-"));

@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { utils, write } from "xlsx";
 import {
   decodeSourceText,
   readCsvTables,
   readHtmlTables,
   readWorkbookTables,
-} from "../../tools/collection/read-tables.ts";
+} from "@public-phonebook/data/collection/read-tables";
+import { describe, expect, it } from "vitest";
+import { utils, write } from "xlsx";
 
 describe("official directory table readers", () => {
   it("preserves CSV telephone and fax columns, quoted addresses, and blank rows", () => {

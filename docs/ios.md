@@ -1,13 +1,13 @@
 # Native app
 
-The SwiftUI app and its Call Directory extension live under `ios/`.
+The SwiftUI app and its Call Directory extension live under `apps/ios/`.
 The deployment target is iOS 18.0.
 The project pins Xcode 27.2 and Swift 6 language mode.
 A deployment target and a successful device build don't establish execution on an iOS 18 runtime.
 
 Install the tools in `mise.toml`, run `mise x -- npm ci --ignore-scripts`, and run `mise x -- just ios-generate`.
-Open the generated `ios/PublicPhonebook.xcodeproj`.
-Create the ignored `ios/Signing.local.xcconfig` with DEVELOPMENT_TEAM set to an authorized development team.
+Open the generated `apps/ios/PublicPhonebook.xcodeproj`.
+Create the ignored `apps/ios/Signing.local.xcconfig` with DEVELOPMENT_TEAM set to an authorized development team.
 `mise x -- just ios-qa-install` builds and installs Public Phonebook QA on one connected, unlocked iPhone with Developer Mode.
 The command requires that local signing file and uses the verification scheme's optimized `VerificationRelease` configuration.
 If you connect two or more iPhones, pass `--device` and the selected device's identifier.
@@ -33,24 +33,24 @@ A DevRelease simulator build for one simulator needs no `ONLY_ACTIVE_ARCH` overr
 Override PHONEBOOK_API_ORIGIN only for an explicitly selected test build.
 The generator inspects all six actual Xcode configurations and rejects missing or incorrect environment fields.
 
-The app's property list declares a [launch screen](https://developer.apple.com/documentation/xcode/specifying-your-apps-launch-screen) with the `LaunchBackground` color from `ios/Config/Launch.xcassets`.
+The app's property list declares a [launch screen](https://developer.apple.com/documentation/xcode/specifying-your-apps-launch-screen) with the `LaunchBackground` color from `apps/ios/Config/Launch.xcassets`.
 The launch color matches the first screen's surface, white in the light appearance and black in the dark one, following Apple's [launching guidelines](https://developer.apple.com/design/human-interface-guidelines/launching).
 The launch screen shows no text or logo.
 The app follows the system appearance by swapping the black and white of [the visual rules](design.md#visual-rules), as the [Dark Mode guidelines](https://developer.apple.com/design/human-interface-guidelines/dark-mode) ask.
 Icons scale with the text size through `@ScaledMetric` from their sizes at the default text size, and controls keep their 44-point targets.
 Every confirmation dialog titles its cancel button `キャンセル`, as the [Alerts guidelines](https://developer.apple.com/design/human-interface-guidelines/alerts) ask.
 The app ships without a String Catalog, because it supports Japanese alone and SwiftUI already treats each literal text as a localization key.
-XcodeGen writes `ios/Config/App-Info.plist` from `ios/project.yml`, and Release and VerificationRelease take that list.
-The generator writes `ios/Config/App-Info-LocalNetworking.plist` from it with `NSAllowsLocalNetworking` added, and the generator rejects any other difference.
+XcodeGen writes `apps/ios/Config/App-Info.plist` from `apps/ios/project.yml`, and Release and VerificationRelease take that list.
+The generator writes `apps/ios/Config/App-Info-LocalNetworking.plist` from it with `NSAllowsLocalNetworking` added, and the generator rejects any other difference.
 Debug, DevRelease, VerificationDebug, and ProductionDebug take that second list, because they reach the loopback fixture for development, the UI scenarios, and the store screenshots.
 On the iOS 27 simulator, a VerificationDebug build without that key still reached the loopback fixture over HTTP in a UI scenario, and no device has run that check.
 The [`NSAllowsLocalNetworking`](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking) page recommends the key as a declaration of intent even where the system doesn't block local loads, so those four configurations keep it.
 The builds for TestFlight and the App Store carry no transport exception.
 
 Each app build carries one directory archive and a generated entry that describes it, as [the bundled-data decision](adr/start-from-a-bundled-directory-archive-and-catch-up-through-deltas.md) states.
-`ios/bundled-dataset.json` names the national dataset by the SHA-256 of its ready manifest.
+`apps/ios/bundled-dataset.json` names the national dataset by the SHA-256 of its ready manifest.
 It repeats the release tag, the snapshot, the row count, the archive length, and the archive SHA-256 for review.
-`ios/bundled-fixture.json` names the baseline archive of the provider corpus with the same fields.
+`apps/ios/bundled-fixture.json` names the baseline archive of the provider corpus with the same fields.
 `ios-check generate` reads the declared release's `manifest.ready.json`, requires its digest, and takes its `directory.tsv.br` entry.
 It never reads the current listing.
 It reads the manifest and the archive from `target/datasets/MANIFEST_SHA256/`, which `mise x -- just data-fetch MANIFEST_SHA256 DIRECTORY` can fill.
@@ -64,7 +64,7 @@ A build phase copies the pair that `PHONEBOOK_BUNDLED_DATASET` names into the ap
 Production and verification configurations bundle the national dataset, and Debug and DevRelease bundle the fixture.
 The Call Directory extension carries neither file.
 The gate compares the VerificationDebug and Release apps and the exported TestFlight app with their declaration, and a changed byte must fail that comparison.
-The fast gate refuses a national declaration whose dataset `sources/shipped-snapshots.json` lacks, because preparation writes deltas only from listed datasets.
+The fast gate refuses a national declaration whose dataset `data/sources/shipped-snapshots.json` lacks, because preparation writes deltas only from listed datasets.
 The fixture never ships, so the list never names it.
 
 All configurations use the same literal facility-name and telephone-number search.

@@ -76,7 +76,7 @@ struct Mutation {
 impl Mutation {
     fn source(&self) -> String {
         format!(
-            "android/{}/src/main/kotlin/page/dial/{}/{}",
+            "apps/android/{}/src/main/kotlin/page/dial/{}/{}",
             self.module.name(),
             self.module.package(),
             self.file
@@ -87,7 +87,7 @@ impl Mutation {
     }
     fn report(&self, root: &Path) -> PathBuf {
         root.join(format!(
-            "android/{}/build/test-results/{}/TEST-{}.xml",
+            "apps/android/{}/build/test-results/{}/TEST-{}.xml",
             self.module.name(),
             self.module.results(),
             self.suite()
@@ -270,10 +270,8 @@ fn complete_campaign(expected: usize, executed: usize, all_killed: bool) -> bool
 }
 
 fn command(root: &Path, args: &[&str]) -> Result<Command> {
-    let mut command = Command::new("gradle");
-    crate::without_credentials(&mut command);
+    let mut command = crate::gradle_command(root);
     command
-        .current_dir(root.join("android"))
         .env("ANDROID_HOME", sdk()?)
         .env("CARGO_NET_OFFLINE", "true")
         .args(args)
@@ -316,7 +314,7 @@ fn copy_inputs(root: &Path, checkout: &Path) -> Result<()> {
         fs::copy(root.join(file), destination)?;
     }
     let declaration: serde_json::Value =
-        serde_json::from_slice(&fs::read(root.join("android/bundled-dataset.json"))?)?;
+        serde_json::from_slice(&fs::read(root.join("apps/android/bundled-dataset.json"))?)?;
     let sha = declaration["sha256"]
         .as_str()
         .context("Missing bundled hash")?;
@@ -541,7 +539,7 @@ pub fn run(root: &Path, plan: bool, selected: &[String]) -> Result<()> {
         "Unresolved mutations; inspect {}",
         directory.display()
     );
-    let policy_xml = root.join("android/core/build/reports/pitest/mutations.xml");
+    let policy_xml = root.join("apps/android/core/build/reports/pitest/mutations.xml");
     if policy_xml.exists() {
         fs::remove_file(&policy_xml)?;
     }
@@ -628,14 +626,14 @@ mod tests {
         let hash = "a".repeat(64);
         for (path, content) in [
             (
-                "android/bundled-dataset.json".to_owned(),
+                "apps/android/bundled-dataset.json".to_owned(),
                 json!({"sha256":hash}).to_string(),
             ),
             (
                 format!("target/android/cache/{hash}.br"),
                 "fixture archive".to_owned(),
             ),
-            ("android/version.txt".to_owned(), "1.0.0".to_owned()),
+            ("apps/android/version.txt".to_owned(), "1.0.0".to_owned()),
             (
                 "tools/delivery/Cargo.toml".to_owned(),
                 "[workspace]\nmembers = [\"core\"]".to_owned(),
@@ -647,11 +645,11 @@ mod tests {
             ("LICENSE-APACHE".to_owned(), "fixture license".to_owned()),
             ("mise.lock".to_owned(), "fixture tool lock".to_owned()),
             (
-                "ios/Sources/PhonebookKit/PlaceReadings.json".to_owned(),
+                "apps/ios/Sources/PhonebookKit/PlaceReadings.json".to_owned(),
                 "fixture readings".to_owned(),
             ),
             (
-                "ios/Tests/PhonebookKitTests/PlaceReadingContract.json".to_owned(),
+                "apps/ios/Tests/PhonebookKitTests/PlaceReadingContract.json".to_owned(),
                 "fixture reading contract".to_owned(),
             ),
         ] {
@@ -663,13 +661,13 @@ mod tests {
         let checkout = parent.path().join("checkout");
         copy_inputs(root.path(), &checkout)?;
         for path in [
-            "android/version.txt",
+            "apps/android/version.txt",
             "tools/delivery/Cargo.toml",
             "tools/delivery/core/src/identities.rs",
             "LICENSE-APACHE",
             "mise.lock",
-            "ios/Sources/PhonebookKit/PlaceReadings.json",
-            "ios/Tests/PhonebookKitTests/PlaceReadingContract.json",
+            "apps/ios/Sources/PhonebookKit/PlaceReadings.json",
+            "apps/ios/Tests/PhonebookKitTests/PlaceReadingContract.json",
         ] {
             assert_eq!(
                 fs::read(root.path().join(path))?,

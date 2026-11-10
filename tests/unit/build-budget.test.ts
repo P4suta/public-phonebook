@@ -8,7 +8,7 @@ import {
   measureBuild,
 } from "../../tools/build-budget.ts";
 
-const output = ".cloudflare/output/v0/workers/default";
+const output = "apps/web/.cloudflare/output/v0/workers/default";
 const roots: string[] = [];
 const quietWorker = {
   logpush: false,

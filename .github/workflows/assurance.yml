@@ -16,6 +16,9 @@ on:
 
 permissions: {}
 
+env:
+  MISE_AUTO_INSTALL: "false"
+
 concurrency:
   group: assurance-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -34,6 +37,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
+        with:
+          tools: rust node just github:rustsec/rustsec
       - run: mise x -- npm exec --no -- playwright install --with-deps chromium
       - run: mise x -- just check-build
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -56,6 +61,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
+        with:
+          tools: rust node just
       - run: mise x -- just prove
       - run: mise x -- just delivery-prove
       - run: mise x -- just ios-prove
@@ -83,6 +90,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
+        with:
+          tools: rust node just xcodegen swiftlint github:ericodx/swift-mutation-testing
+      - run: mise x -- just ios-simulator-runtimes
       - run: mise x -- just ios-check
       - if: inputs.campaigns
         run: mise x -- just ios-sanitize
@@ -109,6 +119,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
+        with:
+          tools: rust node just java
       - uses: $/.github/actions/android-sdk
       - run: mise x -- just android-check
       - run: mise x -- just android-mutate
@@ -118,6 +130,6 @@ jobs:
           name: android-mutation-evidence
           path: |
             target/android/mutation
-            android/core/build/reports/pitest
+            apps/android/core/build/reports/pitest
           if-no-files-found: error
           retention-days: 7

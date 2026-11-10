@@ -1,8 +1,8 @@
+import { PhoneSchema } from "@public-phonebook/directory/models";
+import { formatPhone, normalizePhone } from "@public-phonebook/directory/phone";
 import * as fc from "fast-check";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
-import { PhoneSchema } from "../../src/core/models.ts";
-import { formatPhone, normalizePhone } from "../../src/core/phone.ts";
 
 describe("Japanese directory telephone numbers", () => {
   it.each([

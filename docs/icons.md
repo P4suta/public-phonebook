@@ -40,26 +40,26 @@ The same command writes the website's assets from the same masters.
 
 | Output | Master | Use |
 | --- | --- | --- |
-| `src/ui/icon-catalog.ts` | Every product icon and `design/icons.json` | Typed icon names, each icon's sprite symbol, category mappings, and head declarations |
-| `public/icons/NAME.svg` | Each product icon | The unchanged Figma export |
-| `public/icons/LICENSE.txt` | `design/licenses/Lucide.txt` | The Lucide and Feather notices beside the glyphs |
-| `public/favicon.ico` | `favicon-16`, `favicon-32` | Windows icon file with 32-bit Portable Network Graphics (PNG) images |
-| `public/favicon.svg` | `favicon-32`, `favicon-dark-32` | Vector favicon that follows the light or dark color scheme |
-| `public/apple-touch-icon.png` | `app-icon-default` | Apple home-screen icon at 180 pixels |
-| `public/app-icon-SIZE.png` | `app-icon-default` | Installation icons at 192 and 512 pixels |
-| `public/app-icon-maskable-SIZE.png` | `app-icon-default` | Maskable installation icons at 192 and 512 pixels |
-| `public/mask-icon.svg` | `mark-ink` | Safari pinned-tab icon |
-| `public/social-preview.png` | `social-preview` | Open Graph image at 1200 by 630 pixels |
-| `public/manifest.webmanifest` | The installation icons | Install manifest |
+| `apps/web/src/ui/icon-catalog.ts` | Every product icon and `design/icons.json` | Typed icon names, each icon's sprite symbol, category mappings, and head declarations |
+| `apps/web/public/icons/NAME.svg` | Each product icon | The unchanged Figma export |
+| `apps/web/public/icons/LICENSE.txt` | `design/licenses/Lucide.txt` | The Lucide and Feather notices beside the glyphs |
+| `apps/web/public/favicon.ico` | `favicon-16`, `favicon-32` | Windows icon file with 32-bit Portable Network Graphics (PNG) images |
+| `apps/web/public/favicon.svg` | `favicon-32`, `favicon-dark-32` | Vector favicon that follows the light or dark color scheme |
+| `apps/web/public/apple-touch-icon.png` | `app-icon-default` | Apple home-screen icon at 180 pixels |
+| `apps/web/public/app-icon-SIZE.png` | `app-icon-default` | Installation icons at 192 and 512 pixels |
+| `apps/web/public/app-icon-maskable-SIZE.png` | `app-icon-default` | Maskable installation icons at 192 and 512 pixels |
+| `apps/web/public/mask-icon.svg` | `mark-ink` | Safari pinned-tab icon |
+| `apps/web/public/social-preview.png` | `social-preview` | Open Graph image at 1200 by 630 pixels |
+| `apps/web/public/manifest.webmanifest` | The installation icons | Install manifest |
 
 Each product icon has one `<symbol>`, painted with `currentColor`.
 A clip path in a symbol keeps only its shape, because its paint never draws.
 Every page defines a sprite once at the start of the document, so an icon needs no request and still draws offline.
 The sprite holds only the symbols that the page's routes can draw, in the server render or in any later client render.
-`src/ui/route-icons.ts` lists those icons for each route, and the root shell inlines the union for the matched routes.
+`apps/web/src/ui/route-icons.ts` lists those icons for each route, and the root shell inlines the union for the matched routes.
 The search page keeps every category icon, because a local search can show any category.
 A contact page adds only the icon of its contact's category, which its loader returns.
-`src/ui/icons.tsx` draws every icon from the page's sprite, so each icon takes the text color of its control.
+`apps/web/src/ui/icons.tsx` draws every icon from the page's sprite, so each icon takes the text color of its control.
 
 `tests/unit/route-icons.test.ts` derives each route's icons from the code its `Route` reaches and requires the lists to match.
 The walk accepts icon literals, conditions between them, and icon props that a component used only as a JSX tag forwards.

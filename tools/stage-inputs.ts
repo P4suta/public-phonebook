@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto";
+import type {
+  CandidateStage,
+  ExpectedStage,
+} from "@public-phonebook/cloudflare/release-store";
+import { DigestSchema } from "@public-phonebook/directory/models";
 import * as v from "valibot";
-import { DigestSchema } from "../src/core/models.ts";
 import { command } from "./process.ts";
-import type { CandidateStage, ExpectedStage } from "./release-store.ts";
 
 const inputsFormat = 1;
 const candidateWorkflow = ".github/workflows/candidate.yml";
@@ -13,11 +16,13 @@ const candidateWorkflow = ".github/workflows/candidate.yml";
  */
 export const iosCheckScope = [
   "tests/fixtures/search-ranking.json",
-  "ios",
+  "apps/ios",
   "verification/ios",
-  "src/core",
-  "src/server",
+  "packages/directory/src",
+  "apps/web/src/server",
   "tools",
+  "data",
+  "infrastructure",
   "mise.toml",
   "justfile",
   ".github/workflows/checks.yml",
@@ -30,16 +35,16 @@ export const iosCheckScope = [
   "tsconfig.json",
   "biome.json",
   "design",
-  "public",
-  "src/ui/icons.tsx",
+  "apps/web/public",
+  "apps/web/src/ui/icons.tsx",
 ] as const;
 
 /** Paths that only the native app and its checks read. */
 const nativeOnly = [
-  "ios",
+  "apps/ios",
   "verification/ios",
   "tools/ios-check",
-  "android",
+  "apps/android",
   "verification/android",
   "tools/android-check",
 ] as const;

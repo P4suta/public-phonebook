@@ -30,11 +30,11 @@ jobs:
           CHANGE_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         run: |
           git fetch --no-tags --depth=1 origin "${CHANGE_BASE}"
-          changed="$(git diff --name-only "${CHANGE_BASE}" HEAD -- android tools/android-check tools/ios-check tools/delivery tools/check-rust.ts mise.toml ':(glob)**/rust-toolchain*' .github/actions/toolchain .github/workflows/checks.yml)"
+          changed="$(git diff --name-only "${CHANGE_BASE}" HEAD -- apps/android apps/ios tools/android-check tools/ios-check tools/delivery tools/check-rust.ts mise.toml ':(glob)**/rust-toolchain*' .github/actions/toolchain .github/workflows/checks.yml)"
           echo "Changed Rust inputs: ${changed:-none}"
           if [[ -n ${changed} ]]; then rust=true; else rust=false; fi
           echo "rust=${rust}" >>"${GITHUB_OUTPUT}"
-          android="$(git diff --name-only "${CHANGE_BASE}" HEAD -- android tools/android-check tools/delivery/core verification/android ios/Tests/PhonebookCoreTests/SearchContract.json ios/Tests/PhonebookKitTests/DirectoryContract.json ios/Tests/PhonebookKitTests/PlaceReadingContract.json ios/Sources/PhonebookKit/PlaceReadings.json src/core/kanji-variants.ts mise.toml .github/actions/android-sdk .github/workflows/checks.yml)"
+          android="$(git diff --name-only "${CHANGE_BASE}" HEAD -- apps/android tools/android-check tools/delivery/core verification/android apps/ios/Tests/PhonebookCoreTests/SearchContract.json apps/ios/Tests/PhonebookKitTests/DirectoryContract.json apps/ios/Tests/PhonebookKitTests/PlaceReadingContract.json packages/directory/resources/PlaceReadings.json packages/directory/src/kanji-variants.ts mise.toml .github/actions/android-sdk .github/workflows/checks.yml)"
           if [[ -n ${android} ]]; then android=true; else android=false; fi
           echo "android=${android}" >>"${GITHUB_OUTPUT}"
           if [[ ${android} == true ]]; then echo 'rust=true' >>"${GITHUB_OUTPUT}"; fi
@@ -56,7 +56,7 @@ jobs:
           tools: node just biome actionlint zizmor gitleaks
       - run: mise x -- just check
   build:
-    name: Build budget
+    name: Worker build and deployment validation
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
@@ -74,6 +74,11 @@ jobs:
         run: mise x -- npm run build
       - name: Check the build against its size budget
         run: mise x -- node tools/build-budget.ts
+      - name: Build and validate the production output without credentials
+        run: |
+          mise x -- npm exec --no --workspace @public-phonebook/web -- cf build
+          mise x -- npm exec --no --workspace @public-phonebook/web -- cf deploy --prebuilt --mode production --dry-run
+          mise x -- node tools/build-budget.ts
   rust:
     name: Native checks
     needs: [scope]
@@ -91,7 +96,7 @@ jobs:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
         with:
-          tools: rust just node java gradle github:rustsec/rustsec
+          tools: rust just node java github:rustsec/rustsec
       - run: mise x -- just check-rust
       - if: needs.scope.outputs.android == 'true'
         uses: $/.github/actions/android-sdk

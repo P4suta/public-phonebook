@@ -1,14 +1,17 @@
-import * as fc from "fast-check";
-import { describe, expect, it } from "vitest";
-import { normalizeName, normalizeNameLines } from "../../src/core/identity.ts";
-import { parseSearch, searchQuery } from "../../src/core/search.ts";
+import {
+  normalizeName,
+  normalizeNameLines,
+} from "@public-phonebook/directory/identity";
+import { parseSearch, searchQuery } from "@public-phonebook/directory/search";
 import {
   foldedCharacters,
   maximumQueryWords,
   searchForm,
   searchNameLines,
   searchWords,
-} from "../../src/core/search-text.ts";
+} from "@public-phonebook/directory/search-text";
+import * as fc from "fast-check";
+import { describe, expect, it } from "vitest";
 import { referenceForm, referenceWords } from "./search-reference.ts";
 
 const ideographicSpace = String.fromCodePoint(0x3000);

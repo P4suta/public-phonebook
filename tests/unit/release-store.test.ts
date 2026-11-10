@@ -1,14 +1,13 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   type ControlStore,
   controlKeys,
   fileControlStore,
   sha256Hex,
-} from "../../tools/control-store.ts";
-import type { ReleaseJournal } from "../../tools/release-lifecycle.ts";
+} from "@public-phonebook/cloudflare/control-store";
+import type { ReleaseJournal } from "@public-phonebook/cloudflare/release-lifecycle";
 import {
   type CandidateEvidence,
   candidateEvidenceAdmission,
@@ -29,7 +28,8 @@ import {
   runProvenance,
   saveRelease,
   storeVerificationDataset,
-} from "../../tools/release-store.ts";
+} from "@public-phonebook/cloudflare/release-store";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { expectedStages, passingEvidence } from "./stage-evidence-fixture.ts";
 
 const tree = "1".repeat(40);

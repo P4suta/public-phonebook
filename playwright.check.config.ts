@@ -5,7 +5,7 @@ const fixtureOrigin = "https://127.0.0.1:8790";
 const serverTimeoutMs = 120000;
 
 export default defineConfig({
-  testDir: "./tests/browser",
+  testDir: "./apps/web/tests/browser",
   testMatch:
     /\/(?:contact-design|csp|design|external-links|information|privacy|local-search|search|search-index-api|search-trigger|site-icons|startup)\.spec\.ts$/,
   forbidOnly: true,

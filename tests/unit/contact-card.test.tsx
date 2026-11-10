@@ -1,9 +1,9 @@
+import { ContactSchema } from "@public-phonebook/directory/models";
 import * as fc from "fast-check";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import * as v from "valibot";
 import { expect, it, vi } from "vitest";
-import { ContactSchema } from "../../src/core/models.ts";
 import {
   BackButton,
   ContactCard,
@@ -11,14 +11,14 @@ import {
   LoadingError,
   OfficialLink,
   ResultCard,
-} from "../../src/ui/components.tsx";
-import { uiCopy } from "../../src/ui/copy.ts";
+} from "../../apps/web/src/ui/components.tsx";
+import { uiCopy } from "../../apps/web/src/ui/copy.ts";
 import {
   catalogRegions,
   localCard,
   regionLabel,
   serverCard,
-} from "../../src/ui/result-cards.ts";
+} from "../../apps/web/src/ui/result-cards.ts";
 
 const regions = catalogRegions({
   prefectures: [
@@ -28,7 +28,7 @@ const regions = catalogRegions({
   municipalities: [{ code: "13101", prefectureCode: "13", name: "千代田区" }],
 });
 
-vi.mock("../../src/ui/styles.css.ts", () => ({
+vi.mock("../../apps/web/src/ui/styles.css.ts", () => ({
   actionColumn: "actionColumn",
   actions: "actions",
   addressHeading: "addressHeading",

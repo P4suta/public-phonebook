@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { getCACertificates, setDefaultCACertificates } from "node:tls";
-import { versionHeader } from "../src/server/version-header.ts";
+import { versionHeader } from "../apps/web/src/server/version-header.ts";
 import { serveBuiltWorker } from "./built-worker-server.ts";
 import { seedLocalData } from "./local-data.ts";
 import { requireCommand } from "./process.ts";
@@ -101,7 +101,7 @@ async function rehearse(bundle: string): Promise<void> {
         "playwright",
         "test",
         "--config",
-        join("tests", "public", "playwright.config.ts"),
+        join("apps", "web", "tests", "public", "playwright.config.ts"),
       ],
       undefined,
       environment,

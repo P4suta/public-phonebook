@@ -154,7 +154,7 @@ fn measure_app(
     } else {
         case_metrics(&bytes, case, &["memory"], MEMORY_REPETITIONS)?
     };
-    super::bundled::check_built(root, &root.join("ios/DerivedData/Build/Products/VerificationRelease-iphonesimulator/PublicPhonebook.app"), "VerificationRelease")?;
+    super::bundled::check_built(root, &root.join("apps/ios/DerivedData/Build/Products/VerificationRelease-iphonesimulator/PublicPhonebook.app"), "VerificationRelease")?;
     ensure!(!metrics.is_empty(), "The app measurement is empty");
     Ok(
         json!({"configuration":"VerificationRelease", "test":case, "repetitions":if case == super::STARTUP_UI_TEST { APP_REPETITIONS } else { MEMORY_REPETITIONS },

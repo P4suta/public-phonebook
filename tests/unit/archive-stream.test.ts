@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import { gzipSync } from "node:zlib";
+import { readGzipArchive } from "@public-phonebook/data/archive-stream";
 import { parse } from "csv-parse";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { readGzipArchive } from "../../tools/archive-stream.ts";
 
 /** More records than a decoder buffers, so stopping at most positions leaves records unread. */
 const recordCount = 64;

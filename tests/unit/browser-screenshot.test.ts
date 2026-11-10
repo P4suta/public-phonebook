@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchesViewportFrame } from "../browser/full-page-screenshot.ts";
+import { matchesViewportFrame } from "../../apps/web/tests/browser/full-page-screenshot.ts";
 
 describe("native viewport frames", () => {
   it("accepts CSS and device-pixel metadata for the same viewport", () => {

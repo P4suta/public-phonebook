@@ -4,7 +4,6 @@ import { createServer, type IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   type ControlStore,
   ControlStoreConflict,
@@ -14,7 +13,8 @@ import {
   r2ControlStore,
   writeOnce,
   writePolicy,
-} from "../../tools/control-store.ts";
+} from "@public-phonebook/cloudflare/control-store";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const digest = "a".repeat(64);
 const tree = "b".repeat(40);

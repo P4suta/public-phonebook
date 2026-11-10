@@ -8,9 +8,9 @@ use anyhow::{Result, ensure};
 use std::{fs, path::Path};
 
 /// The screens that the rule covers.
-const SCREENS: &str = "ios/App";
+const SCREENS: &str = "apps/ios/App";
 /// The one file that defines the surface and the ink from black and white.
-const PALETTE: &str = "ios/App/Palette.swift";
+const PALETTE: &str = "apps/ios/App/Palette.swift";
 
 /// SwiftUI color names and system styles, refused as implicit members such as `.fill(.gray)`.
 const REFUSED_COLORS: [&str; 21] = [

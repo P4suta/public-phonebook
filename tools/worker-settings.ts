@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import * as v from "valibot";
 
 export const builtWorkerConfig =
-  ".cloudflare/output/v0/workers/default/worker.config.json";
+  "apps/web/.cloudflare/output/v0/workers/default/worker.config.json";
 const everyPath = "/*";
 
 export type WorkerFirst = boolean | readonly string[];

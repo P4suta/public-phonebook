@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
 import {
   type CloudflareRunner,
   liveWorkerSettings,
-} from "../../tools/release-provider.ts";
+} from "@public-phonebook/cloudflare/release-provider";
+import { describe, expect, it } from "vitest";
 import {
   candidateWorkerSettings,
   requireUnchangedWorkerSettings,

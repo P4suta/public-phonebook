@@ -2,7 +2,7 @@ import Lean.Elab.Tactic.Omega
 
 namespace Phonebook
 
-/-! The update decision of `ios/Sources/PhonebookCore/UpdateCheck.swift`, function for function. -/
+/-! The update decision of `apps/ios/Sources/PhonebookCore/UpdateCheck.swift`, function for function. -/
 
 structure UpdatePath where
   expensive : Bool

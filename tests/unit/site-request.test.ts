@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
 import {
   fitsSitePage,
   siteRequestAdmission,
-} from "../../src/core/site-request-policy.ts";
+} from "@public-phonebook/directory/site-request-policy";
+import { describe, expect, it } from "vitest";
 
 describe("site request decisions", () => {
   it("exhausts the site admission decision domain", () => {

@@ -1,10 +1,13 @@
-import { describe, expect, it } from "vitest";
-import { type ByteRange, byteRange } from "../../src/core/byte-range.ts";
+import {
+  type ByteRange,
+  byteRange,
+} from "@public-phonebook/directory/byte-range";
 import {
   rangeEnd,
   rangeStart,
   rangeVerdict,
-} from "../../src/core/byte-range-policy.ts";
+} from "@public-phonebook/directory/byte-range-policy";
+import { describe, expect, it } from "vitest";
 
 const largestSize = 6;
 const largestPosition = 8;

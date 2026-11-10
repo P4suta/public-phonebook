@@ -1,94 +1,36 @@
-name: Release
-run-name: Delivery ${{ inputs.operation }} ${{ inputs.request }}
+name: Deploy website
 
 on:
   workflow_dispatch:
-    inputs:
-      operation:
-        description: Worker publication operation
-        type: choice
-        options: [worker]
-        default: worker
-      source:
-        description: Exact protected main candidate commit
-        type: string
-        required: true
-      controller:
-        description: Exact protected main controller commit
-        type: string
-        required: true
-      plan:
-        description: Saved delivery plan digest
-        type: string
-        required: true
-      request:
-        description: Saved delivery request identity
-        type: string
-        required: true
-      base:
-        description: Explicit comparison commit
-        type: string
-        default: ""
-      targets:
-        description: Explicit target selection, or empty for suggestions
-        type: string
-        default: ""
-      dataset:
-        description: SHA-256 of the dataset's ready manifest
-        type: string
-        required: true
-      checks:
-        description: Run the candidate checks, or reuse evidence that already exists for this tree and dataset
-        type: choice
-        options:
-          - run
-          - reuse
-        default: run
 
 permissions: {}
 
+env:
+  MISE_AUTO_INSTALL: "false"
+
 concurrency:
-  group: release-${{ github.ref }}
+  group: web-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  delivery-checks:
-    name: Dependency checks
+  verify:
+    name: Web release checks
     permissions:
       contents: read
-    uses: ./.github/workflows/delivery-checks.yml # zizmor: ignore[self-repository] actionlint 1.7.12 can't read a `$/` reusable workflow call.
-    with:
-      operation: ${{ inputs.operation }}
-      source: ${{ inputs.source }}
-      controller: ${{ inputs.controller }}
-      plan: ${{ inputs.plan }}
-      request: ${{ inputs.request }}
-      base: ${{ inputs.base }}
-      targets: ${{ inputs.targets }}
-      dataset: ${{ inputs.dataset }}
-  candidate:
-    name: Candidate checks
-    if: inputs.checks == 'run'
-    needs: [delivery-checks]
-    permissions:
-      contents: read
-      id-token: write # Lets the called evidence job exchange its OIDC token for the Doppler ci_candidate config.
-    uses: ./.github/workflows/candidate.yml # zizmor: ignore[self-repository] actionlint 1.7.12 can't read a `$/` reusable workflow call.
-    with:
-      dataset: ${{ inputs.dataset }}
-  evidence:
-    name: Admit the candidate evidence
-    needs: [delivery-checks, candidate]
-    if: always() && needs.delivery-checks.result == 'success' && (needs.candidate.result == 'success' || needs.candidate.result == 'skipped')
+      id-token: write # Lets the dataset job use the read-only observe identity.
+    uses: ./.github/workflows/candidate.yml # zizmor: ignore[self-repository] actionlint 1.7.12 cannot parse a `$/` reusable workflow reference.
+  build:
+    name: Build the production Worker
+    needs: [verify]
     runs-on: ubuntu-26.04
-    environment: observe
+    environment: candidate
     timeout-minutes: 15
     permissions:
       contents: read
-      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_observe config.
-    outputs:
-      database: ${{ steps.evidence.outputs.database-sha256 }}
-      manifest: ${{ steps.evidence.outputs.manifest-sha256 }}
+      id-token: write # Signs provenance without fetching deployment credentials.
+      attestations: write # Records the preserved build's provenance.
+    env:
+      CF_SEND_TELEMETRY: "false"
     steps:
       - name: Require the main branch
         run: test "$GITHUB_REF" = refs/heads/main
@@ -98,95 +40,46 @@ jobs:
       - uses: $/.github/actions/toolchain
         with:
           tools: node just
-          dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
-      - id: doppler
-        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
-        with:
-          auth-method: oidc
-          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
-          doppler-project: public-phonebook
-          doppler-config: ci_observe
-          inject-env-vars: "false"
-      - id: evidence
-        name: Require passing evidence for every candidate stage
-        env:
-          DATASET: ${{ inputs.dataset }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/publish.ts production --check-evidence --dataset "$DATASET"
-  build:
-    name: Build and attest the Worker
-    needs: [evidence]
-    if: ${{ !cancelled() && needs.evidence.result == 'success' }}
-    runs-on: ubuntu-26.04
-    environment: candidate
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      id-token: write # Signs the build provenance; this job fetches no secret.
-      attestations: write # Stores the build provenance for the stage job to verify.
-    outputs:
-      artifact: ${{ steps.digest.outputs.artifact-sha256 }}
-    steps:
-      - name: Require the main branch
-        run: test "$GITHUB_REF" = refs/heads/main
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/toolchain
-        with:
-          tools: node just
-          dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
-      - name: Build the production Worker without secrets
-        env:
-          DIAL_DATABASE_SHA256: ${{ needs.evidence.outputs.database }}
-          DIAL_MANIFEST_SHA256: ${{ needs.evidence.outputs.manifest }}
-        run: npm run build -- production
-      - id: digest
-        name: Record the build digest
-        run: node tools/publish.ts production --build-digest
-      - name: Package the build output
+      - name: Build without credentials
+        run: npm exec --no --workspace @public-phonebook/web -- cf build
+      - name: Validate the production build without API requests
+        run: npm exec --no --workspace @public-phonebook/web -- cf deploy --prebuilt --mode production --dry-run
+      - run: node tools/build-budget.ts
+      - name: Preserve the build and generate the npm SBOM
         run: |
-          mkdir -p target/release
-          tar --create --file target/release/worker-build.tar --directory .cloudflare output
+          mkdir -p target/web
+          tar --create --gzip --file target/web/worker-build.tar.gz --directory apps/web/.cloudflare/output/v0 .
+          npm sbom --sbom-format cyclonedx --omit=dev --workspace @public-phonebook/web > target/web/sbom.cdx.json
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
         with:
-          subject-path: target/release/worker-build.tar
-      - name: Describe the locked production dependencies
-        run: node tools/release-record.ts sbom target/release/sbom.cdx.json --version "$GITHUB_SHA"
+          subject-path: target/web/worker-build.tar.gz
       - uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
         with:
-          subject-path: target/release/worker-build.tar
-          sbom-path: target/release/sbom.cdx.json
+          subject-path: target/web/worker-build.tar.gz
+          sbom-path: target/web/sbom.cdx.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: worker-build
-          path: |
-            target/release/worker-build.tar
-            target/release/sbom.cdx.json
+          name: web-build
+          path: target/web
           if-no-files-found: error
-          retention-days: 30
-  stage:
-    name: Prepare the data and deploy the candidate at 0%
-    needs: [evidence, build]
-    if: ${{ !cancelled() && needs.evidence.result == 'success' && needs.build.result == 'success' }}
+          retention-days: 7
+  deploy:
+    name: Deploy the approved build
+    needs: [build]
     runs-on: ubuntu-26.04
-    environment: release-candidate
-    timeout-minutes: 120
+    environment:
+      name: production
+      url: https://www.dial.page
+    timeout-minutes: 60
     concurrency:
       group: publication-production
       cancel-in-progress: false
     permissions:
       contents: read
-      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_release_candidate config.
-      attestations: read # Reads the build provenance before the upload.
-    outputs:
-      release: ${{ steps.stage.outputs.release-id }}
+      attestations: read # Verifies the original build before credentials are fetched.
+      id-token: write # Fetches the environment-bound deployment token.
+    env:
+      CF_SEND_TELEMETRY: "false"
     steps:
       - name: Require the main branch
         run: test "$GITHUB_REF" = refs/heads/main
@@ -197,169 +90,23 @@ jobs:
         with:
           tools: node just
           dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
+      - run: npm ci --ignore-scripts
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
-          name: worker-build
-          path: target/release
-      - name: Require the build provenance from this release workflow
+          name: web-build
+          path: target/web
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: web-dataset
+          path: target/web-dataset
+      - name: Verify and unpack the preserved build
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh attestation verify target/release/worker-build.tar --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-ref refs/heads/main
-      - name: Unpack the attested build
         run: |
-          mkdir -p .cloudflare
-          tar --extract --file target/release/worker-build.tar --directory .cloudflare
-      - id: doppler
-        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
-        with:
-          auth-method: oidc
-          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
-          doppler-project: public-phonebook
-          doppler-config: ci_release_candidate
-          inject-env-vars: "false"
-      - name: Fetch the dataset and check every file
-        env:
-          DATASET: ${{ needs.evidence.outputs.manifest }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/remote-data.ts --fetch "$DATASET" ".local/datasets/$DATASET"
-      - name: Prepare the dataset's D1 database and archives
-        env:
-          DATASET: ${{ needs.evidence.outputs.manifest }}
-          CLOUDFLARE_API_TOKEN: ${{ steps.doppler.outputs.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/remote-data.ts production ".local/datasets/$DATASET"
-      - id: stage
-        name: Upload the attested build and deploy it at 0%
-        env:
-          DATASET: ${{ needs.evidence.outputs.manifest }}
-          ARTIFACT: ${{ needs.build.outputs.artifact }}
-          CLOUDFLARE_API_TOKEN: ${{ steps.doppler.outputs.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/publish.ts production --stage --dataset "$DATASET" --artifact "$ARTIFACT"
-  verify:
-    name: Check the candidate through the version override
-    needs: [stage]
-    if: ${{ !cancelled() && needs.stage.result == 'success' }}
-    runs-on: ubuntu-26.04
-    environment: observe
-    timeout-minutes: 90
-    concurrency:
-      group: publication-production
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      id-token: write # Exchanges the GitHub OIDC token for the read-only Doppler ci_observe config.
-    steps:
-      - name: Require the main branch
-        run: test "$GITHUB_REF" = refs/heads/main
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/toolchain
-        with:
-          tools: node just
-          dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
-      - name: Install the browsers for the public checks
-        run: npm exec --no -- playwright install --with-deps chromium firefox webkit
-      - id: doppler
-        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
-        with:
-          auth-method: oidc
-          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
-          doppler-project: public-phonebook
-          doppler-config: ci_observe
-          inject-env-vars: "false"
-      - name: Check the candidate at 0%
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ steps.doppler.outputs.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/publish.ts production --verify-candidate
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: failure()
-        with:
-          name: candidate-failure-evidence
-          path: test-results
-          if-no-files-found: ignore
-          retention-days: 7
-  withdraw:
-    name: Withdraw the failed candidate
-    needs: [stage, verify]
-    if: always() && needs.stage.result == 'success' && (needs.verify.result == 'failure' || needs.verify.result == 'cancelled')
-    runs-on: ubuntu-26.04
-    environment: release-candidate
-    timeout-minutes: 20
-    concurrency:
-      group: publication-production
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_release_candidate config.
-    steps:
-      - name: Require the main branch
-        run: test "$GITHUB_REF" = refs/heads/main
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/toolchain
-        with:
-          tools: node just
-          dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
-      - id: doppler
-        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
-        with:
-          auth-method: oidc
-          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
-          doppler-project: public-phonebook
-          doppler-config: ci_release_candidate
-          inject-env-vars: "false"
-      - name: Remove the candidate and keep the serving version
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ steps.doppler.outputs.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/publish.ts production --withdraw
-  promote:
-    name: Move traffic to the approved candidate
-    needs: [stage, verify]
-    if: ${{ !cancelled() && needs.stage.result == 'success' && needs.verify.result == 'success' }}
-    runs-on: ubuntu-26.04
-    environment: production
-    timeout-minutes: 90
-    concurrency:
-      group: publication-production
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_production config.
-    steps:
-      - name: Require the main branch
-        run: test "$GITHUB_REF" = refs/heads/main
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/toolchain
-        with:
-          tools: node just
-          dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
-      - name: Install the browsers for the public checks
-        run: npm exec --no -- playwright install --with-deps chromium firefox webkit
+          gh attestation verify target/web/worker-build.tar.gz --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-ref refs/heads/main --source-digest "$GITHUB_SHA" --signer-digest "$GITHUB_SHA"
+          mkdir -p apps/web/.cloudflare/output/v0
+          tar --extract --gzip --file target/web/worker-build.tar.gz --directory apps/web/.cloudflare/output/v0
+      - run: npm exec --no -- playwright install --with-deps chromium firefox webkit
       - id: doppler
         uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
         with:
@@ -368,89 +115,20 @@ jobs:
           doppler-project: public-phonebook
           doppler-config: ci_production
           inject-env-vars: "false"
-      - name: Switch from 0% to 100% and check without the override
+      - name: Deploy the preserved output with the official CLI
         env:
-          RELEASE: ${{ needs.stage.outputs.release }}
           CLOUDFLARE_API_TOKEN: ${{ steps.doppler.outputs.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/publish.ts production --promote --release "$RELEASE"
+        run: npm exec --no --workspace @public-phonebook/web -- cf deploy --prebuilt --mode production --provision=false --tag "$GITHUB_SHA"
+      - name: Check the public site and dataset
+        env:
+          DIAL_PUBLIC_ORIGIN: https://www.dial.page
+          DIAL_PUBLIC_BUNDLE: target/web-dataset
+        run: npm exec --no -- playwright test --config apps/web/tests/public/playwright.config.ts
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: failure()
         with:
-          name: promotion-failure-evidence
+          name: web-deployment-failures
           path: test-results
           if-no-files-found: ignore
           retention-days: 7
-  record:
-    name: Publish the release record
-    needs: [promote]
-    if: ${{ !cancelled() && needs.promote.result == 'success' }}
-    runs-on: ubuntu-26.04
-    environment: observe
-    timeout-minutes: 30
-    permissions:
-      contents: write # Creates the draft release, verifies its bytes, and publishes it once.
-      actions: read # Reads this run's environment approvals.
-      attestations: read # Verifies and downloads the build's attestations.
-      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_observe config.
-    steps:
-      - name: Require the main branch
-        run: test "$GITHUB_REF" = refs/heads/main
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/toolchain
-        with:
-          tools: node just
-          dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: worker-build
-          path: target/release
-      - name: Verify and keep the build's provenance and SBOM attestations
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node tools/release-record.ts attestations target/release
-      - name: Keep the production approval of this run
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/approvals" > target/release/approval.json
-      - id: tag
-        name: Name the release
-        run: node tools/release-record.ts tag
-      - id: doppler
-        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
-        with:
-          auth-method: oidc
-          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
-          doppler-project: public-phonebook
-          doppler-config: ci_observe
-          inject-env-vars: "false"
-      - name: Assemble the evidence and the checksums
-        env:
-          TAG: ${{ steps.tag.outputs.tag }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/release-record.ts assemble target/release --tag "$TAG" --notes target/release-notes.md
-      - name: Create the draft release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "$TAG" --notes-file target/release-notes.md target/release/*
-      - name: Verify the draft's bytes
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          gh release download "$TAG" --dir target/release-draft
-          node tools/release-record.ts verify target/release-draft
-      - name: Publish the release once
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: gh release edit "$TAG" --draft=false

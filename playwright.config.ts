@@ -8,7 +8,7 @@ const testOrigin = `https://127.0.0.1:${testPort}`;
 const serverTimeoutMs = 120000;
 
 export default defineConfig({
-  testDir: "./tests/browser",
+  testDir: "./apps/web/tests/browser",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,

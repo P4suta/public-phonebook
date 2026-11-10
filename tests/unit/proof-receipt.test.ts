@@ -1,6 +1,7 @@
 import { appendFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileDigest } from "@public-phonebook/data/snapshot";
 import {
   afterEach,
   beforeEach,
@@ -21,15 +22,14 @@ import {
   readProofReceipt,
   staleProof,
 } from "../../tools/proof-receipt.ts";
-import { fileDigest } from "../../tools/snapshot.ts";
 
 const digestLength = 64;
 const verifiedUnits = 2;
 const postconditions = 3;
 const inputRoot = "proof/input";
-const modelPath = `${inputRoot}/proof/generated/src/core/policy.dfy`;
+const modelPath = `${inputRoot}/proof/generated/packages/directory/src/policy.dfy`;
 const inventory: ProofInventory = {
-  boundFiles: ["src/core/policy.ts", "package-lock.json"],
+  boundFiles: ["packages/directory/src/policy.ts", "package-lock.json"],
   inputRoot,
   modelPaths: [modelPath],
   contracts: ["decision"],
@@ -84,7 +84,7 @@ async function passingReceipt(
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), "phonebook-proof-receipt-"));
   for (const [file, text] of [
-    ["src/core/policy.ts", "export const limit = 100;\n"],
+    ["packages/directory/src/policy.ts", "export const limit = 100;\n"],
     ["package-lock.json", '{"lockfileVersion":3}\n'],
   ] as const) {
     await write(file, text);
@@ -109,7 +109,11 @@ describe("proof receipt staleness", () => {
   });
 
   it.each<[string, string, string]>([
-    ["a bound source", "src/core/policy.ts", "Stale proof: src/core/policy.ts"],
+    [
+      "a bound source",
+      "packages/directory/src/policy.ts",
+      "Stale proof: packages/directory/src/policy.ts",
+    ],
     [
       "an input copy",
       `${inputRoot}/package-lock.json`,
@@ -236,11 +240,14 @@ describe("proof reuse", () => {
 
   it("runs the complete proof after one bound input changes", async () => {
     const receipt = await passingReceipt();
-    await appendFile(join(root, "src/core/policy.ts"), "// changed\n");
+    await appendFile(
+      join(root, "packages/directory/src/policy.ts"),
+      "// changed\n",
+    );
     const run = ports(async () => receipt);
     expect(await provedOrReused(inventory, run.ports)).toEqual({
       result: "verified",
-      reason: "Stale proof: src/core/policy.ts",
+      reason: "Stale proof: packages/directory/src/policy.ts",
     });
     expect(run.prove).toHaveBeenCalledOnce();
     expect(run.observedTools).not.toHaveBeenCalled();

@@ -4,18 +4,38 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { brotliDecompressSync, gunzipSync, gzipSync } from "node:zlib";
-import * as v from "valibot";
-import { expect, it } from "vitest";
+import {
+  fetchDeltaBases,
+  unservedShippedBases,
+} from "@public-phonebook/cloudflare/collection-store";
+import { fileControlStore } from "@public-phonebook/cloudflare/control-store";
+import { storeDataset } from "@public-phonebook/cloudflare/remote-data";
+import { checkDataBundle } from "@public-phonebook/data/check-data";
+import {
+  deltaBaseDirectories,
+  parsePrepareArguments,
+} from "@public-phonebook/data/data";
+import { databaseSchema } from "@public-phonebook/data/database-schema";
+import {
+  deltaSource as bundleDeltaSource,
+  sha256Digest,
+} from "@public-phonebook/data/directory-delta";
+import { compressSearchIndex } from "@public-phonebook/data/search-index";
+import {
+  compressDirectoryArchive,
+  fileDigest,
+  prepareSnapshot,
+} from "@public-phonebook/data/snapshot";
 import {
   datasetFileListing,
   type PreparedDatasetManifest,
   PreparedDatasetManifestSchema,
-} from "../../src/core/dataset-storage.ts";
-import { decodeDirectoryArchive } from "../../src/core/directory-archive.ts";
+} from "@public-phonebook/directory/dataset-storage";
+import { decodeDirectoryArchive } from "@public-phonebook/directory/directory-archive";
 import {
   applyDirectoryDelta,
   decodeDirectoryDelta,
-} from "../../src/core/directory-delta.ts";
+} from "@public-phonebook/directory/directory-delta";
 import {
   type Catalog,
   CatalogSchema,
@@ -23,37 +43,17 @@ import {
   ContactSchema,
   type Source,
   SourceSchema,
-} from "../../src/core/models.ts";
-import { nameTokens, normalizeName } from "../../src/core/search.ts";
+} from "@public-phonebook/directory/models";
+import { nameTokens, normalizeName } from "@public-phonebook/directory/search";
 import {
   decodeSearchIndex,
   encodeSearchIndex,
   searchIndexLimits,
-} from "../../src/core/search-index.ts";
-import { searchForm } from "../../src/core/search-text.ts";
-import { checkDataBundle } from "../../tools/check-data.ts";
-import {
-  fetchDeltaBases,
-  unservedShippedBases,
-} from "../../tools/collection-store.ts";
-import { fileControlStore } from "../../tools/control-store.ts";
-import {
-  deltaBaseDirectories,
-  parsePrepareArguments,
-} from "../../tools/data.ts";
-import { databaseSchema } from "../../tools/database-schema.ts";
-import {
-  deltaSource as bundleDeltaSource,
-  sha256Digest,
-} from "../../tools/directory-delta.ts";
+} from "@public-phonebook/directory/search-index";
+import { searchForm } from "@public-phonebook/directory/search-text";
+import * as v from "valibot";
+import { expect, it } from "vitest";
 import { command } from "../../tools/process.ts";
-import { storeDataset } from "../../tools/remote-data.ts";
-import { compressSearchIndex } from "../../tools/search-index.ts";
-import {
-  compressDirectoryArchive,
-  fileDigest,
-  prepareSnapshot,
-} from "../../tools/snapshot.ts";
 
 it("prepares canonical native data with normalized addresses and complete archive accounting", async () => {
   const root = await mkdtemp(join(tmpdir(), "phonebook-snapshot-"));
@@ -143,7 +143,7 @@ it("prepares canonical native data with normalized addresses and complete archiv
     const cliOutput = join(root, "command-line");
     const preparedCommand = await command(
       process.execPath,
-      ["tools/data.ts", "prepare", path, cliOutput],
+      ["data/src/data.ts", "prepare", path, cliOutput],
       true,
     );
     expect(preparedCommand.code, preparedCommand.stderr).toBe(0);

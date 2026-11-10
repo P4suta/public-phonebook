@@ -1,6 +1,4 @@
-import fc from "fast-check";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { existingChecks, planLines } from "../../tools/uptime.ts";
+import { existingChecks, planLines } from "@public-phonebook/cloudflare/uptime";
 import {
   checkAction,
   type ExistingCheck,
@@ -9,7 +7,9 @@ import {
   uptimeChecks,
   uptimeFields,
   uptimePlan,
-} from "../../tools/uptime-plan.ts";
+} from "@public-phonebook/cloudflare/uptime-plan";
+import fc from "fast-check";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const api = "https://incidents.betterstack.com/api/v2/monitors";
 

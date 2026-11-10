@@ -80,27 +80,29 @@ const THEOREMS: [&str; 72] = [
     "stalledDecodeAtEOFIsTruncated",
     "stalledDecodeBeforeEOFIsCorrupt",
 ];
-const UPDATE_SOURCE: &str = include_str!("../../../../ios/Sources/PhonebookCore/UpdateCheck.swift");
+const UPDATE_SOURCE: &str =
+    include_str!("../../../../apps/ios/Sources/PhonebookCore/UpdateCheck.swift");
 const RESULT_PAGE_SOURCE: &str =
-    include_str!("../../../../ios/Sources/PhonebookCore/ResultPage.swift");
+    include_str!("../../../../apps/ios/Sources/PhonebookCore/ResultPage.swift");
 const RESULT_PAGE_REFINEMENT: &str = "publicenumResultPage{publicstaticletsize=20publicstaticfuncend(shown:Int,total:Int)->Int{guardshown>=0,total>=shownelse{return0}returnshown+min(size,total-shown)}}";
 /// The SHA-256 of the whitespace-free Swift decision that `verification/ios/UpdateCheck.lean` models function for function.
 /// Recheck the Lean model against the Swift file before changing this digest.
 const UPDATE_REFINEMENT_SHA256: &str =
     "a0458362c81f812504a67c25c7ce237396afd66abd1240f4b840f722388f2f35";
-const UPDATE_CONTRACT: &str = "ios/Tests/PhonebookCoreTests/UpdateContract.json";
+const UPDATE_CONTRACT: &str = "apps/ios/Tests/PhonebookCoreTests/UpdateContract.json";
 const UPDATE_TRACES: &str = "UpdateTraces";
 const UPDATE_TRACE_COUNT: usize = 10;
 const UPDATE_TRACE_STEPS: usize = 12;
 const LISTING_REPLIES: [&str; 5] = ["failed", "notModified", "saved", "delta", "archive"];
 const UPDATE_TRANSFERS: [&str; 2] = ["delta", "archive"];
-const WAIT_SOURCE: &str = include_str!("../../../../ios/Sources/PhonebookCore/WaitDisplay.swift");
+const WAIT_SOURCE: &str =
+    include_str!("../../../../apps/ios/Sources/PhonebookCore/WaitDisplay.swift");
 /// The SHA-256 of the whitespace-free Swift policy that `verification/ios/WaitDisplay.lean` models function for function.
 /// Recheck the Lean model against the Swift file before changing this digest.
 const WAIT_REFINEMENT_SHA256: &str =
     "a816537f6e3c903a27c62633a24b1476d0a82a79e95a327a70eb0d7ebe1c8772";
 const WAIT_MODEL: &str = include_str!("../../../../verification/ios/WaitDisplay.lean");
-const WAIT_CONTRACT: &str = "ios/Tests/PhonebookCoreTests/WaitContract.json";
+const WAIT_CONTRACT: &str = "apps/ios/Tests/PhonebookCoreTests/WaitContract.json";
 const WAIT_TRACES: &str = "WaitTraces";
 const WAIT_TRACE_COUNT: usize = 11;
 const WAIT_TRACE_STEPS: usize = 15;
@@ -134,25 +136,25 @@ const PLANTED_DEFECTS: [(&str, &str, &str, &str); 3] = [
 ];
 const ARITHMETIC_REFUTATION: &str = "omega could not prove the goal";
 const RECEIVE_SOURCE: &str =
-    include_str!("../../../../ios/Sources/PhonebookCore/ReceiveBudget.swift");
+    include_str!("../../../../apps/ios/Sources/PhonebookCore/ReceiveBudget.swift");
 const DELTA_SOURCE: &str =
-    include_str!("../../../../ios/Sources/PhonebookCore/DeltaAdmission.swift");
+    include_str!("../../../../apps/ios/Sources/PhonebookCore/DeltaAdmission.swift");
 /// The Swift delta decision that `verification/ios/DeltaAdmission.lean` models, without whitespace.
 const DELTA_REFINEMENT: &str = "publicenumDeltaAdmission:String,CaseIterable,Sendable{caseapply,baseMismatch,malformed,countMismatch,lengthMismatch,digestMismatchpublicstaticfuncdecide(baseMatches:Bool,wellFormed:Bool,rows:Int,expectedRows:Int,bytes:Int,expectedBytes:Int,digestMatches:Bool)->Self{if!baseMatches{return.baseMismatch}if!wellFormed{return.malformed}ifrows!=expectedRows{return.countMismatch}ifbytes!=expectedBytes{return.lengthMismatch}if!digestMatches{return.digestMismatch}return.apply}publicstaticfuncadmitsCopy(start:Int,count:Int,baseRows:Int)->Bool{start>=0&&count>=1&&count<=baseRows&&start<=baseRows-count}}";
 const CALLER_MERGE_SOURCE: &str =
-    include_str!("../../../../ios/Sources/PhonebookCore/CallerMerge.swift");
+    include_str!("../../../../apps/ios/Sources/PhonebookCore/CallerMerge.swift");
 /// The Swift merge decision that `verification/ios/CallerMerge.lean` models, without whitespace.
 const CALLER_MERGE_REFINEMENT: &str = "publicenumCallerMerge:String,CaseIterable,Sendable{casenational,extraFirst,extraReplacespublicstaticfuncdecide(extra:Int64,national:Int64)->Self{ifextra<national{return.extraFirst}ifextra==national{return.extraReplaces}return.national}}";
 const CALLER_DELTA_SOURCE: &str =
-    include_str!("../../../../ios/Sources/PhonebookCore/CallerDelta.swift");
+    include_str!("../../../../apps/ios/Sources/PhonebookCore/CallerDelta.swift");
 /// The Swift change decision that `verification/ios/CallerDelta.lean` models, without whitespace.
 /// Swift compares the labels' UTF-8 bytes, which Lean's string equality matches because UTF-8 encodes each string one way.
 const CALLER_DELTA_REFINEMENT: &str = "publicenumCallerChange:String,CaseIterable,Sendable{caseremove,add,keep,replacepublicstaticfuncdecide(held:Int64,heldLabel:String,wanted:Int64,wantedLabel:String)->Self{ifheld<wanted{return.remove}ifwanted<held{return.add}ifheldLabel.utf8.elementsEqual(wantedLabel.utf8){return.keep}return.replace}}";
 const CALLER_LOAD_SOURCE: &str =
-    include_str!("../../../../ios/Sources/PhonebookCore/CallerLoadPlan.swift");
+    include_str!("../../../../apps/ios/Sources/PhonebookCore/CallerLoadPlan.swift");
 const CALLER_LOAD_REFINEMENT: &str = "publicenumCallerLoadPlan:String,CaseIterable,Sendable{caseincremental,fullpublicstaticfuncdecide(removals:Int,additions:Int,limit:Int)->Self{guardremovals>=0,additions>=0,limit>=0,removals<=limitelse{return.full}returnadditions<=limit-removals?.incremental:.full}}";
 const DECODE_SOURCE: &str =
-    include_str!("../../../../ios/Sources/PhonebookCore/DecodeProgress.swift");
+    include_str!("../../../../apps/ios/Sources/PhonebookCore/DecodeProgress.swift");
 const DECODE_REFINEMENT: &str = "publicenumDecodeProgress:Equatable,CaseIterable,Sendable{casemore,finished,corrupt,truncatedpublicstaticfuncdecide(consumed:Int,produced:Int,ended:Bool,exhausted:Bool)->Self{ifended{return.finished}ifconsumed>0||produced>0{return.more}returnexhausted?.truncated:.corrupt}}";
 /// Each planted defect changes one place in its model and must fail inside every theorem it names and nowhere else.
 const DELTA_DEFECTS: [(&str, &str, &str, &str, &[&str]); 8] = [
@@ -703,13 +705,14 @@ pub fn run(root: &Path) -> Result<()> {
         fs::remove_file(&receipt)?;
     }
     let sources = source_hashes(root)?;
-    let page = fs::read_to_string(root.join("ios/Sources/PhonebookCore/ResultPage.swift"))?;
+    let page = fs::read_to_string(root.join("apps/ios/Sources/PhonebookCore/ResultPage.swift"))?;
     ensure!(
         whitespace_free(&page) == whitespace_free(RESULT_PAGE_SOURCE)
             && whitespace_free(&page) == RESULT_PAGE_REFINEMENT,
         "The result page proof covers another Swift decision"
     );
-    let receive = fs::read_to_string(root.join("ios/Sources/PhonebookCore/ReceiveBudget.swift"))?;
+    let receive =
+        fs::read_to_string(root.join("apps/ios/Sources/PhonebookCore/ReceiveBudget.swift"))?;
     let normalize = whitespace_free;
     ensure!(
         normalize(&receive) == normalize(RECEIVE_SOURCE),
@@ -720,36 +723,39 @@ pub fn run(root: &Path) -> Result<()> {
             == "publicenumReceiveBudget{publicstaticfuncadmits(used:Int,incoming:Int,limit:Int)->Bool{used>=0&&incoming>=0&&limit>=used&&incoming<=limit-used}}",
         "The arithmetic proof covers a different implementation"
     );
-    let delta = fs::read_to_string(root.join("ios/Sources/PhonebookCore/DeltaAdmission.swift"))?;
+    let delta =
+        fs::read_to_string(root.join("apps/ios/Sources/PhonebookCore/DeltaAdmission.swift"))?;
     ensure!(
         normalize(&delta) == normalize(DELTA_SOURCE) && normalize(&delta) == DELTA_REFINEMENT,
         "The delta admission proof covers a different implementation"
     );
-    let merge = fs::read_to_string(root.join("ios/Sources/PhonebookCore/CallerMerge.swift"))?;
+    let merge = fs::read_to_string(root.join("apps/ios/Sources/PhonebookCore/CallerMerge.swift"))?;
     ensure!(
         normalize(&merge) == normalize(CALLER_MERGE_SOURCE)
             && normalize(&merge) == CALLER_MERGE_REFINEMENT,
         "The caller merge proof covers a different implementation"
     );
     let delta_decision =
-        fs::read_to_string(root.join("ios/Sources/PhonebookCore/CallerDelta.swift"))?;
+        fs::read_to_string(root.join("apps/ios/Sources/PhonebookCore/CallerDelta.swift"))?;
     ensure!(
         normalize(&delta_decision) == normalize(CALLER_DELTA_SOURCE)
             && normalize(&delta_decision) == CALLER_DELTA_REFINEMENT,
         "The caller delta proof covers a different implementation"
     );
-    let load = fs::read_to_string(root.join("ios/Sources/PhonebookCore/CallerLoadPlan.swift"))?;
+    let load =
+        fs::read_to_string(root.join("apps/ios/Sources/PhonebookCore/CallerLoadPlan.swift"))?;
     ensure!(
         normalize(&load) == normalize(CALLER_LOAD_SOURCE)
             && normalize(&load) == CALLER_LOAD_REFINEMENT,
         "The caller load proof covers a different implementation"
     );
-    let decode = fs::read_to_string(root.join("ios/Sources/PhonebookCore/DecodeProgress.swift"))?;
+    let decode =
+        fs::read_to_string(root.join("apps/ios/Sources/PhonebookCore/DecodeProgress.swift"))?;
     ensure!(
         normalize(&decode) == normalize(DECODE_SOURCE) && normalize(&decode) == DECODE_REFINEMENT,
         "The decoder progress proof covers a different implementation"
     );
-    let wait = fs::read_to_string(root.join("ios/Sources/PhonebookCore/WaitDisplay.swift"))?;
+    let wait = fs::read_to_string(root.join("apps/ios/Sources/PhonebookCore/WaitDisplay.swift"))?;
     ensure!(
         normalize(&wait) == normalize(WAIT_SOURCE)
             && crate::sha256_hex(normalize(&wait)) == WAIT_REFINEMENT_SHA256,
@@ -758,7 +764,7 @@ pub fn run(root: &Path) -> Result<()> {
     require_replay_partition(&REPLAY_ROOTS, &compiled_modules())?;
     let wait_contract: Value = serde_json::from_slice(&fs::read(root.join(WAIT_CONTRACT))?)?;
     let contract: Value = serde_json::from_slice(&fs::read(
-        root.join("ios/Tests/PhonebookCoreTests/PublicationContract.json"),
+        root.join("apps/ios/Tests/PhonebookCoreTests/PublicationContract.json"),
     )?)?;
     fs::write(directory.join("PublicationModel.lean"), model(&contract)?)?;
     for module in PROOF_MODULES {
@@ -783,7 +789,7 @@ pub fn run(root: &Path) -> Result<()> {
         directory.join(format!("{WAIT_TRACES}.lean")),
         wait_traces(&wait_contract)?,
     )?;
-    let update = fs::read_to_string(root.join("ios/Sources/PhonebookCore/UpdateCheck.swift"))?;
+    let update = fs::read_to_string(root.join("apps/ios/Sources/PhonebookCore/UpdateCheck.swift"))?;
     ensure!(
         normalize(&update) == normalize(UPDATE_SOURCE)
             && crate::sha256_hex(normalize(&update)) == UPDATE_REFINEMENT_SHA256,
@@ -1015,7 +1021,7 @@ mod tests {
     #[test]
     fn update_traces_replay_only_wellformed_contracts() -> Result<()> {
         let valid: Value = serde_json::from_str(include_str!(
-            "../../../../ios/Tests/PhonebookCoreTests/UpdateContract.json"
+            "../../../../apps/ios/Tests/PhonebookCoreTests/UpdateContract.json"
         ))?;
         let generated = update_traces(&valid)?;
         assert_eq!(
@@ -1051,7 +1057,7 @@ mod tests {
     #[test]
     fn wait_traces_replay_only_wellformed_contracts() -> Result<()> {
         let valid: Value = serde_json::from_str(include_str!(
-            "../../../../ios/Tests/PhonebookCoreTests/WaitContract.json"
+            "../../../../apps/ios/Tests/PhonebookCoreTests/WaitContract.json"
         ))?;
         let generated = wait_traces(&valid)?;
         assert_eq!(generated.matches(":= by decide").count(), WAIT_TRACE_COUNT);
@@ -1119,7 +1125,7 @@ mod tests {
     #[test]
     fn incomplete_or_injected_models_are_rejected() -> Result<()> {
         let valid: Value = serde_json::from_str(include_str!(
-            "../../../../ios/Tests/PhonebookCoreTests/PublicationContract.json"
+            "../../../../apps/ios/Tests/PhonebookCoreTests/PublicationContract.json"
         ))?;
         assert!(model(&valid)?.contains(".active, .abort => .active"));
         let mut invalid = valid.clone();

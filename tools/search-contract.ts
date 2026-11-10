@@ -1,16 +1,16 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { searchQuery } from "../src/core/search.ts";
+import { searchQuery } from "@public-phonebook/directory/search";
 import {
   foldedCharacters,
   searchForm,
   searchWords,
-} from "../src/core/search-text.ts";
-import { rankWords } from "../src/core/word-match.ts";
+} from "@public-phonebook/directory/search-text";
+import { rankWords } from "@public-phonebook/directory/word-match";
 import { seededRandom } from "./search-parity.ts";
 
 /** The word splitting, match-and-rank, and telephone cases that the iPhone app's tests must answer like the website's code. */
 export const searchContractPath =
-  "ios/Tests/PhonebookCoreTests/SearchContract.json";
+  "apps/ios/Tests/PhonebookCoreTests/SearchContract.json";
 
 export interface SearchContract {
   readonly words: readonly {

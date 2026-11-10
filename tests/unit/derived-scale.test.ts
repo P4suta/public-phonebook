@@ -6,9 +6,9 @@ import {
   scale,
   type TextRole,
   viewport,
-} from "../../src/ui/foundations.ts";
+} from "../../apps/web/src/ui/foundations.ts";
 
-const styleDirectory = "src/ui";
+const styleDirectory = "apps/web/src/ui";
 const requiredStyleSheets = ["styles.css.ts"];
 
 const approved = {

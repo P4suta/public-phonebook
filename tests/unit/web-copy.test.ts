@@ -44,8 +44,8 @@ const sharedStatements = [
   "ほかのサイトのページを開きます。",
 ] as const;
 
-const webSources = ["src/routes", "src/ui"];
-const appSources = ["ios/App"];
+const webSources = ["apps/web/src/routes", "apps/web/src/ui"];
+const appSources = ["apps/ios/App"];
 
 async function sourceText(
   directories: readonly string[],

@@ -1,11 +1,14 @@
-import { describe, expect, it } from "vitest";
 import {
   contactReturnHref,
   localContactHref,
   privateReturnTarget,
   privateSearch,
-} from "../../src/core/private-navigation.ts";
-import { catalogRegions, localCard } from "../../src/ui/result-cards.ts";
+} from "@public-phonebook/directory/private-navigation";
+import { describe, expect, it } from "vitest";
+import {
+  catalogRegions,
+  localCard,
+} from "../../apps/web/src/ui/result-cards.ts";
 import { indexInput } from "./local-search-fixture.ts";
 
 describe("local search navigation privacy", () => {

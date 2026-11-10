@@ -1,8 +1,7 @@
-import { describe, expect, it } from "vitest";
 import {
   localPageSize,
   localPreviewSize,
-} from "../../src/core/local-search.ts";
+} from "@public-phonebook/directory/local-search";
 import {
   groupPrecedes,
   type IndexReadiness,
@@ -11,10 +10,15 @@ import {
   nextVisible,
   searchSource,
   wordRank,
-} from "../../src/core/local-search-policy.ts";
-import { nameRank, parseSearch, rankName } from "../../src/core/search.ts";
-import { previewLimit } from "../../src/core/search-policy.ts";
-import { maximumQueryWords } from "../../src/core/search-text.ts";
+} from "@public-phonebook/directory/local-search-policy";
+import {
+  nameRank,
+  parseSearch,
+  rankName,
+} from "@public-phonebook/directory/search";
+import { previewLimit } from "@public-phonebook/directory/search-policy";
+import { maximumQueryWords } from "@public-phonebook/directory/search-text";
+import { describe, expect, it } from "vitest";
 
 const readiness: readonly IndexReadiness[] = [
   "loading",

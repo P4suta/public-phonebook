@@ -4,7 +4,7 @@ import { stripTypeScriptTypes } from "node:module";
 import { Miniflare } from "miniflare";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-// The entry passes each request through a binding as `src/server.ts` passes it to `ASSETS`, and `/legacy` rebuilds it the way the entry did before.
+// The entry passes each request through a binding as `apps/web/src/server.ts` passes it to `ASSETS`, and `/legacy` rebuilds it the way the entry did before.
 const entry = `
 import { pageRequest } from "./page-request.js";
 export default {
@@ -110,7 +110,7 @@ beforeAll(async () => {
               "page-request.js": {
                 type: "esm",
                 contents: stripTypeScriptTypes(
-                  await readFile("src/server/page-request.ts", "utf8"),
+                  await readFile("apps/web/src/server/page-request.ts", "utf8"),
                 ),
               },
             },

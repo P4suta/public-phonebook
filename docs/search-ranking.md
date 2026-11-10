@@ -16,7 +16,7 @@ The production worker loads only the name index, and its build gate rejects pack
 Vite's [app build API](https://vite.dev/guide/api-environment-frameworks) accepts the local build configuration.
 The [worker constructor](https://vite.dev/guide/features.html#web-workers) uses module mode for the local scorer's dynamic import.
 
-`createRankedSearch` in `src/core/local-search.ts` exposes the frozen facility-name scorer.
+`createRankedSearch` in `packages/directory/src/local-search.ts` exposes the frozen facility-name scorer.
 The constructor accepts a decoded `SearchIndex` and a decoded `RankingArtifact` with the same snapshot and contact count.
 It performs no network, file, clock, or environment access.
 The returned search function accepts the original facility-name input and returns one ranked array of `{ row, score }` values.
@@ -34,9 +34,9 @@ The constructor rejects a snapshot mismatch and invalid integer lexical weights.
 Admit the pair together, and keep the server search when loading or admission fails.
 
 ```ts
-import { createRankedSearch } from "../src/core/local-search.ts";
-import { decodeSearchIndex } from "../src/core/search-index.ts";
-import { decodeRankingArtifact } from "../src/core/search-ranking-artifact.ts";
+import { createRankedSearch } from "../packages/directory/src/local-search.ts";
+import { decodeSearchIndex } from "../packages/directory/src/search-index.ts";
+import { decodeRankingArtifact } from "../packages/directory/src/search-ranking-artifact.ts";
 
 const index = decodeSearchIndex(verifiedIndexBytes);
 const ranking = decodeRankingArtifact(
@@ -172,7 +172,7 @@ String comparison inside the reading lane follows ordinal UTF-16 order, while n-
 The frozen scorer uses exact integer arithmetic for weighted sums and score products.
 
 ```sh
-mise x -- node tools/search-ranking-contract.ts check .local/national-core tests/fixtures/search-ranking.json
+mise x -- node data/src/search-ranking-contract.ts check .local/national-core tests/fixtures/search-ranking.json
 mise x -- just check
 mise x -- just prove
 ```
@@ -238,5 +238,5 @@ The one-time import command verifies the frozen research inputs and reports befo
 It requires a fresh output directory and leaves existing files intact.
 
 ```sh
-mise x -- node tools/search-ranking-contract.ts import-quality BUNDLE OUTPUT LABORATORY
+mise x -- node data/src/search-ranking-contract.ts import-quality BUNDLE OUTPUT LABORATORY
 ```

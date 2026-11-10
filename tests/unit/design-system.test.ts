@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import * as v from "valibot";
 import { expect, it } from "vitest";
-import { foundation, scale } from "../../src/ui/foundations.ts";
+import { foundation, scale } from "../../apps/web/src/ui/foundations.ts";
 
 it("keeps the implemented hierarchy aligned with the retained Figma specification", async () => {
   const raw: unknown = JSON.parse(

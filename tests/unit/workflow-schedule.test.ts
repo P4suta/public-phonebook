@@ -51,7 +51,7 @@ describe("workflow schedules", () => {
         conditions += 1;
       }
     }
-    expect(conditions).toBeGreaterThanOrEqual(15);
+    expect(conditions).toBeGreaterThan(0);
   });
 
   it("refuses conditions outside the supported grammar", () => {
@@ -66,44 +66,18 @@ describe("workflow schedules", () => {
       expect(() => parseCondition(condition), condition).toThrow();
   });
 
-  it("keeps publication skipped after a failed build and successful dependency checks", async () => {
+  it("keeps publication skipped after a failed build or release check", async () => {
     const schedule = workflowSchedule(parse(await workflowText("release.yml")));
-    expect(
-      followRun(schedule, { checks: "run" }, { build: "failure" }),
-    ).toEqual({
-      "delivery-checks": "success",
-      candidate: "success",
-      evidence: "success",
+    expect(followRun(schedule, {}, { build: "failure" })).toEqual({
+      verify: "success",
       build: "failure",
-      stage: "skipped",
-      verify: "skipped",
-      withdraw: "skipped",
-      promote: "skipped",
-      record: "skipped",
+      deploy: "skipped",
     });
-  });
-
-  it("detects the implicit skip regression when the optional candidate job is skipped", async () => {
-    let text = await workflowText("release.yml");
-    for (const guard of text.match(
-      /^ {4}if: \$\{\{ !cancelled\(\) && .*\}\}\n/gmu,
-    ) ?? [])
-      text = text.replace(guard, "");
-    const schedule = workflowSchedule(parse(text));
-    expect(followRun(schedule, { checks: "reuse" })).toEqual({
-      "delivery-checks": "success",
-      candidate: "skipped",
-      evidence: "success",
+    expect(followRun(schedule, {}, { verify: "failure" })).toEqual({
+      verify: "failure",
       build: "skipped",
-      stage: "skipped",
-      verify: "skipped",
-      withdraw: "skipped",
-      promote: "skipped",
-      record: "skipped",
+      deploy: "skipped",
     });
-    expect(findings("release.yml", text)).toContain(
-      'a successful run with {"checks":"reuse"} runs delivery-checks, evidence, build, stage, verify, promote, record',
-    );
   });
 
   it("holds every declared property and promise of the release-path workflows", async () => {
@@ -119,9 +93,9 @@ describe("workflow schedules", () => {
   it("runs independent iOS checks while every failed check blocks archive preparation and signing", async () => {
     const text = await workflowText("ios.yml");
     const schedule = workflowSchedule(parse(text));
-    for (const failed of ["delivery-checks", "proofs", "native"]) {
+    for (const failed of ["fast", "proofs", "native"]) {
       const results = followRun(schedule, {}, { [failed]: "failure" });
-      for (const job of ["delivery-checks", "proofs", "native"])
+      for (const job of ["fast", "proofs", "native"])
         expect(results[job]).toBe(job === failed ? "failure" : "success");
       for (const job of ["unsigned", "signing", "upload"])
         expect(results[job]).toBe("skipped");
@@ -131,28 +105,14 @@ describe("workflow schedules", () => {
         "ios.yml",
         planted(
           text,
-          "    needs: [delivery-checks, proofs, native]\n",
+          "    needs: [fast, proofs, native]\n",
           "    needs: [proofs, native]\n",
         ),
       ),
-    ).toContain(
-      "unsigned runs only after delivery-checks, proofs, native succeeded",
-    );
+    ).toContain("unsigned runs only after fast, proofs, native succeeded");
   });
 
   it("finds a planted defect in each release-path workflow", async () => {
-    expect(
-      findings(
-        "delivery-checks.yml",
-        planted(
-          await workflowText("delivery-checks.yml"),
-          "    if: always()\n",
-          "",
-        ),
-      ),
-    ).toContain(
-      "the admission gate runs even after failed or skipped prerequisites",
-    );
     expect(
       findings(
         "delivery-credentials.yml",
@@ -169,75 +129,26 @@ describe("workflow schedules", () => {
         "release.yml",
         planted(
           release,
-          "if: ${{ !cancelled() && needs.stage.result == 'success' && needs.verify.result == 'success' }}",
-          "if: ${{ always() && needs.stage.result == 'success' }}",
+          "    needs: [build]\n",
+          "    needs: [build]\n    if: always()\n",
         ),
       ),
     ).toEqual(
       expect.arrayContaining([
-        "promote runs only after evidence, build, stage, verify succeeded",
-        "promote doesn't start after a cancellation",
+        "deploy runs only after verify, build succeeded",
+        "deploy doesn't start after a cancellation",
       ]),
     );
-    expect(
-      findings(
-        "release.yml",
-        planted(
-          release,
-          "if: always() && needs.stage.result == 'success' && (needs.verify.result == 'failure' || needs.verify.result == 'cancelled')",
-          "if: always() && needs.stage.result == 'success'",
-        ),
-      ),
-    ).toContain(
-      "withdraw runs exactly when the staged candidate failed or abandoned its checks",
-    );
-    // Dropping the stage check from withdraw changes nothing, because verify runs only after a staged candidate.
-    expect(
-      findings(
-        "release.yml",
-        planted(
-          release,
-          "if: always() && needs.stage.result == 'success' && (needs.verify.result == 'failure' || needs.verify.result == 'cancelled')",
-          "if: always() && (needs.verify.result == 'failure' || needs.verify.result == 'cancelled')",
-        ),
-      ),
-    ).toEqual([]);
     expect(
       findings(
         "recover.yml",
         planted(
           await workflowText("recover.yml"),
-          "    if: inputs.operation == 'withdraw'\n",
-          "",
+          "    needs: [inspect]\n",
+          "    needs: [inspect]\n    if: always()\n",
         ),
       ),
-    ).toContain("withdraw runs only for the withdraw operation");
-    expect(
-      findings(
-        "candidate.yml",
-        planted(
-          await workflowText("candidate.yml"),
-          "if: always() && needs.plan.result == 'success'",
-          "if: needs.plan.result == 'success'",
-        ),
-      ),
-    ).toContain(
-      "record runs whenever plan succeeded, so passing stages keep their evidence",
-    );
-    expect(
-      findings(
-        "pipeline-controls.yml",
-        planted(
-          await workflowText("pipeline-controls.yml"),
-          "    needs: [drill-evidence, drill-build]\n",
-          "    needs: [drill-evidence, drill-build]\n    if: always()\n",
-        ),
-      ),
-    ).toEqual(
-      expect.arrayContaining([
-        "drill runs only after drill-evidence, drill-build succeeded",
-      ]),
-    );
+    ).toContain("restore runs only after inspect succeeded");
   });
 
   it("applies the implicit success() and skips after a skipped ancestor", () => {

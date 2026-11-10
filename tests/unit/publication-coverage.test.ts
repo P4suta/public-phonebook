@@ -1,5 +1,5 @@
+import { prefectureNames } from "@public-phonebook/directory/catalog";
 import { expect, it } from "vitest";
-import { prefectureNames } from "../../src/core/catalog.ts";
 import { validatePublicationCoverage } from "../../tools/publication-coverage.ts";
 
 const catalog = {

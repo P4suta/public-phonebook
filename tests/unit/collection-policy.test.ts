@@ -1,12 +1,12 @@
-import * as v from "valibot";
-import { describe, expect, it } from "vitest";
 import {
   extractPhones,
   extractTables,
   findColumns,
-} from "../../tools/collection/extract.ts";
-import { DirectorySourceSchema } from "../../tools/collection/models.ts";
-import { SchoolRegistry } from "../../tools/collection/school-registry.ts";
+} from "@public-phonebook/data/collection/extract";
+import { DirectorySourceSchema } from "@public-phonebook/data/collection/models";
+import { SchoolRegistry } from "@public-phonebook/data/collection/school-registry";
+import * as v from "valibot";
+import { describe, expect, it } from "vitest";
 
 const header =
   "学校コード,学校種,都道府県番号,設置区分,本分校,学校名,学校所在地,郵便番号,属性情報設定年月日,属性情報廃止年月日\n";

@@ -6,7 +6,7 @@ import * as v from "valibot";
 import { requireBuildBudget } from "./build-budget.ts";
 import { developmentHost, developmentPort } from "./local-data.ts";
 
-const buildOutput = ".cloudflare/output/v0/workers/default";
+const buildOutput = "apps/web/.cloudflare/output/v0/workers/default";
 const defaultState = ".local/state";
 const persistenceVersion = "v3";
 const commandArgumentOffset = 2;

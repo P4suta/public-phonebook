@@ -3,44 +3,50 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { brotliDecompressSync, gzipSync } from "node:zlib";
-import * as v from "valibot";
-import { categoryDefinitions, prefectureNames } from "../src/core/catalog.ts";
-import { PreparedDatasetManifestSchema } from "../src/core/dataset-storage.ts";
+import { categorySources } from "@public-phonebook/data/category-sources";
+import { databaseSchema } from "@public-phonebook/data/database-schema";
 import {
-  directoryArchiveFile,
-  encodeDirectoryArchive,
-} from "../src/core/directory-archive.ts";
-import {
-  CatalogSchema,
-  type Contact,
-  ContactSchema,
-  SourceSchema,
-} from "../src/core/models.ts";
-import { encodePackedRanking } from "../src/core/packed-ranking.ts";
-import { nameTokens, normalizeName } from "../src/core/search.ts";
-import {
-  decodeSearchIndex,
-  searchIndexFile,
-} from "../src/core/search-index.ts";
-import {
-  encodeRankingArtifact,
-  rankingArtifactFile,
-  rankingArtifactFormat,
-} from "../src/core/search-ranking-artifact.ts";
-import { searchForm } from "../src/core/search-text.ts";
-import { contactVCard } from "../src/core/vcard.ts";
-import { categorySources } from "./category-sources.ts";
-import { databaseSchema } from "./database-schema.ts";
-import { localDataRuntime, seedLocalData } from "./local-data.ts";
-import { compressSearchIndex, readSearchIndex } from "./search-index.ts";
-import { buildRankingArtifact } from "./search-ranking.ts";
+  compressSearchIndex,
+  readSearchIndex,
+} from "@public-phonebook/data/search-index";
+import { buildRankingArtifact } from "@public-phonebook/data/search-ranking";
 import {
   compressDirectoryArchive,
   contactCsv,
   contactCsvHeader,
   contactRowNumbers,
   fileDigest,
-} from "./snapshot.ts";
+} from "@public-phonebook/data/snapshot";
+import {
+  categoryDefinitions,
+  prefectureNames,
+} from "@public-phonebook/directory/catalog";
+import { PreparedDatasetManifestSchema } from "@public-phonebook/directory/dataset-storage";
+import {
+  directoryArchiveFile,
+  encodeDirectoryArchive,
+} from "@public-phonebook/directory/directory-archive";
+import {
+  CatalogSchema,
+  type Contact,
+  ContactSchema,
+  SourceSchema,
+} from "@public-phonebook/directory/models";
+import { encodePackedRanking } from "@public-phonebook/directory/packed-ranking";
+import { nameTokens, normalizeName } from "@public-phonebook/directory/search";
+import {
+  decodeSearchIndex,
+  searchIndexFile,
+} from "@public-phonebook/directory/search-index";
+import {
+  encodeRankingArtifact,
+  rankingArtifactFile,
+  rankingArtifactFormat,
+} from "@public-phonebook/directory/search-ranking-artifact";
+import { searchForm } from "@public-phonebook/directory/search-text";
+import { contactVCard } from "@public-phonebook/directory/vcard";
+import * as v from "valibot";
+import { localDataRuntime, seedLocalData } from "./local-data.ts";
 
 const fixtureWebsite = "https://example.org/";
 const fixtureDatasetUrl = "https://example.org/dataset";

@@ -1,6 +1,6 @@
+import { checkKanjiVariants } from "@public-phonebook/data/kanji-variants";
 import { prepareCheckFixture } from "./check-fixture.ts";
 import { checkRust } from "./check-rust.ts";
-import { checkKanjiVariants } from "./kanji-variants.ts";
 import { requireCommand } from "./process.ts";
 
 await requireCommand("npm", ["run", "build"]);

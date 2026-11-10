@@ -6,22 +6,24 @@ import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { parseArgs } from "node:util";
 import { brotliDecompressSync } from "node:zlib";
-import * as v from "valibot";
-import { type Category, CategorySchema } from "../src/core/catalog.ts";
-import { PreparedDatasetManifestSchema } from "../src/core/dataset-storage.ts";
-import { environments } from "../src/core/environment.ts";
+import {
+  type Category,
+  CategorySchema,
+} from "@public-phonebook/directory/catalog";
+import { PreparedDatasetManifestSchema } from "@public-phonebook/directory/dataset-storage";
+import { environments } from "@public-phonebook/directory/environment";
 import {
   admitFileSearch,
   type FileSearch,
   type SearchFile,
   writeSearchFile,
-} from "../src/core/file-search.ts";
+} from "@public-phonebook/directory/file-search";
 import {
   localQuery,
   matchIndex,
   previewGroups,
-} from "../src/core/local-search.ts";
-import type { LocalRow } from "../src/core/local-search-protocol.ts";
+} from "@public-phonebook/directory/local-search";
+import type { LocalRow } from "@public-phonebook/directory/local-search-protocol";
 import {
   CatalogSchema,
   type Contact,
@@ -29,15 +31,16 @@ import {
   RowLocationSchema,
   type SearchResponse,
   SearchResponseSchema,
-} from "../src/core/models.ts";
-import { formatPhone, normalizePhone } from "../src/core/phone.ts";
-import { showsAddress } from "../src/core/search.ts";
+} from "@public-phonebook/directory/models";
+import { formatPhone, normalizePhone } from "@public-phonebook/directory/phone";
+import { showsAddress } from "@public-phonebook/directory/search";
 import {
   decodeLiteralSearchIndex,
   type SearchIndex,
   searchIndexFile,
-} from "../src/core/search-index.ts";
-import { api, type DirectoryApiBindings } from "../src/server/api.ts";
+} from "@public-phonebook/directory/search-index";
+import * as v from "valibot";
+import { api, type DirectoryApiBindings } from "../apps/web/src/server/api.ts";
 import { localDataRuntime } from "./local-data.ts";
 
 const commandArgumentOffset = 2;

@@ -1,12 +1,12 @@
-import fc from "fast-check";
-import { describe, expect, it } from "vitest";
 import {
   admitFileSearch,
   type FileSearch,
   maximumSearchBufferBytes,
-} from "../../src/core/file-search.ts";
-import { searchLocalIndex } from "../../src/core/local-search.ts";
-import { decodeSearchIndex } from "../../src/core/search-index.ts";
+} from "@public-phonebook/directory/file-search";
+import { searchLocalIndex } from "@public-phonebook/directory/local-search";
+import { decodeSearchIndex } from "@public-phonebook/directory/search-index";
+import fc from "fast-check";
+import { describe, expect, it } from "vitest";
 import { MemoryFile } from "./file-search-fixture.ts";
 import { modelDirectory } from "./local-search-fixture.ts";
 

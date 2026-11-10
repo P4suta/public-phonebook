@@ -1,23 +1,28 @@
-name: Status
+name: Website deployment history
 
 on:
   workflow_dispatch:
 
 permissions: {}
 
+env:
+  MISE_AUTO_INSTALL: "false"
+
 concurrency:
-  group: status-${{ github.ref }}
+  group: web-status-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   status:
-    name: Read the publication status
+    name: Read Cloudflare deployment history
     runs-on: ubuntu-26.04
     environment: observe
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
       contents: read
-      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_observe config.
+      id-token: write # Reads the provider's deployment history with the observe identity.
+    env:
+      CF_SEND_TELEMETRY: "false"
     steps:
       - name: Require the main branch
         run: test "$GITHUB_REF" = refs/heads/main
@@ -26,10 +31,7 @@ jobs:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
         with:
-          tools: node just
-          dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
+          tools: node
       - id: doppler
         uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
         with:
@@ -38,17 +40,8 @@ jobs:
           doppler-project: public-phonebook
           doppler-config: ci_observe
           inject-env-vars: "false"
-      - name: Report the journal and the deployed versions
+      - name: Read deployed versions
         env:
           CLOUDFLARE_API_TOKEN: ${{ steps.doppler.outputs.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/publish.ts production --status
-      - name: Report the database retention plan
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ steps.doppler.outputs.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/release-retention.ts production
+        run: npm exec --no -- cf workers deployments list --worker dial-production

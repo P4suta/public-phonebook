@@ -1,27 +1,27 @@
-import { parse } from "csv-parse/sync";
-import { stringify } from "csv-stringify/sync";
-import * as fc from "fast-check";
-import * as v from "valibot";
-import { describe, expect, it } from "vitest";
-import {
-  type Contact,
-  ContactSchema,
-  PublicUrlSchema,
-} from "../../src/core/models.ts";
-import { normalizePhone } from "../../src/core/phone.ts";
-import { decodeCursor, encodeCursor } from "../../src/core/search.ts";
-import {
-  contactVCard,
-  escapeVCard,
-  foldVCardLine,
-} from "../../src/core/vcard.ts";
-import { importContact } from "../../tools/import-contact.ts";
+import { importContact } from "@public-phonebook/data/import-contact";
 import {
   contactCsv,
   contactCsvColumns,
   FormulaInertTelephonesSchema,
   guardSpreadsheetFormula,
-} from "../../tools/snapshot.ts";
+} from "@public-phonebook/data/snapshot";
+import {
+  type Contact,
+  ContactSchema,
+  PublicUrlSchema,
+} from "@public-phonebook/directory/models";
+import { normalizePhone } from "@public-phonebook/directory/phone";
+import { decodeCursor, encodeCursor } from "@public-phonebook/directory/search";
+import {
+  contactVCard,
+  escapeVCard,
+  foldVCardLine,
+} from "@public-phonebook/directory/vcard";
+import { parse } from "csv-parse/sync";
+import { stringify } from "csv-stringify/sync";
+import * as fc from "fast-check";
+import * as v from "valibot";
+import { describe, expect, it } from "vitest";
 
 /** The leading characters that csv-stringify's `escape_formulas` guards in a string cell. */
 const spreadsheetFormulaPrefixes = [

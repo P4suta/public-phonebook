@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import {
   CandidateWithdrawn,
   type DeployedVersions,
@@ -17,7 +16,8 @@ import {
   verifiedPredecessor,
   verifyStagedCandidate,
   withdrawCandidate,
-} from "../../tools/release-lifecycle.ts";
+} from "@public-phonebook/cloudflare/release-lifecycle";
+import { describe, expect, it } from "vitest";
 
 const previous: ReleaseTarget = {
   releaseId: "prior",

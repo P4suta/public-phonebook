@@ -417,7 +417,7 @@ mod tests {
 
     impl Forced {
         fn source(&self, line: u64) -> Value {
-            json!({"filePath": self.root.join("ios/UITests/DirectoryUITests.swift"), "lineNumber": line})
+            json!({"filePath": self.root.join("apps/ios/UITests/DirectoryUITests.swift"), "lineNumber": line})
         }
     }
 
@@ -533,7 +533,7 @@ mod tests {
                 Failure {
                     text: ASSERTION.to_owned(),
                     locations: vec![
-                        "ios/UITests/DirectoryUITests.swift:42 in DirectoryUITests.waitUntilSaved(_:in:timeout:file:line:)".to_owned()
+                        "apps/ios/UITests/DirectoryUITests.swift:42 in DirectoryUITests.waitUntilSaved(_:in:timeout:file:line:)".to_owned()
                     ],
                 },
                 Failure {
@@ -662,8 +662,8 @@ mod tests {
             }]
         );
         assert_eq!(
-            repository_path("/checkout/ios/UITests/A.swift", root),
-            "ios/UITests/A.swift"
+            repository_path("/checkout/apps/ios/UITests/A.swift", root),
+            "apps/ios/UITests/A.swift"
         );
     }
 }

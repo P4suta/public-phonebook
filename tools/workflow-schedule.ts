@@ -551,125 +551,45 @@ function notAfterCancellation(job: string): ScheduleProperty {
 export const scheduleSpecifications: Readonly<
   Record<string, ScheduleSpecification>
 > = {
+  "dataset.yml": {
+    properties: [requires("prepare", ["verify"])],
+    promises: [{ inputs: {}, runs: ["verify", "prepare"] }],
+  },
   "release.yml": {
     properties: [
-      requires("candidate", ["delivery-checks"]),
-      requires("evidence", ["delivery-checks"]),
-      requires("build", ["evidence"]),
-      requires("stage", ["evidence", "build"]),
-      requires("verify", ["stage"]),
-      requires("promote", ["evidence", "build", "stage", "verify"]),
-      requires("record", ["promote"]),
-      {
-        name: "withdraw runs exactly when the staged candidate failed or abandoned its checks",
-        holds: ({ results }) =>
-          ran(results.withdraw) ===
-          (results.stage === "success" &&
-            (results.verify === "failure" || results.verify === "cancelled")),
-      },
-      {
-        name: "the evidence admission follows a passing or skipped candidate run",
-        holds: ({ results }) =>
-          !ran(results.evidence) ||
-          results.candidate === "success" ||
-          results.candidate === "skipped",
-      },
-      ...["build", "stage", "verify", "promote", "record"].map(
-        notAfterCancellation,
-      ),
+      requires("build", ["verify"]),
+      requires("deploy", ["verify", "build"]),
+      ...["build", "deploy"].map(notAfterCancellation),
     ],
-    promises: [
-      {
-        inputs: { checks: "run" },
-        runs: [
-          "delivery-checks",
-          "candidate",
-          "evidence",
-          "build",
-          "stage",
-          "verify",
-          "promote",
-          "record",
-        ],
-      },
-      {
-        inputs: { checks: "reuse" },
-        runs: [
-          "delivery-checks",
-          "evidence",
-          "build",
-          "stage",
-          "verify",
-          "promote",
-          "record",
-        ],
-      },
-    ],
+    promises: [{ inputs: {}, runs: ["verify", "build", "deploy"] }],
   },
   "ios.yml": {
     properties: [
-      requires("unsigned", ["delivery-checks", "proofs", "native"]),
-      requires("signing", ["delivery-checks", "proofs", "native", "unsigned"]),
+      requires("unsigned", ["fast", "proofs", "native"]),
+      requires("signing", ["fast", "proofs", "native", "unsigned"]),
       requires("upload", ["signing"]),
     ],
     promises: [
       {
         inputs: {},
-        runs: [
-          "delivery-checks",
-          "proofs",
-          "native",
-          "unsigned",
-          "signing",
-          "upload",
-        ],
+        runs: ["fast", "proofs", "native", "unsigned", "signing", "upload"],
       },
     ],
   },
   "android.yml": {
-    properties: [
-      requires("native", ["delivery-checks"]),
-      requires("candidate", ["delivery-checks", "native"]),
-    ],
-    promises: [
-      { inputs: {}, runs: ["delivery-checks", "native", "candidate"] },
-    ],
+    properties: [requires("candidate", ["fast", "proofs", "native"])],
+    promises: [{ inputs: {}, runs: ["fast", "proofs", "native", "candidate"] }],
   },
   "versions.yml": {
-    properties: [requires("proposal", ["delivery-checks"])],
+    properties: [requires("proposal", ["verify"])],
     promises: [
       {
         inputs: { operation: "version-ios" },
-        runs: ["delivery-checks", "proposal"],
+        runs: ["verify", "proposal"],
       },
       {
         inputs: { operation: "version-android" },
-        runs: ["delivery-checks", "proposal"],
-      },
-    ],
-  },
-  "delivery-checks.yml": {
-    properties: [
-      requires("fast", ["plan"]),
-      requires("proofs", ["plan"]),
-      requires("worker", ["plan", "fast"]),
-      requires("ios", ["plan", "fast"]),
-      requires("android", ["plan", "fast"]),
-      {
-        name: "the admission gate runs even after failed or skipped prerequisites",
-        holds: ({ results }) => ran(results.gate),
-      },
-    ],
-    promises: [
-      {
-        inputs: {},
-        atoms: { "inputs.operation != 'version-ios'": false },
-        runs: ["plan", "fast", "gate"],
-      },
-      {
-        inputs: {},
-        atoms: { "inputs.operation != 'version-android'": false },
-        runs: ["plan", "fast", "gate"],
+        runs: ["verify", "proposal"],
       },
     ],
   },
@@ -715,7 +635,7 @@ export const scheduleSpecifications: Readonly<
   },
   "operations.yml": {
     properties: [
-      requires("preview", ["delivery-checks"]),
+      requires("preview", ["verify"]),
       requires("apply", ["preview"]),
       {
         name: "only explicit apply operations can write configuration",
@@ -728,94 +648,32 @@ export const scheduleSpecifications: Readonly<
     promises: [
       {
         inputs: { operation: "cloudflare-alerts-preview" },
-        runs: ["delivery-checks", "preview"],
+        runs: ["verify", "preview"],
       },
       {
         inputs: { operation: "monitors-preview" },
-        runs: ["delivery-checks", "preview"],
+        runs: ["verify", "preview"],
       },
       {
         inputs: { operation: "cloudflare-alerts-apply" },
-        runs: ["delivery-checks", "preview", "apply"],
+        runs: ["verify", "preview", "apply"],
       },
       {
         inputs: { operation: "monitors-apply" },
-        runs: ["delivery-checks", "preview", "apply"],
+        runs: ["verify", "preview", "apply"],
       },
     ],
   },
   "recover.yml": {
     properties: [
       requires("restore", ["inspect"]),
-      {
-        name: "withdraw runs only for the withdraw operation",
-        holds: ({ inputs, results }) =>
-          !ran(results.withdraw) || inputs.operation === "withdraw",
-      },
-      {
-        name: "restore runs only for the restore operation",
-        holds: ({ inputs, results }) =>
-          !ran(results.restore) || inputs.operation === "restore",
-      },
+      notAfterCancellation("restore"),
     ],
-    promises: [
-      { inputs: { operation: "withdraw" }, runs: ["withdraw"] },
-      { inputs: { operation: "restore" }, runs: ["inspect", "restore"] },
-    ],
+    promises: [{ inputs: {}, runs: ["inspect", "restore"] }],
   },
   "candidate.yml": {
-    properties: [
-      ...[
-        "check",
-        "prove",
-        "ios-prove",
-        "ios-check",
-        "data",
-        "parity",
-        "e2e",
-        "record",
-      ].map((job) => requires(job, ["plan"])),
-      {
-        name: "record runs whenever plan succeeded, so passing stages keep their evidence",
-        holds: ({ results }) =>
-          results.plan !== "success" || ran(results.record),
-      },
-    ],
-    promises: [
-      {
-        inputs: {},
-        runs: [
-          "plan",
-          "check",
-          "prove",
-          "ios-prove",
-          "ios-check",
-          "data",
-          "parity",
-          "e2e",
-          "record",
-        ],
-      },
-    ],
-  },
-  "pipeline-controls.yml": {
-    properties: [
-      requires("drill-build", ["drill-evidence"]),
-      requires("drill", ["drill-evidence", "drill-build"]),
-    ],
-    promises: [
-      {
-        inputs: {},
-        runs: [
-          "fakes",
-          "foreign-secret",
-          "read-only-deploy",
-          "drill-evidence",
-          "drill-build",
-          "drill",
-        ],
-      },
-    ],
+    properties: [],
+    promises: [{ inputs: {}, runs: ["check", "prove", "browser"] }],
   },
 };
 

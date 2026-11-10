@@ -1,12 +1,15 @@
 import { defineConfig } from "oxlint";
 
 export default defineConfig({
-  ignorePatterns: ["src/routeTree.gen.ts"],
+  ignorePatterns: ["apps/web/src/routeTree.gen.ts"],
   plugins: ["typescript", "react", "jsx-a11y", "import"],
   options: { typeAware: true },
   categories: { correctness: "error" },
   overrides: [
-    { files: ["src/**/*.{ts,tsx}"], rules: { "no-console": "error" } },
+    {
+      files: ["apps/web/src/**/*.{ts,tsx}", "packages/directory/src/**/*.ts"],
+      rules: { "no-console": "error" },
+    },
   ],
   rules: {
     "typescript/no-explicit-any": "error",

@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { brotliDecompressSync } from "node:zlib";
-import { searchForm } from "../src/core/search-text.ts";
+import { searchForm } from "@public-phonebook/directory/search-text";
 
 const headerLines = 2;
 const nameField = 2;

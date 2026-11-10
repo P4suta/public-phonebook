@@ -41,7 +41,7 @@ async function fixture(
     token: "fixture-token",
   });
   const files = new Map([
-    [`${app}/version.txt`, `${version}\n`],
+    [`apps/${app}/version.txt`, `${version}\n`],
     [`releases/${app}/manifest.json`, JSON.stringify({ ".": version })],
   ]);
   const created: PullRequest[] = [];
@@ -73,7 +73,7 @@ async function fixture(
       yield {
         sha: baseline,
         message: `chore(${app}): prepare version ${version}`,
-        files: [`${app}/version.txt`],
+        files: [`apps/${app}/version.txt`],
       };
     },
   );
@@ -84,7 +84,7 @@ async function fixture(
           number: 1,
           title: `chore(main): release ${app} ${version}`,
           body: "",
-          files: [`${app}/version.txt`],
+          files: [`apps/${app}/version.txt`],
           labels: [...mergedLabels],
           headBranchName: `release-please--branches--main--components--${app}`,
           baseBranchName: "main",
@@ -135,12 +135,12 @@ describe("pinned release-please proposal integration", () => {
         {
           sha: "2".repeat(40),
           message: "feat(web): redesign search spacing",
-          files: ["src/ui/search.css"],
+          files: ["apps/web/src/ui/search.css"],
         },
         {
           sha: source,
           message: "fix(search): preserve canonical phone numbers",
-          files: ["src/core/normalization.ts"],
+          files: ["packages/directory/src/normalization.ts"],
         },
       ];
       const memory = await fixture(app, commits);
@@ -162,15 +162,15 @@ describe("pinned release-please proposal integration", () => {
         `release-please--branches--main--components--${app}`,
       );
       expect(memory.created[0]?.labels).toEqual([`version:${app}:pending`]);
-      expect(memory.files.get(`${app}/version.txt`)?.trim()).toBe("1.0.1");
+      expect(memory.files.get(`apps/${app}/version.txt`)?.trim()).toBe("1.0.1");
       expect(memory.files.get(`releases/${app}/manifest.json`)).toContain(
         '"1.0.1"',
       );
-      const changelog = memory.files.get(`${app}/CHANGELOG.md`);
+      const changelog = memory.files.get(`apps/${app}/CHANGELOG.md`);
       expect(changelog).toContain("preserve canonical phone numbers");
       expect(changelog).not.toContain("redesign search spacing");
       if (app === "ios")
-        expect(memory.files.get("ios/AppStore/metadata.json")).toContain(
+        expect(memory.files.get("apps/ios/AppStore/metadata.json")).toContain(
           '"version": "1.0.1"',
         );
       expect(memory.publications).toEqual([]);
@@ -182,7 +182,7 @@ describe("pinned release-please proposal integration", () => {
       {
         sha: source,
         message: "fix(web): adjust spacing",
-        files: ["src/ui/search.css"],
+        files: ["apps/web/src/ui/search.css"],
       },
     ];
     const memory = await fixture("ios", commits);
@@ -207,7 +207,7 @@ describe("pinned release-please proposal integration", () => {
       {
         sha: source,
         message: "feat(ios): add category navigation",
-        files: ["ios/App/Search.swift"],
+        files: ["apps/ios/App/Search.swift"],
       },
     ];
     const memory = await fixture("ios", commits, "1.1.0", [
@@ -225,7 +225,7 @@ describe("pinned release-please proposal integration", () => {
       }),
     );
     expect(await manifest.createPullRequests()).toHaveLength(1);
-    expect(memory.files.get("ios/version.txt")?.trim()).toBe("1.2.0");
+    expect(memory.files.get("apps/ios/version.txt")?.trim()).toBe("1.2.0");
     expect(memory.publications).toEqual([]);
   });
 
@@ -234,7 +234,7 @@ describe("pinned release-please proposal integration", () => {
       {
         sha: source,
         message: "fix(ios): improve loading",
-        files: ["ios/App/Search.swift"],
+        files: ["apps/ios/App/Search.swift"],
       },
     ];
     const memory = await fixture("ios", commits);

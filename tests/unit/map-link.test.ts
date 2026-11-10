@@ -1,6 +1,9 @@
+import {
+  mapSearchUrl,
+  mapUrlLimit,
+} from "@public-phonebook/directory/map-link";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { mapSearchUrl, mapUrlLimit } from "../../src/core/map-link.ts";
 
 const prefix = "https://www.google.com/maps/search/?api=1&query=";
 

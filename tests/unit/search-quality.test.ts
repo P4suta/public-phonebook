@@ -2,17 +2,17 @@ import { createHash } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
-import type { RankedSearch } from "../../src/core/local-search.ts";
-import {
-  measureSearchQuality,
-  qualityPasses,
-} from "../../src/core/search-quality.ts";
 import {
   parseQualityQueries,
   readQualityCorpus,
   resolveQualityTargets,
-} from "../../tools/search-ranking-contract.ts";
+} from "@public-phonebook/data/search-ranking-contract";
+import type { RankedSearch } from "@public-phonebook/directory/local-search";
+import {
+  measureSearchQuality,
+  qualityPasses,
+} from "@public-phonebook/directory/search-quality";
+import { describe, expect, it } from "vitest";
 
 describe("search quality", () => {
   it("binds corpus files, target identities, counts, and split admission before reading national data", async () => {

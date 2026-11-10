@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { opensNewTab } from "../../src/ui/links.ts";
+import { opensNewTab } from "../../apps/web/src/ui/links.ts";
 
 it("opens web resource links in new tabs with browser-compatible URL resolution", () => {
   for (const href of [
