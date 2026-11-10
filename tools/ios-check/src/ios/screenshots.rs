@@ -1,6 +1,6 @@
 use super::{
-    LIVE_UI_TEST, device, logged, require_current_sources, require_ui_case, source_hashes,
-    source_records,
+    LIVE_UI_TEST, SimulatorModel, device_for, logged, require_current_sources, require_ui_case,
+    source_hashes, source_records,
 };
 use crate::locations::LOOPBACK_HOST;
 use anyhow::{Context, Result, ensure};
@@ -67,7 +67,23 @@ fn select(manifest: &Value) -> Result<Vec<(String, &'static str)>> {
     Ok(selected)
 }
 
-fn opaque_rgb(bytes: &[u8]) -> Result<Vec<u8>> {
+struct StoreScreenshot {
+    bytes: Vec<u8>,
+    size: [u32; 2],
+}
+
+fn accepted_size(model: SimulatorModel, size: [u32; 2]) -> bool {
+    match model {
+        SimulatorModel::Iphone17 => size == [SIZE.0, SIZE.1],
+        SimulatorModel::IphoneDuo => matches!(
+            size,
+            [1398, 2034] | [2034, 1398] | [2007, 2853] | [2853, 2007]
+        ),
+        SimulatorModel::IpadPro13 => matches!(size, [2064, 2752] | [2752, 2064]),
+    }
+}
+
+fn opaque_rgb(bytes: &[u8], model: SimulatorModel) -> Result<StoreScreenshot> {
     let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
     decoder.set_transformations(png::Transformations::normalize_to_color8());
     let mut reader = decoder.read_info()?;
@@ -79,10 +95,10 @@ fn opaque_rgb(bytes: &[u8]) -> Result<Vec<u8>> {
     ];
     let info = reader.next_frame(&mut buffer)?;
     ensure!(
-        (info.width, info.height) == SIZE,
-        "A store screenshot must be {} x {} pixels",
-        SIZE.0,
-        SIZE.1
+        accepted_size(model, [info.width, info.height]),
+        "The screenshot size {} x {} isn't a supported store size for {model:?}",
+        info.width,
+        info.height
     );
     let pixels = &buffer[..info.buffer_size()];
     let rgb = match info.color_type {
@@ -100,17 +116,20 @@ fn opaque_rgb(bytes: &[u8]) -> Result<Vec<u8>> {
         _ => anyhow::bail!("A store screenshot must use RGB color"),
     };
     let mut result = Vec::new();
-    let mut encoder = png::Encoder::new(&mut result, SIZE.0, SIZE.1);
+    let mut encoder = png::Encoder::new(&mut result, info.width, info.height);
     encoder.set_color(png::ColorType::Rgb);
     encoder.set_depth(png::BitDepth::Eight);
     encoder.write_header()?.write_image_data(&rgb)?;
-    Ok(result)
+    Ok(StoreScreenshot {
+        bytes: result,
+        size: [info.width, info.height],
+    })
 }
 
-pub fn capture(root: &Path, origin: &str) -> Result<()> {
+pub fn capture(root: &Path, origin: &str, model: SimulatorModel) -> Result<()> {
     require_origin(origin)?;
     let sources = source_hashes(root)?;
-    let simulator = device(root)?;
+    let simulator = device_for(root, model)?;
     let identifier = simulator.id().to_owned();
     let directory = tempfile::Builder::new()
         .prefix("app-store-screenshots-")
@@ -181,10 +200,20 @@ pub fn capture(root: &Path, origin: &str) -> Result<()> {
     let screens = directory.join("ja");
     fs::create_dir_all(&screens)?;
     let mut files = Vec::new();
+    let mut size: Option<[u32; 2]> = None;
     for (exported, output) in select(&manifest)? {
-        let bytes = opaque_rgb(&fs::read(attachments.join(exported))?)?;
-        fs::write(screens.join(output), &bytes)?;
-        files.push(json!({"file":output,"sha256":crate::sha256_hex(&bytes)}));
+        let image = opaque_rgb(&fs::read(attachments.join(exported))?, model)?;
+        if let Some(expected) = size {
+            ensure!(
+                expected == image.size,
+                "The screenshot display changed during capture"
+            );
+        }
+        size = Some(image.size);
+        fs::write(screens.join(output), &image.bytes)?;
+        files.push(
+            json!({"file":output,"sha256":crate::sha256_hex(&image.bytes),"size":image.size}),
+        );
     }
     require_current_sources(root, &sources)?;
     let revision = super::super::checked(
@@ -197,13 +226,16 @@ pub fn capture(root: &Path, origin: &str) -> Result<()> {
             .current_dir(root)
             .args(["status", "--porcelain"]),
     )?;
-    let record = json!({"format":1,"purpose":"App Store screenshot candidate; no upload","locale":"ja_JP","configuration":"ProductionDebug","api_origin":origin,"simulator_runtime":super::RUNTIME,"simulator_device":super::DEVICE_TYPE,"size":[SIZE.0, SIZE.1],"directory":screens,"screenshots":files,"source_revision":String::from_utf8(revision.stdout)?.trim(),"working_tree_dirty":!status.stdout.is_empty(),"source_sha256":source_records(&sources)});
+    let record = json!({"format":1,"purpose":"App Store screenshot candidate; no upload","locale":"ja_JP","configuration":"ProductionDebug","api_origin":origin,"simulator_runtime":model.runtime(),"simulator_device":model.device_type(),"size":size,"directory":screens,"screenshots":files,"source_revision":String::from_utf8(revision.stdout)?.trim(),"working_tree_dirty":!status.stdout.is_empty(),"source_sha256":source_records(&sources)});
     fs::write(
         directory.join("screenshots.json"),
         serde_json::to_vec_pretty(&record)?,
     )?;
     fs::write(
-        root.join("target/ios/app-store-screenshots.json"),
+        root.join(format!(
+            "target/ios/app-store-screenshots{}.json",
+            model.suffix()
+        )),
         serde_json::to_vec_pretty(&record)?,
     )?;
     println!(
@@ -236,8 +268,10 @@ mod tests {
             image(png::ColorType::Rgb, SIZE.0, 255)?,
             image(png::ColorType::Rgba, SIZE.0, 255)?,
         ] {
-            let reader =
-                png::Decoder::new(std::io::Cursor::new(opaque_rgb(&source)?)).read_info()?;
+            let reader = png::Decoder::new(std::io::Cursor::new(
+                opaque_rgb(&source, SimulatorModel::Iphone17)?.bytes,
+            ))
+            .read_info()?;
             assert_eq!(
                 (
                     reader.info().width,
@@ -247,9 +281,47 @@ mod tests {
                 (SIZE.0, SIZE.1, png::ColorType::Rgb)
             );
         }
-        assert!(opaque_rgb(&image(png::ColorType::Rgba, SIZE.0, 254)?).is_err());
-        assert!(opaque_rgb(&image(png::ColorType::Rgb, SIZE.0 - 1, 255)?).is_err());
+        assert!(
+            opaque_rgb(
+                &image(png::ColorType::Rgba, SIZE.0, 254)?,
+                SimulatorModel::Iphone17
+            )
+            .is_err()
+        );
+        assert!(
+            opaque_rgb(
+                &image(png::ColorType::Rgb, SIZE.0 - 1, 255)?,
+                SimulatorModel::Iphone17
+            )
+            .is_err()
+        );
         Ok(())
+    }
+
+    #[test]
+    fn duo_screenshots_accept_both_displays_and_reject_scaled_images() {
+        for size in [[1398, 2034], [2034, 1398], [2007, 2853], [2853, 2007]] {
+            assert!(accepted_size(SimulatorModel::IphoneDuo, size));
+            assert!(!accepted_size(SimulatorModel::Iphone17, size));
+        }
+        for size in [
+            [0, 0],
+            [1206, 2622],
+            [1397, 2034],
+            [2007, 2852],
+            [2853, 2008],
+        ] {
+            assert!(!accepted_size(SimulatorModel::IphoneDuo, size));
+        }
+    }
+
+    #[test]
+    fn ipad_screenshots_require_a_supported_tablet_size() {
+        assert!(accepted_size(SimulatorModel::IpadPro13, [2064, 2752]));
+        assert!(accepted_size(SimulatorModel::IpadPro13, [2752, 2064]));
+        for size in [[1206, 2622], [2007, 2853], [2064, 2751], [2063, 2752]] {
+            assert!(!accepted_size(SimulatorModel::IpadPro13, size));
+        }
     }
 
     #[test]

@@ -50,20 +50,20 @@ struct OnboardingScreen: View {
     switch step {
     case .welcome:
       heading(AppIdentity.displayName)
-      Text("学校や役所、病院などの電話番号を、iPhoneの中でさがせるアプリです。")
+      Text("学校や役所、病院などの電話番号を、通信なしでさがせるアプリです。")
       Feature(
         icon: "phone", title: "電話の相手が分かります",
-        detail: "病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前が出ます。")
+        detail: "病院や役所などから電話がかかってきたとき、画面に施設の名前が出ます。")
       Feature(
         icon: "search", title: "通信なしで、すぐにさがせます",
         detail: "アプリで使うデータを先に受け取っておくので、電波がなくてもさがせます。")
     case .caller:
       heading("電話の相手が分かるようにする")
-      Text("病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前が出ます。")
+      Text("病院や役所などから電話がかかってきたとき、画面に施設の名前が出ます。")
       if integration.callerEnabled {
         Done(text: "許可しています。")
       } else {
-        Text("iPhoneの設定で、\(AppIdentity.displayName)を許可してください。")
+        Text("設定で、\(AppIdentity.displayName)を許可してください。")
         Text("許可したら、このアプリにもどってください。")
       }
     case .ready:
@@ -117,7 +117,7 @@ struct OnboardingScreen: View {
           Button {
             integration.openCallerSettings()
           } label: {
-            IconLabel(icon: "settings", text: "iPhoneの設定を開く")
+            IconLabel(icon: "settings", text: "設定を開く")
           }
           .buttonStyle(MonoButtonStyle(prominent: true))
           .accessibilityIdentifier("onboarding-caller")
