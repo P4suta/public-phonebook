@@ -8,18 +8,17 @@ final class WatchSearchModel: NSObject, WCSessionDelegate {
   var query = "" {
     didSet {
       if query != oldValue {
-        pendingID = nil
+        state.cancel()
         timeout?.cancel()
-        loading = false
         message = nil
       }
     }
   }
-  private(set) var loading = false
+  var loading: Bool { state.pending != nil }
   private(set) var message: String?
-  private(set) var reply: WatchSearchReply?
-  private(set) var answeredQuery = ""
-  @ObservationIgnored private var pendingID: UUID?
+  var reply: WatchSearchReply? { state.reply }
+  var answeredQuery: String { state.answeredQuery }
+  private var state = WatchSearchState()
   @ObservationIgnored private var timeout: Task<Void, Never>?
 
   override init() {
@@ -42,8 +41,7 @@ final class WatchSearchModel: NSObject, WCSessionDelegate {
       message = "iPhoneでPublic Phonebookを開いてください。"
       return
     }
-    pendingID = request.id
-    loading = true
+    state.begin(request)
     message = nil
     timeout?.cancel()
     timeout = Task { [weak self] in
@@ -61,18 +59,14 @@ final class WatchSearchModel: NSObject, WCSessionDelegate {
   }
 
   private func receive(_ data: Data, request: WatchSearchRequest) {
-    guard pendingID == request.id else { return }
-    guard let reply = try? WatchSearchReply.decode(data), reply.requestID == request.id else {
+    guard state.pending?.id == request.id else { return }
+    guard let reply = try? WatchSearchReply.decode(data), state.accept(reply) else {
       failed(request.id)
       return
     }
     timeout?.cancel()
-    pendingID = nil
-    loading = false
     switch reply.state {
     case .ready:
-      self.reply = reply
-      answeredQuery = request.query
       message = nil
     case .needsPreparation:
       message = "iPhoneでPublic Phonebookを開き、検索の準備を終えてください。"
@@ -82,10 +76,8 @@ final class WatchSearchModel: NSObject, WCSessionDelegate {
   }
 
   private func failed(_ id: UUID) {
-    guard pendingID == id else { return }
+    guard state.fail(id) else { return }
     timeout?.cancel()
-    pendingID = nil
-    loading = false
     message = "iPhoneにつながりませんでした。iPhoneでPublic Phonebookを開いてください。"
   }
 
