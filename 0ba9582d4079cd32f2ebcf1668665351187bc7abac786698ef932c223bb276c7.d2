@@ -1,0 +1,61 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    pad: 40
+    theme-overrides: {
+      N1: "#000000"
+      N2: "#000000"
+      N3: "#000000"
+      N4: "#FFFFFF"
+      N5: "#FFFFFF"
+      N6: "#FFFFFF"
+      N7: "#FFFFFF"
+      B1: "#000000"
+      B2: "#000000"
+      B3: "#FFFFFF"
+      B4: "#FFFFFF"
+      B5: "#FFFFFF"
+      B6: "#FFFFFF"
+      AA2: "#000000"
+      AA4: "#FFFFFF"
+      AA5: "#FFFFFF"
+      AB4: "#FFFFFF"
+      AB5: "#FFFFFF"
+    }
+  }
+}
+
+direction: right
+
+title: "Directory search and dataset updates on Apple devices" {
+  shape: text
+  near: top-center
+}
+
+service: "Public dataset service"
+
+phone: "iPhone" {
+  query: "Search query"
+  directory: "Prepared local directory\nPublic Phonebook open"
+  result: "Facility information"
+  query -> directory: local search
+  directory -> result: matching facilities
+}
+
+ipad: "iPad" {
+  query: "Search query"
+  directory: "Prepared local directory"
+  result: "Facility information"
+  query -> directory: local search
+  directory -> result: matching facilities
+}
+
+watch: "Paired Apple Watch" {
+  query: "Search query"
+  result: "Numbers and data sources"
+}
+
+service -> phone.directory: HTTPS dataset updates
+service -> ipad.directory: HTTPS dataset updates
+watch.query -> phone.directory: WatchConnectivity query
+phone.directory -> watch.result: WatchConnectivity facilities
