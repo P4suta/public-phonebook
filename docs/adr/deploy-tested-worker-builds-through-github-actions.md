@@ -11,30 +11,30 @@ It replaces the deployment coordination in [independent delivery operations](sel
 
 ## Context
 
-Worker publication accumulated project-specific plans, remote journals, and cross-platform check records.
-A successful deployment can still fail while publishing an unrelated GitHub release record.
+Project-specific coordination couples Worker publication to unrelated release operations.
+Custom Domain reconciliation also exceeds the existing per-Worker token's authority.
 
 ## Decision
 
-Adopt Cloudflare's [GitHub Actions pattern](https://developers.cloudflare.com/cf/ci/): build with the pinned `cf` CLI, validate without credentials, and deploy the tested output with `cf deploy --prebuilt`.
-Use GitHub [job dependencies, environments, artifacts, and concurrency](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/control-deployments) for publication control.
-Fetch scoped Doppler credentials through the existing environment-bound OIDC identities.
-Keep immutable dataset bindings and the provider's Worker version history for recovery.
+Use Cloudflare's [CI pattern](https://developers.cloudflare.com/cf/ci/) to build once, validate without credentials, and run `cf deploy --prebuilt`.
+Use GitHub [jobs, environments, artifacts, and concurrency](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/control-deployments), scoped Doppler credentials, immutable dataset bindings, and Worker version history.
+Keep existing Custom Domain connections in Cloudflare and omit domain changes from builds.
+[Custom Domains lack per-Worker role support](https://developers.cloudflare.com/workers/authorization/workers/#routes-and-custom-domains).
 
-Keep dataset publication and native store workflows independent.
-Require verification for their affected contracts without requiring unrelated platform campaigns for a website deployment.
+Keep dataset and native publication independent, with checks for their affected contracts.
 
 ## Alternatives
 
-Workers Builds provides managed Git integration, but GitHub Actions already hosts the required data and native workflows.
-Keeping the custom controller preserves its recovery behavior at high maintenance cost.
+Workers Builds centralizes Git integration, but Actions already hosts the required workflows.
+Declaring domains with each deployment centralizes routing but requires broader credentials.
+The custom controller preserves recovery behavior at high maintenance cost.
 
 ## Consequences
 
-Provider deployment state replaces the custom publication journal.
-Historical records remain retained.
-Reconsider managed builds if GitHub runner maintenance becomes the dominant cost.
+Domain setup stays outside app deployment.
+Historical records remain available.
+Reconsider declared domains when Cloudflare supports per-Worker domain authority.
 
 ## Confirmation
 
-Exercise secret-free pull-request validation, protected publication, public response checks, and Cloudflare rollback before retiring the previous publisher.
+Exercise secret-free validation, protected publication, public responses, preserved domain routing, and rollback.

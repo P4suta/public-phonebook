@@ -48,6 +48,25 @@ afterEach(async () => {
 
 describe("build budget", () => {
   it.each([
+    { domains: ["www.dial.page"] },
+    {
+      domains: [
+        { hostname: "www.dial.page", production: true, previews: false },
+      ],
+    },
+  ])(
+    "rejects domain connection changes in the build (%#)",
+    async ({ domains }) => {
+      const root = await build({
+        "worker.config.json": JSON.stringify({ ...quietWorker, domains }),
+        "bundle/index.js": "export {};",
+        "assets/assets/local-search-worker-A.js": "self.onmessage=()=>{};",
+      });
+      await expect(measureBuild(root)).rejects.toThrow(/domain connections/u);
+    },
+  );
+
+  it.each([
     {},
     { ...quietWorker, logpush: true },
     { ...quietWorker, tailConsumers: [{ service: "unexpected" }] },

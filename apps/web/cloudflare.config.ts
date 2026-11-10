@@ -16,7 +16,6 @@ export default defineConfig(({ mode }) => {
       entrypoint: "./src/server.ts",
       compatibilityDate: "2026-10-29",
       compatibilityFlags: ["nodejs_compat"],
-      domains: target.domains,
       workersDev: false,
       previewUrls: false,
       assets: { runWorkerFirst: true },
