@@ -27,6 +27,9 @@
 !/apps/ios/GeneratedAssets.xcassets/AppIcon.appiconset/
 !/apps/ios/GeneratedAssets.xcassets/AppIconDevelopment.appiconset/
 !/apps/ios/GeneratedAssets.xcassets/AppIconVerification.appiconset/
+!/apps/ios/GeneratedAssets.xcassets/WatchAppIcon.appiconset/
+!/apps/ios/GeneratedAssets.xcassets/WatchAppIconDevelopment.appiconset/
+!/apps/ios/GeneratedAssets.xcassets/WatchAppIconVerification.appiconset/
 /apps/ios/Signing.local.xcconfig
 /apps/ios/.swift-mutation-testing-cache/
 /tools/ios-check/target/

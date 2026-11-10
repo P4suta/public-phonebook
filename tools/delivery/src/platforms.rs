@@ -119,6 +119,9 @@ fn simulator_runtimes(report: &str) -> Result<String> {
         runtime
             .identifier
             .starts_with("com.apple.CoreSimulator.SimRuntime.iOS-")
+            || runtime
+                .identifier
+                .starts_with("com.apple.CoreSimulator.SimRuntime.watchOS-")
     });
     runtimes.sort_by(|left, right| left.identifier.cmp(&right.identifier));
     ensure!(
@@ -129,7 +132,7 @@ fn simulator_runtimes(report: &str) -> Result<String> {
             && runtimes
                 .windows(2)
                 .all(|pair| pair[0].identifier != pair[1].identifier),
-        "Missing, malformed, or duplicate iOS simulator runtime identities"
+        "Missing, malformed, or duplicate Apple simulator runtime identities"
     );
     Ok(serde_json::to_string(&runtimes)?)
 }
@@ -336,6 +339,20 @@ mod tests {
         });
         let normalized =
             simulator_runtimes(&serde_json::json!({"runtimes":[runtime.clone()]}).to_string())?;
+        let watch = serde_json::json!({
+            "identifier":"com.apple.CoreSimulator.SimRuntime.watchOS-27-0",
+            "version":"27.0", "buildversion":"24R362", "isAvailable":true,
+        });
+        let mut updated_watch = watch.clone();
+        updated_watch["buildversion"] = serde_json::json!("24R363");
+        assert_ne!(
+            simulator_runtimes(
+                &serde_json::json!({"runtimes":[runtime.clone(),watch]}).to_string()
+            )?,
+            simulator_runtimes(
+                &serde_json::json!({"runtimes":[runtime.clone(),updated_watch]}).to_string()
+            )?
+        );
         let mut updated = runtime.clone();
         updated["runtimeRoot"] = serde_json::json!("/mount/second");
         updated["lastUsage"] = serde_json::json!({"arm64":"later"});

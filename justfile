@@ -120,6 +120,7 @@ prove:
 ios-simulator-runtimes:
     xcodebuild -downloadPlatform iOS -buildVersion 27.0 -architectureVariant arm64
     xcodebuild -downloadPlatform iOS -buildVersion 27.1 -architectureVariant arm64
+    xcodebuild -downloadPlatform watchOS -buildVersion 27.0 -architectureVariant arm64
 
 ios-generate:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- generate
@@ -148,6 +149,12 @@ icons-check:
 
 ios-unit-test:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- unit-test
+
+ios-watch-check:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- watch-check
+
+ios-watch-profile file:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- import-watch-profile --profile {{ quote(file) }}
 
 # Reports the named Swift tests to `dotfiles verify run` as structured JSON, while `ios-unit-test` stays the gate.
 [positional-arguments]

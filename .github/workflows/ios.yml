@@ -239,6 +239,7 @@ jobs:
           APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ steps.doppler.outputs.APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD }}
           APP_PROVISIONING_PROFILE_BASE64: ${{ steps.doppler.outputs.APP_PROVISIONING_PROFILE_BASE64 }}
           CALL_DIRECTORY_PROVISIONING_PROFILE_BASE64: ${{ steps.doppler.outputs.CALL_DIRECTORY_PROVISIONING_PROFILE_BASE64 }}
+          WATCH_PROVISIONING_PROFILE_BASE64: ${{ steps.doppler.outputs.WATCH_PROVISIONING_PROFILE_BASE64 }}
         run: tools/ios-check/target/debug/ios-check archive --prepared --require-receipts --build-number "$BUILD_NUMBER" --signing ci
       - if: github.run_attempt == 1
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8

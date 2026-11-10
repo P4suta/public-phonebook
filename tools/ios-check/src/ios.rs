@@ -30,6 +30,7 @@ mod search_measurement;
 mod signing;
 mod store_build;
 mod testflight;
+mod watch;
 
 use build_number::BuildNumber;
 use signing::Signing;
@@ -440,6 +441,11 @@ pub enum Action {
     },
     Check,
     UnitTest,
+    WatchCheck,
+    ImportWatchProfile {
+        #[arg(long)]
+        profile: PathBuf,
+    },
     SearchMeasure,
     Prove,
     Sanitize,
@@ -479,11 +485,12 @@ pub enum Action {
     },
 }
 
-const SECRET_ENVIRONMENT: [&str; 16] = [
+const SECRET_ENVIRONMENT: [&str; 17] = [
     signing::CERTIFICATE,
     signing::CERTIFICATE_PASSWORD,
     signing::APP_PROFILE,
     signing::EXTENSION_PROFILE,
+    signing::WATCH_PROFILE,
     testflight::KEY_ID,
     testflight::ISSUER_ID,
     testflight::PRIVATE_KEY,
@@ -937,6 +944,10 @@ fn ui_build_command(root: &Path, identifier: &str, configuration: &str) -> Comma
 }
 
 fn require_ui_case(summary: &Value, tree: &Value, expected: &str) -> Result<()> {
+    require_named_ui_case(summary, tree, "DirectoryUITests", expected)
+}
+
+fn require_named_ui_case(summary: &Value, tree: &Value, class: &str, expected: &str) -> Result<()> {
     fn cases(node: &Value, names: &mut Vec<(String, String)>) {
         if node["nodeType"] == "Test Case" {
             names.push((
@@ -965,11 +976,7 @@ fn require_ui_case(summary: &Value, tree: &Value, expected: &str) -> Result<()> 
             && summary["runtimeWarnings"]
                 .as_array()
                 .is_some_and(Vec::is_empty)
-            && observed
-                == [(
-                    format!("DirectoryUITests/{expected}()"),
-                    "Passed".to_owned()
-                )],
+            && observed == [(format!("{class}/{expected}()"), "Passed".to_owned())],
         "The iOS UI gate requires the exact declared test, no skips or runtime warnings, and a successful result"
     );
     Ok(())
@@ -1397,6 +1404,9 @@ fn ui_test_on(
 }
 
 pub fn run(root: &Path, action: Action) -> Result<()> {
+    if let Action::ImportWatchProfile { profile } = action {
+        return signing::import_watch_profile(&profile);
+    }
     if matches!(action, Action::Audit) {
         return super::audit(root);
     }
@@ -1531,6 +1541,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         }
         Action::Screenshots { origin, simulator } => screenshots::capture(root, &origin, simulator),
         Action::Generate => Ok(()),
+        Action::WatchCheck => watch::check(root).map(|_| ()),
         Action::SearchMeasure => search_measurement::run(root),
         Action::DeviceRecord { .. } => {
             let (device, delta) = prepared.context("The device record was not prepared")?;
@@ -1586,6 +1597,8 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "apps/ios/Sources",
                     "apps/ios/Tests",
                     "apps/ios/UITests",
+                    "apps/ios/Watch",
+                    "apps/ios/WatchUITests",
                     "apps/ios/Package.swift",
                 ]),
             )?;
@@ -1817,6 +1830,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                 false,
                 SimulatorModel::IpadPro13,
             )?;
+            let watch_results = watch::check(root)?;
             require_current_sources(root, &sources)?;
             fs::write(
                 receipt,
@@ -1824,6 +1838,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "result":"passed",
                     "xcode":fs::read_to_string(root.join("apps/ios/.xcode-version"))?.trim(),
                     "ui_results":results.directory, "ui_tests":results.count, "finite_feed_inputs":FINITE_FEED_INPUTS, "finite_publication_inputs":FINITE_PUBLICATION_INPUTS,
+                    "watch_ui_results":watch_results,
                     "duo_ui_results":duo_results.directory, "duo_ui_tests":duo_results.count,
                     "duo_runtime":SimulatorModel::IphoneDuo.runtime(), "duo_device":SimulatorModel::IphoneDuo.device_type(),
                     "ipad_ui_results":ipad_results.directory, "ipad_ui_tests":ipad_results.count,
@@ -1852,6 +1867,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         Action::Mutate { .. } => bail!("The iOS mutation gate was not handled"),
         Action::Icons { .. } => bail!("The shared icon gate was not handled"),
         Action::Audit => bail!("The dependency audit was not handled"),
+        Action::ImportWatchProfile { .. } => bail!("The Watch profile import was not handled"),
     }
 }
 

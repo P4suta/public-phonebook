@@ -7,6 +7,15 @@ Search and its selected facility share an adaptive split view, which collapses t
 The detail toolbar and search results expose `検索を消す`, which clears the query and selection and returns to search.
 Search uses a labeled 44-point clear action.
 The sidebar widens for accessibility text sizes.
+
+The paired Apple Watch app requires watchOS 11.0.
+It sends a search request to the iPhone and receives at most ten facilities with telephone numbers, publishers, and license links.
+The iPhone searches its saved generation without changing its visible search.
+The Watch keeps the last successful result in memory and stores no national directory.
+Search terms stay between the paired devices, and neither app collects usage or diagnostic records.
+Run `mise x -- just ios-watch-check` for paired simulator messaging and Watch UI checks after installing the declared watchOS runtime.
+Apple describes the supported [watchOS test targets](https://developer.apple.com/documentation/watchos-apps/setting-up-tests-for-your-watchos-app).
+
 The project pins Xcode 27.2 and Swift 6 language mode.
 A deployment target and a successful device build don't establish execution on an iOS 18 runtime.
 
