@@ -31,7 +31,7 @@ struct AboutScreen: View {
 
         section("使い方")
         Text("検索欄に施設の名前を入れます。")
-        Text("電話の相手が分かるようにするには、「設定」から\(AppIdentity.displayName)を許可します。")
+        Text("電話の相手を表示するには、「設定」で許可してください。")
         Text("電話をかけたり受けたりするのは、いつもの電話アプリです。")
 
         section("データについて")
@@ -51,18 +51,19 @@ struct AboutScreen: View {
         .buttonStyle(MonoButtonStyle())
         .accessibilityIdentifier("sources-link")
 
-        section("プライバシー")
-        Text("検索は、使っている端末の中で行います。検索した言葉はサービスに送りません。")
-        Text("自分の連絡先や通話の履歴を読んだり、変えたり、サービスに送ったりすることはありません。")
-        Text("データを受け取るときは、IPアドレスなどの接続の情報を使います。配信にはCloudflareを使っています。")
-        Text("設定で\(AppIdentity.displayName)を許可すると、受け取った公開データをシステムに渡します。")
-        Text("アカウントの登録、広告、行動の追跡はありません。受け取ったデータは、アプリを削除すると消えます。")
-        Text("「地図で見る」からAppleのマップを開くときは、場所をさがすために施設の名前と住所をAppleに送ります。")
-        Text("施設のページなど、ほかのサイトやアプリを開いたときは、そのサイトやアプリの決まりが使われます。")
+        section("データの収集")
+        Text("ありません。").accessibilityIdentifier("privacy-collection")
+        if let url = URL(string: "https://www.dial.page/privacy") {
+          ExternalLink(url: url, destination: .other) {
+            IconLabel(icon: "file", text: "プライバシーについて読む")
+          }
+          .buttonStyle(MonoButtonStyle())
+          .accessibilityIdentifier("privacy-policy-link")
+        }
 
         section("開発者に声を伝える")
         Text("感想や使い方の質問、不具合、情報のまちがいは、メールで送ってください。")
-        Text("電話番号や住所など、いらない個人の情報は書かないでください。")
+        Text("あなたの電話番号や住所などは書かないでください。")
         Button {
           if let url = URL(string: "mailto:support@dial.page") { openURL(url) }
         } label: {
@@ -80,7 +81,8 @@ struct AboutScreen: View {
           "バージョン \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")"
         )
         .font(.footnote)
-      }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .padding(20).frame(maxWidth: .infinity, alignment: .leading)
     }
     .background(.surface)
     .navigationTitle("Public Phonebookについて").navigationBarTitleDisplayMode(.inline)

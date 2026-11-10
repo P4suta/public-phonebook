@@ -34,16 +34,16 @@ test("the initial search fits the viewport without app information", async ({
   }
 });
 
-test("the initial screen explains reading search and offers one project-information action", async ({
+test("the initial screen gives one search instruction and one project-information action", async ({
   page,
 }) => {
   await page.goto("/");
   const searchbox = page.getByRole("searchbox");
   await expect(searchbox).not.toHaveAttribute("placeholder");
   await expect(searchbox).toHaveAccessibleName("施設の名前");
-  await expect(searchbox).toHaveAccessibleDescription(uiCopy.search.readings);
+  await expect(searchbox).toHaveAccessibleDescription(uiCopy.search.help);
   await expect(
-    page.getByText(uiCopy.search.readings, { exact: true }),
+    page.getByText(uiCopy.search.help, { exact: true }),
   ).toBeVisible();
   await expect(page.getByText(/名前の一部でも/u)).toHaveCount(0);
   await expect(page.getByText("施設の名前", { exact: true })).toBeVisible();

@@ -12,6 +12,24 @@ import { contactLinks, waitForLocalSearch } from "./search-sources.ts";
 
 test.use({ video: "on" });
 
+test("search controls share their visible height on wide screens", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto("/");
+  const field = await page.getByRole("searchbox").boundingBox();
+  const action = await page
+    .getByRole("button", { name: "電話番号をさがす", exact: true })
+    .boundingBox();
+  expect(field).not.toBeNull();
+  expect(action).not.toBeNull();
+  expect(action?.y).toBe(field?.y);
+  expect(action?.height).toBe(field?.height);
+  await expect(page.getByRole("searchbox")).toHaveAccessibleDescription(
+    "施設の名前を入れてください。",
+  );
+});
+
 const textSpacingOverride =
   "* { line-height: 1.5 !important; letter-spacing: 0.12em !important; word-spacing: 0.16em !important; } p { margin-bottom: 2em !important; }";
 
@@ -209,7 +227,7 @@ for (const width of [320, 390, 1440]) {
         await expect(searchbox).not.toHaveAttribute("placeholder");
         await expect(searchbox).toHaveAttribute(
           "aria-describedby",
-          "search-readings",
+          "search-help",
         );
         const label = page.locator('label[for="directory-search"]');
         await expect(label).toBeVisible();

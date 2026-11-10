@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { serviceInformation } from "../../apps/web/src/ui/service-information.ts";
 
 /** Phrases that described behavior or wording the website and the iPhone app no longer use. */
 const retiredPhrases = [
@@ -11,20 +12,20 @@ const retiredPhrases = [
   "施設や窓口",
   "着信時に名前を出す機能",
   "入力した言葉",
+  "いらない個人の情報",
+  "名前の一部でも",
+  "都道府県名と主な分類名は",
 ] as const;
 
 /** Statements shared across the website and Apple app. */
 const sharedStatements = [
+  "施設の名前を入れてください。",
   "検索欄に施設の名前を入れます。",
-  "全国の施設が公開した電話番号のデータを、アプリの中に受け取って使います。",
   "新しいデータが出ると、自動で受け取ります。",
   "モバイルデータ通信や省データモードのときは、ほかの回線につながるまで待ちます。",
-  "自分の連絡先や通話の履歴を読んだり、変えたり、サービスに送ったりすることはありません。",
-  "アカウントの登録、広告、行動の追跡はありません。",
-  "受け取ったデータは、アプリを削除すると消えます。",
   "場所をさがすために、施設の名前と住所を",
   "感想や使い方の質問、不具合、情報のまちがいは、",
-  "電話番号や住所など、いらない個人の情報は書かないでください。",
+  "あなたの電話番号や住所などは書かないでください。",
   "あてはまる施設は0件です",
   "名前の一部を入れるか、別の言葉でさがしてください。",
   "住所などを見る",
@@ -44,11 +45,10 @@ const sharedStatements = [
 
 const platformStatements = {
   web: [
-    "を許可すると、受け取った公開データをiOSに渡します。",
     "病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前が出ます。",
   ],
   apple: [
-    "を許可すると、受け取った公開データをシステムに渡します。",
+    "全国の施設が公開した電話番号のデータを、アプリの中に受け取って使います。",
     "病院や役所などから電話がかかってきたとき、画面に施設の名前が出ます。",
   ],
 } as const;
@@ -87,10 +87,55 @@ function missingFrom(
 }
 
 describe("website copy", () => {
+  it("summarizes app collection and links a concise policy with the required disclosures", async () => {
+    const app = await readFile("apps/ios/App/AboutScreen.swift", "utf8");
+    expect(app).toContain('section("データの収集")');
+    expect(app).toContain('Text("ありません。")');
+    expect(app).toContain("https://www.dial.page/privacy");
+    const policy = serviceInformation.find((page) => page.key === "privacy");
+    expect(policy).toBeDefined();
+    expect(
+      policy?.sections.flatMap((section) => section.paragraphs).length,
+    ).toBeLessThanOrEqual(16);
+    expect(policy?.sections.map((section) => section.title)).toEqual([
+      "アプリのデータ収集",
+      "広告と追跡",
+      "Webの検索",
+      "通信",
+      "保存と削除",
+      "お問い合わせ",
+    ]);
+    expect(policy?.sections[0]?.paragraphs[0]).toBe("ありません。");
+    expect(policy?.sections[1]?.paragraphs).toContain(
+      "利用状況や診断ログは、サービスで集めません。",
+    );
+    const text =
+      policy?.sections.flatMap((section) => section.paragraphs).join("\n") ??
+      "";
+    for (const disclosure of [
+      "検索語",
+      "IPアドレス",
+      "Cloudflare",
+      "ブラウザー",
+      "削除",
+      "メールアドレス",
+      "support@dial.page",
+    ])
+      expect(text).toContain(disclosure);
+    expect(
+      policy?.links.some(
+        (link) => link.href === "https://www.cloudflare.com/privacypolicy/",
+      ),
+    ).toBe(true);
+  });
+
   it("uses none of the retired phrases", async () => {
     expect(retiredIn(await sourceText(webSources, /\.tsx?$/u))).toEqual([]);
     expect(retiredIn("名前の一部を入れると、候補が出ます。")).toEqual([
       "候補が出ます",
+    ]);
+    expect(retiredIn("いらない個人の情報は書かないでください。")).toEqual([
+      "いらない個人の情報",
     ]);
   });
 
