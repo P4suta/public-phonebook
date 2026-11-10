@@ -118,9 +118,8 @@ prove:
     npm run prove
 
 ios-simulator-runtimes:
-    xcodebuild -downloadPlatform iOS -buildVersion 27.0 -architectureVariant arm64
-    xcodebuild -downloadPlatform iOS -buildVersion 27.1 -architectureVariant arm64
-    xcodebuild -downloadPlatform watchOS -buildVersion 27.0 -architectureVariant arm64
+    xcodebuild -downloadPlatform iOS -architectureVariant arm64
+    xcodebuild -downloadPlatform watchOS -architectureVariant arm64
 
 ios-generate:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- generate

@@ -338,17 +338,7 @@ pub fn run(root: &Path) -> Result<()> {
         production.status.success(),
         "Kani process failed despite its report"
     );
-    let core = project.join("apps/web/src/lib.rs");
-    let source = fs::read_to_string(&core)?;
-    const GUARD: &str = "if !facts.checks_passed {";
-    ensure!(
-        source.matches(GUARD).count() == 1,
-        "The admission counterexample has no unique production guard"
-    );
-    fs::write(
-        &core,
-        source.replace(GUARD, "if false && !facts.checks_passed {"),
-    )?;
+    plant_missing_evidence_defect(&project)?;
     let rejected = execute(
         &identity,
         &project,
@@ -378,9 +368,46 @@ pub fn run(root: &Path) -> Result<()> {
     Ok(())
 }
 
+fn plant_missing_evidence_defect(project: &Path) -> Result<()> {
+    let core = project.join("src/lib.rs");
+    let source = fs::read_to_string(&core)
+        .with_context(|| format!("Read the staged proof library {}", core.display()))?;
+    const GUARD: &str = "if !facts.checks_passed {";
+    ensure!(
+        source.matches(GUARD).count() == 1,
+        "The admission counterexample has no unique production guard"
+    );
+    fs::write(
+        &core,
+        source.replace(GUARD, "if false && !facts.checks_passed {"),
+    )?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rejecting_control_uses_the_staged_cargo_library() -> Result<()> {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let source = fs::read_to_string(root.join("core/src/lib.rs"))?;
+        let project = tempfile::tempdir()?;
+        fs::create_dir(project.path().join("src"))?;
+        let library = project.path().join("src/lib.rs");
+        fs::write(&library, &source)?;
+        plant_missing_evidence_defect(project.path())?;
+        assert_eq!(
+            fs::read_to_string(library)?,
+            source.replace(
+                "if !facts.checks_passed {",
+                "if false && !facts.checks_passed {"
+            )
+        );
+        assert_eq!(fs::read_to_string(root.join("core/src/lib.rs"))?, source);
+        Ok(())
+    }
+
     fn report() -> Value {
         json!({"verification_results":{"summary":{"status":"completed","executed":1,"failed":0,"successful":1},"results":[{"harness_id":CONTROL,"status":"Success","checks":[{"category":"assertion","status":"Success"},{"category":"cover","status":"Satisfied"},{"category":"cover","status":"Satisfied"}]}]}})
     }

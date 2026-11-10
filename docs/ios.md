@@ -13,7 +13,7 @@ It sends a search request to the iPhone and receives at most ten facilities with
 The iPhone searches its saved generation without changing its visible search.
 The Watch keeps the last successful result in memory and stores no national directory.
 Search terms stay between the paired devices, and neither app collects usage or diagnostic records.
-Run `mise x -- just ios-watch-check` for paired simulator messaging and Watch UI checks after installing the declared watchOS runtime.
+Run `mise x -- just ios-watch-check` for paired simulator messaging and Watch UI checks after installing the supported watchOS runtime.
 Apple describes the supported [watchOS test targets](https://developer.apple.com/documentation/watchos-apps/setting-up-tests-for-your-watchos-app).
 
 The project pins Xcode 27.2 and Swift 6 language mode.
@@ -279,7 +279,9 @@ The TypeScript unit tests regenerate the responses and reject a stale corpus.
 Set `PHONEBOOK_FIXTURE_CONTACTS` and `PHONEBOOK_FIXTURE_CATALOG` to a production `contacts.jsonl.gz` and catalog to serve a real-data archive from the fixture.
 
 Run `mise x -- just ios-unit-test` for all compiled Swift package tests, strict lints, and coverage.
-Run `mise x -- just ios-simulator-runtimes` to install the iOS 27.0 and iPhone Duo's iOS 27.1 simulator runtimes before native checks.
+Run `mise x -- just ios-simulator-runtimes` to install Xcode's supported iOS and watchOS simulator runtimes before native checks.
+The checks recreate devices in the checkout's own namespace and let CoreSimulator choose the newest runtime compatible with each device type.
+Native results record the actual runtime identifiers.
 The native CI jobs run the same setup command.
 Run `mise x -- just ios-check` for those checks, unsigned simulator and device builds, and the complete isolated simulator UI inventory.
 The native gate also runs rotation, search, details, clearing, and accessibility scenarios on iPhone Duo and iPad Pro 13-inch.
