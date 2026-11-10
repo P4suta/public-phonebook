@@ -55,6 +55,7 @@ import {
   type LocalResults,
   useLocalIndex,
 } from "./local-index.ts";
+import { useLocationHash } from "./private-return-navigation.tsx";
 import {
   catalogRegions,
   localCard,
@@ -99,18 +100,29 @@ export function SearchPage(): ReactElement {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/" });
   const { client, state: index } = useLocalIndex(!invalid && !search.error);
+  const hash = useLocationHash();
+  const privateReturn = privateSearch(hash);
   const [draft, setDraft] = useState<{
     readonly input: string;
     readonly observed: string;
     readonly submitted: string;
     readonly event: SearchEvent;
+    readonly restoredHash: string;
   }>({
     input: search.q,
     observed: search.q,
     submitted: search.q,
     event: "change",
+    restoredHash: "",
   });
-  if (draft.observed !== search.q) {
+  if (privateReturn && draft.restoredHash !== hash) {
+    setDraft({
+      ...draft,
+      input: privateReturn.q,
+      submitted: privateReturn.q,
+      restoredHash: hash,
+    });
+  } else if (draft.observed !== search.q) {
     setDraft({
       ...draft,
       observed: search.q,
@@ -239,6 +251,7 @@ export function SearchPage(): ReactElement {
   }, [search.q, navigate]);
 
   useEffect(() => {
+    if (privateSearch(hash)) return;
     const q = input.trim();
     if (q === search.q) return;
     const script = inputScript(input);
@@ -263,7 +276,7 @@ export function SearchPage(): ReactElement {
           : pauseDelay(intervals),
     );
     return (): void => window.clearTimeout(timeout);
-  }, [input, draft.event, composing, search.q, readiness, searchFor]);
+  }, [input, draft.event, composing, search.q, readiness, searchFor, hash]);
 
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();

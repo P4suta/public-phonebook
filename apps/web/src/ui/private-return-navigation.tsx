@@ -15,15 +15,19 @@ function subscribe(listener: () => void): () => void {
   return () => window.removeEventListener("hashchange", listener);
 }
 
-function HydratedReturnNavigation({
-  from,
-  children,
-}: ReturnNavigationProps): ReactNode {
-  const hash = useSyncExternalStore(
+export function useLocationHash(): string {
+  return useSyncExternalStore(
     subscribe,
     () => window.location.hash,
     () => "",
   );
+}
+
+function HydratedReturnNavigation({
+  from,
+  children,
+}: ReturnNavigationProps): ReactNode {
+  const hash = useLocationHash();
   return children(privateReturnTarget(hash) ?? { from, local: false });
 }
 
