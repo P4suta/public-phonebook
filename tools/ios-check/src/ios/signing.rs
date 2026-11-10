@@ -575,19 +575,47 @@ fn decode_profile(bytes: &[u8], scratch: &Path, name: &str) -> Result<Profile> {
         .with_context(|| format!("The {name} provisioning profile is invalid"))
 }
 
-fn doppler_value(name: &str) -> Result<String> {
-    let output = Command::new("doppler")
-        .args([
+#[derive(Clone, Copy)]
+enum ProfileRead {
+    App,
+    Extension,
+    Watch,
+    BeforeWatchRegistration,
+}
+
+impl ProfileRead {
+    fn name(self) -> &'static str {
+        match self {
+            Self::App => APP_PROFILE,
+            Self::Extension => EXTENSION_PROFILE,
+            Self::Watch | Self::BeforeWatchRegistration => WATCH_PROFILE,
+        }
+    }
+
+    fn command(self) -> Command {
+        let mut command = Command::new("doppler");
+        command.args([
             "secrets",
             "get",
-            name,
+            self.name(),
             "--plain",
             "--project",
             "public-phonebook",
             "--config",
             "ci_testflight_signing",
             "--no-read-env",
-        ])
+        ]);
+        if matches!(self, Self::BeforeWatchRegistration) {
+            command.arg("--no-exit-on-missing-secret");
+        }
+        command
+    }
+}
+
+fn doppler_value(read: ProfileRead) -> Result<String> {
+    let name = read.name();
+    let output = read
+        .command()
         .output()
         .context("Read the selected signing profile from Doppler")?;
     ensure!(output.status.success(), "Doppler couldn't read {name}");
@@ -697,9 +725,10 @@ pub(super) fn import_watch_profile(path: &Path) -> Result<()> {
         "The profile must fit within 256 KiB"
     );
     let scratch = scratch_directory("watch-profile-import-")?;
-    let app_bytes = decode_secret(APP_PROFILE, &doppler_value(APP_PROFILE)?)?;
-    let extension_bytes = decode_secret(EXTENSION_PROFILE, &doppler_value(EXTENSION_PROFILE)?)?;
-    let current = doppler_value(WATCH_PROFILE)?;
+    let app_bytes = decode_secret(APP_PROFILE, &doppler_value(ProfileRead::App)?)?;
+    let extension_bytes =
+        decode_secret(EXTENSION_PROFILE, &doppler_value(ProfileRead::Extension)?)?;
+    let current = doppler_value(ProfileRead::BeforeWatchRegistration)?;
     let app = decode_profile(&app_bytes, scratch.path(), "app")?;
     let extension = decode_profile(&extension_bytes, scratch.path(), "extension")?;
     let watch = decode_profile(&bytes, scratch.path(), "watch")?;
@@ -740,7 +769,7 @@ pub(super) fn import_watch_profile(path: &Path) -> Result<()> {
         );
     }
     ensure!(
-        doppler_value(WATCH_PROFILE)?.trim() == encoded,
+        doppler_value(ProfileRead::Watch)?.trim() == encoded,
         "The saved Watch profile doesn't match the admitted profile"
     );
     println!("PASS: matching Watch App Store profile registered in ci_testflight_signing");
@@ -1286,6 +1315,29 @@ mod tests {
             assert!(!format!("{error:#}").contains(invalid), "{error:#}");
         }
         Ok(())
+    }
+
+    #[test]
+    fn only_the_initial_watch_profile_read_permits_an_absent_secret() {
+        for (read, name, optional) in [
+            (ProfileRead::App, APP_PROFILE, false),
+            (ProfileRead::Extension, EXTENSION_PROFILE, false),
+            (ProfileRead::Watch, WATCH_PROFILE, false),
+            (ProfileRead::BeforeWatchRegistration, WATCH_PROFILE, true),
+        ] {
+            let command = read.command();
+            let arguments: Vec<_> = command.get_args().collect();
+            assert_eq!(arguments[0], "secrets");
+            assert_eq!(arguments[1], "get");
+            assert_eq!(arguments[2], name);
+            assert!(arguments.contains(&"--plain".as_ref()));
+            assert!(arguments.contains(&"--no-read-env".as_ref()));
+            assert_eq!(
+                arguments.contains(&"--no-exit-on-missing-secret".as_ref()),
+                optional,
+                "{name}",
+            );
+        }
     }
 
     #[test]
