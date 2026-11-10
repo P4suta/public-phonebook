@@ -46,6 +46,10 @@ pub(super) fn owned(listing: &Value, name: &str, model: &str) -> Result<Vec<Reco
             });
         }
     }
+    ensure!(
+        records.len() <= 1,
+        "The owned simulator identity is ambiguous"
+    );
     Ok(records)
 }
 
@@ -183,6 +187,24 @@ mod tests {
         listing["devices"][runtime] = json!([]);
         assert!(current(&listing, "owned", MODEL).is_err());
         assert!(owned(&json!({}), "owned", MODEL).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn cleanup_requires_an_unambiguous_identity_even_across_runtimes() -> Result<()> {
+        let runtime = "com.apple.CoreSimulator.SimRuntime.iOS-27-2";
+        let mut duplicate = device("owned");
+        duplicate["udid"] = json!("ABCDEF12-1234-1234-1234-123456789012");
+        for listing in [
+            json!({"devices":{runtime:[device("owned"), duplicate.clone()]}}),
+            json!({"devices":{
+                runtime:[device("owned")],
+                "com.apple.CoreSimulator.SimRuntime.iOS-27-0":[duplicate]
+            }}),
+        ] {
+            assert!(owned(&listing, "owned", MODEL).is_err());
+        }
+        assert!(owned(&json!({"devices":{runtime:[]}}), "owned", MODEL)?.is_empty());
         Ok(())
     }
 
