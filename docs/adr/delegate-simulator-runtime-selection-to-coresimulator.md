@@ -7,25 +7,26 @@ date: 2026-11-10
 ## Status
 
 Proposed.
-[Issue #406](https://github.com/P4suta/public-phonebook/issues/406) defines the implementation scope.
+[Issue #406](https://github.com/P4suta/public-phonebook/issues/406) covers selection and [issue #411](https://github.com/P4suta/public-phonebook/issues/411) covers hosted setup.
 
 ## Context
 
-The hosted Xcode image reports a completed runtime download but rejects the pinned iOS runtime when creating a device.
 Independent runtime constants can diverge from installed platforms.
 `xcrun simctl help create` specifies that omitting the runtime selects the newest runtime compatible with the requested device type.
+A platform download can exit 70 when Xcode finds nothing to download.
 
 ## Decision
 
 Let CoreSimulator select the runtime when creating each checkout-owned test device.
 Recreate owned devices before verification and record the runtime identifiers returned by CoreSimulator.
 Preserve device-type selection, fixture isolation, paired Watch transport, and all test requirements.
-Use [Xcode's platform download command](https://developer.apple.com/documentation/xcode/downloading-and-installing-additional-xcode-components) to prepare its supported runtimes.
+Use the runtimes supplied by [GitHub's Xcode image](https://github.com/actions/runner-images/blob/xcode-27-arm64/20261104.0337/images/macos/xcode-27-arm64-Readme.md) in hosted CI.
+Use [Xcode's platform download command](https://developer.apple.com/documentation/xcode/downloading-and-installing-additional-xcode-components) locally when a platform is missing.
 
 ## Alternatives
 
-Historical runtime pins preserve a fixed OS matrix but require matching installation and availability checks across hosts.
-Choosing versions in project code duplicates CoreSimulator's compatibility decision.
+Runtime pins preserve a fixed OS matrix but require matching installations.
+Automatic downloads duplicate the hosted image's setup and add a network dependency.
 
 ## Consequences
 

@@ -279,10 +279,12 @@ The TypeScript unit tests regenerate the responses and reject a stale corpus.
 Set `PHONEBOOK_FIXTURE_CONTACTS` and `PHONEBOOK_FIXTURE_CATALOG` to a production `contacts.jsonl.gz` and catalog to serve a real-data archive from the fixture.
 
 Run `mise x -- just ios-unit-test` for all compiled Swift package tests, strict lints, and coverage.
-Run `mise x -- just ios-simulator-runtimes` to install Xcode's supported iOS and watchOS simulator runtimes before native checks.
+Inspect installed runtimes with `xcrun simctl list runtimes` before native checks.
+For a missing local platform, run `mise x -- just ios-simulator-runtime iOS` or select `watchOS`.
 The checks recreate devices in the checkout's own namespace and let CoreSimulator choose the newest runtime compatible with each device type.
 Native results record the actual runtime identifiers.
-The native CI jobs run the same setup command.
+The native CI jobs use runtimes supplied by [GitHub's Xcode image](https://github.com/actions/runner-images/blob/xcode-27-arm64/20261104.0337/images/macos/xcode-27-arm64-Readme.md).
+They don't download installed platforms again because Xcode can exit 70 when it finds nothing to download.
 Run `mise x -- just ios-check` for those checks, unsigned simulator and device builds, and the complete isolated simulator UI inventory.
 The native gate also runs rotation, search, details, clearing, and accessibility scenarios on iPhone Duo and iPad Pro 13-inch.
 Use `mise x -- just ios-ui-test --simulator iphone-duo --test testClearingSearchFromDetailReturnsToTheInitialScreen` for one Duo scenario.
