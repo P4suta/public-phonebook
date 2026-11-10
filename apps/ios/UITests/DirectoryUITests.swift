@@ -170,6 +170,9 @@ final class DirectoryUITests: XCTestCase {
     reveal(app.staticTexts["contact-region"].firstMatch, in: app)
     XCTAssertEqual(
       app.staticTexts["contact-region"].firstMatch.label, "Test prefecture 13Test city 13")
+    let summary = app.descendants(matching: .any)["contact-summary"].firstMatch
+    XCTAssertTrue(summary.label.contains("公開図書館"))
+    XCTAssertTrue(summary.label.contains("Test prefecture 13Test city 13"))
     try app.performAccessibilityAudit()
     capture(app, name: "ranked-metadata-large-text")
   }

@@ -124,13 +124,13 @@ test("every external link type confirms its destination before opening a tab", a
     {
       path: await publicationSourcePath(page),
       link: (): Locator =>
-        page.getByRole("link", { name: /^データを公開したページを見る/u }),
+        page.getByRole("link", { name: /^データのページを開く/u }),
       description: destinations.publication,
     },
     {
       path: source,
       link: (): Locator =>
-        page.getByRole("link", { name: /^データを使うときの決まりを見る/u }),
+        page.getByRole("link", { name: /^使うときの決まりを見る/u }),
       description: destinations.license,
     },
     {

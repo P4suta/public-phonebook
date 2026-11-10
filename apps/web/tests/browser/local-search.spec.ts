@@ -181,7 +181,7 @@ test("facility, source, and return navigation keep local queries out of requests
     await contactLinks(page).first().click();
     await expect(page).toHaveURL(/\/contacts\/[^/?#]+#from=/u);
     await page
-      .getByRole("link", { name: "電話番号のもとの情報を見る", exact: true })
+      .getByRole("link", { name: "もとの情報を見る", exact: true })
       .click();
     await expect(page).toHaveURL(/\/source#from=/u);
     await page

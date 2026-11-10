@@ -387,13 +387,17 @@ private struct ContactCard: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
-      Text(contact.name).font(.title3.bold()).multilineTextAlignment(.leading)
-        .fixedSize(horizontal: false, vertical: true)
-        .accessibilityAddTraits(.isHeader)
-        .accessibilityIdentifier("contact-name")
-      if !contact.region.isEmpty {
-        Text(contact.region).font(.callout).accessibilityIdentifier("contact-region")
+      VStack(alignment: .leading, spacing: 10) {
+        Text(contact.name).font(.title3.bold()).multilineTextAlignment(.leading)
+          .fixedSize(horizontal: false, vertical: true)
+          .accessibilityIdentifier("contact-name")
+        if !contact.region.isEmpty {
+          Text(contact.region).font(.callout).accessibilityIdentifier("contact-region")
+        }
       }
+      .accessibilityElement(children: .combine)
+      .accessibilityAddTraits(.isHeader)
+      .accessibilityIdentifier("contact-summary")
       ForEach(contact.phones, id: \.e164) { PhoneActions(phone: $0) }
       // The one control that opens the details names its action, so the name stays plain heading text.
       Button(action: detail) {

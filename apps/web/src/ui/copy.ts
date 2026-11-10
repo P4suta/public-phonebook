@@ -48,7 +48,7 @@ export const uiCopy = {
   },
   facilityHomepage: "施設のホームページを開く" satisfies Action,
   sourceTitle: "電話番号のもとの情報",
-  sourceAction: "電話番号のもとの情報を見る" satisfies Action,
+  sourceAction: "もとの情報を見る" satisfies Action,
   loadFailed: (subject: string): `${string}を読みこめませんでした` =>
     `${subject}を読みこめませんでした`,
   reloadFromStart: (subject: string): Action =>
