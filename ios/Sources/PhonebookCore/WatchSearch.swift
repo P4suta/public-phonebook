@@ -54,13 +54,14 @@ public struct WatchFacility: Codable, Hashable, Identifiable, Sendable {
     sourceURL: String?, license: String, licenseURL: String? = nil
   ) throws {
     guard id > 0, !name.isEmpty, !publisher.isEmpty, !license.isEmpty,
-      [name, region, publisher, license].allSatisfy({ $0.utf8.count <= 4096 }),
+      [name, region, publisher].allSatisfy({ $0.utf8.count <= 4096 }),
+      license.utf8.count <= 8192,
       !numbers.isEmpty, numbers.count <= 32,
       Set(numbers).count == numbers.count,
       numbers.allSatisfy({ (try? CanonicalPhone($0)) != nil })
     else { throw WatchSearchError.invalidFacility }
     for value in [sourceURL, licenseURL].compactMap({ $0 }) {
-      guard value.utf8.count <= 4096,
+      guard value.utf8.count <= 8192,
         let url = URLComponents(string: value),
         url.scheme.map({ ["https", "http"].contains($0) }) == true, url.host?.isEmpty == false,
         url.user == nil, url.password == nil

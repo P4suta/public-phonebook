@@ -55,3 +55,35 @@ import Testing
   #expect(empty.results.isEmpty)
   #expect(empty.total == 0)
 }
+
+@Test func watchSearchRetainsMaximumSnapshotMetadataWithinTheReplyBudget() async throws {
+  let root = try temporaryDirectory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let store = try SnapshotStore(root: root)
+  let prefix = "https://example.com/"
+  let url = prefix + String(repeating: "a", count: 8192 - prefix.utf8.count)
+  let license = String(repeating: "a", count: 8192)
+  let lines = (0..<10).map { ArchiveLine(name: "図書館 \($0)") }
+  var object = sampleHeaderObject(counts: ["13": lines.count])
+  object["sources"] = [["id": "test", "url": url]]
+  object["provenances"] = [
+    ["source": 0, "license": license, "licenseUrl": url, "dataAsOf": "", "retrievedAt": ""]
+  ]
+  let header = try JSONDecoder().decode(
+    ArchiveHeader.self, from: JSONSerialization.data(withJSONObject: object)
+  ).validated()
+  try await store.begin(header: header)
+  try await store.append(records(lines, header: header))
+  _ = try await store.publish(at: Date())
+  let request = try WatchSearchRequest(id: UUID(), query: "図書館")
+  let reply = try await WatchDirectorySearch(store: store).search(request)
+  #expect(reply.state == .ready)
+  #expect(reply.total == lines.count)
+  #expect(!reply.results.isEmpty && reply.results.count < lines.count)
+  #expect(
+    reply.results.allSatisfy {
+      $0.license == license && $0.sourceURL == url && $0.licenseURL == url
+    })
+  #expect(try reply.encoded().count <= 65_536)
+  #expect(try WatchSearchReply.decode(reply.encoded()) == reply)
+}
