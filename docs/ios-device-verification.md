@@ -282,8 +282,9 @@ The test turned off automatic updates through the app model and stopped the temp
 ## Search with paired devices
 
 The owner reported no physical Apple Watch for the 2026-11-10 session.
-Use the dedicated paired iPhone 17 and Apple Watch Series 11 46mm simulators with iOS 27.0 and watchOS 27.0.
-Install the Watch runtime with `mise x -- xcodebuild -downloadPlatform watchOS -buildVersion 27.0 -architectureVariant arm64`.
+Use the dedicated paired iPhone 17 and Apple Watch Series 11 46mm simulators.
+CoreSimulator selects compatible installed runtimes, and the result records identify the actual iOS and watchOS versions.
+If a local Watch runtime is missing, install it with `mise x -- just ios-simulator-runtime watchOS`.
 Run `mise x -- just ios-watch-check` to prepare synthetic phone data, pair the owned simulators, and run the Watch UI cases through Watch Connectivity.
 Check the labeled search control, facility results, telephone numbers, publisher, license, external-link cancellation, and accessibility audits.
 The command refuses foreign simulator pairs and removes its pair after the check.
