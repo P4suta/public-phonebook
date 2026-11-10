@@ -375,7 +375,7 @@ final class DirectoryUITests: XCTestCase {
       "the landscape search field accepts input",
       field.exists && field.isHittable && app.windows.firstMatch.frame.contains(field.frame),
       timeout: 5)
-    guard field.isHittable else { return }
+    XCTAssertTrue(field.isHittable)
     search("Index", in: app)
     waitForGroup("library", "100件", in: app)
     let results = app.collectionViews["search-results"]
@@ -384,7 +384,6 @@ final class DirectoryUITests: XCTestCase {
     let more = results.buttons["more-library"]
     for _ in 0..<8 where !more.isHittable { results.swipeUp() }
     XCTAssertTrue(more.isHittable)
-    guard more.isHittable else { return }
     let previous = Set(names.allElementsBoundByIndex.map(\.label))
     more.tap()
     waitUntil("the more button disappears", !more.exists, timeout: 10)
@@ -420,7 +419,7 @@ final class DirectoryUITests: XCTestCase {
       "the search field accepts input after scrolling",
       field.exists && field.isHittable && app.windows.firstMatch.frame.contains(field.frame),
       timeout: 5, observed: { field.debugDescription })
-    guard field.isHittable else { return }
+    XCTAssertTrue(field.isHittable)
     field.tap()
     XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
     field.typeText("あ")
@@ -463,7 +462,7 @@ final class DirectoryUITests: XCTestCase {
       "the search field accepts input after rotating the source",
       field.exists && field.isHittable && app.windows.firstMatch.frame.contains(field.frame),
       timeout: 5, observed: { field.debugDescription })
-    guard field.isHittable else { return }
+    XCTAssertTrue(field.isHittable)
     field.tap()
     XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
     field.typeText("\n")
