@@ -96,8 +96,8 @@ for (const size of [
       layout.link.y + layout.link.height + foundation.space["48"],
     );
     const { input, button } = layout;
-    expect(button.height).toBe(foundation.control.height);
     if (size.width > foundation.layout.compactUntil) {
+      expect(button.height).toBe(foundation.control.searchHeight);
       expect(
         Math.abs(button.x - (input.x + input.width) - foundation.space["8"]),
         "The search action sits 8 pixels beside the field",
@@ -106,6 +106,7 @@ for (const size of [
         Math.abs(button.y + button.height / 2 - (input.y + input.height / 2)),
       ).toBeLessThan(edgeTolerance);
     } else {
+      expect(button.height).toBe(foundation.control.height);
       expect(
         Math.abs(button.y - (input.y + input.height) - foundation.space["8"]),
         "The search action sits 8 pixels below the field",
