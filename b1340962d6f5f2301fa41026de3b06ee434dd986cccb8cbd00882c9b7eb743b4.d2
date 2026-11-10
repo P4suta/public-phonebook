@@ -1,0 +1,51 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    pad: 40
+    theme-overrides: {
+      N1: "#000000"
+      N2: "#000000"
+      N3: "#000000"
+      N4: "#FFFFFF"
+      N5: "#FFFFFF"
+      N6: "#FFFFFF"
+      N7: "#FFFFFF"
+      B1: "#000000"
+      B2: "#000000"
+      B3: "#FFFFFF"
+      B4: "#FFFFFF"
+      B5: "#FFFFFF"
+      B6: "#FFFFFF"
+      AA2: "#000000"
+      AA4: "#FFFFFF"
+      AA5: "#FFFFFF"
+      AB4: "#FFFFFF"
+      AB5: "#FFFFFF"
+    }
+  }
+}
+
+direction: down
+
+title: "Local search and paired iPhone transport" {
+  shape: text
+  near: top-center
+}
+
+direct: "iPhone and iPad search" {
+  direction: right
+  query: "Entered query"
+  directory: "Saved directory\nOn the same device"
+  result: "Facility information"
+  query -> directory: local search
+  directory -> result: matching facilities
+}
+
+paired: "Apple Watch search" {
+  direction: right
+  query: "Query on Apple Watch"
+  phone: "Paired iPhone\nApp open, directory ready"
+  result: "Numbers and sources\nOn Apple Watch"
+  query -> phone: WatchConnectivity
+  phone -> result: WatchConnectivity
+}
