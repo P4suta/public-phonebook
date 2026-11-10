@@ -991,6 +991,10 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(code.waitForExistence(timeout: 5))
     reveal(code, in: app)
     capture(app, name: "about-open-source")
+    let shot = XCTAttachment(screenshot: code.screenshot())
+    shot.name = "about-source-code-button"
+    shot.lifetime = .keepAlways
+    add(shot)
     code.tap()
     let confirmation = app.sheets.firstMatch
     XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
@@ -1189,9 +1193,11 @@ final class DirectoryUITests: XCTestCase {
   }
 
   private func goBack(_ app: XCUIApplication) {
-    let back = app.buttons["BackButton"].firstMatch
-    if back.exists {
-      back.tap()
+    let navigationBar = app.navigationBars.containing(.button, identifier: "BackButton").firstMatch
+    if navigationBar.exists {
+      let title = navigationBar.identifier
+      navigationBar.buttons["BackButton"].tap()
+      XCTAssertTrue(app.navigationBars[title].waitForNonExistence(timeout: 5))
     } else if app.buttons["return-to-search"].exists {
       app.buttons["return-to-search"].tap()
     } else {
