@@ -1,6 +1,6 @@
 use super::{
     Simulator, SimulatorModel, device_name, logged, require_current_sources, require_named_ui_case,
-    simulators, source_hashes, source_records, ui_test,
+    screenshots, simulators, source_hashes, source_records, ui_test,
 };
 use anyhow::{Result, ensure};
 use clap::ValueEnum;
@@ -16,6 +16,12 @@ const TESTS: [&str; 2] = [
     "testSearchStartsWithALabeledEntry",
     "testPairedPhoneDirectorySearchAndSource",
 ];
+
+#[derive(Clone, Copy)]
+enum Purpose {
+    Checks,
+    Screenshots,
+}
 
 struct Pair(String);
 
@@ -71,19 +77,51 @@ pub(super) fn unpair_owned(
 }
 
 pub(super) fn check(root: &Path) -> Result<PathBuf> {
+    run(root, Purpose::Checks)
+}
+
+pub(super) fn capture(root: &Path) -> Result<PathBuf> {
+    run(root, Purpose::Screenshots)
+}
+
+fn run(root: &Path, purpose: Purpose) -> Result<PathBuf> {
     let sources = source_hashes(root)?;
-    let receipt = root.join("target/ios/watch-receipt.json");
+    let (configuration, phone_id, tests, receipt) = match purpose {
+        Purpose::Checks => (
+            "VerificationDebug",
+            "page.dial.publicphonebook.devicechecks",
+            TESTS.as_slice(),
+            "target/ios/watch-receipt.json",
+        ),
+        Purpose::Screenshots => (
+            "ProductionDebug",
+            "page.dial.publicphonebook",
+            [super::SAMPLE_UI_TEST].as_slice(),
+            "target/ios/app-store-screenshots-watch.json",
+        ),
+    };
+    let receipt = root.join(receipt);
     if receipt.exists() {
         fs::remove_file(&receipt)?;
     }
     let name = device_name(root);
     let watch_name = format!("{name}-watch");
-    ui_test(
-        root,
-        &["testContactDetailShowsRegionSourceAndExternalLinkConfirmation".to_owned()],
-        false,
-    )?;
-    let fixture = super::Fixture::start(root, super::Revision::Baseline)?;
+    match purpose {
+        Purpose::Checks => {
+            ui_test(
+                root,
+                &["testContactDetailShowsRegionSourceAndExternalLinkConfirmation".to_owned()],
+                false,
+            )?;
+        }
+        Purpose::Screenshots => screenshots::capture(root, SimulatorModel::Iphone17)?,
+    }
+    let fixture = match purpose {
+        Purpose::Checks => super::Fixture::start(root, super::Revision::Baseline)?,
+        Purpose::Screenshots => {
+            super::Fixture::sample_city(root, &root.join("target/ios/screenshot-sample"))?
+        }
+    };
     let phone = Simulator(simulators::current(
         &simulators::list(root)?,
         &name,
@@ -113,9 +151,9 @@ pub(super) fn check(root: &Path) -> Result<PathBuf> {
             Command::new("xcrun").args(["simctl", "bootstatus", simulator.id(), "-b"]),
         )?;
     }
-    let products = root.join(
-        "apps/ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app",
-    );
+    let products = root.join(format!(
+        "apps/ios/DerivedData/Build/Products/{configuration}-iphonesimulator/PublicPhonebook.app"
+    ));
     let application = products.join("Watch/PhonebookWatch.app");
     ensure!(
         application.join("PhonebookWatch").is_file(),
@@ -127,21 +165,6 @@ pub(super) fn check(root: &Path) -> Result<PathBuf> {
         Command::new("xcrun")
             .args(["simctl", "install", watch.id()])
             .arg(&application),
-    )?;
-    logged(
-        root,
-        "watch-launch-phone",
-        Command::new("xcrun")
-            .env(
-                "SIMCTL_CHILD_PHONEBOOK_API_ORIGIN",
-                format!("http://localhost:{}", fixture.port),
-            )
-            .args([
-                "simctl",
-                "launch",
-                phone.id(),
-                "page.dial.publicphonebook.devicechecks",
-            ]),
     )?;
     let directory = tempfile::Builder::new()
         .prefix("watch-ui-")
@@ -158,7 +181,8 @@ pub(super) fn check(root: &Path) -> Result<PathBuf> {
             "-scheme",
             "PhonebookWatch",
             "-configuration",
-            "VerificationDebug",
+            configuration,
+            &format!("PHONEBOOK_API_ORIGIN=http://localhost:{}", fixture.port),
             "-destination",
             &format!("platform=watchOS Simulator,id={}", watch.id()),
             "-derivedDataPath",
@@ -182,7 +206,30 @@ pub(super) fn check(root: &Path) -> Result<PathBuf> {
         command
     };
     logged(root, "watch-ui-build", command().arg("build-for-testing"))?;
-    for name in TESTS {
+    let bundle = root.join(match purpose {
+        Purpose::Checks => "target/ios/bundled-dataset/fixture",
+        Purpose::Screenshots => "target/ios/screenshot-sample",
+    });
+    logged(
+        root,
+        "watch-launch-phone",
+        Command::new("xcrun")
+            .env(
+                "SIMCTL_CHILD_PHONEBOOK_API_ORIGIN",
+                format!("http://localhost:{}", fixture.port),
+            )
+            .env(
+                "SIMCTL_CHILD_PHONEBOOK_BUNDLED_ARCHIVE",
+                bundle.join("directory.tsv.br"),
+            )
+            .env(
+                "SIMCTL_CHILD_PHONEBOOK_BUNDLED_ENTRY",
+                bundle.join("directory.json"),
+            )
+            .args(["simctl", "launch", phone.id(), phone_id]),
+    )?;
+    let mut images = None;
+    for name in tests {
         let result = directory.join(format!("{name}.xcresult"));
         logged(
             root,
@@ -211,14 +258,23 @@ pub(super) fn check(root: &Path) -> Result<PathBuf> {
             "WatchDirectoryUITests",
             name,
         )?;
+        if let Purpose::Screenshots = purpose {
+            images = Some(screenshots::watch_images(root, &result, &directory)?);
+        }
     }
     require_current_sources(root, &sources)?;
-    fs::write(
-        receipt,
-        serde_json::to_vec_pretty(
-            &json!({"result":"passed", "tests":TESTS, "results":directory, "runtime":watch.runtime(), "phone_runtime":phone.runtime(), "model":MODEL, "source_sha256":source_records(&sources), "transport":"real paired Watch Connectivity; phone fixture prepared by the iOS UI case"}),
-        )?,
-    )?;
+    let record = if let Some(images) = images {
+        json!({"format":1, "purpose":"App Store screenshot candidate; no upload", "fixture":"sample-city", "locale":"en_US", "content_language":"ja", "configuration":configuration, "simulator_runtime":watch.runtime(), "phone_runtime":phone.runtime(), "simulator_device":MODEL, "directory":images.directory, "size":images.size, "screenshots":images.files, "source_sha256":source_records(&sources)})
+    } else {
+        json!({"result":"passed", "tests":tests, "results":directory, "runtime":watch.runtime(), "phone_runtime":phone.runtime(), "model":MODEL, "source_sha256":source_records(&sources), "transport":"real paired Watch Connectivity; phone fixture prepared by the iOS UI case"})
+    };
+    fs::write(receipt, serde_json::to_vec_pretty(&record)?)?;
+    if let Purpose::Screenshots = purpose {
+        println!(
+            "PASS: Japanese Watch store screenshots at {}",
+            directory.join("ja").display()
+        );
+    }
     Ok(directory)
 }
 

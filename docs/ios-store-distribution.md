@@ -191,16 +191,38 @@ The source view now gives the license identifier its own row and provides a desc
 The UI tests keep the accessibility audit and assert that the license value survives a failed source request.
 Read the receipts for the exact source and scenario scope of each run.
 
-The store screenshots come from the real native app and a local copy of the public snapshot ffef99d97b0ca14774178d6a7e3af35c7c1dba116a904a843cdec8b34dd2354a.
-The prepared data passed integrity checks for 650933 contacts, 546133 phone numbers, and 724 sources.
-Screenshot capture uses ProductionDebug with an explicit loopback service and Japanese locale.
-The distributed Release package uses the production HTTPS origin.
-Run `mise x -- just ios-screenshots ORIGIN` with a bare HTTPS or loopback HTTP origin that serves the versioned API.
-Select `iphone-duo` or `ipad-pro-13` as the optional second argument for those device groups.
-The command runs the live UI case on the erased check simulator and exports its three Japanese attachments as opaque images with red, green, and blue channels.
-It rejects a failed case, a missing or repeated attachment, transparency, and dimensions outside the selected device's accepted sizes.
+The first-release screenshot preparation used public snapshot ffef99d97b0ca14774178d6a7e3af35c7c1dba116a904a843cdec8b34dd2354a.
+The historical data check covered 650933 contacts, 546133 phone numbers, and 724 sources.
+
+## Product screenshots
+
+Follow [the fictional-city decision](adr/use-a-fictional-city-in-product-images.md) for every public product image.
+Use `みほん市民図書館` and other facilities from `みほん市` in the shared sample fixture.
+The fixture supplies sample addresses, publisher information, source links, telephone placeholders, and fixed dates in 2099.
+Sample labels appear in the displayed region, address, and publisher.
+Never call sample telephone numbers or publish private caller-identification captures.
+
+Run `mise x -- just ios-screenshots` for the iPhone profile.
+Run `mise x -- just ios-screenshots iphone-duo` or `mise x -- just ios-screenshots ipad-pro-13` for the other handheld profiles.
+Run `mise x -- just ios-watch-screenshots` for the paired Watch profile.
+The Watch command first prepares the production phone app with the same sample fixture, then captures the Watch interface through real Simulator pairing.
+The previous `ios-screenshots ORIGIN [SIMULATOR]` form is no longer accepted.
+The command manages its own loopback sample provider and bundled archive instead of accepting a live origin.
+It rejects real-data and public-origin fixture overrides.
+National-data correctness and performance checks remain separate from public-image capture.
+The distributed Release package continues to use the production HTTPS origin and national dataset.
+
+Capture uses ProductionDebug.
+Handheld profiles use Japanese locale.
+The Watch profile uses an English keyboard locale and displays Japanese app content.
+The actual interface appears without verification controls.
+The sample UI case requires the sample archive and checks the fictional facility, region, address, publisher, and date before export.
+The command exports three Japanese attachments as opaque images with red, green, and blue channels.
+It rejects a failed case, live-case attachments, missing or repeated attachments, transparency, and dimensions outside the selected device's accepted sizes.
 The iPhone profile uses 1206 × 2622 pixels.
 The Duo profile accepts the outer display at 1398 × 2034 and the inner display at 2007 × 2853, including their landscape counterparts.
 The iPad Pro 13-inch profile uses 2064 × 2752 pixels or its landscape counterpart.
-`target/ios/app-store-screenshots.json` records each image digest with the origin, configuration, simulator, source revision, dirty-tree state, and source digests.
+The Apple Watch Series 11 profile uses 416 × 496 pixels.
+`target/ios/app-store-screenshots.json` records each image digest with the sample fixture, loopback origin, configuration, simulator, source revision, dirty-tree state, and source digests.
 The other profiles use `app-store-screenshots-duo.json` and `app-store-screenshots-ipad.json` so one capture doesn't replace another profile's record.
+The Watch profile uses `app-store-screenshots-watch.json`.
