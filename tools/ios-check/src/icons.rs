@@ -27,19 +27,19 @@ const RGB_CHANNELS: usize = 3;
 
 const SVG_NAMESPACE: &str = "http://www.w3.org/2000/svg";
 const ICON_LICENSE: &str = "design/licenses/Lucide.txt";
-const PUBLIC_DIRECTORY: &str = "public";
-const WEB_ICON_DIRECTORY: &str = "public/icons";
+const PUBLIC_DIRECTORY: &str = "apps/web/public";
+const WEB_ICON_DIRECTORY: &str = "apps/web/public/icons";
 const ICON_ID_PREFIX: &str = "icon-";
 /// Biome's two-space indent plus its minimum overlap of three characters.
 const SHORT_KEY_WIDTH: usize = 5;
-const WEB_ICON_LICENSE: &str = "public/icons/LICENSE.txt";
-const FAVICON: &str = "public/favicon.ico";
-const VECTOR_FAVICON: &str = "public/favicon.svg";
-const APPLE_TOUCH_ICON: &str = "public/apple-touch-icon.png";
-const MASK_ICON: &str = "public/mask-icon.svg";
-const INSTALL_MANIFEST: &str = "public/manifest.webmanifest";
-const SOCIAL_PREVIEW: &str = "public/social-preview.png";
-const WEB_CATALOG: &str = "src/ui/icon-catalog.ts";
+const WEB_ICON_LICENSE: &str = "apps/web/public/icons/LICENSE.txt";
+const FAVICON: &str = "apps/web/public/favicon.ico";
+const VECTOR_FAVICON: &str = "apps/web/public/favicon.svg";
+const APPLE_TOUCH_ICON: &str = "apps/web/public/apple-touch-icon.png";
+const MASK_ICON: &str = "apps/web/public/mask-icon.svg";
+const INSTALL_MANIFEST: &str = "apps/web/public/manifest.webmanifest";
+const SOCIAL_PREVIEW: &str = "apps/web/public/social-preview.png";
+const WEB_CATALOG: &str = "apps/web/src/ui/icon-catalog.ts";
 
 const LIGHT_FAVICON_MASTERS: [&str; 2] = ["favicon-16", "favicon-32"];
 const VECTOR_FAVICON_MASTERS: (&str, &str) = ("favicon-32", "favicon-dark-32");
@@ -225,7 +225,10 @@ fn validate_svg(svg: &str, width: u32, height: u32) -> Result<()> {
 }
 
 fn output(root: &Path, path: &str, bytes: &[u8], check: bool) -> Result<()> {
-    if check && path.starts_with("ios/GeneratedAssets.xcassets/") && path.contains(".imageset/") {
+    if check
+        && path.starts_with("apps/ios/GeneratedAssets.xcassets/")
+        && path.contains(".imageset/")
+    {
         return Ok(());
     }
     let path = root.join(path);
@@ -833,22 +836,21 @@ fn web_outputs(
             outputs.add(file, image)?;
         }
     }
-    outputs.add(
-        INSTALL_MANIFEST,
-        serde_json::to_vec_pretty(&json!({
-            "id": SITE_START,
-            "name": SITE_NAME,
-            "short_name": SITE_NAME,
-            "description": SITE_DESCRIPTION,
-            "lang": SITE_LANGUAGE,
-            "start_url": SITE_START,
-            "scope": SITE_START,
-            "display": SITE_DISPLAY,
-            "background_color": PAPER,
-            "theme_color": PAPER,
-            "icons": install,
-        }))?,
-    )?;
+    let mut install_manifest = serde_json::to_vec_pretty(&json!({
+        "id": SITE_START,
+        "name": SITE_NAME,
+        "short_name": SITE_NAME,
+        "description": SITE_DESCRIPTION,
+        "lang": SITE_LANGUAGE,
+        "start_url": SITE_START,
+        "scope": SITE_START,
+        "display": SITE_DISPLAY,
+        "background_color": PAPER,
+        "theme_color": PAPER,
+        "icons": install,
+    }))?;
+    install_manifest.push(b'\n');
+    outputs.add(INSTALL_MANIFEST, install_manifest)?;
     outputs.add(MASK_ICON, source(MASK_ICON_MASTER)?.to_vec())?;
     let social = brand(SOCIAL_PREVIEW_MASTER)?;
     outputs.add(
@@ -917,7 +919,7 @@ pub fn generate(root: &Path, check: bool) -> Result<()> {
     }
     output(
         root,
-        "ios/GeneratedAssets.xcassets/Contents.json",
+        "apps/ios/GeneratedAssets.xcassets/Contents.json",
         &serde_json::to_vec_pretty(&json!({"info":{"version":1,"author":"xcode"}}))?,
         check,
     )?;
@@ -935,7 +937,7 @@ pub fn generate(root: &Path, check: bool) -> Result<()> {
         for appearance in ["default", "dark", "tinted"] {
             output(
                 root,
-                &format!("ios/GeneratedAssets.xcassets/{catalog}.appiconset/{appearance}.png"),
+                &format!("apps/ios/GeneratedAssets.xcassets/{catalog}.appiconset/{appearance}.png"),
                 &raster(
                     source(&format!("app-icon-{environment}{appearance}"))?,
                     APP_ICON_SIZE,
@@ -951,7 +953,7 @@ pub fn generate(root: &Path, check: bool) -> Result<()> {
         }
         output(
             root,
-            &format!("ios/GeneratedAssets.xcassets/{catalog}.appiconset/Contents.json"),
+            &format!("apps/ios/GeneratedAssets.xcassets/{catalog}.appiconset/Contents.json"),
             &serde_json::to_vec_pretty(&json!({"images":[
         {"filename":"default.png","idiom":"universal","platform":"ios","size":"1024x1024"},
         {"filename":"dark.png","idiom":"universal","platform":"ios","size":"1024x1024","appearances":[{"appearance":"luminosity","value":"dark"}]},
@@ -960,7 +962,7 @@ pub fn generate(root: &Path, check: bool) -> Result<()> {
         )?;
         output(
             root,
-            &format!("ios/GeneratedAssets.xcassets/Watch{catalog}.appiconset/default.png"),
+            &format!("apps/ios/GeneratedAssets.xcassets/Watch{catalog}.appiconset/default.png"),
             &raster(
                 source(&format!("app-icon-{environment}default"))?,
                 APP_ICON_SIZE,
@@ -971,7 +973,7 @@ pub fn generate(root: &Path, check: bool) -> Result<()> {
         )?;
         output(
             root,
-            &format!("ios/GeneratedAssets.xcassets/Watch{catalog}.appiconset/Contents.json"),
+            &format!("apps/ios/GeneratedAssets.xcassets/Watch{catalog}.appiconset/Contents.json"),
             &serde_json::to_vec_pretty(
                 &json!({"images":[{"filename":"default.png","idiom":"universal","platform":"watchos","size":"1024x1024"}],"info":{"author":"xcode","version":1}}),
             )?,
@@ -986,7 +988,7 @@ pub fn generate(root: &Path, check: bool) -> Result<()> {
         .chain(manifest.aliases.iter())
     {
         let filename = format!("{target}.svg");
-        let directory = format!("ios/GeneratedAssets.xcassets/{name}.imageset");
+        let directory = format!("apps/ios/GeneratedAssets.xcassets/{name}.imageset");
         let obsolete = root.join(format!("{directory}/{name}.svg"));
         if !check && name != target && obsolete.is_file() {
             fs::remove_file(obsolete)?;
@@ -1011,7 +1013,7 @@ pub fn generate(root: &Path, check: bool) -> Result<()> {
         .iter()
         .map(|(key, value)| format!("    \"{key}\": \"{value}\",\n"))
         .collect::<String>();
-    output(root, "ios/Sources/PhonebookKit/IconCatalog.swift", format!("public enum IconCatalog {{\n  public static let categories: [String: String] = [\n{entries}  ]\n}}\n").as_bytes(), check)?;
+    output(root, "apps/ios/Sources/PhonebookKit/IconCatalog.swift", format!("public enum IconCatalog {{\n  public static let categories: [String: String] = [\n{entries}  ]\n}}\n").as_bytes(), check)?;
     let web = web_outputs(&manifest, &sources, &fs::read(root.join(ICON_LICENSE))?)?;
     for (path, bytes) in &web {
         output(root, path, bytes, check)?;

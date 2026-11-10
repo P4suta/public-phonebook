@@ -15,6 +15,7 @@ export const allowedActions: readonly string[] = [
   "actions/download-artifact",
   "dopplerhq/secrets-fetch-action",
   "jdx/mise-action",
+  "gradle/actions",
   "actions/attest-build-provenance",
   "actions/attest",
   "actions/create-github-app-token",

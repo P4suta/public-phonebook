@@ -202,7 +202,7 @@ fn flip_verification_tools(settings: &TargetSettings) -> TargetSettings {
 
 pub(super) fn configurations(root: &Path) -> Result<()> {
     let metadata: Value =
-        serde_json::from_slice(&fs::read(root.join("ios/AppStore/metadata.json"))?)?;
+        serde_json::from_slice(&fs::read(root.join("apps/ios/AppStore/metadata.json"))?)?;
     ensure!(
         metadata["name"] == Environment::Production.identity().1
             && metadata["primaryLocale"] == "ja"
@@ -248,7 +248,7 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
                             "-toolchain",
                             "com.apple.dt.toolchain.XcodeDefault",
                             "-project",
-                            "ios/PublicPhonebook.xcodeproj",
+                            "apps/ios/PublicPhonebook.xcodeproj",
                             "-alltargets",
                             "-configuration",
                             config,
@@ -694,7 +694,7 @@ fn archive_command(
         "-toolchain",
         "com.apple.dt.toolchain.XcodeDefault",
         "-project",
-        "ios/PublicPhonebook.xcodeproj",
+        "apps/ios/PublicPhonebook.xcodeproj",
         "-scheme",
         "PublicPhonebook",
         "-configuration",
@@ -735,7 +735,7 @@ fn export_command(directory: &Path, root: &Path, manual: Option<&ManualSigning>)
 
 fn prepare_requested_entitlements(root: &Path, archive: &Path) -> Result<()> {
     const GROUPS: &str = "com.apple.security.application-groups";
-    let template = plist(root, &root.join("ios/Config/Shared.entitlements"))?;
+    let template = plist(root, &root.join("apps/ios/Config/Shared.entitlements"))?;
     ensure!(
         template == json!({GROUPS: ["$(PHONEBOOK_APP_GROUP)"]}),
         "Unexpected archive entitlement request"
@@ -1112,10 +1112,10 @@ mod tests {
     fn distribution_bundles_take_their_versions_from_build_settings() -> Result<()> {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         for file in [
-            "ios/Config/App-Info.plist",
-            "ios/Config/App-Info-LocalNetworking.plist",
-            "ios/Config/CallDirectory-Info.plist",
-            "ios/Config/Watch-Info.plist",
+            "apps/ios/Config/App-Info.plist",
+            "apps/ios/Config/App-Info-LocalNetworking.plist",
+            "apps/ios/Config/CallDirectory-Info.plist",
+            "apps/ios/Config/Watch-Info.plist",
         ] {
             let xml = fs::read_to_string(root.join(file))?;
             let document = roxmltree::Document::parse_with_options(
@@ -1153,7 +1153,7 @@ mod tests {
         let output = directory.path().join("spec.json");
         crate::checked(
             Command::new("xcodegen")
-                .current_dir(root.join("ios"))
+                .current_dir(root.join("apps/ios"))
                 .args(["dump", "--type", "json", "--quiet", "--file"])
                 .arg(&output),
         )?;
@@ -1176,11 +1176,11 @@ mod tests {
     #[test]
     fn prepared_copies_carry_the_requested_app_group_without_private_keys() -> Result<()> {
         let root = tempfile::tempdir()?;
-        let config = root.path().join("ios/Config");
+        let config = root.path().join("apps/ios/Config");
         fs::create_dir_all(&config)?;
         let source_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         fs::copy(
-            source_root.join("ios/Config/Shared.entitlements"),
+            source_root.join("apps/ios/Config/Shared.entitlements"),
             config.join("Shared.entitlements"),
         )?;
         let archive = root.path().join("PublicPhonebook.xcarchive");
@@ -1231,7 +1231,7 @@ mod tests {
             assert_eq!(archive_files(&archive)?, original);
         }
         fs::copy(
-            source_root.join("ios/Config/Shared.entitlements"),
+            source_root.join("apps/ios/Config/Shared.entitlements"),
             config.join("Shared.entitlements"),
         )?;
         prepare_requested_entitlements(root.path(), &archive)?;

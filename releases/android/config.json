@@ -7,8 +7,8 @@
       "release-type": "simple",
       "component": "android",
       "include-component-in-tag": true,
-      "version-file": "android/version.txt",
-      "changelog-path": "android/CHANGELOG.md"
+      "version-file": "apps/android/version.txt",
+      "changelog-path": "apps/android/CHANGELOG.md"
     }
   }
 }

@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import {
   boundedLimit,
   canFetchNext,
@@ -6,8 +5,9 @@ import {
   cursorDecision,
   storesSearch,
   totalSource,
-} from "../../src/core/search-policy.ts";
-import { searchCacheKey } from "../../src/server/search-cache.ts";
+} from "@public-phonebook/directory/search-policy";
+import { describe, expect, it } from "vitest";
+import { searchCacheKey } from "../../apps/web/src/server/search-cache.ts";
 
 describe("directory decisions", () => {
   it("only continues a ready feed with another page", () => {

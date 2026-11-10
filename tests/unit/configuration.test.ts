@@ -1,22 +1,31 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as v from "valibot";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { applyAlerts, type PolicyPort } from "../../tools/cloudflare-alerts.ts";
+import {
+  applyAlerts,
+  type PolicyPort,
+} from "@public-phonebook/cloudflare/cloudflare-alerts";
 import {
   type AlertPolicy,
   alertPolicies,
   ExistingPolicy,
-} from "../../tools/cloudflare-alerts-plan.ts";
+} from "@public-phonebook/cloudflare/cloudflare-alerts-plan";
+import {
+  existingChecks,
+  type MonitorPort,
+} from "@public-phonebook/cloudflare/uptime";
+import {
+  type ExistingCheck,
+  uptimeChecks,
+} from "@public-phonebook/cloudflare/uptime-plan";
+import * as v from "valibot";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   alertPreview,
   applyAlertPreview,
   applyMonitorPreview,
   monitorPreview,
 } from "../../tools/configuration.ts";
-import { existingChecks, type MonitorPort } from "../../tools/uptime.ts";
-import { type ExistingCheck, uptimeChecks } from "../../tools/uptime-plan.ts";
 
 const source = "a".repeat(40);
 const account = "b".repeat(32);

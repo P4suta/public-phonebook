@@ -12,8 +12,8 @@ import { createConnection } from "node:net";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { parseArgs } from "node:util";
+import { checkedDataBundle } from "@public-phonebook/data/check-data";
 import { Miniflare } from "miniflare";
-import { checkedDataBundle } from "./check-data.ts";
 
 export const developmentHost = "127.0.0.1";
 export const developmentPort = 8787;

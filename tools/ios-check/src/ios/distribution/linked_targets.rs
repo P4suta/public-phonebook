@@ -16,12 +16,12 @@ pub(super) fn read(root: &Path) -> Result<Vec<String>> {
     let project = described(
         Command::new("plutil")
             .args(["-convert", "json", "-o", "-"])
-            .arg(root.join("ios/PublicPhonebook.xcodeproj/project.pbxproj")),
+            .arg(root.join("apps/ios/PublicPhonebook.xcodeproj/project.pbxproj")),
     )?;
     let package = described(
         Command::new("xcrun")
             .args(["swift", "package", "dump-package", "--package-path"])
-            .arg(root.join("ios")),
+            .arg(root.join("apps/ios")),
     )?;
     linked(&project, &package, APPLICATION)
 }
@@ -125,7 +125,7 @@ fn isa(object: &Map<String, Value>) -> Option<&str> {
     object.get("isa").and_then(Value::as_str)
 }
 
-/// Whether `reference` names the package beside the generated project, which is `ios/Package.swift`.
+/// Whether `reference` names the package beside the generated project, which is `apps/ios/Package.swift`.
 fn local(reference: &Map<String, Value>) -> bool {
     isa(reference) == Some("XCLocalSwiftPackageReference")
         && reference.get("relativePath").and_then(Value::as_str) == Some(".")
@@ -144,7 +144,7 @@ fn package_targets(package: &Value, products: &BTreeSet<String>) -> Result<Vec<S
         package["dependencies"]
             .as_array()
             .is_some_and(Vec::is_empty),
-        "ios/Package.swift declares package dependencies, which the SBOM doesn't describe"
+        "apps/ios/Package.swift declares package dependencies, which the SBOM doesn't describe"
     );
     let targets = package["targets"]
         .as_array()
@@ -484,10 +484,10 @@ mod tests {
     #[test]
     fn reading_a_checkout_describes_its_project_and_package() -> Result<()> {
         let root = tempfile::tempdir()?;
-        let project_directory = root.path().join("ios/PublicPhonebook.xcodeproj");
+        let project_directory = root.path().join("apps/ios/PublicPhonebook.xcodeproj");
         std::fs::create_dir_all(&project_directory)?;
         std::fs::write(
-            root.path().join("ios/Package.swift"),
+            root.path().join("apps/ios/Package.swift"),
             r#"// swift-tools-version: 6.0
 import PackageDescription
 

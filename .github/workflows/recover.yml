@@ -1,71 +1,33 @@
-name: Recover
+name: Restore website version
 
 on:
   workflow_dispatch:
     inputs:
-      operation:
-        description: Withdraw a candidate that never took traffic, or restore the verified predecessor
-        type: choice
-        options:
-          - withdraw
-          - restore
+      version:
+        description: Worker version UUID from the Cloudflare deployment history
+        type: string
         required: true
 
 permissions: {}
 
+env:
+  MISE_AUTO_INSTALL: "false"
+
 concurrency:
-  group: recover-${{ github.ref }}
+  group: web-rollback-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  withdraw:
-    name: Withdraw the candidate
-    if: inputs.operation == 'withdraw'
-    runs-on: ubuntu-26.04
-    environment: release-candidate
-    timeout-minutes: 20
-    concurrency:
-      group: publication-production
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_release_candidate config.
-    steps:
-      - name: Require the main branch
-        run: test "$GITHUB_REF" = refs/heads/main
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/toolchain
-        with:
-          tools: node just
-          dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
-      - id: doppler
-        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
-        with:
-          auth-method: oidc
-          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
-          doppler-project: public-phonebook
-          doppler-config: ci_release_candidate
-          inject-env-vars: "false"
-      - name: Remove the candidate and keep the serving version
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ steps.doppler.outputs.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/publish.ts production --withdraw
   inspect:
-    name: Show what a restore would change
-    if: inputs.operation == 'restore'
+    name: Inspect the requested version
     runs-on: ubuntu-26.04
     environment: observe
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
       contents: read
-      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_observe config.
+      id-token: write # Reads Cloudflare version history before production approval.
+    env:
+      CF_SEND_TELEMETRY: "false"
     steps:
       - name: Require the main branch
         run: test "$GITHUB_REF" = refs/heads/main
@@ -74,10 +36,7 @@ jobs:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
         with:
-          tools: node just
-          dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
+          tools: node
       - id: doppler
         uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
         with:
@@ -86,25 +45,28 @@ jobs:
           doppler-project: public-phonebook
           doppler-config: ci_observe
           inject-env-vars: "false"
-      - name: Report the journal and the deployed versions
+      - name: Read the provider's version details
         env:
+          VERSION: ${{ inputs.version }}
           CLOUDFLARE_API_TOKEN: ${{ steps.doppler.outputs.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/publish.ts production --status
+        run: npm exec --no -- cf workers versions get "$VERSION" --worker-id dial-production
   restore:
-    name: Restore the verified predecessor
+    name: Restore the approved version
     needs: [inspect]
     runs-on: ubuntu-26.04
-    environment: production
-    timeout-minutes: 90
+    environment:
+      name: production
+      url: https://www.dial.page
+    timeout-minutes: 15
     concurrency:
       group: publication-production
       cancel-in-progress: false
     permissions:
       contents: read
-      id-token: write # Exchanges the GitHub OIDC token for the Doppler ci_production config.
+      id-token: write # Fetches the production token after version inspection and approval.
+    env:
+      CF_SEND_TELEMETRY: "false"
     steps:
       - name: Require the main branch
         run: test "$GITHUB_REF" = refs/heads/main
@@ -113,12 +75,9 @@ jobs:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
         with:
-          tools: node just
+          tools: node
           dependencies: "false"
-      - name: Install the locked npm packages without the shared cache
-        run: npm ci --ignore-scripts
-      - name: Install the browsers for the public checks
-        run: npm exec --no -- playwright install --with-deps chromium firefox webkit
+      - run: npm ci --ignore-scripts
       - id: doppler
         uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534
         with:
@@ -127,17 +86,14 @@ jobs:
           doppler-project: public-phonebook
           doppler-config: ci_production
           inject-env-vars: "false"
-      - name: Restore and check the verified predecessor
+      - name: Deploy the existing version without rebuilding
         env:
+          VERSION: ${{ inputs.version }}
           CLOUDFLARE_API_TOKEN: ${{ steps.doppler.outputs.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ steps.doppler.outputs.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ steps.doppler.outputs.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ steps.doppler.outputs.R2_SECRET_ACCESS_KEY }}
-        run: node tools/publish.ts production --recover
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: failure()
-        with:
-          name: restore-failure-evidence
-          path: test-results
-          if-no-files-found: ignore
-          retention-days: 7
+        run: |
+          [[ "$VERSION" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]
+          printf -v versions '[{"version_id":"%s","percentage":100}]' "$VERSION"
+          npm exec --no -- cf workers deployments create --worker dial-production --strategy percentage --versions "$versions"
+      - name: Check the public catalog
+        run: curl --fail --silent --show-error --retry 3 --max-time 30 https://www.dial.page/api/catalog --output /dev/null

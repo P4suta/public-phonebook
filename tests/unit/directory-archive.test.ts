@@ -1,12 +1,9 @@
-import * as fc from "fast-check";
-import * as v from "valibot";
-import { describe, expect, it } from "vitest";
 import {
   categoryDefinitions,
   MunicipalityCodeSchema,
   PrefectureCodeSchema,
   prefectureNames,
-} from "../../src/core/catalog.ts";
+} from "@public-phonebook/directory/catalog";
 import {
   compareUtf8,
   type DirectoryArchiveContact,
@@ -15,13 +12,16 @@ import {
   decodeDirectoryArchive,
   directoryArchiveLimits,
   encodeDirectoryArchive,
-} from "../../src/core/directory-archive.ts";
+} from "@public-phonebook/directory/directory-archive";
 import {
   type Contact,
   ContactSchema,
   PhoneSchema,
   PublicUrlSchema,
-} from "../../src/core/models.ts";
+} from "@public-phonebook/directory/models";
+import * as fc from "fast-check";
+import * as v from "valibot";
+import { describe, expect, it } from "vitest";
 
 const libraryIndex = categoryDefinitions.findIndex(
   (category) => category.id === "library",

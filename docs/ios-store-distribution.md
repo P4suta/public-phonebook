@@ -2,10 +2,10 @@
 
 The iPhone app's name is Public Phonebook, identifier 6828899028, with Japanese as the primary language.
 Its production bundle identifier is page.dial.publicphonebook and its `SKU` is public-phonebook-ios.
-The source display version comes from `ios/version.txt`.
+The source display version comes from `apps/ios/version.txt`.
 Match the selected display version with the intended App Store version before submission.
 App Review approval releases the version automatically, and the app requires no sign-in.
-Store metadata lives in `ios/AppStore/metadata.json`.
+Store metadata lives in `apps/ios/AppStore/metadata.json`.
 Japanese customer-facing text is intentional.
 Review instructions are English.
 The [accessibility evaluation](ios-accessibility.md) defines common tasks, feature criteria, automated audits, device evidence, and the boundary for declaring Accessibility Nutrition Labels.
@@ -30,13 +30,13 @@ Future configurations and OS behavior need their own checks.
 
 ## Private archive
 
-Configure the authorized team in the ignored `ios/Signing.local.xcconfig`.
+Configure the authorized team in the ignored `apps/ios/Signing.local.xcconfig`.
 Run `mise x -- just ios-archive` to create a production Release archive and export a local App Store `.ipa` package.
 The command uses Xcode's existing account and automatic provisioning.
 It never uploads the package or submits a review.
 The command inspects the exported app and its embedded extension and verifies their signatures and distribution entitlements.
 It checks the production origin, shared group, version, build number, icon, privacy manifests, and bundled notices.
-It also requires the exported app to hold the directory archive and entry that `ios/bundled-dataset.json` declares, and the extension to hold neither.
+It also requires the exported app to hold the directory archive and entry that `apps/ios/bundled-dataset.json` declares, and the extension to hold neither.
 The generator reads that archive from the release asset and the immutable dataset URL, so the hosted runners get it without credentials.
 The unsigned Release app measured 3,780,791 bytes before bundling the national archive.
 The first bundled baseline held 17,274,257 bytes with the 13,428,507-byte archive of snapshot `5bd74f20`.
@@ -51,18 +51,16 @@ A private local archive is never eligible for release, and only the TestFlight w
 ## Store build delivery
 
 The `TestFlight` workflow in `.github/workflows/ios.yml` delivers a signed production build to TestFlight.
-Prepare an iOS plan and request `ios-testflight` through the [independent delivery command](delivery.md).
-Its controller refuses a source that differs from protected `main`, a changed plan, or another workflow identity.
-Dependency checks, formal assurance, and native assurance run independently at the same commit.
-A Linux job runs `just ios-prove`, and a macOS job runs `just delivery platform ios --scope check`, `just ios-sanitize`, and `just ios-mutate`.
-Candidate and TestFlight share the check-only result when sources, commands, toolchains, OS builds, simulator runtimes, and the native output receipt's digest match.
-Missing or changed outputs rerun verification.
+Start it from protected `main` with `gh workflow run ios.yml --ref main`, as the [delivery runbook](delivery.md) describes.
+Repository checks, formal assurance, and native assurance run independently at the checked-out commit.
+A Linux job runs `just ios-prove` and `just delivery-prove`, and a macOS job runs `just ios-check`, `just ios-sanitize`, and `just ios-mutate`.
+Each selected distribution workflow runs its required native verification.
 Jobs for the same source commit serialize their native work.
 The unsigned job waits for every required dependency, formal, and native check.
 The unsigned job downloads their source-bound receipts and runs `just ios-prepare-archive N` without signing credentials or account provisioning.
 It preserves and attests the unsigned archive, source inventory, and receipts.
 
-The signing job waits for review in `testflight-signing` and verifies the unsigned artifact's source and controller attestation before fetching credentials from `ci_testflight_signing`.
+The signing job waits for review in `testflight-signing` and verifies the unsigned artifact's source and workflow attestation before fetching credentials from `ci_testflight_signing`.
 Before importing a private key, the controller copies the original archive and gives both bundles an ad hoc signature containing the declared App Group request.
 The embedded Watch app receives an ad hoc signature without an App Group.
 That signature uses no certificate or private key and preserves the request that Xcode needs during export.
@@ -92,10 +90,10 @@ The [delivery decision](adr/select-delivery-operations-independently-from-requir
 
 ## Submit an app update
 
-Prepare an iOS version proposal with the delivery command, verify its checks, and merge the proposal before preparing the distribution plan.
+Prepare an iOS version proposal through the version workflow, verify its checks, and merge the proposal before preparing the store candidate.
 Use the same App Store Connect app record, a higher display version, and a fresh TestFlight build number, following [Apple's version procedure](https://developer.apple.com/help/app-store-connect/update-your-app/create-a-new-version/).
 Read the changes since the published version when writing the required What's New text.
-Copy the promotional text from `ios/AppStore/metadata.json` when the draft leaves that field empty.
+Copy the promotional text from `apps/ios/AppStore/metadata.json` when the draft leaves that field empty.
 
 Run `mise x -- just ios-ui-test --live --device` with one iPhone connected and unlocked for the source-level QA check.
 The command uses VerificationRelease and the separate QA identity.

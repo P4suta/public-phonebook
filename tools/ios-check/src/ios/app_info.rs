@@ -153,7 +153,7 @@ pub(super) fn check_built(root: &Path, app: &Path, configuration: &str) -> Resul
 
 /// Writes the local networking property list from the one that XcodeGen wrote, so the two differ in that key alone.
 pub(super) fn derive(root: &Path) -> Result<()> {
-    let directory = root.join("ios");
+    let directory = root.join("apps/ios");
     let local = directory.join(LOCAL_NETWORKING_INFO);
     logged(
         root,

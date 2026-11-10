@@ -17,7 +17,7 @@ import {
   normalize,
   resolve,
 } from "node:path";
-import type { Result } from "../src/core/result.ts";
+import type { Result } from "@public-phonebook/directory/result";
 import { type CommandResult, command, requireCommand } from "./process.ts";
 
 /** The Verify job runs on linux/amd64, so native npm binaries differ by architecture. */

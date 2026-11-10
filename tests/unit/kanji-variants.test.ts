@@ -1,12 +1,5 @@
-import { describe, expect, it } from "vitest";
-import {
-  kanjiVariants,
-  searchForm,
-  searchWords,
-} from "../../src/core/search-text.ts";
-import { rankWords } from "../../src/core/word-match.ts";
-import type { SourceTable } from "../../tools/collection/read-tables.ts";
-import { joyoTraditionalForms } from "../../tools/joyo-traditional-forms.ts";
+import type { SourceTable } from "@public-phonebook/data/collection/read-tables";
+import { joyoTraditionalForms } from "@public-phonebook/data/joyo-traditional-forms";
 import {
   checkKanjiVariantProvenance,
   joyoKanjiTable,
@@ -18,7 +11,14 @@ import {
   traditionalFormsOf,
   traditionalFormsSource,
   typeScriptSource,
-} from "../../tools/kanji-variants.ts";
+} from "@public-phonebook/data/kanji-variants";
+import {
+  kanjiVariants,
+  searchForm,
+  searchWords,
+} from "@public-phonebook/directory/search-text";
+import { rankWords } from "@public-phonebook/directory/word-match";
+import { describe, expect, it } from "vitest";
 import { referenceForm } from "./search-reference.ts";
 
 const pairs = kanjiVariants();

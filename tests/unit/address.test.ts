@@ -1,6 +1,6 @@
+import { normalizeAddress } from "@public-phonebook/directory/address";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { normalizeAddress } from "../../src/core/address.ts";
 
 describe("address presentation", () => {
   it.each([

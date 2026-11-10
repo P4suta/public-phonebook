@@ -71,7 +71,7 @@ Layer occlusion and visual clarity still require direct visual review.
 
 Use authored black and white only.
 The iPhone app follows the system appearance by swapping them: surfaces turn black, and text, rules, icons, and controls turn white.
-Its screens draw with two named colors, the surface and the ink, and the iOS gate refuses any other authored color in `ios/App`.
+Its screens draw with two named colors, the surface and the ink, and the iOS gate refuses any other authored color in `apps/ios/App`.
 Exclude gray steps, gradients, shadows, translucent styling, filters, blending, and slogans.
 Use size, weight, grouping, spacing, and solid borders to communicate structure.
 The initial heading is the service name.
@@ -92,7 +92,7 @@ Figma uses Noto Sans JP as the stand-in for the Android system font, because Fig
 The website and the iPhone app draw category and action icons from the same [Figma masters](icons.md).
 Every category has its own master with different icon geometry.
 The website offers only categories present in the active publication.
-Every size derives from the parameters in `src/ui/foundations.ts`.
+Every size derives from the parameters in `apps/web/src/ui/foundations.ts`.
 The parameters are a 4-pixel grid, a 16-pixel body size, and a line-height ratio of 1.5.
 The [Digital Agency design system](https://design.digital.go.jp/dads/foundations/typography/) describes 150% as the line spacing of body text and headings on general websites and as the minimum for body text.
 Type sizes step from the body size by one grid unit: 16, 20, 24, 28, and 32 pixels, plus a 14-pixel small size.
@@ -114,7 +114,7 @@ Controls keep at least a 44-pixel target height at the default text size.
 The existing desktop page contains the [foundation and state specimen](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=244-1790).
 The existing collection contains semantic variables, primitive aliases, explicit scopes, and matching CSS names.
 The retained [Figma export](design-system.json) identifies the exact role styles and variable IDs.
-The TypeScript source in `src/ui/foundations.ts` supplies the same role values to the Vanilla Extract theme.
+The TypeScript source in `apps/web/src/ui/foundations.ts` supplies the same role values to the Vanilla Extract theme.
 Unit checks reject divergence from the retained export.
 Unit checks also recompute every size from the parameters and reject hand-typed pixel or rem lengths in the style sheets.
 Browser checks require every exported CSS variable, bound heading sizes, compact result hierarchy, and text-resize behavior.

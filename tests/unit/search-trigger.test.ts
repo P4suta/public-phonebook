@@ -1,17 +1,17 @@
-import { describe, expect, it } from "vitest";
 import {
   completeTelephone,
   inputScript,
   insertionEvent,
   keystrokeIntervals,
   pauseDelay,
-} from "../../src/core/search-input.ts";
+} from "@public-phonebook/directory/search-input";
 import {
   type InputScript,
   type SearchEvent,
   type SearchTrigger,
   searchTrigger,
-} from "../../src/core/search-trigger-policy.ts";
+} from "@public-phonebook/directory/search-trigger-policy";
+import { describe, expect, it } from "vitest";
 
 const scripts: readonly InputScript[] = [
   "empty",

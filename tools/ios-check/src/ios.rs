@@ -294,13 +294,15 @@ const REQUIRED_TESTS: [&str; 99] = [
     "callerLoadMatchesWantedEntriesOnSeededInputs",
     "callerLoadRejectsBrokenFilesBeforeChangingEntries",
 ];
-const SCOPE: [&str; 20] = [
+const SCOPE: [&str; 22] = [
     "tests/fixtures/search-ranking.json",
-    "ios",
+    "apps/ios",
     "verification/ios",
-    "src/core",
-    "src/server",
+    "packages/directory/src",
+    "apps/web/src/server",
     "tools",
+    "data",
+    "infrastructure",
     "mise.toml",
     "justfile",
     ".github/workflows/checks.yml",
@@ -313,8 +315,8 @@ const SCOPE: [&str; 20] = [
     "tsconfig.json",
     "biome.json",
     "design",
-    "public",
-    "src/ui/icons.tsx",
+    "apps/web/public",
+    "apps/web/src/ui/icons.tsx",
 ];
 const SHA1_HEX_LENGTH: usize = 40;
 const SHA256_HEX_LENGTH: usize = 64;
@@ -348,8 +350,8 @@ fn source_hashes(root: &Path) -> Result<BTreeMap<String, String>> {
         .filter(|path| !path.is_empty())
         .map(str::to_owned)
         .collect::<Vec<_>>();
-    if root.join("ios/Signing.local.xcconfig").is_file() {
-        paths.push("ios/Signing.local.xcconfig".to_owned());
+    if root.join("apps/ios/Signing.local.xcconfig").is_file() {
+        paths.push("apps/ios/Signing.local.xcconfig".to_owned());
     }
     let mut hashes = BTreeMap::new();
     for path in paths {
@@ -363,7 +365,9 @@ fn source_hashes(root: &Path) -> Result<BTreeMap<String, String>> {
         hashes.insert(path, crate::sha256_hex(bytes));
     }
     ensure!(
-        hashes.keys().any(|path| path.starts_with("ios/Sources/")),
+        hashes
+            .keys()
+            .any(|path| path.starts_with("apps/ios/Sources/")),
         "The iOS gate has no production Swift inputs"
     );
     Ok(hashes)
@@ -538,10 +542,10 @@ fn logged_work(
 
 fn generate(root: &Path) -> Result<()> {
     fs::write(
-        root.join("ios/Config/GeneratedVersion.xcconfig"),
+        root.join("apps/ios/Config/GeneratedVersion.xcconfig"),
         format!("MARKETING_VERSION = {}\n", marketing_version(root)?),
     )?;
-    let assets = root.join("ios/GeneratedAssets.xcassets");
+    let assets = root.join("apps/ios/GeneratedAssets.xcassets");
     fs::create_dir_all(&assets)?;
     fs::write(
         assets.join("Contents.json"),
@@ -552,7 +556,7 @@ fn generate(root: &Path) -> Result<()> {
         root,
         "generate",
         Command::new("xcodegen")
-            .current_dir(root.join("ios"))
+            .current_dir(root.join("apps/ios"))
             .arg("generate"),
     )?;
     app_info::derive(root)?;
@@ -563,7 +567,7 @@ fn generate(root: &Path) -> Result<()> {
 }
 
 fn marketing_version(root: &Path) -> Result<String> {
-    let path = root.join("ios/version.txt");
+    let path = root.join("apps/ios/version.txt");
     ensure!(
         fs::metadata(&path)?.len() <= (delivery_core::Version::MAXIMUM_BYTES + 1) as u64,
         "Oversized iOS version input"
@@ -579,7 +583,7 @@ fn xcode(root: &Path) -> Result<()> {
         cfg!(target_os = "macos"),
         "The iOS gate requires macOS and Xcode"
     );
-    let expected = fs::read_to_string(root.join("ios/.xcode-version"))?;
+    let expected = fs::read_to_string(root.join("apps/ios/.xcode-version"))?;
     let xcode = super::checked(Command::new("xcodebuild").arg("-version"))?;
     ensure!(
         String::from_utf8_lossy(&xcode.stdout).lines().next()
@@ -909,7 +913,7 @@ fn ui_build_command(root: &Path, identifier: &str, configuration: &str) -> Comma
         "-toolchain",
         "com.apple.dt.toolchain.XcodeDefault",
         "-project",
-        "ios/PublicPhonebook.xcodeproj",
+        "apps/ios/PublicPhonebook.xcodeproj",
         "-scheme",
         "PublicPhonebookVerification",
         "-configuration",
@@ -917,7 +921,7 @@ fn ui_build_command(root: &Path, identifier: &str, configuration: &str) -> Comma
         "-destination",
         &format!("platform=iOS Simulator,id={identifier}"),
         "-derivedDataPath",
-        "ios/DerivedData",
+        "apps/ios/DerivedData",
         "-jobs",
         "2",
         "-parallel-testing-enabled",
@@ -1210,7 +1214,8 @@ fn ui_test_on(
         ]),
     )?;
     require_ui_inventory(&serde_json::from_slice(&inventory.stdout)?)?;
-    let products = root.join("ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator");
+    let products =
+        root.join("apps/ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator");
     let application = products.join("PublicPhonebook.app");
     let runner = products.join("PhonebookUITests-Runner.app");
     let bundle = plist_string(&application.join("Info.plist"), "CFBundleIdentifier")?;
@@ -1573,7 +1578,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                 root,
                 "swiftlint",
                 Command::new("swiftlint")
-                    .current_dir(root.join("ios"))
+                    .current_dir(root.join("apps/ios"))
                     .args(["lint", "--strict", "--config", ".swiftlint.yml"]),
             )?;
             logged(
@@ -1584,17 +1589,17 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "lint",
                     "--strict",
                     "--recursive",
-                    "ios/Admission",
-                    "ios/App",
-                    "ios/Native",
-                    "ios/CallDirectory",
-                    "ios/DeviceMeasurements",
-                    "ios/Sources",
-                    "ios/Tests",
-                    "ios/UITests",
-                    "ios/Watch",
-                    "ios/WatchUITests",
-                    "ios/Package.swift",
+                    "apps/ios/Admission",
+                    "apps/ios/App",
+                    "apps/ios/Native",
+                    "apps/ios/CallDirectory",
+                    "apps/ios/DeviceMeasurements",
+                    "apps/ios/Sources",
+                    "apps/ios/Tests",
+                    "apps/ios/UITests",
+                    "apps/ios/Watch",
+                    "apps/ios/WatchUITests",
+                    "apps/ios/Package.swift",
                 ]),
             )?;
             let unit = logged(
@@ -1604,7 +1609,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "swift",
                     "test",
                     "--package-path",
-                    "ios",
+                    "apps/ios",
                     "--jobs",
                     "2",
                     "--enable-code-coverage",
@@ -1631,7 +1636,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                         "swift",
                         "test",
                         "--package-path",
-                        "ios",
+                        "apps/ios",
                         "--skip-build",
                         "--filter",
                         ISOLATED_FOOTPRINT_TEST,
@@ -1658,7 +1663,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                         "swift",
                         "test",
                         "--package-path",
-                        "ios",
+                        "apps/ios",
                         "--skip-build",
                         "--filter",
                         ARCHIVE_FOOTPRINT_TEST,
@@ -1695,7 +1700,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                         "test",
                         "list",
                         "--package-path",
-                        "ios",
+                        "apps/ios",
                         "--skip-build",
                     ]),
             )?;
@@ -1729,7 +1734,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "-toolchain",
                     "com.apple.dt.toolchain.XcodeDefault",
                     "-project",
-                    "ios/PublicPhonebook.xcodeproj",
+                    "apps/ios/PublicPhonebook.xcodeproj",
                     "-scheme",
                     "PublicPhonebook",
                     "-configuration",
@@ -1737,14 +1742,14 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "-destination",
                     "generic/platform=iOS Simulator",
                     "-derivedDataPath",
-                    "ios/DerivedData",
+                    "apps/ios/DerivedData",
                     "-jobs",
                     "2",
                     "CODE_SIGNING_ALLOWED=NO",
                     "build",
                 ]),
             )?;
-            let executable = root.join("ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app/PublicPhonebook");
+            let executable = root.join("apps/ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app/PublicPhonebook");
             ensure!(
                 executable.is_file(),
                 "The iOS gate produced no app executable"
@@ -1757,7 +1762,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "-toolchain",
                     "com.apple.dt.toolchain.XcodeDefault",
                     "-project",
-                    "ios/PublicPhonebook.xcodeproj",
+                    "apps/ios/PublicPhonebook.xcodeproj",
                     "-scheme",
                     "PublicPhonebook",
                     "-configuration",
@@ -1765,7 +1770,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "-destination",
                     "generic/platform=iOS",
                     "-derivedDataPath",
-                    "ios/DerivedData",
+                    "apps/ios/DerivedData",
                     "-jobs",
                     "2",
                     "CODE_SIGNING_ALLOWED=NO",
@@ -1773,37 +1778,43 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                 ]),
             )?;
             store_build::require_absent(
-                &root.join("ios/DerivedData/Build/Products/Release-iphoneos/PublicPhonebook.app"),
+                &root.join(
+                    "apps/ios/DerivedData/Build/Products/Release-iphoneos/PublicPhonebook.app",
+                ),
             )?;
             store_build::control(root)?;
             store_build::require_every_marker(
                 &root.join(
-                    "ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app",
+                    "apps/ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app",
                 ),
                 "VerificationDebug",
             )?;
             app_info::check_built(
                 root,
                 &root.join(
-                    "ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app",
+                    "apps/ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app",
                 ),
                 "VerificationDebug",
             )?;
             app_info::check_built(
                 root,
-                &root.join("ios/DerivedData/Build/Products/Release-iphoneos/PublicPhonebook.app"),
+                &root.join(
+                    "apps/ios/DerivedData/Build/Products/Release-iphoneos/PublicPhonebook.app",
+                ),
                 "Release",
             )?;
             bundled::check_built(
                 root,
                 &root.join(
-                    "ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app",
+                    "apps/ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app",
                 ),
                 "VerificationDebug",
             )?;
             bundled::check_built(
                 root,
-                &root.join("ios/DerivedData/Build/Products/Release-iphoneos/PublicPhonebook.app"),
+                &root.join(
+                    "apps/ios/DerivedData/Build/Products/Release-iphoneos/PublicPhonebook.app",
+                ),
                 "Release",
             )?;
             let results = ui_test(root, &[], false)?;
@@ -1825,7 +1836,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                 receipt,
                 serde_json::to_vec_pretty(&json!({
                     "result":"passed",
-                    "xcode":fs::read_to_string(root.join("ios/.xcode-version"))?.trim(),
+                    "xcode":fs::read_to_string(root.join("apps/ios/.xcode-version"))?.trim(),
                     "ui_results":results.directory, "ui_tests":results.count, "finite_feed_inputs":FINITE_FEED_INPUTS, "finite_publication_inputs":FINITE_PUBLICATION_INPUTS,
                     "watch_ui_results":watch_results,
                     "duo_ui_results":duo_results.directory, "duo_ui_tests":duo_results.count,
@@ -1872,7 +1883,13 @@ fn sanitize(root: &Path) -> Result<()> {
             &format!("sanitize-{sanitizer}"),
             Command::new("xcrun")
                 .current_dir(root)
-                .args(["swift", "test", "--package-path", "ios", "--scratch-path"])
+                .args([
+                    "swift",
+                    "test",
+                    "--package-path",
+                    "apps/ios",
+                    "--scratch-path",
+                ])
                 .arg(root.join(format!("target/ios/sanitize-{sanitizer}")))
                 .args(["--sanitize", sanitizer, "--jobs", "2"])
                 // A sanitizer's shadow memory and quarantine make the footprint meaningless, and the bounded-buffer test covers the reader's code here.
@@ -1900,7 +1917,7 @@ fn sanitize(root: &Path) -> Result<()> {
                     "test",
                     "list",
                     "--package-path",
-                    "ios",
+                    "apps/ios",
                     "--scratch-path",
                 ])
                 .arg(root.join(format!("target/ios/sanitize-{sanitizer}")))
@@ -1930,13 +1947,13 @@ fn coverage(root: &Path) -> Result<Value> {
             "swift",
             "test",
             "--package-path",
-            "ios",
+            "apps/ios",
             "--show-codecov-path",
         ]),
     )?;
     let path = String::from_utf8(result.stdout)?.trim().to_owned();
     ensure!(
-        Path::new(&path).starts_with(root.join("ios/.build")),
+        Path::new(&path).starts_with(root.join("apps/ios/.build")),
         "Coverage output escaped the package build directory"
     );
     let directory = Path::new(&path)
@@ -2253,26 +2270,26 @@ mod tests {
                 .current_dir(root)
                 .args(["init", "--quiet"]),
         )?;
-        fs::create_dir_all(root.join("ios/Sources"))?;
-        let source = root.join("ios/Sources/Contract.swift");
+        fs::create_dir_all(root.join("apps/ios/Sources"))?;
+        let source = root.join("apps/ios/Sources/Contract.swift");
         fs::write(&source, "enum Contract { case retain }")?;
         let initial = source_hashes(root)?;
         require_current_sources(root, &initial)?;
         fs::write(&source, "enum Contract { case publish }")?;
         assert!(require_current_sources(root, &initial).is_err());
         let modified = source_hashes(root)?;
-        let added = root.join("ios/Sources/Adapter.swift");
+        let added = root.join("apps/ios/Sources/Adapter.swift");
         fs::write(&added, "struct Adapter {}")?;
         super::super::checked(
             Command::new("git")
                 .current_dir(root)
-                .args(["add", "ios/Sources/Adapter.swift"]),
+                .args(["add", "apps/ios/Sources/Adapter.swift"]),
         )?;
         assert!(require_current_sources(root, &modified).is_err());
         let expanded = source_hashes(root)?;
         fs::remove_file(added)?;
         assert!(require_current_sources(root, &expanded).is_err());
-        assert!(!source_hashes(root)?.contains_key("ios/Sources/Adapter.swift"));
+        assert!(!source_hashes(root)?.contains_key("apps/ios/Sources/Adapter.swift"));
         Ok(())
     }
 }

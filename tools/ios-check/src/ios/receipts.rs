@@ -67,7 +67,7 @@ mod tests {
 
     fn sources() -> BTreeMap<String, String> {
         BTreeMap::from([
-            ("ios/Sources/Core.swift".to_owned(), "a".repeat(64)),
+            ("apps/ios/Sources/Core.swift".to_owned(), "a".repeat(64)),
             ("tools/ios-check/src/ios.rs".to_owned(), "b".repeat(64)),
         ])
     }
@@ -121,9 +121,9 @@ mod tests {
         let mut failed = passed(&current);
         failed["result"] = json!("failed");
         let mut modified = current.clone();
-        modified.insert("ios/Sources/Core.swift".to_owned(), "c".repeat(64));
+        modified.insert("apps/ios/Sources/Core.swift".to_owned(), "c".repeat(64));
         let mut added = current.clone();
-        added.insert("ios/Sources/Adapter.swift".to_owned(), "d".repeat(64));
+        added.insert("apps/ios/Sources/Adapter.swift".to_owned(), "d".repeat(64));
         let mut removed = current.clone();
         removed.remove("tools/ios-check/src/ios.rs");
         let mut repeated = passed(&current);
@@ -138,7 +138,7 @@ mod tests {
             passed(&removed),
             repeated,
             json!({"result":"passed"}),
-            json!({"result":"passed","source_sha256":[{"path":"ios/Sources/Core.swift"}]}),
+            json!({"result":"passed","source_sha256":[{"path":"apps/ios/Sources/Core.swift"}]}),
         ] {
             assert!(
                 admit("receipt.json", &receipt, &current).is_err(),

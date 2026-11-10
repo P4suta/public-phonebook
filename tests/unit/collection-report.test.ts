@@ -1,13 +1,13 @@
-import fc from "fast-check";
-import * as v from "valibot";
-import { describe, expect, it } from "vitest";
 import {
   type CollectionOutcome,
   CompleteCollectionReportSchema,
   encodeCollectionReport,
   fileIdentity,
   type PlanReport,
-} from "../../tools/collection/report.ts";
+} from "@public-phonebook/data/collection/report";
+import fc from "fast-check";
+import * as v from "valibot";
+import { describe, expect, it } from "vitest";
 
 const encoder = new TextEncoder();
 const files = {

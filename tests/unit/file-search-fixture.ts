@@ -1,4 +1,4 @@
-import type { SearchFile } from "../../src/core/file-search.ts";
+import type { SearchFile } from "@public-phonebook/directory/file-search";
 
 export class MemoryFile implements SearchFile {
   bytes: Uint8Array;

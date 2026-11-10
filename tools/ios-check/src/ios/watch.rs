@@ -174,7 +174,7 @@ pub(super) fn check(root: &Path) -> Result<PathBuf> {
         )?;
     }
     let products = root.join(
-        "ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app",
+        "apps/ios/DerivedData/Build/Products/VerificationDebug-iphonesimulator/PublicPhonebook.app",
     );
     let application = products.join("Watch/PhonebookWatch.app");
     ensure!(
@@ -214,7 +214,7 @@ pub(super) fn check(root: &Path) -> Result<PathBuf> {
             "-toolchain",
             "com.apple.dt.toolchain.XcodeDefault",
             "-project",
-            "ios/PublicPhonebook.xcodeproj",
+            "apps/ios/PublicPhonebook.xcodeproj",
             "-scheme",
             "PhonebookWatch",
             "-configuration",
@@ -222,7 +222,7 @@ pub(super) fn check(root: &Path) -> Result<PathBuf> {
             "-destination",
             &format!("platform=watchOS Simulator,id={}", watch.id()),
             "-derivedDataPath",
-            "ios/DerivedData",
+            "apps/ios/DerivedData",
             "-jobs",
             "2",
             "-parallel-testing-enabled",

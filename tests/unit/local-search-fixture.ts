@@ -1,17 +1,17 @@
-import * as v from "valibot";
 import {
   categoryDefinitions,
   MunicipalityCodeSchema,
   PrefectureCodeSchema,
   prefectureNames,
-} from "../../src/core/catalog.ts";
-import { normalizeName } from "../../src/core/identity.ts";
+} from "@public-phonebook/directory/catalog";
+import { normalizeName } from "@public-phonebook/directory/identity";
 import {
   compareRowOrder,
   encodeSearchIndex,
   type SearchIndexInput,
   searchIndexRow,
-} from "../../src/core/search-index.ts";
+} from "@public-phonebook/directory/search-index";
+import * as v from "valibot";
 
 export interface ModelContact {
   readonly id: string;

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
+import { candidateStages } from "@public-phonebook/cloudflare/release-store";
 import { describe, expect, it } from "vitest";
-import { candidateStages } from "../../tools/release-store.ts";
 import {
   iosCheckScope,
   stageExpectations,
@@ -19,12 +19,12 @@ function file(path: string, object = "1".repeat(40)): TrackedFile {
 }
 
 const files = [
-  file("ios/Sources/App.swift"),
+  file("apps/ios/Sources/App.swift"),
   file("verification/ios/Publication.lean"),
   file("tools/ios-check/src/ios.rs"),
-  file("src/core/search.ts"),
-  file("src/ui/search-page.tsx"),
-  file("src/ui/icons.tsx"),
+  file("packages/directory/src/search.ts"),
+  file("apps/web/src/ui/search-page.tsx"),
+  file("apps/web/src/ui/icons.tsx"),
   file("docs/deployment.md"),
   file(".github/workflows/candidate.yml"),
 ];
@@ -62,7 +62,7 @@ describe("stage inputs", () => {
   });
 
   it("reruns the Web stages and keeps the iOS stages for a page change", () => {
-    expect(changedStages("src/ui/search-page.tsx")).toEqual([
+    expect(changedStages("apps/web/src/ui/search-page.tsx")).toEqual([
       "check",
       "data",
       "parity",
@@ -73,8 +73,10 @@ describe("stage inputs", () => {
   });
 
   it("reruns every stage for a change that both apps read", () => {
-    expect(changedStages("src/core/search.ts")).toEqual(candidateStages);
-    expect(changedStages("src/ui/icons.tsx")).toEqual(candidateStages);
+    expect(changedStages("packages/directory/src/search.ts")).toEqual(
+      candidateStages,
+    );
+    expect(changedStages("apps/web/src/ui/icons.tsx")).toEqual(candidateStages);
     expect(changedStages(".github/workflows/candidate.yml")).toEqual(
       candidateStages,
     );
@@ -82,7 +84,7 @@ describe("stage inputs", () => {
 
   it("reruns only the stages that read native files for a native change", () => {
     for (const path of [
-      "ios/Sources/App.swift",
+      "apps/ios/Sources/App.swift",
       "verification/ios/Publication.lean",
       "tools/ios-check/src/ios.rs",
     ])
@@ -105,10 +107,10 @@ describe("stage inputs", () => {
 
   it("matches whole path segments and refuses an empty selection or a missing dataset", () => {
     const ios = stageInputs["ios-check"];
-    expect(stageReads(ios, "ios")).toBe(true);
-    expect(stageReads(ios, "ios/App.swift")).toBe(true);
+    expect(stageReads(ios, "apps/ios")).toBe(true);
+    expect(stageReads(ios, "apps/ios/App.swift")).toBe(true);
     expect(stageReads(ios, "iosx/App.swift")).toBe(false);
-    expect(stageReads(stageInputs.e2e, "ios/App.swift")).toBe(false);
+    expect(stageReads(stageInputs.e2e, "apps/ios/App.swift")).toBe(false);
     expect(stageReads(stageInputs.e2e, "docs/design-system.json")).toBe(true);
     expect(() =>
       stageInputDigest("ios-check", [file("docs/a.md")], null),

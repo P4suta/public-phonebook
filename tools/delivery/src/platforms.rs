@@ -9,7 +9,9 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
-    env, fs,
+    env,
+    ffi::OsStr,
+    fs,
     path::Path,
     process::{Command, Stdio},
 };
@@ -62,19 +64,19 @@ fn under(path: &str, prefix: &str) -> bool {
 
 pub fn reads(app: App, path: &str) -> Result<bool> {
     let classification = classify(path)?;
-    if ["docs", "releases", "src/routes"]
+    if ["docs", "releases", "apps/web/src/routes"]
         .iter()
         .any(|prefix| under(path, prefix))
         || path.starts_with("README")
     {
         return Ok(false);
     }
-    if under(path, "src/ui") && path != "src/ui/icons.tsx" {
+    if under(path, "apps/web/src/ui") && path != "apps/web/src/ui/icons.tsx" {
         return Ok(false);
     }
     let excluded: &[&str] = match app {
-        App::Ios => &["android", "verification/android"],
-        App::Android => &["ios", "verification/ios", "tools/ios-check"],
+        App::Ios => &["apps/android", "verification/android"],
+        App::Android => &["apps/ios", "verification/ios", "tools/ios-check"],
     };
     let shared = matches!(
         classification,
@@ -84,7 +86,7 @@ pub fn reads(app: App, path: &str) -> Result<bool> {
     Ok(shared || proof_base || !excluded.iter().any(|prefix| under(path, prefix)))
 }
 
-fn output(program: &str, arguments: &[&str]) -> Result<String> {
+fn output(program: impl AsRef<OsStr>, arguments: &[&str]) -> Result<String> {
     let mut command = Command::new(program);
     command.args(arguments);
     let output = completed(command)?;
@@ -160,7 +162,7 @@ pub fn inputs(root: &Path, app: App, scope: Scope) -> Result<PlatformInputs> {
     ensure!(
         sources
             .keys()
-            .any(|path| path.starts_with(&format!("{}/", app.name()))),
+            .any(|path| path.starts_with(&format!("apps/{}/", app.name()))),
         "No platform source inputs"
     );
     let mut environment = BTreeMap::from([
@@ -191,7 +193,15 @@ pub fn inputs(root: &Path, app: App, scope: Scope) -> Result<PlatformInputs> {
             IOS_COMMANDS.as_slice()
         }
         App::Android => {
-            environment.insert("gradle".to_owned(), output("gradle", &["--version"])?);
+            let wrapper = if cfg!(windows) {
+                "gradlew.bat"
+            } else {
+                "gradlew"
+            };
+            environment.insert(
+                "gradle".to_owned(),
+                output(root.join("apps/android").join(wrapper), &["--version"])?,
+            );
             let sdk = env::var_os("ANDROID_HOME")
                 .or_else(|| env::var_os("ANDROID_SDK_ROOT"))
                 .context("Set ANDROID_HOME for platform evidence")?;
@@ -375,21 +385,24 @@ mod tests {
     #[test]
     fn a_selected_comparison_base_cannot_remove_client_input_validation() -> Result<()> {
         for app in [App::Ios, App::Android] {
-            assert!(!reads(app, "src/ui/search.css")?);
-            assert!(reads(app, "src/server/datasets.ts")?);
+            assert!(!reads(app, "apps/web/src/ui/search.css")?);
+            assert!(reads(app, "apps/web/src/server/datasets.ts")?);
             assert!(reads(
                 app,
-                "ios/Tests/PhonebookCoreTests/SearchContract.json"
+                "apps/ios/Tests/PhonebookCoreTests/SearchContract.json"
             )?);
             assert!(reads(app, "unknown/generator")?);
-            assert!(reads(app, "ios/Sources/PhonebookKit/PlaceReadings.json")?);
             assert!(reads(
                 app,
-                "ios/Tests/PhonebookKitTests/PlaceReadingContract.json"
+                "apps/ios/Sources/PhonebookKit/PlaceReadings.json"
+            )?);
+            assert!(reads(
+                app,
+                "apps/ios/Tests/PhonebookKitTests/PlaceReadingContract.json"
             )?);
         }
-        assert!(!reads(App::Android, "ios/App/Directory.swift")?);
-        assert!(!reads(App::Ios, "android/app/src/Main.kt")?);
+        assert!(!reads(App::Android, "apps/ios/App/Directory.swift")?);
+        assert!(!reads(App::Ios, "apps/android/app/src/Main.kt")?);
         assert!(reads(App::Ios, "tools/android-check/src/main.rs")?);
         assert!(reads(App::Android, "verification/ios/Dockerfile")?);
         assert!(reads(App::Android, "LICENSE-APACHE")?);

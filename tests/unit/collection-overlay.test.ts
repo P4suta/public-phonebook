@@ -1,13 +1,13 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as v from "valibot";
-import { afterEach, expect, it } from "vitest";
-import { ContactSchema } from "../../src/core/models.ts";
 import {
   mergeContacts,
   readCollectionOverlay,
-} from "../../tools/collection/overlay.ts";
+} from "@public-phonebook/data/collection/overlay";
+import { ContactSchema } from "@public-phonebook/directory/models";
+import * as v from "valibot";
+import { afterEach, expect, it } from "vitest";
 
 const roots: string[] = [];
 afterEach(async () => {

@@ -994,11 +994,4 @@ ${jobs}`;
 `),
     ),
   ).toEqual([]);
-  const release = await readFile(".github/workflows/release.yml", "utf8");
-  const guard =
-    "    if: ${{ !cancelled() && needs.evidence.result == 'success' }}\n";
-  expect(release).toContain(guard);
-  expect(rules(release.replace(guard, ""))).toEqual([
-    "skipped-predecessor-unguarded",
-  ]);
 });

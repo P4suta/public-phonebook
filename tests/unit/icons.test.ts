@@ -1,30 +1,30 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { categoryDefinitions } from "@public-phonebook/directory/catalog";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
-import { categoryDefinitions } from "../../src/core/catalog.ts";
-import { foundation } from "../../src/ui/foundations.ts";
+import { foundation } from "../../apps/web/src/ui/foundations.ts";
 import {
   categoryFallbackIcon,
   categoryIcons,
   iconIdPrefix,
   iconNames,
   iconSymbols,
-} from "../../src/ui/icon-catalog.ts";
+} from "../../apps/web/src/ui/icon-catalog.ts";
 import {
   CategoryIcon,
   categoryIcon,
   Icon,
   IconSprite,
-} from "../../src/ui/icons.tsx";
+} from "../../apps/web/src/ui/icons.tsx";
 import {
   type ServiceInformation,
   serviceInformation,
-} from "../../src/ui/service-information.ts";
+} from "../../apps/web/src/ui/service-information.ts";
 
-const nativeScreens = "ios/App";
-const nativeCatalog = "ios/Sources/PhonebookKit/IconCatalog.swift";
+const nativeScreens = "apps/ios/App";
+const nativeCatalog = "apps/ios/Sources/PhonebookKit/IconCatalog.swift";
 const { icon: actionIconSize, categoryIcon: categoryIconSize } =
   foundation.control;
 
@@ -131,10 +131,10 @@ it("defines only the symbols a page names, in the given order", () => {
 it("keeps the unchanged Figma export of each icon beside its notices", async () => {
   for (const name of iconNames)
     expect(
-      await readFile(join("public/icons", `${name}.svg`), "utf8"),
+      await readFile(join("apps/web/public/icons", `${name}.svg`), "utf8"),
       name,
     ).toBe(await readFile(join("design/icons", `${name}.svg`), "utf8"));
-  expect(await readFile("public/icons/LICENSE.txt", "utf8")).toBe(
+  expect(await readFile("apps/web/public/icons/LICENSE.txt", "utf8")).toBe(
     await readFile("design/licenses/Lucide.txt", "utf8"),
   );
 });

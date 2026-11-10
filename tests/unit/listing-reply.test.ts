@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import {
   type ListingReply,
   listingReply,
   type SnapshotAdmission,
-} from "../../src/core/snapshot-policy.ts";
+} from "@public-phonebook/directory/snapshot-policy";
+import { describe, expect, it } from "vitest";
 
 const admissions: readonly SnapshotAdmission[] = [
   "accepted",

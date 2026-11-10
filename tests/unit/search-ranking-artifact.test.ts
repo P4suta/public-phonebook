@@ -1,10 +1,10 @@
-import fc from "fast-check";
-import { describe, expect, it } from "vitest";
 import {
   decodeRankingArtifact,
   encodeRankingArtifact,
   type RankingArtifact,
-} from "../../src/core/search-ranking-artifact.ts";
+} from "@public-phonebook/directory/search-ranking-artifact";
+import fc from "fast-check";
+import { describe, expect, it } from "vitest";
 
 const snapshot = "a".repeat(64);
 const artifact: RankingArtifact = {

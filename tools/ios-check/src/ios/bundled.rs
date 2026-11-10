@@ -16,9 +16,9 @@ use std::{
 };
 
 /// The national dataset that production and verification configurations bundle.
-pub(super) const NATIONAL: &str = "ios/bundled-dataset.json";
+pub(super) const NATIONAL: &str = "apps/ios/bundled-dataset.json";
 /// The provider fixture that development configurations bundle.
-pub(super) const FIXTURE: &str = "ios/bundled-fixture.json";
+pub(super) const FIXTURE: &str = "apps/ios/bundled-fixture.json";
 /// The admitted pairs, one directory for each value of `PHONEBOOK_BUNDLED_DATASET`.
 const OUTPUT: &str = "target/ios/bundled-dataset";
 /// Holds each national dataset under its ready manifest's SHA-256, as `just data-fetch MANIFEST DIRECTORY` writes it.
@@ -435,7 +435,7 @@ fn install(root: &Path, dataset: Dataset, entry: &Entry, archive: &[u8]) -> Resu
                 "swift",
                 "run",
                 "--package-path",
-                "ios",
+                "apps/ios",
                 "--configuration",
                 "release",
                 "--jobs",
@@ -537,7 +537,7 @@ fn compare_search_forms(root: &Path, dataset: Dataset) -> Result<()> {
                 "swift",
                 "run",
                 "--package-path",
-                "ios",
+                "apps/ios",
                 "--configuration",
                 "release",
                 "--jobs",
@@ -664,7 +664,7 @@ mod tests {
             "package",
             "describe",
             "--package-path",
-            "ios",
+            "apps/ios",
             "--type",
             "json",
         ]))?;

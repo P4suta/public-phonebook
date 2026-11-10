@@ -1,9 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { type LocalQuery, matchIndex } from "../../src/core/local-search.ts";
+import {
+  type LocalQuery,
+  matchIndex,
+} from "@public-phonebook/directory/local-search";
 import {
   decodeSearchIndex,
   type SearchIndex,
-} from "../../src/core/search-index.ts";
+} from "@public-phonebook/directory/search-index";
+import { describe, expect, it } from "vitest";
 import {
   performanceBudget,
   performanceLatency,

@@ -1,17 +1,17 @@
 import { createHash } from "node:crypto";
-import * as v from "valibot";
-import { describe, expect, it, vi } from "vitest";
+import { buildRankingArtifact } from "@public-phonebook/data/search-ranking";
 import {
   indexProgressSteps,
   type LocalSearchReply,
   LocalSearchReplySchema,
   type LocalSearchRequest,
-} from "../../src/core/local-search-protocol.ts";
-import { decodeSearchIndex } from "../../src/core/search-index.ts";
-import { encodeRankingArtifact } from "../../src/core/search-ranking-artifact.ts";
-import { createRanking } from "../../src/ui/forgiving-search-loader.ts";
-import { localSearchService } from "../../src/ui/local-search-service.ts";
-import { buildRankingArtifact } from "../../tools/search-ranking.ts";
+} from "@public-phonebook/directory/local-search-protocol";
+import { decodeSearchIndex } from "@public-phonebook/directory/search-index";
+import { encodeRankingArtifact } from "@public-phonebook/directory/search-ranking-artifact";
+import * as v from "valibot";
+import { describe, expect, it, vi } from "vitest";
+import { createRanking } from "../../apps/web/src/ui/forgiving-search-loader.ts";
+import { localSearchService } from "../../apps/web/src/ui/local-search-service.ts";
 import { type ModelContact, modelDirectory } from "./local-search-fixture.ts";
 
 const snapshot = "d".repeat(64);

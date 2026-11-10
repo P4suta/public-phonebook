@@ -1,8 +1,6 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { leaseAdmission } from "../../src/core/publication-policy.ts";
 import {
   acquireLease,
   LeaseRefused,
@@ -10,13 +8,15 @@ import {
   leaseDurationMs,
   leaseRenewalMs,
   withLease,
-} from "../../tools/control-lease.ts";
+} from "@public-phonebook/cloudflare/control-lease";
 import {
   type ControlStore,
   controlKeys,
   fileControlStore,
   readObject,
-} from "../../tools/control-store.ts";
+} from "@public-phonebook/cloudflare/control-store";
+import { leaseAdmission } from "@public-phonebook/directory/publication-policy";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const serverStart = Date.parse("2031-05-06T07:08:09.000Z");
 

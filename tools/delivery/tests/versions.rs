@@ -36,14 +36,17 @@ fn root_generators_bump_apps_and_web_presentation_does_not() -> Result<()> {
     let repo = Repository::new()?;
     let baseline = revision(&repo.root, "HEAD")?;
     for (path, message) in [
-        ("src/ui/search.css", "fix(web): adjust search spacing"),
-        ("ios/App/Search.swift", "fix(ios): optimize search"),
         (
-            "src/core/normalization.ts",
+            "apps/web/src/ui/search.css",
+            "fix(web): adjust search spacing",
+        ),
+        ("apps/ios/App/Search.swift", "fix(ios): optimize search"),
+        (
+            "packages/directory/src/normalization.ts",
             "fix(search): normalize shared readings",
         ),
         (
-            "android/app/src/Search.kt",
+            "apps/android/app/src/Search.kt",
             "feat(android): expose categories",
         ),
     ] {
@@ -68,14 +71,17 @@ fn root_generators_bump_apps_and_web_presentation_does_not() -> Result<()> {
             .collect::<Vec<_>>(),
         [false, false, true, true]
     );
-    repo.write("ios/version.txt", "1.1.0\n")?;
+    repo.write("apps/ios/version.txt", "1.1.0\n")?;
     repo.write("releases/ios/manifest.json", "{\".\":\"1.1.0\"}\n")?;
     repo.commit_as("chore(ios): prepare version 1.1.0")?;
     let next = versions::request(&repo.root, App::Ios)?;
     assert_eq!(next.version, "1.1.0");
     assert_eq!(next.baseline, next.source);
     assert!(next.commits.is_empty());
-    repo.write("src/core/normalization.ts", "another fixture\n")?;
+    repo.write(
+        "packages/directory/src/normalization.ts",
+        "another fixture\n",
+    )?;
     assert!(versions::request(&repo.root, App::Ios).is_err());
     repo.commit_as("fix(search): preserve canonical numbers")?;
     assert_eq!(versions::request(&repo.root, App::Ios)?.commits.len(), 1);
@@ -85,7 +91,7 @@ fn root_generators_bump_apps_and_web_presentation_does_not() -> Result<()> {
 #[test]
 fn merged_preparations_are_acknowledged_without_a_release_or_tag() -> Result<()> {
     let repo = Repository::new()?;
-    repo.write("ios/version.txt", "1.1.0\n")?;
+    repo.write("apps/ios/version.txt", "1.1.0\n")?;
     repo.write("releases/ios/manifest.json", "{\".\":\"1.1.0\"}\n")?;
     repo.commit_as("chore(ios): prepare version 1.1.0")?;
     let source = revision(&repo.root, "HEAD")?;

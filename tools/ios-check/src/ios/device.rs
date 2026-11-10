@@ -31,7 +31,7 @@ const BUNDLE_IDENTIFIER: &str = "page.dial.publicphonebook.devicechecks";
 const QA_DIRECTORY: &str = "target/ios/qa-install";
 const QA_DERIVED_DATA: &str = "target/ios/qa-install/DerivedData";
 const UI_DIRECTORY: &str = "target/ios/device-ui";
-const LOCAL_SIGNING: &str = "ios/Signing.local.xcconfig";
+const LOCAL_SIGNING: &str = "apps/ios/Signing.local.xcconfig";
 const QA_SCHEME: &str = "PublicPhonebookVerification";
 const LISTING_PATH: &str = "/api/datasets";
 const DELTA_LISTING_PREFIX: &str = "/api/dataset-deltas?";
@@ -908,7 +908,7 @@ fn qa_command(root: &Path, device: &Device) -> Command {
     command.current_dir(root).args([
         "-quiet",
         "-project",
-        "ios/PublicPhonebook.xcodeproj",
+        "apps/ios/PublicPhonebook.xcodeproj",
         "-scheme",
         QA_SCHEME,
         "-configuration",
@@ -1104,7 +1104,7 @@ pub(super) fn run(root: &Path, device: &Device, delta: &DeltaInput) -> Result<()
     command.current_dir(root).args([
         "test",
         "-project",
-        "ios/PublicPhonebook.xcodeproj",
+        "apps/ios/PublicPhonebook.xcodeproj",
         "-scheme",
         SCHEME,
         "-configuration",

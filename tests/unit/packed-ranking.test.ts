@@ -1,17 +1,17 @@
-import fc from "fast-check";
-import * as v from "valibot";
-import { describe, expect, it } from "vitest";
-import { unweightedDice } from "../../src/core/forgiving-search-policy.ts";
-import { createRankedSearch } from "../../src/core/local-search.ts";
+import { buildRankingArtifact } from "@public-phonebook/data/search-ranking";
+import { unweightedDice } from "@public-phonebook/directory/forgiving-search-policy";
+import { createRankedSearch } from "@public-phonebook/directory/local-search";
 import {
   encodePackedRanking,
   lazyArray,
-} from "../../src/core/packed-ranking.ts";
-import { packedTrigramDice } from "../../src/core/reading-search.ts";
-import { decodeSearchIndex } from "../../src/core/search-index.ts";
-import { decodeRankingArtifact } from "../../src/core/search-ranking-artifact.ts";
-import { searchGrams } from "../../src/core/search-ranking-text.ts";
-import { buildRankingArtifact } from "../../tools/search-ranking.ts";
+} from "@public-phonebook/directory/packed-ranking";
+import { packedTrigramDice } from "@public-phonebook/directory/reading-search";
+import { decodeSearchIndex } from "@public-phonebook/directory/search-index";
+import { decodeRankingArtifact } from "@public-phonebook/directory/search-ranking-artifact";
+import { searchGrams } from "@public-phonebook/directory/search-ranking-text";
+import fc from "fast-check";
+import * as v from "valibot";
+import { describe, expect, it } from "vitest";
 import { modelDirectory } from "./local-search-fixture.ts";
 
 function fixture(): {

@@ -228,7 +228,7 @@ fn mutant_log(logs: &Path, mutant: &Value) -> Result<String> {
 /// The trimmed text of a planned mutant's source line.
 fn source_line(root: &Path, planned: &Value) -> Option<String> {
     let line = usize::try_from(planned["line"].as_u64()?).ok()?;
-    let source = fs::read_to_string(root.join("ios").join(planned["file"].as_str()?)).ok()?;
+    let source = fs::read_to_string(root.join("apps/ios").join(planned["file"].as_str()?)).ok()?;
     source
         .lines()
         .nth(line.checked_sub(1)?)
@@ -298,7 +298,7 @@ fn declaration_rejection(root: &Path, mutant: &Value, log: &str) -> bool {
     {
         return false;
     }
-    let Ok(source) = fs::read_to_string(root.join("ios").join(file)) else {
+    let Ok(source) = fs::read_to_string(root.join("apps/ios").join(file)) else {
         return false;
     };
     let Some(start) = mutant["utf8Start"]
@@ -631,7 +631,7 @@ fn run_profiles(
             root,
             &format!("mutation-{name}-plan"),
             Command::new("swift-mutation-testing")
-                .current_dir(root.join("ios"))
+                .current_dir(root.join("apps/ios"))
                 .args([
                     "plan",
                     ".",
@@ -655,7 +655,7 @@ fn run_profiles(
             "The mutation plan has an unexpected target or source scope"
         );
         let journal = root
-            .join("ios/.swift-mutation-testing-cache/plans")
+            .join("apps/ios/.swift-mutation-testing-cache/plans")
             .join(format!("{hash}.jsonl"));
         match fs::rename(
             &journal,
@@ -683,7 +683,7 @@ fn run_profiles(
             root,
             &format!("mutation-{name}"),
             Command::new("swift-mutation-testing")
-                .current_dir(root.join("ios"))
+                .current_dir(root.join("apps/ios"))
                 .env("TMPDIR", scratch.path())
                 .args(["run", ".", "--plan"])
                 .arg(&plan_path)
@@ -808,7 +808,7 @@ mod tests {
     #[test]
     fn compiler_rejections_require_the_exact_operator_declaration_and_diagnostic() -> Result<()> {
         let root = tempfile::tempdir()?;
-        let path = root.path().join("ios/Sources/PhonebookCore");
+        let path = root.path().join("apps/ios/Sources/PhonebookCore");
         fs::create_dir_all(&path)?;
         let source =
             "public static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }";
@@ -846,8 +846,8 @@ mod tests {
     #[test]
     fn an_equivalent_entry_explains_exactly_its_own_surviving_mutant() -> Result<()> {
         let root = tempfile::tempdir()?;
-        fs::create_dir_all(root.path().join("ios/Sources"))?;
-        let source = root.path().join("ios/Sources/Example.swift");
+        fs::create_dir_all(root.path().join("apps/ios/Sources"))?;
+        let source = root.path().join("apps/ios/Sources/Example.swift");
         fs::write(&source, "  ready = true\n  done = true\n")?;
         fs::write(
             root.path().join("swift-mutation-testing_1.log"),

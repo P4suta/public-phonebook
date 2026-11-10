@@ -1,7 +1,4 @@
-import * as fc from "fast-check";
-import * as v from "valibot";
-import { describe, expect, it } from "vitest";
-import { ContactSchema } from "../../src/core/models.ts";
+import { ContactSchema } from "@public-phonebook/directory/models";
 import {
   cleanAddress,
   nameTokens,
@@ -9,13 +6,16 @@ import {
   parseSearch,
   rankName,
   searchKey,
-} from "../../src/core/search.ts";
+} from "@public-phonebook/directory/search";
 import {
   canonicalSearchPath,
   hasSearch,
   parseSearchString,
   parseWebSearch,
-} from "../../src/core/web-search.ts";
+} from "@public-phonebook/directory/web-search";
+import * as fc from "fast-check";
+import * as v from "valibot";
+import { describe, expect, it } from "vitest";
 
 describe("search contract", () => {
   it("binds cursors to telephone identities without conflating number-like names", async () => {

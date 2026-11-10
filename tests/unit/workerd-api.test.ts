@@ -1,37 +1,37 @@
 import { createHash } from "node:crypto";
 import { get } from "node:http";
 import { brotliDecompressSync } from "node:zlib";
-import { Miniflare } from "miniflare";
-import * as v from "valibot";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { databaseSchema } from "@public-phonebook/data/database-schema";
+import { compressSearchIndex } from "@public-phonebook/data/search-index";
+import { contactRowNumbers } from "@public-phonebook/data/snapshot";
 import {
   categoryDefinitions,
   prefectureNames,
-} from "../../src/core/catalog.ts";
+} from "@public-phonebook/directory/catalog";
 import {
   datasetFileListing,
   PreparedDatasetManifestSchema,
   SearchIndexLocationSchema,
-} from "../../src/core/dataset-storage.ts";
-import { httpStatus } from "../../src/core/http-status.ts";
-import { normalizeName } from "../../src/core/identity.ts";
+} from "@public-phonebook/directory/dataset-storage";
+import { httpStatus } from "@public-phonebook/directory/http-status";
+import { normalizeName } from "@public-phonebook/directory/identity";
 import {
   CatalogSchema,
   type Contact,
   ContactSchema,
   RowLocationSchema,
-} from "../../src/core/models.ts";
-import { showsAddress } from "../../src/core/search.ts";
+} from "@public-phonebook/directory/models";
+import { showsAddress } from "@public-phonebook/directory/search";
 import {
   decodeSearchIndex,
   encodeSearchIndex,
   searchIndexFile,
   searchIndexRow,
-} from "../../src/core/search-index.ts";
-import { searchForm } from "../../src/core/search-text.ts";
-import { databaseSchema } from "../../tools/database-schema.ts";
-import { compressSearchIndex } from "../../tools/search-index.ts";
-import { contactRowNumbers } from "../../tools/snapshot.ts";
+} from "@public-phonebook/directory/search-index";
+import { searchForm } from "@public-phonebook/directory/search-text";
+import { Miniflare } from "miniflare";
+import * as v from "valibot";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { apiWorkerEntry, bundledApi } from "./workerd-fixture.ts";
 
 const fixtureOrigin = "http://localhost:8787";

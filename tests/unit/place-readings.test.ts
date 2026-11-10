@@ -1,22 +1,29 @@
-import * as v from "valibot";
-import { describe, expect, it } from "vitest";
-import source from "../../ios/Sources/PhonebookKit/PlaceReadings.json" with {
-  type: "json",
-};
-import contract from "../../ios/Tests/PhonebookKitTests/PlaceReadingContract.json" with {
-  type: "json",
-};
 import {
   categoryDefinitions,
   prefectureNames,
-} from "../../src/core/catalog.ts";
+} from "@public-phonebook/directory/catalog";
 import {
   PlaceReadingsSchema,
   readingPlaces,
-} from "../../src/core/place-readings.ts";
-import { searchForm } from "../../src/core/search-text.ts";
+} from "@public-phonebook/directory/place-readings";
+import source from "@public-phonebook/directory/resources/PlaceReadings.json" with {
+  type: "json",
+};
+import { searchForm } from "@public-phonebook/directory/search-text";
+import * as v from "valibot";
+import { describe, expect, it } from "vitest";
+import native from "../../apps/ios/Sources/PhonebookKit/PlaceReadings.json" with {
+  type: "json",
+};
+import contract from "../../apps/ios/Tests/PhonebookKitTests/PlaceReadingContract.json" with {
+  type: "json",
+};
 
 describe("verified place readings", () => {
+  it("keeps the Swift package resource identical to the shared resource", () => {
+    expect(native).toEqual(source);
+  });
+
   it("preserves the shared positives, ambiguities, folding, and exclusions", () => {
     for (const { text, ...expected } of contract)
       expect(readingPlaces(searchForm(text)), text).toEqual(expected);

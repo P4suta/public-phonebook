@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
+import type { LocalSearchReply } from "@public-phonebook/directory/local-search-protocol";
 import { describe, expect, it } from "vitest";
-import type { LocalSearchReply } from "../../src/core/local-search-protocol.ts";
 import {
   fileSearchService,
   type TemporarySearchFiles,
-} from "../../src/ui/file-search-service.ts";
+} from "../../apps/web/src/ui/file-search-service.ts";
 import { MemoryFile } from "./file-search-fixture.ts";
 import { modelDirectory } from "./local-search-fixture.ts";
 

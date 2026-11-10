@@ -4,7 +4,7 @@ import type {
   CandidateStage,
   ExpectedStage,
   RunProvenance,
-} from "../../tools/release-store.ts";
+} from "@public-phonebook/cloudflare/release-store";
 import {
   perStage,
   type StageExpectations,

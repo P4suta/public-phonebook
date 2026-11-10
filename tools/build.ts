@@ -1,8 +1,8 @@
-import { createBuilder } from "vite";
 import {
   deploymentEnvironment,
   type Environment,
-} from "../src/core/environment.ts";
+} from "@public-phonebook/directory/environment";
+import { createBuilder } from "vite";
 
 const commandArgumentOffset = 2;
 
@@ -32,6 +32,7 @@ if (import.meta.main) {
     process.argv.slice(commandArgumentOffset),
   );
   const builder = await createBuilder({
+    root: "apps/web",
     mode: options.mode,
     ...(options.localForgivingSearch
       ? {

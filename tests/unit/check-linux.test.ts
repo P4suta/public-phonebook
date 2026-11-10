@@ -113,7 +113,12 @@ describe("Linux check inventory and outcome", () => {
   });
 
   it("refuses paths that escape the copy", () => {
-    for (const path of ["/etc/passwd", "../outside", "src/../../x", "./a"])
+    for (const path of [
+      "/etc/passwd",
+      "../outside",
+      "apps/web/src/../../x",
+      "./a",
+    ])
       expect(() => inventoryPaths(`ok.ts\0${path}`)).toThrow(
         "Unsafe inventory path",
       );

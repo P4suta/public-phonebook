@@ -8,7 +8,7 @@ use anyhow::{Context, Result, ensure};
 use std::{collections::BTreeSet, fs, path::Path};
 
 /// The privacy manifest that both the app and the Call Directory extension carry.
-const MANIFEST: &str = "ios/Config/PrivacyInfo.xcprivacy";
+const MANIFEST: &str = "apps/ios/Config/PrivacyInfo.xcprivacy";
 
 /// Each category with the API names that it covers and the reasons that an app may declare.
 /// `attributesOfItem` isn't on Apple's list, and it stays here because its result carries the file timestamp keys.
@@ -208,7 +208,7 @@ pub(super) fn check(root: &Path) -> Result<()> {
 mod tests {
     use super::*;
 
-    const DEFAULTS_ONLY: &str = include_str!("../../../../ios/Config/PrivacyInfo.xcprivacy");
+    const DEFAULTS_ONLY: &str = include_str!("../../../../apps/ios/Config/PrivacyInfo.xcprivacy");
 
     fn source(text: &str) -> Vec<(String, String)> {
         vec![("a.swift".to_owned(), text.to_owned())]

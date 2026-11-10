@@ -156,7 +156,6 @@ dependencies = [
  "anyhow",
  "clap",
  "delivery-core",
- "getrandom",
  "serde",
  "serde_json",
  "sha2",

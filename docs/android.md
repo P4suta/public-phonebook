@@ -13,6 +13,10 @@ Search terms and incoming numbers stay on the device.
 Install the versions in `mise.toml` and set `ANDROID_HOME` to the Android SDK directory.
 The build uses Java Development Kit (JDK) 21.
 Gradle `9.8.2` runs Android Gradle plugin `9.3.3`.
+All builds use the committed [Gradle Wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html).
+The Wrapper verifies the distribution checksum, and CI validates the Wrapper JAR through Gradle's official setup action.
+The action uses GitHub's basic cache without publishing Build Scans or dependency graphs.
+Gradle reads app versions through its file and environment providers instead of starting Cargo during configuration.
 Kotlin and Compose Compiler both use version `2.4.10`.
 Production and test coroutines both use version `1.11.0`.
 
@@ -22,7 +26,7 @@ The [plugin compatibility matrix](https://developer.android.com/build/releases/a
 Install `platforms;android-37.0` revision 2 and `build-tools;36.0.0` with the Android SDK tools.
 The SDK platform package name includes `.0`.
 Workflows install both packages through `.github/actions/android-sdk`, which calls `sdkmanager` under `ANDROID_HOME` because hosted runners keep it off `PATH`.
-Dependency locks and `android/gradle/verification-metadata.xml` bind dependency versions and SHA-256 checksums.
+Dependency locks and `apps/android/gradle/verification-metadata.xml` bind dependency versions and SHA-256 checksums.
 
 ```console
 mise install
@@ -82,13 +86,13 @@ An update writes a new directory, validates every row and dictionary reference, 
 It builds phone and full-text search indexes and checks SQLite integrity.
 Only then does `AtomicFile` replace one pointer containing the current and preceding generation names.
 Every candidate gets a unique directory name, including a repeat of an earlier dataset identity.
-Activation is marked uncertain before the rename and pointer write.
+The repository marks activation uncertain before the rename and pointer write.
 After a write error, the repository reads the pointer under the same exclusive lock and uses its observed value to determine whether activation committed.
 Uncertainty permits either the old or the new complete generation and never implies that a write failed to commit.
 Uncertain candidates and both referenced generations stay on disk, and failed cleanup retries during the next preparation.
 Android's [AtomicFile contract](https://developer.android.com/reference/android/util/AtomicFile) supplies integrity but no mutual exclusion, so the repository owns the read/write lock.
 
-Strict [JsonReader](https://developer.android.com/reference/android/util/JsonReader) validation runs before any JSON object is built from external bytes.
+Strict [JsonReader](https://developer.android.com/reference/android/util/JsonReader) validation runs before the adapter builds any JSON object from external bytes.
 It requires one complete object, rejects duplicate keys, malformed UTF-8, trailing values, and nonstandard syntax, and bounds nesting before descending.
 
 Search uses FTS4 unigrams and bigrams to narrow candidates, then requires every normalized word with exact substring predicates.
@@ -118,13 +122,14 @@ Preparation and refresh preserve an active composition.
 The device UI test drives the real input connection through composition and commit before checking results.
 
 A transfer starts only on an unmetered connection without Data Saver restrictions.
-Partial files persist under their expected digest, and a resume requires the exact `Content-Range`.
-A complete response restarts the file, a failed delta falls back to the complete archive, and a completed file with a failed digest is discarded.
+Partial files persist under their expected digest, and a resumed transfer requires the exact `Content-Range`.
+A complete response restarts the file, and a failed delta falls back to the complete archive.
+The repository discards a completed file with a failed digest.
 The next listing check is eligible 24 hours after the preceding response, and [WorkManager](https://developer.android.com/develop/background-work/background-tasks/persistent) supplies persistent scheduling rather than an exact time.
 
 Call screening always returns a response whose blocking, rejection, silencing, and log-skipping fields are false.
-An independent one-second response is scheduled before local lookup starts.
-A timely name display completes before the response when lookup succeeds, and every other result responds from `finally` with an atomic guard against duplicates.
+The service schedules an independent one-second response before local lookup starts.
+A timely name display completes before the response when lookup succeeds, and every other result responds from `finally` with an atomic guard that prevents duplicates.
 The [CallScreeningService contract](https://developer.android.com/reference/android/telecom/CallScreeningService) sets a five-second deadline, and the one-second budget leaves scheduling margin.
 Actual delivery time and lock-screen behavior remain device observations.
 
@@ -277,7 +282,7 @@ mise x -- just android-distribution BUILD_NUMBER
 The distribution command verifies the production release checks and builds an installable package and Android App Bundle (AAB).
 Replace `BUILD_NUMBER` with the allocated positive version code.
 For a preserved CI candidate, use the [Android handoff](delivery.md#android-handoff) and `just android-sign BUILD_NUMBER` to sign the original unsigned bytes.
-The canonical display version comes from `android/version.txt` through the checked Rust command, and the build refuses invalid display versions or version codes.
+The canonical display version comes from `apps/android/version.txt` through the checked Rust command, and the build refuses invalid display versions or version codes.
 The command requires a current `android-release-check` receipt for both emulator API levels and the exact verification packages.
 It verifies both signatures, exports the public signing certificate, and records final byte lengths and SHA-256 digests under `target/android/distribution/`.
 Keep the manifest, signature reports, certificate, proof receipt, device receipts, and dependency inventory with the exact candidate.
@@ -307,8 +312,8 @@ Directory updates download automatically on an unmetered connection without Data
 Facility information may change.
 Check the source and retrieval date in each facility's details.”
 
-Use the verified candidate's screenshots and the icon and feature graphic in `android/store/`.
-The [candidate record](../android/store/candidate.json) identifies the signed packages and the production screenshots.
+Use the verified candidate's screenshots and the icon and feature graphic in `apps/android/store/`.
+The [candidate record](../apps/android/store/candidate.json) identifies the signed packages and the production screenshots.
 The support email already published by the service is `support@dial.page`.
 The service privacy-policy URL is `https://www.dial.page/privacy`.
 Publish the Android privacy disclosure on the website before store submission.

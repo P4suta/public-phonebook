@@ -1,5 +1,4 @@
 name: Configuration operations
-run-name: Delivery ${{ inputs.operation }} ${{ inputs.request }}
 
 on:
   workflow_dispatch:
@@ -9,34 +8,6 @@ on:
         type: choice
         options: [cloudflare-alerts-preview, cloudflare-alerts-apply, monitors-preview, monitors-apply]
         required: true
-      source:
-        description: Exact protected main candidate commit
-        type: string
-        required: true
-      controller:
-        description: Exact protected main controller commit
-        type: string
-        required: true
-      plan:
-        description: Saved delivery plan digest
-        type: string
-        required: true
-      request:
-        description: Saved delivery request identity
-        type: string
-        required: true
-      base:
-        description: Explicit comparison commit
-        type: string
-        default: ""
-      targets:
-        description: Explicit target selection, or empty for suggestions
-        type: string
-        default: ""
-      dataset:
-        description: Optional immutable Worker dataset dependency
-        type: string
-        default: ""
 
 permissions: {}
 
@@ -45,29 +16,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  delivery-checks:
-    name: Dependency checks
+  verify:
+    name: Configuration checks
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
     permissions:
       contents: read
-    uses: ./.github/workflows/delivery-checks.yml # zizmor: ignore[self-repository] actionlint 1.7.12 can't read a `$/` reusable workflow call.
-    with:
-      operation: ${{ inputs.operation }}
-      source: ${{ inputs.source }}
-      controller: ${{ inputs.controller }}
-      plan: ${{ inputs.plan }}
-      request: ${{ inputs.request }}
-      base: ${{ inputs.base }}
-      targets: ${{ inputs.targets }}
-      dataset: ${{ inputs.dataset }}
+    env:
+      MISE_AUTO_INSTALL: "false"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/toolchain
+        with:
+          tools: node just biome actionlint zizmor gitleaks
+      - run: mise x -- just check
   preview:
     name: Read the provider and preserve the preview
-    needs: [delivery-checks]
+    needs: [verify]
     runs-on: ubuntu-26.04
     environment: operations-preview
     timeout-minutes: 15
     permissions:
       contents: read
       id-token: write # Fetches the read-only configuration tokens for the preview.
+    env:
+      MISE_AUTO_INSTALL: "false"
     steps:
       - name: Require the main branch
         run: test "$GITHUB_REF" = refs/heads/main
@@ -116,6 +91,8 @@ jobs:
     permissions:
       contents: read
       id-token: write # Fetches the write-capable configuration tokens after preview approval.
+    env:
+      MISE_AUTO_INSTALL: "false"
     steps:
       - name: Require the main branch
         run: test "$GITHUB_REF" = refs/heads/main

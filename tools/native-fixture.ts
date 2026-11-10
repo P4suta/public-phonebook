@@ -5,15 +5,15 @@ import {
   type ServerResponse,
 } from "node:http";
 import { dirname } from "node:path";
-import * as v from "valibot";
 import {
   DatasetFileListingSchema,
   DirectoryDeltaListingSchema,
   datasetListingPath,
   SearchIndexLocationSchema,
   SearchRankingLocationSchema,
-} from "../src/core/dataset-storage.ts";
-import { directoryArchiveFormat } from "../src/core/directory-archive.ts";
+} from "@public-phonebook/directory/dataset-storage";
+import { directoryArchiveFormat } from "@public-phonebook/directory/directory-archive";
+import * as v from "valibot";
 import {
   contractOrigin,
   directoryFixture,
@@ -26,7 +26,8 @@ const loopbackHostnames = [listenHostname, "localhost"];
 const httpOk = 200;
 const httpServerError = 500;
 const commandArgumentOffset = 2;
-const corpusDestination = "ios/Tests/PhonebookKitTests/DirectoryContract.json";
+const corpusDestination =
+  "apps/ios/Tests/PhonebookKitTests/DirectoryContract.json";
 const forwardedHeaders = ["range", "if-range", "if-none-match"] as const;
 const highestPort = 65_535;
 

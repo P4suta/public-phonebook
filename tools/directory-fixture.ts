@@ -3,26 +3,42 @@ import { createReadStream } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { createGunzip, gzipSync } from "node:zlib";
-import { Miniflare } from "miniflare";
-import * as v from "valibot";
-import { categoryDefinitions, prefectureNames } from "../src/core/catalog.ts";
+import {
+  insertStatements,
+  type SqlStatement,
+} from "@public-phonebook/cloudflare/remote-statements";
+import { databaseSchema } from "@public-phonebook/data/database-schema";
+import {
+  requireDirectoryText,
+  sha256Digest,
+} from "@public-phonebook/data/directory-delta";
+import { compressSearchIndex } from "@public-phonebook/data/search-index";
+import { buildRankingArtifact } from "@public-phonebook/data/search-ranking";
+import {
+  compressDirectoryArchive,
+  contactRowNumbers,
+} from "@public-phonebook/data/snapshot";
+import {
+  categoryDefinitions,
+  prefectureNames,
+} from "@public-phonebook/directory/catalog";
 import {
   DatasetFileListingSchema,
   type DirectoryDeltaArtifact,
   datasetListingPath,
   PreparedDatasetManifestSchema,
-} from "../src/core/dataset-storage.ts";
+} from "@public-phonebook/directory/dataset-storage";
 import {
   type DirectoryArchiveSource,
   directoryArchiveEncoder,
   directoryArchiveFile,
   encodeDirectoryArchive,
-} from "../src/core/directory-archive.ts";
+} from "@public-phonebook/directory/directory-archive";
 import {
   applyDirectoryDelta,
   directoryDeltaFile,
   encodeDirectoryDelta,
-} from "../src/core/directory-delta.ts";
+} from "@public-phonebook/directory/directory-delta";
 import {
   type Catalog,
   CatalogSchema,
@@ -30,24 +46,24 @@ import {
   ContactSchema,
   type Source,
   SourceSchema,
-} from "../src/core/models.ts";
-import { nameTokens, normalizeName, showsAddress } from "../src/core/search.ts";
+} from "@public-phonebook/directory/models";
+import {
+  nameTokens,
+  normalizeName,
+  showsAddress,
+} from "@public-phonebook/directory/search";
 import {
   decodeSearchIndex,
   encodeSearchIndex,
   searchIndexFile,
   searchIndexRow,
-} from "../src/core/search-index.ts";
-import { encodeRankingArtifact } from "../src/core/search-ranking-artifact.ts";
-import { searchForm } from "../src/core/search-text.ts";
-import { contactVCard } from "../src/core/vcard.ts";
-import { api, type DirectoryApiBindings } from "../src/server/api.ts";
-import { databaseSchema } from "./database-schema.ts";
-import { requireDirectoryText, sha256Digest } from "./directory-delta.ts";
-import { insertStatements, type SqlStatement } from "./remote-statements.ts";
-import { compressSearchIndex } from "./search-index.ts";
-import { buildRankingArtifact } from "./search-ranking.ts";
-import { compressDirectoryArchive, contactRowNumbers } from "./snapshot.ts";
+} from "@public-phonebook/directory/search-index";
+import { encodeRankingArtifact } from "@public-phonebook/directory/search-ranking-artifact";
+import { searchForm } from "@public-phonebook/directory/search-text";
+import { contactVCard } from "@public-phonebook/directory/vcard";
+import { Miniflare } from "miniflare";
+import * as v from "valibot";
+import { api, type DirectoryApiBindings } from "../apps/web/src/server/api.ts";
 
 export const contractOrigin = "https://contract.example";
 export const fixturePort = 3100;

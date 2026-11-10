@@ -10,7 +10,7 @@ Proposed.
 
 ## Context
 
-The core mutation profile mutates every file under `ios/Sources/PhonebookCore` and runs `PhonebookCoreTests` on each mutant.
+The core mutation profile mutates every file under `apps/ios/Sources/PhonebookCore` and runs `PhonebookCoreTests` on each mutant.
 The forgiving ranking files sat in that directory, while their tests ran in `PhonebookKitTests`.
 TestFlight run 42098932498 stopped on 485 uncovered ranking mutants.
 [Forgiving search ships only in QA builds](keep-forgiving-search-in-qa-and-local-development.md).

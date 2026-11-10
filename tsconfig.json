@@ -17,12 +17,16 @@
     "skipLibCheck": true
   },
   "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
+    "apps/web/src/**/*.ts",
+    "apps/web/src/**/*.tsx",
+    "apps/web/*.ts",
+    "packages/**/*.ts",
+    "data/**/*.ts",
+    "infrastructure/**/*.ts",
     "tools/**/*.ts",
     "tests/unit/**/*.ts",
     "tests/unit/**/*.tsx",
-    "tests/browser/**/*.ts",
+    "apps/web/tests/browser/**/*.ts",
     "*.ts"
   ]
 }

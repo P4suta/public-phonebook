@@ -32,7 +32,7 @@ fn actual_commands_refuse_invalid_store_numbers_and_source_versions() -> Result<
     ] {
         assert!(!invoke(&repo, &arguments)?.status.success());
     }
-    repo.write("ios/version.txt", "1.0.0\n2.0.0\n")?;
+    repo.write("apps/ios/version.txt", "1.0.0\n2.0.0\n")?;
     assert!(!invoke(&repo, &["version", "ios"])?.status.success());
     assert!(
         !invoke(&repo, &["admit", &"a".repeat(64), &"b".repeat(64)])?
@@ -48,65 +48,18 @@ fn actual_commands_refuse_invalid_store_numbers_and_source_versions() -> Result<
 }
 
 #[test]
-fn actual_workflow_gate_rejects_failure_cancellation_and_unexpected_skips() -> Result<()> {
+fn retired_publication_plans_are_not_cli_operations() -> Result<()> {
     let repo = Repository::new()?;
-    let arguments = [
+    for command in [
+        "plan",
+        "verify",
+        "dispatch",
+        "status",
+        "dataset",
+        "controller",
         "gate",
-        "--operation",
-        "monitors-apply",
-        "--plan",
-        "success",
-        "--fast",
-        "success",
-        "--proofs",
-        "success",
-        "--worker",
-        "success",
-        "--ios",
-        "success",
-        "--android",
-        "success",
-        "--worker-required",
-        "true",
-        "--ios-required",
-        "true",
-        "--android-required",
-        "true",
-    ];
-    assert!(invoke(&repo, &arguments)?.status.success());
-    for index in [4, 6, 8, 10, 12, 14] {
-        for result in ["failure", "cancelled", "skipped"] {
-            let mut changed = arguments;
-            changed[index] = result;
-            assert!(!invoke(&repo, &changed)?.status.success());
-        }
+    ] {
+        assert!(!invoke(&repo, &[command, "--help"])?.status.success());
     }
-    let version = [
-        "gate",
-        "--operation",
-        "version-ios",
-        "--plan",
-        "success",
-        "--fast",
-        "success",
-        "--proofs",
-        "skipped",
-        "--worker",
-        "skipped",
-        "--ios",
-        "skipped",
-        "--android",
-        "skipped",
-        "--worker-required",
-        "true",
-        "--ios-required",
-        "true",
-        "--android-required",
-        "true",
-    ];
-    assert!(invoke(&repo, &version)?.status.success());
-    let mut unexpected = version;
-    unexpected[8] = "success";
-    assert!(!invoke(&repo, &unexpected)?.status.success());
     Ok(())
 }

@@ -1,16 +1,16 @@
-import { describe, expect, it } from "vitest";
 import {
   alertPlanLines,
   applyAlerts,
   type PolicyPort,
-} from "../../tools/cloudflare-alerts.ts";
+} from "@public-phonebook/cloudflare/cloudflare-alerts";
 import {
   type AlertPolicy,
   alertPlan,
   alertPolicies,
   type ExistingPolicy,
   managedPrefix,
-} from "../../tools/cloudflare-alerts-plan.ts";
+} from "@public-phonebook/cloudflare/cloudflare-alerts-plan";
+import { describe, expect, it } from "vitest";
 
 const email = "owner@example.test";
 

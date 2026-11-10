@@ -1,0 +1,38 @@
+{
+  "background_color": "#ffffff",
+  "description": "施設の電話番号をさがせます。",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any",
+      "sizes": "192x192",
+      "src": "/app-icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "192x192",
+      "src": "/app-icon-maskable-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any",
+      "sizes": "512x512",
+      "src": "/app-icon-512.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "512x512",
+      "src": "/app-icon-maskable-512.png",
+      "type": "image/png"
+    }
+  ],
+  "id": "/",
+  "lang": "ja",
+  "name": "Public Phonebook",
+  "scope": "/",
+  "short_name": "Public Phonebook",
+  "start_url": "/",
+  "theme_color": "#ffffff"
+}

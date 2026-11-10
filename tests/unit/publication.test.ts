@@ -2,12 +2,21 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { Miniflare } from "miniflare";
-import * as v from "valibot";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { PreparedDatasetManifestSchema } from "../../src/core/dataset-storage.ts";
-import { databaseResourceName } from "../../src/core/environment.ts";
-import type { DatasetManifest } from "../../src/core/models.ts";
+import {
+  importIdentity,
+  importTransformation,
+} from "@public-phonebook/cloudflare/import-identity";
+import type { SqlPort } from "@public-phonebook/cloudflare/remote-statements";
+import { insertStatements } from "@public-phonebook/cloudflare/remote-statements";
+import {
+  checkImportIdentity,
+  copyStage,
+  seedDatabase,
+  type VerificationFacts,
+} from "@public-phonebook/cloudflare/seed-database";
+import { PreparedDatasetManifestSchema } from "@public-phonebook/directory/dataset-storage";
+import { databaseResourceName } from "@public-phonebook/directory/environment";
+import type { DatasetManifest } from "@public-phonebook/directory/models";
 import {
   type DatabaseVerification,
   databaseVerification,
@@ -15,20 +24,11 @@ import {
   promotionAdmission,
   targetBinding,
   withdrawalDecision,
-} from "../../src/core/publication-policy.ts";
+} from "@public-phonebook/directory/publication-policy";
+import { Miniflare } from "miniflare";
+import * as v from "valibot";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { writeCheckFixture } from "../../tools/check-fixture.ts";
-import {
-  importIdentity,
-  importTransformation,
-} from "../../tools/import-identity.ts";
-import type { SqlPort } from "../../tools/remote-statements.ts";
-import { insertStatements } from "../../tools/remote-statements.ts";
-import {
-  checkImportIdentity,
-  copyStage,
-  seedDatabase,
-  type VerificationFacts,
-} from "../../tools/seed-database.ts";
 
 it("isolates remote database publications and rejects unbound deployment identities", () => {
   const identity = "a".repeat(64);

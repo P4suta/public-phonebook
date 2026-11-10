@@ -1,15 +1,15 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   overloadAttempts,
   overloaded,
   type RemoteSqlOptions,
   readOnlyBatch,
   remoteSql,
-} from "../../tools/cloudflare.ts";
-import type { SqlStatement } from "../../tools/remote-statements.ts";
+} from "@public-phonebook/cloudflare/cloudflare";
+import type { SqlStatement } from "@public-phonebook/cloudflare/remote-statements";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const overload = new Error(
   "Cloudflare d1 query db failed: [7429] D1 DB is overloaded. Too many resources consumed within a 10 second window",

@@ -1,8 +1,8 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ArtifactStore } from "@public-phonebook/data/collection/artifacts";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ArtifactStore } from "../../tools/collection/artifacts.ts";
 
 const roots: string[] = [];
 async function cache(): Promise<string> {

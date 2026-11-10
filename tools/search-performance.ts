@@ -15,30 +15,30 @@ import {
   type Page,
   webkit,
 } from "@playwright/test";
-import * as v from "valibot";
-import { PreparedDatasetManifestSchema } from "../src/core/dataset-storage.ts";
+import {
+  type RankingContract,
+  RankingContractSchema,
+} from "@public-phonebook/data/search-ranking-contract";
+import { fileDigest } from "@public-phonebook/data/snapshot";
+import { PreparedDatasetManifestSchema } from "@public-phonebook/directory/dataset-storage";
 import {
   type LocalMatches,
   type LocalQuery,
   localQuery,
   matchIndex,
-} from "../src/core/local-search.ts";
+} from "@public-phonebook/directory/local-search";
 import {
   decodeLiteralSearchIndex,
   decodeSearchIndex,
   type SearchIndex,
   searchIndexFile,
-} from "../src/core/search-index.ts";
-import { decodeRankingArtifact } from "../src/core/search-ranking-artifact.ts";
+} from "@public-phonebook/directory/search-index";
+import { decodeRankingArtifact } from "@public-phonebook/directory/search-ranking-artifact";
+import * as v from "valibot";
 import { serveBuiltWorker } from "./built-worker-server.ts";
 import { developmentHost } from "./local-data.ts";
 import { prepareMeter, requireCommand } from "./process.ts";
 import { parityQueries } from "./search-parity.ts";
-import {
-  type RankingContract,
-  RankingContractSchema,
-} from "./search-ranking-contract.ts";
-import { fileDigest } from "./snapshot.ts";
 
 const commandArgumentOffset = 2;
 const defaultState = ".local/state";

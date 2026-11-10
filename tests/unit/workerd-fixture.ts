@@ -13,7 +13,7 @@ export async function bundledApi(): Promise<string> {
     resolve: { conditions: ["workerd", "worker", "browser", "import"] },
     build: {
       write: false,
-      ssr: "src/server/api.ts",
+      ssr: "apps/web/src/server/api.ts",
       minify: false,
       rollupOptions: { output: { format: "es", codeSplitting: false } },
     },

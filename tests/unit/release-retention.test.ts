@@ -1,12 +1,12 @@
-import { describe, expect, it } from "vitest";
 import type {
   ReleaseJournal,
   ReleaseTarget,
-} from "../../tools/release-lifecycle.ts";
+} from "@public-phonebook/cloudflare/release-lifecycle";
 import {
   databaseRetention,
   latestPerRelease,
-} from "../../tools/release-retention.ts";
+} from "@public-phonebook/cloudflare/release-retention";
+import { describe, expect, it } from "vitest";
 
 function target(version: string): ReleaseTarget {
   return {

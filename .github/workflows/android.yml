@@ -1,42 +1,7 @@
 name: Android candidate
-run-name: Delivery ${{ inputs.operation }} ${{ inputs.request }}
 
 on:
   workflow_dispatch:
-    inputs:
-      operation:
-        description: Prepare unsigned Android artifacts
-        type: choice
-        options: [android-artifacts]
-        default: android-artifacts
-      source:
-        description: Exact protected main candidate commit
-        type: string
-        required: true
-      controller:
-        description: Exact protected main controller commit
-        type: string
-        required: true
-      plan:
-        description: Saved delivery plan digest
-        type: string
-        required: true
-      request:
-        description: Saved delivery request identity
-        type: string
-        required: true
-      base:
-        description: Explicit comparison commit
-        type: string
-        default: ""
-      targets:
-        description: Explicit target selection, or empty for suggestions
-        type: string
-        default: ""
-      dataset:
-        description: Optional immutable Worker dataset dependency
-        type: string
-        default: ""
 
 permissions: {}
 
@@ -45,34 +10,71 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  delivery-checks:
-    name: Dependency checks
-    permissions:
-      contents: read
-    uses: ./.github/workflows/delivery-checks.yml # zizmor: ignore[self-repository] actionlint 1.7.12 can't read a `$/` reusable workflow call.
-    with:
-      operation: ${{ inputs.operation }}
-      source: ${{ inputs.source }}
-      controller: ${{ inputs.controller }}
-      plan: ${{ inputs.plan }}
-      request: ${{ inputs.request }}
-      base: ${{ inputs.base }}
-      targets: ${{ inputs.targets }}
-      dataset: ${{ inputs.dataset }}
-  native:
-    name: Android assurance
-    needs: [delivery-checks]
+  fast:
+    name: Repository checks
     runs-on: ubuntu-26.04
-    timeout-minutes: 45
+    timeout-minutes: 25
     permissions:
       contents: read
     env:
+      MISE_AUTO_INSTALL: "false"
       CARGO_BUILD_JOBS: "2"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
+        with:
+          tools: rust node just biome actionlint zizmor gitleaks github:rustsec/rustsec
+      - run: mise x -- just check
+      - run: mise x -- just check-rust
+  proofs:
+    name: Formal assurance
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      MISE_AUTO_INSTALL: "false"
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/toolchain
+        with:
+          tools: rust just
+          dependencies: "false"
+      - run: mise x -- just delivery-prove
+      - run: mise x -- just android-prove
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: delivery-proof
+          path: target/delivery/proof
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: android-proof
+          path: target/android/proof
+          if-no-files-found: error
+          retention-days: 7
+  native:
+    name: Android assurance
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      MISE_AUTO_INSTALL: "false"
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/toolchain
+        with:
+          tools: rust node just java
       - uses: $/.github/actions/android-sdk
       - run: mise x -- just android-check
       - run: mise x -- just android-mutate
@@ -85,7 +87,7 @@ jobs:
           overwrite: true
   candidate:
     name: Preserve unsigned production artifacts
-    needs: [delivery-checks, native]
+    needs: [fast, proofs, native]
     runs-on: ubuntu-26.04
     environment: candidate
     timeout-minutes: 30
@@ -94,6 +96,7 @@ jobs:
       id-token: write # Attests the unsigned candidate without fetching an upload key.
       attestations: write # Records provenance for the candidate artifacts.
     env:
+      MISE_AUTO_INSTALL: "false"
       CARGO_BUILD_JOBS: "2"
     steps:
       - name: Require the main branch
@@ -102,6 +105,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: $/.github/actions/toolchain
+        with:
+          tools: rust node just java
       - uses: $/.github/actions/android-sdk
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:

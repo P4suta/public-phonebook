@@ -56,7 +56,7 @@ struct Proposal {
 
 pub fn version_input(app: App, path: &str) -> Result<bool> {
     let classification = crate::repository::classify(path)?;
-    let own = path.starts_with(&format!("{}/", app.name()));
+    let own = path.starts_with(&format!("apps/{}/", app.name()));
     let other = match app {
         App::Ios => ["tools/android-check/", "verification/android/"],
         App::Android => ["tools/ios-check/", "verification/ios/"],
@@ -91,7 +91,7 @@ pub fn request(root: &Path, app: App) -> Result<VersionRequest> {
                 "--format=%H",
                 source.as_str(),
                 "--",
-                &format!("{}/version.txt", app.name()),
+                &format!("apps/{}/version.txt", app.name()),
             ],
         )?
         .trim()
@@ -235,24 +235,27 @@ mod tests {
     #[test]
     fn app_version_inputs_keep_web_presentation_and_server_publication_independent() -> Result<()> {
         for app in [App::Ios, App::Android] {
-            assert!(!version_input(app, "src/ui/search.css")?);
+            assert!(!version_input(app, "apps/web/src/ui/search.css")?);
             assert!(!version_input(app, "wrangler.jsonc")?);
-            assert!(!version_input(app, "src/server/datasets.ts")?);
-            assert!(version_input(app, "src/core/kanji-variants.ts")?);
+            assert!(!version_input(app, "apps/web/src/server/datasets.ts")?);
             assert!(version_input(
                 app,
-                "ios/Sources/PhonebookKit/PlaceReadings.json"
+                "packages/directory/src/kanji-variants.ts"
             )?);
             assert!(version_input(
                 app,
-                "ios/Tests/PhonebookKitTests/PlaceReadingContract.json"
+                "apps/ios/Sources/PhonebookKit/PlaceReadings.json"
+            )?);
+            assert!(version_input(
+                app,
+                "apps/ios/Tests/PhonebookKitTests/PlaceReadingContract.json"
             )?);
             assert!(version_input(app, "unclassified/generator.rs")?);
         }
-        assert!(version_input(App::Ios, "ios/App/Main.swift")?);
-        assert!(!version_input(App::Android, "ios/App/Main.swift")?);
-        assert!(version_input(App::Android, "android/app/src/Main.kt")?);
-        assert!(!version_input(App::Ios, "android/app/src/Main.kt")?);
+        assert!(version_input(App::Ios, "apps/ios/App/Main.swift")?);
+        assert!(!version_input(App::Android, "apps/ios/App/Main.swift")?);
+        assert!(version_input(App::Android, "apps/android/app/src/Main.kt")?);
+        assert!(!version_input(App::Ios, "apps/android/app/src/Main.kt")?);
         Ok(())
     }
 }

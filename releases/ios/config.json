@@ -7,12 +7,12 @@
       "release-type": "simple",
       "component": "ios",
       "include-component-in-tag": true,
-      "version-file": "ios/version.txt",
-      "changelog-path": "ios/CHANGELOG.md",
+      "version-file": "apps/ios/version.txt",
+      "changelog-path": "apps/ios/CHANGELOG.md",
       "extra-files": [
         {
           "type": "json",
-          "path": "ios/AppStore/metadata.json",
+          "path": "apps/ios/AppStore/metadata.json",
           "jsonpath": "$.version"
         }
       ]

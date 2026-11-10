@@ -9,7 +9,7 @@ dev-forgiving port="8787":
     node tools/built-worker-server.ts --local-forgiving-search --port {{ quote(port) }}
 
 build environment="development":
-    npm run build -- {{ quote(environment) }}
+    npm run build --workspace @public-phonebook/web -- --mode {{ quote(environment) }}
 
 data-prepare source output collection="" delta_bases="":
     npm run data -- prepare {{ quote(source) }} {{ quote(output) }} {{ quote(collection) }} {{ if delta_bases == "" { "" } else { "--delta-base-root " + quote(delta_bases) } }}
@@ -18,22 +18,25 @@ data-prepare-forgiving source output collection="":
     npm run data -- prepare {{ quote(source) }} {{ quote(output) }} {{ quote(collection) }} --forgiving-search
 
 search-quality-forgiving bundle report=".local/search-quality.json":
-    node tools/search-ranking-contract.ts quality {{ quote(bundle) }} {{ quote(report) }}
+    node data/src/search-ranking-contract.ts quality {{ quote(bundle) }} {{ quote(report) }}
 
 data-collect output:
-    node tools/collect.ts run sources/public-facilities.json --output {{ quote(output) }}
+    node data/src/collect.ts run data/sources/public-facilities.json --output {{ quote(output) }}
 
 data-replay output:
-    node tools/collect.ts run sources/public-facilities.json --output {{ quote(output) }} --offline
+    node data/src/collect.ts run data/sources/public-facilities.json --output {{ quote(output) }} --offline
 
 data-discover output:
-    node tools/collect.ts catalog sources/contact-directories.json --output {{ quote(output) }}
+    node data/src/collect.ts catalog data/sources/contact-directories.json --output {{ quote(output) }}
 
 data-local bundle:
     npm run data:local -- {{ quote(bundle) }}
 
 data-check bundle:
     npm run data:check -- {{ quote(bundle) }}
+
+sync-place-readings:
+    cp packages/directory/resources/PlaceReadings.json apps/ios/Sources/PhonebookKit/PlaceReadings.json
 
 phone-quality bundle report:
     npm run data:phones -- {{ quote(bundle) }} {{ quote(report) }}
@@ -92,7 +95,7 @@ android-prepare build_number:
 
 [positional-arguments]
 test *args:
-    node tools/test.ts "$@"
+    npm test -- "$@"
 
 typecheck:
     npm run typecheck
@@ -186,43 +189,31 @@ ios-qa-install *args:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- qa-install "$@"
 
 data-remote environment bundle:
-    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --only-secrets R2_ACCESS_KEY_ID --only-secrets R2_SECRET_ACCESS_KEY --no-fallback -- npm run data:remote -- {{ quote(environment) }} {{ quote(bundle) }}
+    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_API_TOKEN --only-secrets CLOUDFLARE_ACCOUNT_ID --only-secrets R2_ACCESS_KEY_ID --only-secrets R2_SECRET_ACCESS_KEY --no-fallback -- npm run data:remote -- {{ quote(environment) }} {{ quote(bundle) }}
 
 data-fetch dataset directory:
     doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --only-secrets R2_ACCESS_KEY_ID --only-secrets R2_SECRET_ACCESS_KEY --no-fallback -- npm run data:remote -- --fetch {{ quote(dataset) }} {{ quote(directory) }}
 
-publish environment dataset bundle="":
-    doppler run --project public-phonebook --config prd --no-fallback -- npm run publish -- {{ quote(environment) }} --dataset {{ quote(dataset) }} {{ if bundle == "" { "" } else { "--bundle " + quote(bundle) } }}
+release:
+    gh workflow run release.yml --ref main
 
-publish-admission environment dataset bundle="":
-    doppler run --project public-phonebook --config prd --no-fallback -- npm run publish -- {{ quote(environment) }} --check-admission --dataset {{ quote(dataset) }} {{ if bundle == "" { "" } else { "--bundle " + quote(bundle) } }}
+recover version:
+    gh workflow run recover.yml --ref main -f version={{ quote(version) }}
 
-release dataset bundle="":
-    node tools/release.ts {{ quote(dataset) }} {{ if bundle == "" { "" } else { "--bundle " + quote(bundle) } }}
-
-release-verify tag directory:
-    node tools/release-record.ts verify-published {{ quote(tag) }} {{ quote(directory) }}
-
-recover environment:
-    doppler run --project public-phonebook --config prd --no-fallback -- npm run publish -- {{ quote(environment) }} --recover
-
-withdraw environment:
-    doppler run --project public-phonebook --config prd --no-fallback -- npm run publish -- {{ quote(environment) }} --withdraw
-
-release-status environment:
-    doppler run --project public-phonebook --config prd --no-fallback -- npm run publish -- {{ quote(environment) }} --status
+release-status:
+    gh workflow run status.yml --ref main
 
 release-retention environment:
-    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --only-secrets R2_ACCESS_KEY_ID --only-secrets R2_SECRET_ACCESS_KEY --no-fallback -- node tools/release-retention.ts {{ quote(environment) }}
+    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --only-secrets R2_ACCESS_KEY_ID --only-secrets R2_SECRET_ACCESS_KEY --no-fallback -- node infrastructure/cloudflare/src/release-retention.ts {{ quote(environment) }}
 
 [positional-arguments]
 monitors *flags:
-    doppler run --project public-phonebook --config prd --only-secrets BETTER_STACK_API_TOKEN --no-fallback -- node tools/uptime.ts "$@"
+    doppler run --project public-phonebook --config prd --only-secrets BETTER_STACK_API_TOKEN --no-fallback -- node infrastructure/cloudflare/src/uptime.ts "$@"
 
 [positional-arguments]
 cloudflare-alerts *flags:
-    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --only-secrets CLOUDFLARE_ALERT_EMAIL --no-fallback -- node tools/cloudflare-alerts.ts "$@"
+    doppler run --project public-phonebook --config prd --only-secrets CLOUDFLARE_ACCOUNT_ID --only-secrets CLOUDFLARE_ALERT_EMAIL --no-fallback -- node infrastructure/cloudflare/src/cloudflare-alerts.ts "$@"
 
 [positional-arguments]
 control-import directory *flags:
-    node tools/control-import.ts "$@"
+    node infrastructure/cloudflare/src/control-import.ts "$@"

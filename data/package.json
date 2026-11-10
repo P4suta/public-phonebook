@@ -1,0 +1,22 @@
+{
+  "name": "@public-phonebook/data",
+  "version": "0.0.0",
+  "license": "MIT OR Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./collection/*": "./src/collection/*.ts",
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@public-phonebook/directory": "*",
+    "@noble/hashes": "2.4.0",
+    "cheerio": "1.2.0",
+    "csv-parse": "7.0.3",
+    "csv-stringify": "6.9.0",
+    "fflate": "0.8.3",
+    "pdfjs-dist": "6.5.438",
+    "valibot": "1.5.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  }
+}

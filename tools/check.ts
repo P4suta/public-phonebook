@@ -1,7 +1,7 @@
 import { copyFile, mkdir, readFile, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { checkKanjiVariantProvenance } from "@public-phonebook/data/kanji-variants";
 import * as v from "valibot";
-import { checkKanjiVariantProvenance } from "./kanji-variants.ts";
 import {
   command,
   ownInstructions,
@@ -61,6 +61,7 @@ try {
   for (const [step, script] of [
     ["typecheck", "typecheck"],
     ["lint", "lint"],
+    ["dependency boundaries", "architecture"],
   ] as const)
     await timer.time(step, () => requireCommand("npm", ["run", script]));
   const results = await timer.time("unit tests", async () => {

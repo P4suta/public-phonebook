@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
 import {
   activeVersion,
   type CloudflareRunner,
   deployedVersions,
   deploymentTraffic,
-} from "../../tools/release-provider.ts";
+} from "@public-phonebook/cloudflare/release-provider";
+import { describe, expect, it } from "vitest";
 
 const current = "11111111-1111-4111-8111-111111111111";
 const candidate = "22222222-2222-4222-8222-222222222222";

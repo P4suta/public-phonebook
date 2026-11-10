@@ -1,35 +1,35 @@
 import { createHash } from "node:crypto";
 import { open, readFile, rename } from "node:fs/promises";
 import { resolve } from "node:path";
-import * as v from "valibot";
 import {
   alertPlanLines,
   applyAlerts,
   cloudflarePolicies,
   type PolicyPort,
-} from "./cloudflare-alerts.ts";
+} from "@public-phonebook/cloudflare/cloudflare-alerts";
 import {
   type AlertPolicy,
   alertPlan,
   alertPolicies,
   type ExistingPolicy,
   managedPrefix,
-} from "./cloudflare-alerts-plan.ts";
-import { type ApplyHooks, sameValue } from "./declared-plan.ts";
-import { requireCommand } from "./process.ts";
+} from "@public-phonebook/cloudflare/cloudflare-alerts-plan";
 import {
   applyMonitors,
   type MonitorPort,
   monitorPort,
   planLines,
-} from "./uptime.ts";
+} from "@public-phonebook/cloudflare/uptime";
 import {
   type ExistingCheck,
   type UptimeCheck,
   uptimeChecks,
   uptimeFields,
   uptimePlan,
-} from "./uptime-plan.ts";
+} from "@public-phonebook/cloudflare/uptime-plan";
+import * as v from "valibot";
+import { type ApplyHooks, sameValue } from "./declared-plan.ts";
+import { requireCommand } from "./process.ts";
 
 const identity = v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/u));
 const jsonIndent = 2;

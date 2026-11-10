@@ -1,5 +1,5 @@
+import { readPdfTables } from "@public-phonebook/data/collection/read-pdf";
 import { describe, expect, it } from "vitest";
-import { readPdfTables } from "../../tools/collection/read-pdf.ts";
 
 function directoryPdf(
   rotation: number,

@@ -1,14 +1,17 @@
-import * as fc from "fast-check";
-import { describe, expect, it } from "vitest";
-import { nameRank, searchQuery } from "../../src/core/search.ts";
-import { searchForm, searchWords } from "../../src/core/search-text.ts";
+import { nameRank, searchQuery } from "@public-phonebook/directory/search";
+import {
+  searchForm,
+  searchWords,
+} from "@public-phonebook/directory/search-text";
 import {
   type PlaceNames,
   placeHolds,
   rankWords,
   regionPlace,
   wordPlaces,
-} from "../../src/core/word-match.ts";
+} from "@public-phonebook/directory/word-match";
+import * as fc from "fast-check";
+import { describe, expect, it } from "vitest";
 import { referenceRank } from "./search-reference.ts";
 
 const places: PlaceNames = {

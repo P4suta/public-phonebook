@@ -1,10 +1,10 @@
 # Verified place readings
 
-Web, iPhone, and Android share `ios/Sources/PhonebookKit/PlaceReadings.json`.
+Web, iPhone, and Android share `apps/ios/Sources/PhonebookKit/PlaceReadings.json`.
 The resource contains 47 prefectures and 32 reading forms for 27 category identifiers.
 The website imports the JSON, Swift Package Manager copies the package resource, and Gradle copies the same file into Android resources.
 The [decision](adr/match-verified-place-readings-without-a-ranking-companion.md) keeps the publication format and saved generations compatible.
-The delivery planner treats the resource and shared cases as shared source.
+Native version selection treats the resource and shared cases as shared source.
 Both native input inventories and version preparation include the shared reading files.
 
 ## Matching

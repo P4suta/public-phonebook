@@ -23,14 +23,16 @@ mod distribution;
 mod mutation;
 
 const BUILD_INPUT_PATHS: &[&str] = &[
-    "android",
+    "apps/android",
     "tools/android-check",
     "tools/delivery",
-    "ios/Tests/PhonebookCoreTests/SearchContract.json",
-    "ios/Tests/PhonebookKitTests/DirectoryContract.json",
-    "ios/Sources/PhonebookKit/PlaceReadings.json",
-    "ios/Tests/PhonebookKitTests/PlaceReadingContract.json",
-    "src/core/kanji-variants.ts",
+    "data",
+    "infrastructure",
+    "apps/ios/Tests/PhonebookCoreTests/SearchContract.json",
+    "apps/ios/Tests/PhonebookKitTests/DirectoryContract.json",
+    "apps/ios/Sources/PhonebookKit/PlaceReadings.json",
+    "apps/ios/Tests/PhonebookKitTests/PlaceReadingContract.json",
+    "packages/directory/src/kanji-variants.ts",
     "LICENSE-APACHE",
     "mise.toml",
     "mise.lock",
@@ -185,10 +187,9 @@ fn gradle(root: &Path, arguments: &[&str]) -> Result<()> {
                 .any(|line| line == "Pkg.Revision=36.0.0"),
         "Install Android SDK platform android-37.0 revision 2 and build-tools 36.0.0"
     );
-    let mut command = Command::new("gradle");
-    without_credentials(&mut command);
+    let mut command = gradle_command(root);
     command
-        .current_dir(root.join("android"))
+        .env("ANDROID_HOME", android_sdk)
         .args(arguments)
         .arg("--console=plain");
     let output = completed(command)?;
@@ -201,6 +202,19 @@ fn gradle(root: &Path, arguments: &[&str]) -> Result<()> {
     );
     println!("Android Gradle checks passed: {}", arguments.join(" "));
     Ok(())
+}
+
+fn gradle_command(root: &Path) -> Command {
+    let directory = root.join("apps/android");
+    let executable = if cfg!(windows) {
+        "gradlew.bat"
+    } else {
+        "gradlew"
+    };
+    let mut command = Command::new(directory.join(executable));
+    command.current_dir(directory);
+    without_credentials(&mut command);
+    command
 }
 
 fn without_credentials(command: &mut Command) -> &mut Command {
@@ -229,7 +243,7 @@ fn write_json(path: &Path, value: &impl Serialize) -> Result<()> {
     Ok(())
 }
 fn assets(root: &Path, flavor: &str, bytes: &[u8], declaration: &Value) -> Result<()> {
-    let directory = root.join(format!("android/app/src/{flavor}/assets"));
+    let directory = root.join(format!("apps/android/app/src/{flavor}/assets"));
     fs::create_dir_all(&directory)?;
     let temporary = directory.join("directory.pending");
     fs::write(&temporary, bytes)?;
@@ -238,20 +252,20 @@ fn assets(root: &Path, flavor: &str, bytes: &[u8], declaration: &Value) -> Resul
     let notices = format!(
         "AndroidX, Kotlin, Kotlin libraries, JSpecify, and Guava listenablefuture\nApache License 2.0\n\n{}\nBrotli decoder 0.1.2\n{BROTLI_PROJECT_URL}\n\n{}",
         fs::read_to_string(root.join("LICENSE-APACHE"))?,
-        fs::read_to_string(root.join("android/licenses/Brotli.txt"))?
+        fs::read_to_string(root.join("apps/android/licenses/Brotli.txt"))?
     );
     fs::write(directory.join("OSS-NOTICES.txt"), notices)?;
     Ok(())
 }
 fn bundle(root: &Path, source: Option<&Path>) -> Result<()> {
-    let test_assets = root.join("android/app/build/generated/searchContractAssets");
+    let test_assets = root.join("apps/android/app/build/generated/searchContractAssets");
     fs::create_dir_all(&test_assets)?;
     fs::copy(
-        root.join("ios/Tests/PhonebookCoreTests/SearchContract.json"),
+        root.join("apps/ios/Tests/PhonebookCoreTests/SearchContract.json"),
         test_assets.join("SearchContract.json"),
     )?;
     let declaration: Declaration =
-        serde_json::from_slice(&fs::read(root.join("android/bundled-dataset.json"))?)?;
+        serde_json::from_slice(&fs::read(root.join("apps/android/bundled-dataset.json"))?)?;
     ensure!(
         hash_shape(&declaration.snapshot)
             && hash_shape(&declaration.sha256)
@@ -301,7 +315,7 @@ fn bundle(root: &Path, source: Option<&Path>) -> Result<()> {
         assets(root, flavor, &national, &metadata)?;
     }
     let fixtures: Vec<Value> = serde_json::from_slice(&fs::read(
-        root.join("ios/Tests/PhonebookKitTests/DirectoryContract.json"),
+        root.join("apps/ios/Tests/PhonebookKitTests/DirectoryContract.json"),
     )?)?;
     let listing = fixtures
         .iter()
@@ -341,55 +355,55 @@ fn bundle(root: &Path, source: Option<&Path>) -> Result<()> {
 
 const REFINEMENTS: [(&str, &str); 13] = [
     (
-        "android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
+        "apps/android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
         "funcanAppend(more:Boolean,sameQuery:Boolean):Boolean=more&&sameQuery",
     ),
     (
-        "android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
+        "apps/android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
         "funvalidDepth(depth:Int):Boolean=depth>=0&&depth<DirectoryLimits.MAXIMUM_JSON_DEPTH",
     ),
     (
-        "android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
+        "apps/android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
         "fun<T>restart(more:Boolean,previous:T?,received:T?):Boolean=more&&previous!=received",
     ),
     (
-        "android/core/src/main/kotlin/page/dial/core/Directory.kt",
+        "apps/android/core/src/main/kotlin/page/dial/core/Directory.kt",
         "funadmit(facts:ValidationFacts):Boolean=facts.length&&facts.digest&&facts.snapshot&&facts.rows&&facts.complete",
     ),
     (
-        "android/core/src/main/kotlin/page/dial/core/Directory.kt",
+        "apps/android/core/src/main/kotlin/page/dial/core/Directory.kt",
         "funtransfer(metered:Boolean,restricted:Boolean):Boolean=!metered&&!restricted",
     ),
     (
-        "android/core/src/main/kotlin/page/dial/core/Directory.kt",
+        "apps/android/core/src/main/kotlin/page/dial/core/Directory.kt",
         "fundue(last:Long?,now:Long):Boolean=last==null||(last>=0&&now>=last&&now-last>=UPDATE_INTERVAL_SECONDS)",
     ),
     (
-        "android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
+        "apps/android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
         "funchunk(received:Long,count:Long,expected:Long):Boolean=received>=0&&count>=0&&received<=expected&&count<=expected-received",
     ),
     (
-        "android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
+        "apps/android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
         "funcopy(start:Long,count:Long,base:Long):Boolean=start>=0&&count>=1&&count<=base&&start<=base-count",
     ),
     (
-        "android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
+        "apps/android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
         "fun<T>select(active:T?,candidate:T,phase:GenerationPhase,valid:Boolean,observedCandidate:Boolean):T?=if(!valid)activeelseif(phase==GenerationPhase.Complete)candidateelseif(phase==GenerationPhase.Uncertain&&observedCandidate)candidateelseactive",
     ),
     (
-        "android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
+        "apps/android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
         "funcanActivate(phase:GenerationPhase,valid:Boolean):Boolean=phase==GenerationPhase.Indexed&&valid",
     ),
     (
-        "android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
+        "apps/android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
         "funrank(words:Int,named:Int,placed:Int,rank:Int):Int?=if(named+placed<words)nullelseif(named<words)PLACE_RANKelseif(words==1)rankelse2",
     ),
     (
-        "android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
+        "apps/android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
         "fundisplay(started:Long,now:Long,found:Boolean,held:Boolean):Boolean=started>=0&&now>=started&&now-started<LOOKUP_BUDGET_MILLIS&&found&&held",
     ),
     (
-        "android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
+        "apps/android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
         "funcanDiscard(phase:GenerationPhase):Boolean=phase!=GenerationPhase.Uncertain&&phase!=GenerationPhase.Complete",
     ),
 ];
@@ -502,23 +516,23 @@ fn source_refinement(root: &Path) -> Result<BTreeMap<String, String>> {
     }
     for (file, constant) in [
         (
-            "android/core/src/main/kotlin/page/dial/core/Directory.kt",
+            "apps/android/core/src/main/kotlin/page/dial/core/Directory.kt",
             "constvalUPDATE_INTERVAL_SECONDS=86400L",
         ),
         (
-            "android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
+            "apps/android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
             "constvalPLACE_RANK=3",
         ),
         (
-            "android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
+            "apps/android/core/src/main/kotlin/page/dial/core/DirectoryPolicy.kt",
             "constvalLOOKUP_BUDGET_MILLIS=1000L",
         ),
         (
-            "android/core/src/main/kotlin/page/dial/core/DirectoryLimits.kt",
+            "apps/android/core/src/main/kotlin/page/dial/core/DirectoryLimits.kt",
             "constvalMAXIMUM_QUERY_WORDS=8",
         ),
         (
-            "android/core/src/main/kotlin/page/dial/core/DirectoryLimits.kt",
+            "apps/android/core/src/main/kotlin/page/dial/core/DirectoryLimits.kt",
             "constvalMAXIMUM_JSON_DEPTH=32",
         ),
     ] {
@@ -534,7 +548,7 @@ fn source_refinement(root: &Path) -> Result<BTreeMap<String, String>> {
         hashes.insert(file.into(), digest(source.as_bytes()));
     }
     let screening =
-        "android/app/src/main/kotlin/page/dial/publicphonebook/PhonebookScreeningService.kt";
+        "apps/android/app/src/main/kotlin/page/dial/publicphonebook/PhonebookScreeningService.kt";
     let source = compact(&fs::read_to_string(root.join(screening))?);
     let expected = "overridefunonScreenCall(callDetails:Call.Details){if(callDetails.callDirection!=Call.Details.DIRECTION_INCOMING)returnvalresponse=CallResponse.Builder().setDisallowCall(false).setRejectCall(false).setSilenceCall(false).setSkipCallLog(false).setSkipNotification(false).build()valsent=AtomicBoolean(false)valallow=Runnable{if(sent.compareAndSet(false,true))respondToCall(callDetails,response)}handler.postDelayed(allow,CallerPolicy.LOOKUP_BUDGET_MILLIS)valstarted=SystemClock.elapsedRealtime()";
     ensure!(
@@ -546,7 +560,8 @@ fn source_refinement(root: &Path) -> Result<BTreeMap<String, String>> {
         "Every lookup outcome must allow the call"
     );
     hashes.insert(screening.into(), file_digest(&root.join(screening))?);
-    let view_model = "android/app/src/main/kotlin/page/dial/publicphonebook/DirectoryViewModel.kt";
+    let view_model =
+        "apps/android/app/src/main/kotlin/page/dial/publicphonebook/DirectoryViewModel.kt";
     let source = compact(&fs::read_to_string(root.join(view_model))?);
     for boundary in [
         "valcontinuing=PagePolicy.canAppend(categoryinstate.value.expandedCategories,state.value.resultQuery==query)",
@@ -563,7 +578,7 @@ fn source_refinement(root: &Path) -> Result<BTreeMap<String, String>> {
         );
     }
     hashes.insert(view_model.into(), file_digest(&root.join(view_model))?);
-    let storage = "android/data/src/main/kotlin/page/dial/data/SQLiteDirectory.kt";
+    let storage = "apps/android/data/src/main/kotlin/page/dial/data/SQLiteDirectory.kt";
     let source = compact(&fs::read_to_string(root.join(storage))?);
     for boundary in [
         "valadmitted=SyncPolicy.admit(facts)",
@@ -747,7 +762,7 @@ fn source_refinement_with_model(root: &Path) -> Result<BTreeMap<String, String>>
     for required in [
         "verification/android/DirectoryPolicy.lean",
         "tools/android-check/src/main.rs",
-        "android/bundled-dataset.json",
+        "apps/android/bundled-dataset.json",
     ] {
         ensure!(
             files.split('\0').any(|file| file == required),
@@ -756,7 +771,7 @@ fn source_refinement_with_model(root: &Path) -> Result<BTreeMap<String, String>>
     }
     for file in files
         .split('\0')
-        .filter(|file| !file.is_empty() && !file.starts_with("android/store/"))
+        .filter(|file| !file.is_empty() && !file.starts_with("apps/android/store/"))
     {
         sources.insert(file.into(), file_digest(&root.join(file))?);
     }
@@ -800,8 +815,8 @@ fn release_receipt(root: &Path) -> Result<ReleaseCheckReceipt> {
         formal_theorems: THEOREMS.len(),
         proof_sha256: file_digest(&root.join("target/android/proof/receipt.json"))?,
         mutation_sha256: file_digest(&root.join("target/android/mutation/receipt.json"))?,
-        apk_sha256: file_digest(&root.join("android/app/build/outputs/apk/verification/debug/app-verification-debug.apk"))?,
-        test_apk_sha256: file_digest(&root.join("android/app/build/outputs/apk/androidTest/verification/debug/app-verification-debug-androidTest.apk"))?,
+        apk_sha256: file_digest(&root.join("apps/android/app/build/outputs/apk/verification/debug/app-verification-debug.apk"))?,
+        test_apk_sha256: file_digest(&root.join("apps/android/app/build/outputs/apk/androidTest/verification/debug/app-verification-debug-androidTest.apk"))?,
         caller_identification: "unverified".into(),
     })
 }
@@ -837,7 +852,9 @@ fn install(root: &Path, serial: &str) -> Result<()> {
     let adb = sdk()?.join("platform-tools/adb");
     let mut command = Command::new(&adb);
     command.args(["-s", serial, "install", "-r"]).arg(
-        root.join("android/app/build/outputs/apk/verification/debug/app-verification-debug.apk"),
+        root.join(
+            "apps/android/app/build/outputs/apk/verification/debug/app-verification-debug.apk",
+        ),
     );
     run(command)?;
     let mut command = Command::new(adb);
@@ -968,6 +985,26 @@ mod tests {
             assert_eq!(file_digest(file.path())?, expected);
         }
         Ok(())
+    }
+    #[test]
+    fn gradle_uses_the_committed_platform_wrapper() {
+        let root = Path::new("/fixture/project");
+        let command = gradle_command(root);
+        let name = if cfg!(windows) {
+            "gradlew.bat"
+        } else {
+            "gradlew"
+        };
+        assert_eq!(command.get_program(), root.join("apps/android").join(name));
+        assert_eq!(
+            command.get_current_dir(),
+            Some(root.join("apps/android").as_path())
+        );
+        assert!(
+            command
+                .get_envs()
+                .any(|(name, value)| name == "GH_TOKEN" && value.is_none())
+        );
     }
     #[test]
     fn gradle_never_inherits_delivery_capabilities() {

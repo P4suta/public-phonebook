@@ -1,13 +1,13 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as v from "valibot";
-import { afterEach, expect, it, vi } from "vitest";
-import { discoverCatalog } from "../../tools/collection/catalog.ts";
+import { discoverCatalog } from "@public-phonebook/data/collection/catalog";
 import {
   type CollectionManifest,
   DirectorySourceSchema,
-} from "../../tools/collection/models.ts";
+} from "@public-phonebook/data/collection/models";
+import * as v from "valibot";
+import { afterEach, expect, it, vi } from "vitest";
 
 const roots: string[] = [];
 afterEach(async () => {

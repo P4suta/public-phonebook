@@ -1,13 +1,13 @@
 import { isDeepStrictEqual } from "node:util";
-import * as fc from "fast-check";
-import { describe, expect, it } from "vitest";
-import { databaseResourceName } from "../../src/core/environment.ts";
 import {
   type ImportTransformation,
   importedDatabaseName,
   importIdentity,
   importTransformation,
-} from "../../tools/import-identity.ts";
+} from "@public-phonebook/cloudflare/import-identity";
+import { databaseResourceName } from "@public-phonebook/directory/environment";
+import * as fc from "fast-check";
+import { describe, expect, it } from "vitest";
 
 const digest = fc.stringMatching(/^[a-f0-9]{64}$/u);
 const character = fc.string({ unit: "grapheme", minLength: 1, maxLength: 1 });

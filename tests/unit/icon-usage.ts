@@ -1,6 +1,6 @@
 import { dirname, join, normalize } from "node:path/posix";
 import { parseSync } from "vite";
-import { iconNames } from "../../src/ui/icon-catalog.ts";
+import { iconNames } from "../../apps/web/src/ui/icon-catalog.ts";
 
 /**
  * Finds every icon a route can draw by walking the declarations its `Route` reaches.
@@ -10,10 +10,12 @@ import { iconNames } from "../../src/ui/icon-catalog.ts";
  * The lint configuration forbids type assertions and unchecked `any` values, so an icon name can't enter through either.
  */
 
-const iconModule = "src/ui/icons.tsx";
-const catalogModule = "src/ui/icon-catalog.ts";
+const iconModule = "apps/web/src/ui/icons.tsx";
+const catalogModule = "apps/web/src/ui/icon-catalog.ts";
 /** The sprite's inputs choose symbols for every route and draw none. */
-const spriteInputs: ReadonlySet<string> = new Set(["src/ui/route-icons.ts"]);
+const spriteInputs: ReadonlySet<string> = new Set([
+  "apps/web/src/ui/route-icons.ts",
+]);
 const nameSources: ReadonlySet<string> = new Set([
   "iconNames",
   "categoryIcons",

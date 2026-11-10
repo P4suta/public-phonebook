@@ -2,15 +2,18 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
-import * as v from "valibot";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { type Contact, ContactSchema } from "../../src/core/models.ts";
-import { contactVCard } from "../../src/core/vcard.ts";
-import { contactCsv, contactCsvHeader } from "../../tools/snapshot.ts";
+import { contactCsv, contactCsvHeader } from "@public-phonebook/data/snapshot";
 import {
   checkTelephoneParity,
   utf8Lines,
-} from "../../tools/telephone-parity.ts";
+} from "@public-phonebook/data/telephone-parity";
+import {
+  type Contact,
+  ContactSchema,
+} from "@public-phonebook/directory/models";
+import { contactVCard } from "@public-phonebook/directory/vcard";
+import * as v from "valibot";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const foldedIdentifier = `fixture:${"a".repeat(120)}`;
 

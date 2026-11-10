@@ -3,7 +3,7 @@
  * It spells out the Unicode White_Space list and the folded characters instead of reusing the production tables.
  * Only the kanji variants come from the generated table, which its own regeneration check verifies.
  */
-import { kanjiVariantPairs } from "../../src/core/kanji-variants.ts";
+import { kanjiVariantPairs } from "@public-phonebook/directory/kanji-variants";
 
 const kanji = new Map<number, string>(
   kanjiVariantPairs.split(" ").map((pair) => {
