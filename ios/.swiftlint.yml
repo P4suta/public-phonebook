@@ -8,6 +8,8 @@ included:
   - Sources
   - Tests
   - UITests
+  - Watch
+  - WatchUITests
 only_rules:
   - force_cast
   - force_try

@@ -78,6 +78,7 @@ fn validate(
     debug: bool,
 ) -> Result<()> {
     let (bundle, name, icon, origin) = environment.identity();
+    let watch = settings.target == "PhonebookWatch";
     let expected = [
         ("PHONEBOOK_BUNDLE_ID", bundle.to_owned()),
         ("PHONEBOOK_DISPLAY_NAME", name.to_owned()),
@@ -87,9 +88,23 @@ fn validate(
             "PHONEBOOK_CALL_DIRECTORY",
             format!("{bundle}.CallDirectory"),
         ),
-        ("ASSETCATALOG_COMPILER_APPICON_NAME", icon.to_owned()),
+        (
+            "ASSETCATALOG_COMPILER_APPICON_NAME",
+            if watch {
+                format!("Watch{icon}")
+            } else {
+                icon.to_owned()
+            },
+        ),
         ("MARKETING_VERSION", super::marketing_version(root)?),
-        ("IPHONEOS_DEPLOYMENT_TARGET", "18.0".to_owned()),
+        (
+            if watch {
+                "WATCHOS_DEPLOYMENT_TARGET"
+            } else {
+                "IPHONEOS_DEPLOYMENT_TARGET"
+            },
+            if watch { "11.0" } else { "18.0" }.to_owned(),
+        ),
         (
             "PHONEBOOK_BUNDLED_DATASET",
             super::bundled::Dataset::of(config).name().to_owned(),
@@ -105,6 +120,7 @@ fn validate(
     let expected_bundle = match settings.target.as_str() {
         "PublicPhonebook" => bundle.to_owned(),
         "CallDirectory" => format!("{bundle}.CallDirectory"),
+        "PhonebookWatch" => format!("{bundle}.watchkitapp"),
         _ => anyhow::bail!("Unexpected native target"),
     };
     ensure!(
@@ -115,7 +131,15 @@ fn validate(
             == Some(expected_bundle.as_str()),
         "Incorrect target identity"
     );
-    let list = super::app_info::selected_list(&settings.target, config)?;
+    let list = if watch {
+        ensure!(
+            settings.build_settings.get("TARGETED_DEVICE_FAMILY") == Some(&json!("4")),
+            "The Watch app must target the Watch device family"
+        );
+        "Config/Watch-Info.plist"
+    } else {
+        super::app_info::selected_list(&settings.target, config)?
+    };
     ensure!(
         settings
             .build_settings
@@ -246,19 +270,22 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
             })
             .collect::<Vec<_>>()
     });
+    let mut rejected = 0;
     for ((config, environment, debug), output) in configurations.into_iter().zip(outputs) {
         let output = output?;
         let mut targets: Vec<TargetSettings> = serde_json::from_slice(&output.stdout)?;
         targets.retain(|target| {
-            ["PublicPhonebook", "CallDirectory"].contains(&target.target.as_str())
+            ["PublicPhonebook", "CallDirectory", "PhonebookWatch"].contains(&target.target.as_str())
         });
         ensure!(
             targets
                 .iter()
                 .map(|target| target.target.as_str())
                 .collect::<std::collections::BTreeSet<_>>()
-                == ["PublicPhonebook", "CallDirectory"].into_iter().collect(),
-            "Configuration omitted an app or extension"
+                == ["PublicPhonebook", "CallDirectory", "PhonebookWatch"]
+                    .into_iter()
+                    .collect(),
+            "Configuration omitted an app, extension, or Watch companion"
         );
         let mut visited = std::collections::BTreeSet::new();
         for mut target in targets {
@@ -278,7 +305,8 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
                 "Configuration negative control was accepted: {}",
                 super::store_build::CONDITION
             );
-            for key in [
+            rejected += 1;
+            let mut keys = vec![
                 "PHONEBOOK_BUNDLE_ID",
                 "PHONEBOOK_API_ORIGIN",
                 "PHONEBOOK_BUNDLED_DATASET",
@@ -287,7 +315,11 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
                 "ASSETCATALOG_COMPILER_APPICON_NAME",
                 "PRODUCT_BUNDLE_IDENTIFIER",
                 "INFOPLIST_FILE",
-            ] {
+            ];
+            if target.target == "PhonebookWatch" {
+                keys.extend(["TARGETED_DEVICE_FAMILY", "WATCHOS_DEPLOYMENT_TARGET"]);
+            }
+            for key in keys {
                 let previous = target
                     .build_settings
                     .insert(key.to_owned(), json!("incorrect-environment"));
@@ -300,6 +332,7 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
                     validate(root, &target, config, environment, debug).is_err(),
                     "Missing configuration field was accepted: {key}"
                 );
+                rejected += 2;
                 match previous {
                     Some(value) => {
                         target.build_settings.insert(key.to_owned(), value);
@@ -312,7 +345,7 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
         }
     }
     println!(
-        "PASS: all six build configurations, both native targets each, and 204 rejected environment defects"
+        "PASS: all six build configurations, three native targets each, and {rejected} rejected environment defects"
     );
     Ok(())
 }
@@ -328,11 +361,49 @@ fn plist(root: &Path, path: &Path) -> Result<Value> {
     serde_json::from_slice(&output.stdout).context("Decode distribution property list")
 }
 
+fn require_watch_configuration(
+    info: &Value,
+    companion: &str,
+    name: &str,
+    version: &str,
+    build: BuildNumber,
+) -> Result<()> {
+    ensure!(
+        info["CFBundleIdentifier"] == format!("{companion}.watchkitapp")
+            && info["CFBundleDisplayName"] == name
+            && info["CFBundleDevelopmentRegion"] == "ja"
+            && info["CFBundleLocalizations"] == json!(["ja"])
+            && info["CFBundleShortVersionString"] == version
+            && info["CFBundleVersion"] == build.to_string(),
+        "The Watch app must match the companion identity and release"
+    );
+    ensure!(
+        info["WKApplication"] == true
+            && info["WKCompanionAppBundleIdentifier"] == companion
+            && info["WKRunsIndependentlyOfCompanionApp"] == false
+            && info["UIDeviceFamily"] == json!([4])
+            && info["MinimumOSVersion"] == "11.0"
+            && info["CFBundleIcons"]["CFBundlePrimaryIcon"]["CFBundleIconName"] == "WatchAppIcon"
+            && info["ITSAppUsesNonExemptEncryption"] == false,
+        "The Watch app must use the paired-phone configuration"
+    );
+    ensure!(
+        info.get("PhonebookAPIOrigin").is_none() && info.get("PhonebookAppGroup").is_none(),
+        "The Watch app must receive directory results from its companion"
+    );
+    Ok(())
+}
+
 fn verify_bundle(root: &Path, app: &Path, team: &str, build: BuildNumber) -> Result<()> {
     let (bundle, name, icon, origin) = Environment::Production.identity();
-    for (relative, suffix) in [("", ""), ("PlugIns/CallDirectory.appex", EXTENSION_SUFFIX)] {
+    for (relative, suffix) in [
+        ("", ""),
+        ("PlugIns/CallDirectory.appex", EXTENSION_SUFFIX),
+        ("Watch/PhonebookWatch.app", ".watchkitapp"),
+    ] {
         let directory = app.join(relative);
         let info = plist(root, &directory.join("Info.plist"))?;
+        let watch = suffix == ".watchkitapp";
         ensure!(
             info["CFBundleDevelopmentRegion"] == "ja"
                 && info["CFBundleLocalizations"] == json!(["ja"]),
@@ -343,15 +414,30 @@ fn verify_bundle(root: &Path, app: &Path, team: &str, build: BuildNumber) -> Res
                 && info["CFBundleDisplayName"] == name,
             "Non-production app identity"
         );
-        ensure!(
-            info["PhonebookAPIOrigin"] == origin
-                && info["PhonebookAppGroup"] == format!("group.{bundle}")
-                && info["PhonebookCallDirectory"] == format!("{bundle}.CallDirectory"),
-            "Non-production service or extension configuration"
-        );
+        if watch {
+            require_watch_configuration(
+                &info,
+                bundle,
+                name,
+                &super::marketing_version(root)?,
+                build,
+            )?;
+            ensure!(
+                !directory.join(super::bundled::ARCHIVE_FILE).exists()
+                    && !directory.join(super::bundled::ENTRY_FILE).exists(),
+                "The Watch app must not bundle the national directory"
+            );
+        } else {
+            ensure!(
+                info["PhonebookAPIOrigin"] == origin
+                    && info["PhonebookAppGroup"] == format!("group.{bundle}")
+                    && info["PhonebookCallDirectory"] == format!("{bundle}.CallDirectory"),
+                "Non-production service or extension configuration"
+            );
+        }
         ensure!(
             info["CFBundleShortVersionString"] == super::marketing_version(root)?
-                && info["MinimumOSVersion"] == "18.0",
+                && info["MinimumOSVersion"] == if watch { "11.0" } else { "18.0" },
             "Incorrect app version or deployment target"
         );
         ensure!(
@@ -410,8 +496,14 @@ fn verify_bundle(root: &Path, app: &Path, team: &str, build: BuildNumber) -> Res
         );
         ensure!(
             entitlements["get-task-allow"] == false
-                && entitlements["com.apple.security.application-groups"]
-                    == json!([format!("group.{bundle}")]),
+                && if watch {
+                    entitlements
+                        .get("com.apple.security.application-groups")
+                        .is_none()
+                } else {
+                    entitlements["com.apple.security.application-groups"]
+                        == json!([format!("group.{bundle}")])
+                },
             "Invalid distribution entitlements"
         );
         if suffix.is_empty() {
@@ -659,15 +751,20 @@ fn prepare_requested_entitlements(root: &Path, archive: &Path) -> Result<()> {
         Command::new("plutil").args(["-convert", "xml1"]).arg(&path),
     )?;
     let app = archive.join("Products/Applications/PublicPhonebook.app");
-    for target in [app.join("PlugIns/CallDirectory.appex"), app] {
+    for (target, entitlements) in [
+        (app.join("PlugIns/CallDirectory.appex"), Some(&path)),
+        (app.join("Watch/PhonebookWatch.app"), None),
+        (app, Some(&path)),
+    ] {
+        let mut command = Command::new("codesign");
+        command.args(["--force", "--sign", "-"]);
+        if let Some(entitlements) = entitlements {
+            command.arg("--entitlements").arg(entitlements);
+        }
         logged(
             root,
             "requested-entitlements-signature",
-            Command::new("codesign")
-                .args(["--force", "--sign", "-", "--entitlements"])
-                .arg(&path)
-                .arg("--generate-entitlement-der")
-                .arg(target),
+            command.arg("--generate-entitlement-der").arg(target),
         )?;
     }
     Ok(())
@@ -1012,12 +1109,13 @@ mod tests {
     }
 
     #[test]
-    fn both_bundles_take_their_versions_from_build_settings() -> Result<()> {
+    fn distribution_bundles_take_their_versions_from_build_settings() -> Result<()> {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         for file in [
             "ios/Config/App-Info.plist",
             "ios/Config/App-Info-LocalNetworking.plist",
             "ios/Config/CallDirectory-Info.plist",
+            "ios/Config/Watch-Info.plist",
         ] {
             let xml = fs::read_to_string(root.join(file))?;
             let document = roxmltree::Document::parse_with_options(
@@ -1049,7 +1147,7 @@ mod tests {
 
     #[cfg(target_os = "macos")]
     #[test]
-    fn generation_preserves_both_bundle_version_settings() -> Result<()> {
+    fn generation_preserves_distribution_bundle_version_settings() -> Result<()> {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let directory = tempfile::tempdir()?;
         let output = directory.path().join("spec.json");
@@ -1060,7 +1158,7 @@ mod tests {
                 .arg(&output),
         )?;
         let specification: Value = serde_json::from_slice(&fs::read(output)?)?;
-        for target in ["PublicPhonebook", "CallDirectory"] {
+        for target in ["PublicPhonebook", "CallDirectory", "PhonebookWatch"] {
             for (key, setting) in [
                 ("CFBundleVersion", "$(CURRENT_PROJECT_VERSION)"),
                 ("CFBundleShortVersionString", "$(MARKETING_VERSION)"),
@@ -1088,12 +1186,15 @@ mod tests {
         let archive = root.path().join("PublicPhonebook.xcarchive");
         let app = archive.join("Products/Applications/PublicPhonebook.app");
         let extension = app.join("PlugIns/CallDirectory.appex");
+        let watch = app.join("Watch/PhonebookWatch.app");
         fs::create_dir_all(&extension)?;
+        fs::create_dir_all(&watch)?;
         let source = root.path().join("fixture.c");
         fs::write(&source, "int main(void) { return 0; }\n")?;
         for (target, name, package) in [
             (&app, "PublicPhonebook", "APPL"),
             (&extension, "CallDirectory", "XPC!"),
+            (&watch, "PhonebookWatch", "APPL"),
         ] {
             fs::write(
                 target.join("Info.plist"),
@@ -1134,13 +1235,15 @@ mod tests {
             config.join("Shared.entitlements"),
         )?;
         prepare_requested_entitlements(root.path(), &archive)?;
-        for target in [extension, app] {
+        for (index, target) in [extension, watch, app].into_iter().enumerate() {
             crate::checked(
                 Command::new("codesign")
                     .args(["--verify", "--deep", "--strict"])
                     .arg(&target),
             )?;
-            let entitlement_path = root.path().join("observed-entitlements.plist");
+            let entitlement_path = root
+                .path()
+                .join(format!("observed-entitlements-{index}.plist"));
             crate::checked(
                 Command::new("codesign")
                     .args(["-d", "--entitlements"])
@@ -1148,10 +1251,17 @@ mod tests {
                     .arg("--xml")
                     .arg(&target),
             )?;
-            assert_eq!(
-                plist(root.path(), &entitlement_path)?,
+            let observed = if entitlement_path.exists() {
+                plist(root.path(), &entitlement_path)?
+            } else {
+                json!({})
+            };
+            let expected = if index == 1 {
+                json!({})
+            } else {
                 json!({"com.apple.security.application-groups":["group.page.dial.publicphonebook"]})
-            );
+            };
+            assert_eq!(observed, expected, "{}", target.display());
         }
         Ok(())
     }
@@ -1166,6 +1276,7 @@ mod tests {
             keychain: PathBuf::from("/runner/temp/testflight-signing.keychain-db"),
             app_profile: "0f8fad5b-d9cb-469f-a165-70867728950e".to_owned(),
             extension_profile: "7c9e6679-7425-40de-944b-e07fc1f90ae7".to_owned(),
+            watch_profile: "12345678-1234-1234-1234-123456789012".to_owned(),
         };
         let ci = rendered(&archive_command(
             Path::new("/repo"),
@@ -1235,6 +1346,135 @@ mod tests {
             rendered(&export_command(directory, Path::new("/repo"), None))
                 .contains(&"-allowProvisioningUpdates".to_owned())
         );
+        Ok(())
+    }
+
+    #[test]
+    fn watch_build_settings_separate_release_and_qa_identities() -> Result<()> {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        for (config, environment, debug) in [
+            ("Release", Environment::Production, false),
+            ("VerificationDebug", Environment::Verification, true),
+            ("Debug", Environment::Development, true),
+        ] {
+            let (bundle, name, icon, origin) = environment.identity();
+            let values = json!({
+                "PHONEBOOK_BUNDLE_ID": bundle,
+                "PHONEBOOK_DISPLAY_NAME": name,
+                "PHONEBOOK_API_ORIGIN": origin,
+                "PHONEBOOK_APP_GROUP": format!("group.{bundle}"),
+                "PHONEBOOK_CALL_DIRECTORY": format!("{bundle}.CallDirectory"),
+                "PRODUCT_BUNDLE_IDENTIFIER": format!("{bundle}.watchkitapp"),
+                "ASSETCATALOG_COMPILER_APPICON_NAME": format!("Watch{icon}"),
+                "MARKETING_VERSION": super::super::marketing_version(&root)?,
+                "WATCHOS_DEPLOYMENT_TARGET": "11.0",
+                "TARGETED_DEVICE_FAMILY": "4",
+                "INFOPLIST_FILE": "Config/Watch-Info.plist",
+                "PHONEBOOK_BUNDLED_DATASET": super::super::bundled::Dataset::of(config).name(),
+                "SWIFT_ACTIVE_COMPILATION_CONDITIONS": if debug {
+                    if matches!(environment, Environment::Verification) {
+                        "DEBUG PHONEBOOK_VERIFICATION_TOOLS"
+                    } else { "DEBUG" }
+                } else { "" }
+            });
+            let mut settings = TargetSettings {
+                target: "PhonebookWatch".to_owned(),
+                build_settings: serde_json::from_value(values)?,
+            };
+            validate(&root, &settings, config, environment, debug)?;
+            for (key, invalid) in [
+                (
+                    "PRODUCT_BUNDLE_IDENTIFIER",
+                    "page.dial.publicphonebook.foreign.watchkitapp",
+                ),
+                ("ASSETCATALOG_COMPILER_APPICON_NAME", "AppIcon"),
+                ("WATCHOS_DEPLOYMENT_TARGET", "10.0"),
+                ("TARGETED_DEVICE_FAMILY", "1"),
+                ("INFOPLIST_FILE", "Config/App-Info.plist"),
+            ] {
+                let expected = settings
+                    .build_settings
+                    .insert(key.to_owned(), json!(invalid));
+                assert!(
+                    validate(&root, &settings, config, environment, debug).is_err(),
+                    "{key}"
+                );
+                settings.build_settings.remove(key);
+                assert!(
+                    validate(&root, &settings, config, environment, debug).is_err(),
+                    "{key}"
+                );
+                settings
+                    .build_settings
+                    .insert(key.to_owned(), expected.context("Missing fixture setting")?);
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn watch_configuration_requires_the_companion_and_matching_release() -> Result<()> {
+        let build = BuildNumber::new(41)?;
+        let info = json!({
+            "CFBundleIdentifier": "page.dial.publicphonebook.watchkitapp",
+            "CFBundleDisplayName": "Public Phonebook",
+            "CFBundleDevelopmentRegion": "ja",
+            "CFBundleLocalizations": ["ja"],
+            "CFBundleShortVersionString": "1.1.0",
+            "CFBundleVersion": "41",
+            "MinimumOSVersion": "11.0",
+            "CFBundleIcons": {"CFBundlePrimaryIcon": {"CFBundleIconName": "WatchAppIcon"}},
+            "UIDeviceFamily": [4],
+            "WKApplication": true,
+            "WKCompanionAppBundleIdentifier": "page.dial.publicphonebook",
+            "WKRunsIndependentlyOfCompanionApp": false,
+            "ITSAppUsesNonExemptEncryption": false
+        });
+        require_watch_configuration(
+            &info,
+            "page.dial.publicphonebook",
+            "Public Phonebook",
+            "1.1.0",
+            build,
+        )?;
+        for (key, value) in [
+            (
+                "CFBundleIdentifier",
+                json!("page.dial.publicphonebook.qa.watchkitapp"),
+            ),
+            (
+                "WKCompanionAppBundleIdentifier",
+                json!("page.dial.publicphonebook.qa"),
+            ),
+            ("WKApplication", json!(false)),
+            ("WKRunsIndependentlyOfCompanionApp", json!(true)),
+            ("UIDeviceFamily", json!([1])),
+            ("CFBundleShortVersionString", json!("1.0.0")),
+            ("CFBundleVersion", json!("42")),
+            ("MinimumOSVersion", json!("10.0")),
+            (
+                "CFBundleIcons",
+                json!({"CFBundlePrimaryIcon": {"CFBundleIconName": "WatchAppIconVerification"}}),
+            ),
+            ("PhonebookAPIOrigin", json!("https://example.com")),
+            (
+                "PhonebookAppGroup",
+                json!("group.page.dial.publicphonebook"),
+            ),
+        ] {
+            let mut invalid = info.clone();
+            invalid[key] = value;
+            assert!(
+                require_watch_configuration(
+                    &invalid,
+                    "page.dial.publicphonebook",
+                    "Public Phonebook",
+                    "1.1.0",
+                    build
+                )
+                .is_err()
+            );
+        }
         Ok(())
     }
 }

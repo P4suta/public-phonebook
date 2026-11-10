@@ -6,6 +6,7 @@ struct PhonebookApp: App {
   @State private var directory: DirectoryModel?
   @State private var integration: IntegrationModel?
   @State private var startupError: String?
+  @State private var watch: WatchSearchReceiver?
 
   private static var measuresDevice: Bool {
     #if PHONEBOOK_VERIFICATION_TOOLS
@@ -24,6 +25,7 @@ struct PhonebookApp: App {
       let store = try AppIdentity.store()
       _directory = State(initialValue: DirectoryModel(store: store))
       _integration = State(initialValue: IntegrationModel(api: api, store: store))
+      _watch = State(initialValue: WatchSearchReceiver(store: store))
     } catch { _startupError = State(initialValue: "アプリを開けませんでした。アプリを開き直してください。") }
   }
 
