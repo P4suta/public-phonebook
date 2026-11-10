@@ -28,6 +28,7 @@ mod required_reasons;
 mod screenshots;
 mod search_measurement;
 mod signing;
+mod simulators;
 mod store_build;
 mod testflight;
 mod watch;
@@ -62,7 +63,6 @@ impl Drop for GateLease {
     }
 }
 
-const RUNTIME: &str = "com.apple.CoreSimulator.SimRuntime.iOS-27-0";
 const DEVICE_TYPE: &str = "com.apple.CoreSimulator.SimDeviceType.iPhone-17";
 const DEVICE_NAME: &str = "Public Phonebook Checks";
 const DEVICE_SUFFIX_LENGTH: usize = 8;
@@ -78,13 +78,6 @@ pub enum SimulatorModel {
 }
 
 impl SimulatorModel {
-    fn runtime(self) -> &'static str {
-        match self {
-            Self::Iphone17 | Self::IpadPro13 => RUNTIME,
-            Self::IphoneDuo => "com.apple.CoreSimulator.SimRuntime.iOS-27-1",
-        }
-    }
-
     fn device_type(self) -> &'static str {
         match self {
             Self::Iphone17 => DEVICE_TYPE,
@@ -320,7 +313,6 @@ const SCOPE: [&str; 22] = [
 ];
 const SHA1_HEX_LENGTH: usize = 40;
 const SHA256_HEX_LENGTH: usize = 64;
-const SIMULATOR_IDENTIFIER_LENGTH: usize = 36;
 const FIXTURE_READINESS: Duration = Duration::from_secs(30);
 const FIXTURE_READINESS_POLL: Duration = Duration::from_millis(100);
 const FIXTURE_TERMINATION_GRACE: Duration = Duration::from_secs(5);
@@ -746,23 +738,27 @@ impl Drop for Fixture {
     }
 }
 
-struct Simulator(String);
+struct Simulator(simulators::Record);
 
 impl Simulator {
     fn id(&self) -> &str {
-        &self.0
+        &self.0.id
+    }
+
+    fn runtime(&self) -> &str {
+        &self.0.runtime
     }
 }
 
 impl Drop for Simulator {
     fn drop(&mut self) {
         if let Err(error) = Command::new("xcrun")
-            .args(["simctl", "shutdown", &self.0])
+            .args(["simctl", "shutdown", self.id()])
             .status()
         {
             eprintln!(
                 "iOS check: simulator {} shutdown failed; the next run shuts it down before erasing it: {error}",
-                self.0
+                self.id()
             );
         }
     }
@@ -782,67 +778,8 @@ fn device(root: &Path) -> Result<Simulator> {
 }
 
 fn device_for(root: &Path, model: SimulatorModel) -> Result<Simulator> {
-    let output = logged(
-        root,
-        "simulators",
-        Command::new("xcrun").args(["simctl", "list", "devices", "available", "-j"]),
-    )?;
-    let devices: Value = serde_json::from_slice(&output.stdout)?;
     let name = format!("{}{}", device_name(root), model.suffix());
-    let existing = devices["devices"][model.runtime()]
-        .as_array()
-        .and_then(|values| {
-            values
-                .iter()
-                .find(|value| {
-                    value["name"] == name.as_str()
-                        && value["deviceTypeIdentifier"] == model.device_type()
-                })
-                .and_then(|value| value["udid"].as_str())
-        });
-    let identifier = if let Some(identifier) = existing {
-        identifier.to_owned()
-    } else {
-        let result = logged(
-            root,
-            "create-simulator",
-            Command::new("xcrun").args([
-                "simctl",
-                "create",
-                &name,
-                model.device_type(),
-                model.runtime(),
-            ]),
-        )?;
-        String::from_utf8(result.stdout)?.trim().to_owned()
-    };
-    ensure!(
-        identifier.len() == SIMULATOR_IDENTIFIER_LENGTH
-            && identifier
-                .bytes()
-                .all(|byte| byte.is_ascii_hexdigit() || byte == b'-'),
-        "The simulator returned an invalid identifier"
-    );
-    let booted = devices["devices"][model.runtime()]
-        .as_array()
-        .is_some_and(|values| {
-            values
-                .iter()
-                .any(|value| value["udid"] == identifier && value["state"] == "Booted")
-        });
-    if booted {
-        logged(
-            root,
-            "shutdown-simulator",
-            Command::new("xcrun").args(["simctl", "shutdown", &identifier]),
-        )?;
-    }
-    logged(
-        root,
-        "erase-test-simulator",
-        Command::new("xcrun").args(["simctl", "erase", &identifier]),
-    )?;
-    let simulator = Simulator(identifier);
+    let simulator = Simulator(simulators::create(root, &name, model.device_type())?);
     logged(
         root,
         "boot-simulator",
@@ -1089,6 +1026,7 @@ fn require_unit_inventory(list: &str, log: &str) -> Result<usize> {
 struct UiEvidence {
     directory: PathBuf,
     count: usize,
+    runtime: String,
 }
 
 fn require_ui_inventory(inventory: &Value) -> Result<()> {
@@ -1378,7 +1316,7 @@ fn ui_test_on(
         "live_api_origin":if live { Some(plist_string(&application.join("Info.plist"), "PhonebookAPIOrigin")?) } else { None },
             "tests":completed, "simulator_recoveries":recoveries, "source_sha256":source_records(&sources),
             "state_isolation":"dedicated erased simulator; application reinstalled before every scenario",
-            "simulator_runtime":model.runtime(), "simulator_device":model.device_type(),
+            "simulator_runtime":simulator.runtime(), "simulator_device":model.device_type(),
             "physical_device":"not run", "background_scope":"foreground/background UI transitions, not discretionary BGTaskScheduler delivery"
         }))?,
     )?;
@@ -1400,6 +1338,7 @@ fn ui_test_on(
     Ok(UiEvidence {
         directory,
         count: completed.len(),
+        runtime: simulator.runtime().to_owned(),
     })
 }
 
@@ -1840,9 +1779,9 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "ui_results":results.directory, "ui_tests":results.count, "finite_feed_inputs":FINITE_FEED_INPUTS, "finite_publication_inputs":FINITE_PUBLICATION_INPUTS,
                     "watch_ui_results":watch_results,
                     "duo_ui_results":duo_results.directory, "duo_ui_tests":duo_results.count,
-                    "duo_runtime":SimulatorModel::IphoneDuo.runtime(), "duo_device":SimulatorModel::IphoneDuo.device_type(),
+                    "duo_runtime":duo_results.runtime, "duo_device":SimulatorModel::IphoneDuo.device_type(),
                     "ipad_ui_results":ipad_results.directory, "ipad_ui_tests":ipad_results.count,
-                    "ipad_runtime":SimulatorModel::IpadPro13.runtime(), "ipad_device":SimulatorModel::IpadPro13.device_type(),
+                    "ipad_runtime":ipad_results.runtime, "ipad_device":SimulatorModel::IpadPro13.device_type(),
                     "publication_transitions":PUBLICATION_TRANSITIONS, "receive_budget_boundary_cases":RECEIVE_BUDGET_BOUNDARY_CASES,
                     "delta_admission_cases":DELTA_ADMISSION_CASES,
                     "unit_tests":unit_tests, "coverage":coverage,
@@ -1850,7 +1789,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "swift_language_mode":"6", "deployment_target":"iOS 18.0",
                     "device_build":"Release, unsigned",
                     "store_build":format!("Release app and extension contain no forgiving-search resources or {} QA markers; VerificationDebug and the rejected condition-defined Release contain every QA marker", store_build::MARKERS.len()),
-                    "simulator_runtime":RUNTIME, "simulator_device":DEVICE_TYPE,
+                    "simulator_runtime":results.runtime, "simulator_device":DEVICE_TYPE,
                     "device_validation":"not run", "ios_18_runtime_validation":"not run"
                 }))?,
             )?;

@@ -226,7 +226,7 @@ pub fn capture(root: &Path, origin: &str, model: SimulatorModel) -> Result<()> {
             .current_dir(root)
             .args(["status", "--porcelain"]),
     )?;
-    let record = json!({"format":1,"purpose":"App Store screenshot candidate; no upload","locale":"ja_JP","configuration":"ProductionDebug","api_origin":origin,"simulator_runtime":model.runtime(),"simulator_device":model.device_type(),"size":size,"directory":screens,"screenshots":files,"source_revision":String::from_utf8(revision.stdout)?.trim(),"working_tree_dirty":!status.stdout.is_empty(),"source_sha256":source_records(&sources)});
+    let record = json!({"format":1,"purpose":"App Store screenshot candidate; no upload","locale":"ja_JP","configuration":"ProductionDebug","api_origin":origin,"simulator_runtime":simulator.runtime(),"simulator_device":model.device_type(),"size":size,"directory":screens,"screenshots":files,"source_revision":String::from_utf8(revision.stdout)?.trim(),"working_tree_dirty":!status.stdout.is_empty(),"source_sha256":source_records(&sources)});
     fs::write(
         directory.join("screenshots.json"),
         serde_json::to_vec_pretty(&record)?,
