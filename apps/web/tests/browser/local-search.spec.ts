@@ -325,6 +325,28 @@ test("search keeps working offline after the index loads", async ({
   }
 });
 
+test("a private return restores an unmatched sample query while the index loads", async ({
+  page,
+}, testInfo) => {
+  const sample = "みほん市民図書館";
+  const release = await holdIndex(page);
+  try {
+    await page.goto(`/#${new URLSearchParams({ q: sample })}`);
+    await expect(page.locator("html")).toHaveAttribute("data-enhanced", "true");
+    await expect(searchSource(page)).toHaveAttribute(
+      "data-local-search",
+      "loading",
+    );
+    await recordFullPage(page, testInfo, "private-return-loading");
+    await expect(page.getByRole("searchbox")).toHaveValue(sample);
+  } finally {
+    release();
+  }
+  await waitForLocalSearch(page);
+  await expect(page.getByRole("searchbox")).toHaveValue(sample);
+  await expect(page.locator("article")).toHaveCount(0);
+});
+
 for (const category of ["", "library"] as const)
   test(`a private return restores its query before the index loads: ${category || "all categories"}`, async ({
     page,
