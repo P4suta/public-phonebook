@@ -325,6 +325,90 @@ test("search keeps working offline after the index loads", async ({
   }
 });
 
+for (const category of ["", "library"] as const)
+  test(`a private return restores its query before the index loads: ${category || "all categories"}`, async ({
+    page,
+  }) => {
+    const release = await holdIndex(page);
+    const searches: string[] = [];
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname === "/api/contact-groups")
+        searches.push(request.url());
+    });
+    const parameters = new URLSearchParams({ q: query });
+    if (category) parameters.set("category", category);
+    try {
+      await page.goto(`/#${parameters}`);
+      await expect(page.getByRole("searchbox")).toHaveValue(query);
+      await expect(searchSource(page)).toHaveAttribute(
+        "data-local-search",
+        "loading",
+      );
+      expect(searches).toEqual([]);
+    } finally {
+      release();
+    }
+    await waitForLocalSearch(page);
+    await expect(
+      page.locator("article").first().getByRole("heading"),
+    ).toHaveText(query);
+    await expect(page).toHaveURL(`/?${parameters}`);
+    expect(searches).toEqual([]);
+  });
+
+test("editing a private return while the index loads preserves the edited query", async ({
+  page,
+}) => {
+  const release = await holdIndex(page);
+  const searches: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/contact-groups")
+      searches.push(request.url());
+  });
+  const edited = `${query}関西館`;
+  try {
+    await page.goto(`/#${new URLSearchParams({ q: query })}`);
+    await expect(page.getByRole("searchbox")).toHaveValue(query);
+    await page.getByRole("searchbox").fill(edited);
+    await expect(searchSource(page)).toHaveAttribute(
+      "data-local-search",
+      "loading",
+    );
+    expect(searches).toEqual([]);
+  } finally {
+    release();
+  }
+  await waitForLocalSearch(page);
+  await expect(page.getByRole("searchbox")).toHaveValue(edited);
+  await expect(page.locator("article").first().getByRole("heading")).toHaveText(
+    edited,
+  );
+  expect(searches).toEqual([]);
+});
+
+test("a private return falls back to the server when the index is unavailable", async ({
+  page,
+  httpFailures,
+}) => {
+  httpFailures.add(503);
+  await page.route("**/api/search-index", (route) =>
+    route.fulfill({
+      status: 503,
+      body: "{}",
+      contentType: "application/problem+json",
+    }),
+  );
+  await page.goto(`/#${new URLSearchParams({ q: query })}`);
+  await expect(page.getByRole("searchbox")).toHaveValue(query);
+  await expect(searchSource(page)).toHaveAttribute(
+    "data-local-search",
+    "unavailable",
+  );
+  await expect(page.locator("article").first().getByRole("heading")).toHaveText(
+    query,
+  );
+});
+
 test("a local result opens its facility, and a changed snapshot reloads the index", async ({
   page,
   httpFailures,
