@@ -89,3 +89,20 @@ import Testing
       sourceURL: nil, license: "CC BY 4.0", licenseURL: "javascript:alert(1)")
   }
 }
+
+@Test func watchMetadataRejectsValuesAboveTheSnapshotLimit() {
+  let value = String(repeating: "a", count: 8193)
+  let prefix = "https://example.com/"
+  let url = prefix + String(repeating: "a", count: 8193 - prefix.utf8.count)
+  for (license, source, licenseURL) in [
+    (value, "https://example.com", "https://example.com"),
+    ("CC0", url, "https://example.com"),
+    ("CC0", "https://example.com", url),
+  ] {
+    #expect(throws: WatchSearchError.self) {
+      try WatchFacility(
+        id: 1, name: "Test", region: "", numbers: ["+81300000000"], publisher: "Test",
+        sourceURL: source, license: license, licenseURL: licenseURL)
+    }
+  }
+}
