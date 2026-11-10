@@ -36,9 +36,7 @@ struct ContactScreen: View {
         if let date = DateText.japanese(contact.provenance.dataAsOf) {
           Text("データの日付：\(date)").accessibilityIdentifier("source-data-date")
         }
-        NavigationLink {
-          SourceScreen(contact: contact)
-        } label: {
+        NavigationLink(value: SearchDetailRoute.source(contact)) {
           IconLabel(icon: "info", text: "電話番号のもとの情報を見る")
         }
         .buttonStyle(MonoButtonStyle())
@@ -46,6 +44,8 @@ struct ContactScreen: View {
       }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
     }
     .background(.surface).navigationTitle("施設の情報").navigationBarTitleDisplayMode(.inline)
+    .toolbarBackground(.surface, for: .navigationBar)
+    .toolbarBackgroundVisibility(.visible, for: .navigationBar)
   }
 }
 
@@ -57,7 +57,7 @@ enum DateText {
   }
 }
 
-private struct SourceScreen: View {
+struct SourceScreen: View {
   let contact: Contact
 
   private var licenseName: String {
@@ -108,5 +108,7 @@ private struct SourceScreen: View {
       }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
     }
     .background(.surface).navigationTitle("電話番号のもとの情報").navigationBarTitleDisplayMode(.inline)
+    .toolbarBackground(.surface, for: .navigationBar)
+    .toolbarBackgroundVisibility(.visible, for: .navigationBar)
   }
 }

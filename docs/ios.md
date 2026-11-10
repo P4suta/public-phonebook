@@ -2,6 +2,12 @@
 
 The SwiftUI app and its Call Directory extension live under `ios/`.
 The deployment target is iOS 18.0.
+The app supports the iPhone and iPad device families.
+Search and its selected facility share an adaptive split view, which collapses to one column on narrow displays.
+The detail toolbar and search results expose `検索を消す`, which clears the query and selection and returns to search.
+Search uses a labeled 44-point clear action.
+The sidebar widens for accessibility text sizes.
+
 The paired Apple Watch app requires watchOS 11.0.
 It sends a search request to the iPhone and receives at most ten facilities with telephone numbers, publishers, and license links.
 The iPhone searches its saved generation without changing its visible search.
@@ -9,6 +15,7 @@ The Watch keeps the last successful result in memory and stores no national dire
 Search terms stay between the paired devices, and neither app collects usage or diagnostic records.
 Run `mise x -- just ios-watch-check` for paired simulator messaging and Watch UI checks after installing the declared watchOS runtime.
 Apple describes the supported [watchOS test targets](https://developer.apple.com/documentation/watchos-apps/setting-up-tests-for-your-watchos-app).
+
 The project pins Xcode 27.2 and Swift 6 language mode.
 A deployment target and a successful device build don't establish execution on an iOS 18 runtime.
 
@@ -272,7 +279,13 @@ The TypeScript unit tests regenerate the responses and reject a stale corpus.
 Set `PHONEBOOK_FIXTURE_CONTACTS` and `PHONEBOOK_FIXTURE_CATALOG` to a production `contacts.jsonl.gz` and catalog to serve a real-data archive from the fixture.
 
 Run `mise x -- just ios-unit-test` for all compiled Swift package tests, strict lints, and coverage.
+Run `mise x -- just ios-simulator-runtimes` to install the iOS 27.0 and iPhone Duo's iOS 27.1 simulator runtimes before native checks.
+The native CI jobs run the same setup command.
 Run `mise x -- just ios-check` for those checks, unsigned simulator and device builds, and the complete isolated simulator UI inventory.
+The native gate also runs rotation, search, details, clearing, and accessibility scenarios on iPhone Duo and iPad Pro 13-inch.
+Use `mise x -- just ios-ui-test --simulator iphone-duo --test testClearingSearchFromDetailReturnsToTheInitialScreen` for one Duo scenario.
+Select `ipad-pro-13` for the iPad profile, or `iphone-17` for the default phone profile.
+Each profile uses a separate simulator and result record.
 Run `mise x -- just ios-prove`, `mise x -- just ios-sanitize`, and `mise x -- just ios-mutate` for the heavier assurance checks.
 Run `mise x -- just ios-device-record` with one iPhone connected to measure the first run and walk the manual checks, as [device verification](ios-device-verification.md#measured-first-run) describes.
 For routine updates, run `mise x -- just ios-ui-test --live --device` with one iPhone connected and unlocked.

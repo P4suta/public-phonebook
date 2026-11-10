@@ -164,7 +164,8 @@ Confirm the applicable [Apple export-compliance requirements](https://developer.
 
 Use real app screenshots in Japanese, with no personal data or simulated carrier-call claims.
 The [current screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications) require an accepted iPhone display size and prohibit transparency.
-The app targets iPhone only.
+The app targets iPhone and iPad.
+Supply an accepted iPad screenshot group when uploading a build that enables the iPad device family.
 Supply a production API that serves the versioned contract and a live public privacy policy before review.
 The support and privacy routes are `/support` and `/privacy`.
 Apple needs a live public URL.
@@ -197,6 +198,11 @@ The prepared data passed integrity checks for 650933 contacts, 546133 phone numb
 Screenshot capture uses ProductionDebug with an explicit loopback service and Japanese locale.
 The distributed Release package uses the production HTTPS origin.
 Run `mise x -- just ios-screenshots ORIGIN` with a bare HTTPS or loopback HTTP origin that serves the versioned API.
+Select `iphone-duo` or `ipad-pro-13` as the optional second argument for those device groups.
 The command runs the live UI case on the erased check simulator and exports its three Japanese attachments as opaque images with red, green, and blue channels.
-It rejects a failed case, a missing or repeated attachment, transparency, and any size other than 1206 × 2622.
+It rejects a failed case, a missing or repeated attachment, transparency, and dimensions outside the selected device's accepted sizes.
+The iPhone profile uses 1206 × 2622 pixels.
+The Duo profile accepts the outer display at 1398 × 2034 and the inner display at 2007 × 2853, including their landscape counterparts.
+The iPad Pro 13-inch profile uses 2064 × 2752 pixels or its landscape counterpart.
 `target/ios/app-store-screenshots.json` records each image digest with the origin, configuration, simulator, source revision, dirty-tree state, and source digests.
+The other profiles use `app-store-screenshots-duo.json` and `app-store-screenshots-ipad.json` so one capture doesn't replace another profile's record.

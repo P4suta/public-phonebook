@@ -66,6 +66,42 @@ const RUNTIME: &str = "com.apple.CoreSimulator.SimRuntime.iOS-27-0";
 const DEVICE_TYPE: &str = "com.apple.CoreSimulator.SimDeviceType.iPhone-17";
 const DEVICE_NAME: &str = "Public Phonebook Checks";
 const DEVICE_SUFFIX_LENGTH: usize = 8;
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
+pub enum SimulatorModel {
+    #[default]
+    #[value(name = "iphone-17")]
+    Iphone17,
+    #[value(name = "iphone-duo")]
+    IphoneDuo,
+    #[value(name = "ipad-pro-13")]
+    IpadPro13,
+}
+
+impl SimulatorModel {
+    fn runtime(self) -> &'static str {
+        match self {
+            Self::Iphone17 | Self::IpadPro13 => RUNTIME,
+            Self::IphoneDuo => "com.apple.CoreSimulator.SimRuntime.iOS-27-1",
+        }
+    }
+
+    fn device_type(self) -> &'static str {
+        match self {
+            Self::Iphone17 => DEVICE_TYPE,
+            Self::IphoneDuo => "com.apple.CoreSimulator.SimDeviceType.iPhone-Duo",
+            Self::IpadPro13 => "com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB",
+        }
+    }
+
+    fn suffix(self) -> &'static str {
+        match self {
+            Self::Iphone17 => "",
+            Self::IphoneDuo => "-duo",
+            Self::IpadPro13 => "-ipad",
+        }
+    }
+}
+
 const LIVE_UI_TEST: &str = "testLivePublicDirectorySearchAndSource";
 const STARTUP_UI_TEST: &str = "testBundledSearchStartupMeasurement";
 const SEARCH_MEMORY_UI_TEST: &str = "testBundledSearchMemoryMeasurement";
@@ -105,7 +141,7 @@ const SANITIZED_CONTRACTS: [&str; 4] = [
     "cancellationBeforeAndDuringRealRequestsAlwaysCompletes",
     "firstRunAppliesTheListedDeltaToTheBundleOnce",
 ];
-const UI_TESTS: [&str; 27] = [
+const UI_TESTS: [&str; 28] = [
     "testRankedMetadataRemainsReadableAtLargestTextSize",
     "testOnboardingSavesTheDirectoryBeforeSearch",
     "testSearchGroupsRankedResultsAndShowsMore",
@@ -130,6 +166,7 @@ const UI_TESTS: [&str; 27] = [
     "testDarkAppearanceSwapsBlackAndWhite",
     "testLargestTextScalesIconsBesideTheirLabels",
     "testSearchFieldShowsOneClearControl",
+    "testClearingSearchFromDetailReturnsToTheInitialScreen",
     "testCommonTasksPassAccessibilityAudits",
     "testCommonTasksPassAccessibilityAuditsAtLargestTextSize",
     "testCommonTasksPassAccessibilityAuditsInDarkAppearance",
@@ -138,6 +175,23 @@ const UI_TESTS: [&str; 27] = [
 const DARK_UI_TESTS: [&str; 2] = [
     "testDarkAppearanceSwapsBlackAndWhite",
     "testCommonTasksPassAccessibilityAuditsInDarkAppearance",
+];
+const DUO_UI_TESTS: [&str; 7] = [
+    "testPortraitLandscapeRoundTrip",
+    "testSearchGroupsRankedResultsAndShowsMore",
+    "testEmptyResultsAndLargeText",
+    "testContactDetailShowsRegionSourceAndExternalLinkConfirmation",
+    "testClearingSearchFromDetailReturnsToTheInitialScreen",
+    "testSearchFieldShowsOneClearControl",
+    "testCommonTasksPassAccessibilityAudits",
+];
+const IPAD_UI_TESTS: [&str; 6] = [
+    "testPortraitLandscapeRoundTrip",
+    "testLandscapeLargeTextSettings",
+    "testSearchFieldShowsOneClearControl",
+    "testContactDetailShowsRegionSourceAndExternalLinkConfirmation",
+    "testClearingSearchFromDetailReturnsToTheInitialScreen",
+    "testCommonTasksPassAccessibilityAudits",
 ];
 const REQUIRED_TESTS: [&str; 99] = [
     "resultPagesStayWithinBoundsAtSignedExtremes",
@@ -378,6 +432,8 @@ pub enum Action {
     Screenshots {
         #[arg(long)]
         origin: String,
+        #[arg(long, value_enum, default_value_t = SimulatorModel::Iphone17)]
+        simulator: SimulatorModel,
     },
     Check,
     UnitTest,
@@ -404,6 +460,8 @@ pub enum Action {
         live: bool,
         #[arg(long, requires = "live", num_args = 0..=1)]
         device: Option<Option<String>>,
+        #[arg(long, value_enum, conflicts_with = "device")]
+        simulator: Option<SimulatorModel>,
     },
     Affected {
         #[arg(long)]
@@ -716,26 +774,41 @@ fn device_name(root: &Path) -> String {
 }
 
 fn device(root: &Path) -> Result<Simulator> {
+    device_for(root, SimulatorModel::Iphone17)
+}
+
+fn device_for(root: &Path, model: SimulatorModel) -> Result<Simulator> {
     let output = logged(
         root,
         "simulators",
         Command::new("xcrun").args(["simctl", "list", "devices", "available", "-j"]),
     )?;
     let devices: Value = serde_json::from_slice(&output.stdout)?;
-    let name = device_name(root);
-    let existing = devices["devices"][RUNTIME].as_array().and_then(|values| {
-        values
-            .iter()
-            .find(|value| value["name"] == name.as_str())
-            .and_then(|value| value["udid"].as_str())
-    });
+    let name = format!("{}{}", device_name(root), model.suffix());
+    let existing = devices["devices"][model.runtime()]
+        .as_array()
+        .and_then(|values| {
+            values
+                .iter()
+                .find(|value| {
+                    value["name"] == name.as_str()
+                        && value["deviceTypeIdentifier"] == model.device_type()
+                })
+                .and_then(|value| value["udid"].as_str())
+        });
     let identifier = if let Some(identifier) = existing {
         identifier.to_owned()
     } else {
         let result = logged(
             root,
             "create-simulator",
-            Command::new("xcrun").args(["simctl", "create", &name, DEVICE_TYPE, RUNTIME]),
+            Command::new("xcrun").args([
+                "simctl",
+                "create",
+                &name,
+                model.device_type(),
+                model.runtime(),
+            ]),
         )?;
         String::from_utf8(result.stdout)?.trim().to_owned()
     };
@@ -746,7 +819,7 @@ fn device(root: &Path) -> Result<Simulator> {
                 .all(|byte| byte.is_ascii_hexdigit() || byte == b'-'),
         "The simulator returned an invalid identifier"
     );
-    let booted = devices["devices"][RUNTIME]
+    let booted = devices["devices"][model.runtime()]
         .as_array()
         .is_some_and(|values| {
             values
@@ -1062,6 +1135,15 @@ fn appearance(root: &Path, identifier: &str, case: &str, style: &str) -> Result<
 }
 
 fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
+    ui_test_on(root, selected, live, SimulatorModel::Iphone17)
+}
+
+fn ui_test_on(
+    root: &Path,
+    selected: &[String],
+    live: bool,
+    model: SimulatorModel,
+) -> Result<UiEvidence> {
     ensure!(
         selected
             .iter()
@@ -1069,11 +1151,8 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
             && selected.iter().collect::<BTreeSet<_>>().len() == selected.len(),
         "Select distinct declared iOS UI test names"
     );
-    let receipt = root.join(if live {
-        "target/ios/live-ui-receipt.json"
-    } else {
-        "target/ios/ui-receipt.json"
-    });
+    let kind = if live { "live-ui" } else { "ui" };
+    let receipt = root.join(format!("target/ios/{kind}{}-receipt.json", model.suffix()));
     if receipt.exists() {
         fs::remove_file(&receipt)?;
     }
@@ -1105,7 +1184,7 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
             )
         })
         .collect::<Vec<_>>();
-    let simulator = device(root)?;
+    let simulator = device_for(root, model)?;
     let identifier = simulator.id().to_owned();
     let directory = tempfile::Builder::new()
         .prefix("ui-")
@@ -1139,7 +1218,11 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
     let names = if live {
         vec![LIVE_UI_TEST]
     } else if selected.is_empty() {
-        UI_TESTS.to_vec()
+        match model {
+            SimulatorModel::Iphone17 => UI_TESTS.to_vec(),
+            SimulatorModel::IphoneDuo => DUO_UI_TESTS.to_vec(),
+            SimulatorModel::IpadPro13 => IPAD_UI_TESTS.to_vec(),
+        }
     } else {
         selected.iter().map(String::as_str).collect()
     };
@@ -1285,12 +1368,12 @@ fn ui_test(root: &Path, selected: &[String], live: bool) -> Result<UiEvidence> {
     fs::write(
         receipt,
         serde_json::to_vec_pretty(&json!({
-        "result":if failed > 0 { FAILED } else if inconclusive > 0 { INCONCLUSIVE } else { PASSED }, "complete_controlled_inventory":selected.is_empty() && !live,
+        "result":if failed > 0 { FAILED } else if inconclusive > 0 { INCONCLUSIVE } else { PASSED }, "complete_controlled_inventory":selected.is_empty() && !live && model == SimulatorModel::Iphone17,
         "api_environment":if live { "configured public service" } else { "controlled real service fixture" },
         "live_api_origin":if live { Some(plist_string(&application.join("Info.plist"), "PhonebookAPIOrigin")?) } else { None },
             "tests":completed, "simulator_recoveries":recoveries, "source_sha256":source_records(&sources),
             "state_isolation":"dedicated erased simulator; application reinstalled before every scenario",
-            "simulator_runtime":RUNTIME, "simulator_device":DEVICE_TYPE,
+            "simulator_runtime":model.runtime(), "simulator_device":model.device_type(),
             "physical_device":"not run", "background_scope":"foreground/background UI transitions, not discretionary BGTaskScheduler delivery"
         }))?,
     )?;
@@ -1451,7 +1534,7 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         Action::PrepareArchive { build_number } => {
             distribution::prepare_archive(root, BuildNumber::new(build_number)?)
         }
-        Action::Screenshots { origin } => screenshots::capture(root, &origin),
+        Action::Screenshots { origin, simulator } => screenshots::capture(root, &origin, simulator),
         Action::Generate => Ok(()),
         Action::WatchCheck => watch::check(root).map(|_| ()),
         Action::SearchMeasure => search_measurement::run(root),
@@ -1467,11 +1550,12 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
             tests,
             live,
             device,
+            simulator,
         } => {
             if device.is_some() {
                 device::smoke(root, &qa_device.context("The QA device wasn't prepared")?)?;
             } else {
-                ui_test(root, &tests, live)?;
+                ui_test_on(root, &tests, live, simulator.unwrap_or_default())?;
             }
             Ok(())
         }
@@ -1723,6 +1807,18 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                 "Release",
             )?;
             let results = ui_test(root, &[], false)?;
+            let duo_results = ui_test_on(
+                root,
+                &DUO_UI_TESTS.map(str::to_owned),
+                false,
+                SimulatorModel::IphoneDuo,
+            )?;
+            let ipad_results = ui_test_on(
+                root,
+                &IPAD_UI_TESTS.map(str::to_owned),
+                false,
+                SimulatorModel::IpadPro13,
+            )?;
             let watch_results = watch::check(root)?;
             require_current_sources(root, &sources)?;
             fs::write(
@@ -1730,7 +1826,12 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                 serde_json::to_vec_pretty(&json!({
                     "result":"passed",
                     "xcode":fs::read_to_string(root.join("ios/.xcode-version"))?.trim(),
-                    "ui_results":results.directory, "ui_tests":results.count, "watch_ui_results":watch_results, "finite_feed_inputs":FINITE_FEED_INPUTS, "finite_publication_inputs":FINITE_PUBLICATION_INPUTS,
+                    "ui_results":results.directory, "ui_tests":results.count, "finite_feed_inputs":FINITE_FEED_INPUTS, "finite_publication_inputs":FINITE_PUBLICATION_INPUTS,
+                    "watch_ui_results":watch_results,
+                    "duo_ui_results":duo_results.directory, "duo_ui_tests":duo_results.count,
+                    "duo_runtime":SimulatorModel::IphoneDuo.runtime(), "duo_device":SimulatorModel::IphoneDuo.device_type(),
+                    "ipad_ui_results":ipad_results.directory, "ipad_ui_tests":ipad_results.count,
+                    "ipad_runtime":SimulatorModel::IpadPro13.runtime(), "ipad_device":SimulatorModel::IpadPro13.device_type(),
                     "publication_transitions":PUBLICATION_TRANSITIONS, "receive_budget_boundary_cases":RECEIVE_BUDGET_BOUNDARY_CASES,
                     "delta_admission_cases":DELTA_ADMISSION_CASES,
                     "unit_tests":unit_tests, "coverage":coverage,
@@ -1905,6 +2006,36 @@ mod tests {
                 ])
                 .is_err()
             );
+        }
+    }
+
+    #[test]
+    fn duo_simulator_selection_is_explicit_and_distinct_from_a_physical_phone() {
+        for arguments in [
+            vec!["ios-check", "ui-test", "--simulator", "iphone-duo"],
+            vec![
+                "ios-check",
+                "screenshots",
+                "--origin",
+                "https://www.dial.page",
+                "--simulator",
+                "iphone-duo",
+            ],
+        ] {
+            assert!(<crate::Arguments as clap::Parser>::try_parse_from(arguments).is_ok());
+        }
+        for arguments in [
+            vec!["ios-check", "ui-test", "--simulator", "unknown-phone"],
+            vec![
+                "ios-check",
+                "ui-test",
+                "--live",
+                "--device",
+                "--simulator",
+                "iphone-duo",
+            ],
+        ] {
+            assert!(<crate::Arguments as clap::Parser>::try_parse_from(arguments).is_err());
         }
     }
 

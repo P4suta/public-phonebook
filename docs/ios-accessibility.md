@@ -120,11 +120,14 @@ The scenarios audit onboarding, caller settings, name and number results, facili
 XCTest runs each audit with [`performAccessibilityAudit(for:_:)`](https://developer.apple.com/documentation/xcuiautomation/xcuiapplication/performaccessibilityaudit%28for%3A_%3A%29).
 The scenarios use the default appearance, the largest font size that Dynamic Type offers, and Dark Mode.
 Each audited screen has a screenshot attachment.
-The system map confirmation uses separate text-growth assertions for Dynamic Type.
-On the tested simulator, the Dynamic Type audit reports internal labels even when the visible message and actions enlarge.
-The largest-text scenario compares the message and action layout heights with their default-size counterparts and requires each to exceed twice the default height.
-The confirmation still runs every other audit category.
-All visited app-owned screens run the full audit.
+External handoffs use the system's native confirmation dialog, following Apple's [action sheet guidance](https://developer.apple.com/design/human-interface-guidelines/action-sheets).
+The map confirmation checks its exact title, disclosure, opening action, and native cancellation behavior.
+Its audit preserves the existing exception for the system dialog's Dynamic Type report and checks every other audit category.
+The largest-text scenario requires the disclosure to exceed twice its default height and the native action targets to measure at least 44 points.
+App-owned screens keep every audit category enabled.
+Scrolling information screens exclude contrast findings for clipped static text because XCTest fills the offscreen part of its image with black.
+Navigation-bar titles remain in the contrast audit.
+Failure attachments identify the affected accessibility element.
 Apple's [audit guidance](https://developer.apple.com/videos/play/wwdc2023/10035/) explains why automated findings need investigation and why audits complement assistive-technology testing.
 The source screen expands opaque license identifiers to the published names of [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) and [Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
 The iOS verification gate includes all three scenarios and refuses missing or skipped test results.
