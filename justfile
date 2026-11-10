@@ -114,6 +114,10 @@ public-rehearsal bundle:
 prove:
     npm run prove
 
+ios-simulator-runtimes:
+    xcodebuild -downloadPlatform iOS -buildVersion 27.0 -architectureVariant arm64
+    xcodebuild -downloadPlatform iOS -buildVersion 27.1 -architectureVariant arm64
+
 ios-generate:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- generate
 
@@ -130,8 +134,8 @@ ios-build-number run attempt output:
 ios-testflight:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- testflight
 
-ios-screenshots origin:
-    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- screenshots --origin {{ quote(origin) }}
+ios-screenshots origin simulator="iphone-17":
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- screenshots --origin {{ quote(origin) }} --simulator {{ quote(simulator) }}
 
 icons:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- icons

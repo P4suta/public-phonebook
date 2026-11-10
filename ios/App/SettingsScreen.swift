@@ -10,7 +10,7 @@ struct SettingsScreen: View {
       VStack(alignment: .leading, spacing: 12) {
         Text("電話の相手が分かるようにする").font(.headline).accessibilityAddTraits(.isHeader)
         Text(
-          "iPhoneの設定で\(AppIdentity.displayName)を許可すると、病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前が出ます。"
+          "設定で\(AppIdentity.displayName)を許可すると、病院や役所などから電話がかかってきたとき、画面に施設の名前が出ます。"
         )
         .font(.callout)
         Text("許可してから使えるようになるまで、20秒ほどかかります。")
@@ -19,7 +19,7 @@ struct SettingsScreen: View {
         Button {
           model.openCallerSettings()
         } label: {
-          IconLabel(icon: "settings", text: "iPhoneの設定を開く")
+          IconLabel(icon: "settings", text: "設定を開く")
         }
         .buttonStyle(MonoButtonStyle())
         .accessibilityIdentifier("caller-settings")
@@ -53,7 +53,7 @@ private struct CallerStatusLabel: View {
     switch status {
     case .checking: "確認しています"
     case .on: "許可しています"
-    case .loading: "許可しています・iPhoneが準備しています"
+    case .loading: "許可しています・準備しています"
     case .onRetrying: "許可しています・次にアプリを開くと使えるようになります"
     case .off: "まだ許可していません"
     case .unknown: "確認できません"

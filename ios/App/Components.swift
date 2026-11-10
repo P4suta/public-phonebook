@@ -30,6 +30,7 @@ private struct MonoButton: View {
           .ink, style: StrokeStyle(lineWidth: 2, dash: enabled ? [] : [6, 4]))
       }
       .contentShape(Rectangle())
+      .fixedSize(horizontal: false, vertical: true)
   }
 }
 
@@ -71,8 +72,12 @@ struct PhoneActions: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
+    VStack(alignment: .leading, spacing: 16) {
       Text(display).font(large ? .largeTitle.bold() : .title.bold()).monospacedDigit()
+        .foregroundStyle(.ink)
+        .background(.surface)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.vertical, 8)
         .textSelection(.enabled)
         .accessibilityIdentifier("phone-number")
       Button {
@@ -114,7 +119,7 @@ struct ExternalLink<Label: View>: View {
     } label: {
       label()
     }
-    .alert("ほかのサイトを開きます", isPresented: $confirming) {
+    .confirmationDialog("ほかのサイトを開きます", isPresented: $confirming, titleVisibility: .visible) {
       Button("開く") { openURL(url) }
       Button("キャンセル", role: .cancel) {}
     } message: {
@@ -151,7 +156,7 @@ struct MapButton: View {
     .buttonStyle(MonoButtonStyle())
     .accessibilityLabel(opening ? "\(name)の場所をさがしています" : "\(name)を地図で見る")
     .accessibilityIdentifier("map-button")
-    .alert("マップで開きます", isPresented: $confirming) {
+    .confirmationDialog("マップで開きます", isPresented: $confirming, titleVisibility: .visible) {
       Button("開く") {
         opening = true
         Task {
@@ -161,7 +166,7 @@ struct MapButton: View {
       }
       Button("キャンセル", role: .cancel) {}
     } message: {
-      Text("この施設の場所を、Appleのマップで表示します。\n場所をさがすために、施設の名前と住所をAppleに送ります。")
+      Text("Appleのマップで場所をさがすために、施設の名前と住所を送ります。")
     }
     .alert("場所を見つけられませんでした", isPresented: $missing) {
       Button("閉じる", role: .cancel) {}

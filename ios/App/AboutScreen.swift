@@ -11,7 +11,7 @@ struct AboutScreen: View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
         Text("Public Phonebookについて").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
-        Text("病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前が出ます。")
+        Text("病院や役所などから電話がかかってきたとき、画面に施設の名前が出ます。")
         Text("アプリに番号がある施設の名前が出ます。")
         Text("学校や役所、病院などの電話番号を、名前でさがせるアプリです。")
         Text("国や自治体などが公開しているデータをもとにしています。")
@@ -45,19 +45,17 @@ struct AboutScreen: View {
         if integration.needsNewerApp {
           Text(IntegrationModel.newerAppLine).accessibilityIdentifier("newer-app")
         }
-        NavigationLink {
-          SourcesScreen(categories: model.categories)
-        } label: {
+        NavigationLink(value: SearchDetailRoute.sources) {
           IconLabel(icon: "info", text: "データのもとを見る")
         }
         .buttonStyle(MonoButtonStyle())
         .accessibilityIdentifier("sources-link")
 
         section("プライバシー")
-        Text("検索した言葉は、このiPhoneの中だけで使います。サービスには送りません。")
+        Text("検索は、使っている端末の中で行います。検索した言葉はサービスに送りません。")
         Text("自分の連絡先や通話の履歴を読んだり、変えたり、サービスに送ったりすることはありません。")
         Text("データを受け取るときは、IPアドレスなどの接続の情報を使います。配信にはCloudflareを使っています。")
-        Text("iPhoneの設定で\(AppIdentity.displayName)を許可すると、受け取った公開データをiOSに渡します。")
+        Text("設定で\(AppIdentity.displayName)を許可すると、受け取った公開データをシステムに渡します。")
         Text("アカウントの登録、広告、行動の追跡はありません。受け取ったデータは、アプリを削除すると消えます。")
         Text("「地図で見る」からAppleのマップを開くときは、場所をさがすために施設の名前と住所をAppleに送ります。")
         Text("施設のページなど、ほかのサイトやアプリを開いたときは、そのサイトやアプリの決まりが使われます。")
@@ -73,9 +71,7 @@ struct AboutScreen: View {
         .buttonStyle(MonoButtonStyle())
         .accessibilityHint("メールアプリを開きます。")
 
-        NavigationLink {
-          LicenseScreen()
-        } label: {
+        NavigationLink(value: SearchDetailRoute.license) {
           IconLabel(icon: "file", text: "ライセンスを見る")
         }
         .buttonStyle(MonoButtonStyle())
@@ -97,7 +93,7 @@ struct AboutScreen: View {
 }
 
 /// Lists who publishes each category of the saved data and under which license.
-private struct SourcesScreen: View {
+struct SourcesScreen: View {
   let categories: [CategoryInfo]
 
   var body: some View {

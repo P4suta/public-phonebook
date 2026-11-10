@@ -11,6 +11,23 @@ Use `xcrun devicectl list devices` to confirm the actual destination.
 Build the app and its extension with the QA bundle identifier, App Group, and selected HTTPS origin.
 A successful signature proves installation eligibility, not feature execution.
 
+## Adaptive display checks
+
+Use Device Hub to open, close, rotate, and change the fold angle of the dedicated iPhone Duo simulator while a query, facility, or source is open.
+Check that the query and facility remain selected and that search, back navigation, the menu, settings, and map confirmation remain usable.
+Keep public telephone calls outside the scenario.
+The automated Duo scenarios exercise search, details, clearing, larger text, and accessibility audits on the selected display.
+XCTest orientation requests didn't resize the outer display in the local iOS 27.1 run, so the automated suite doesn't claim to exercise folding or all display poses.
+On 2026-11-10, the owner confirmed preserved query and facility state and successful detail, source, back, menu, settings, and map-confirmation operations across opening, closing, rotation, and partial folding.
+The owner then found that facility details lacked a discoverable way to clear the search.
+The detail toolbar and search results expose `検索を消す`, which clears the query and selection and returns to the search screen.
+The map confirmation checks its complete title, disclosure, and two actions through exact accessibility labels.
+The background map action must remain unavailable while the modal is open.
+External handoffs use native confirmation dialogs and verify cancellation through the system's button or popover dismissal control.
+The large-text scenario checks disclosure growth and native 44-point toolbar actions.
+Facility selection moves focus away from the search field and preserves the query through the [TextField focus binding](https://developer.apple.com/documentation/swiftui/textfield).
+The focus binding is inside the searchable sidebar.
+
 ## Read-only search
 
 Run `mise x -- just ios-ui-test --live --device` with one iPhone unlocked and connected.

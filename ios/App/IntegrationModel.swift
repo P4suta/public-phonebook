@@ -590,7 +590,7 @@ final class IntegrationModel {
   func openCallerSettings() {
     CXCallDirectoryManager.sharedInstance.openSettings { [weak self] error in
       if error != nil {
-        Task { @MainActor [weak self] in self?.problem = "iPhoneの設定を開けませんでした。" }
+        Task { @MainActor [weak self] in self?.problem = "設定を開けませんでした。" }
       }
     }
   }
