@@ -13,18 +13,16 @@ const retiredPhrases = [
   "入力した言葉",
 ] as const;
 
-/** Statements the website and the iPhone app make word for word. */
+/** Statements shared across the website and Apple app. */
 const sharedStatements = [
   "検索欄に施設の名前を入れます。",
   "全国の施設が公開した電話番号のデータを、アプリの中に受け取って使います。",
   "新しいデータが出ると、自動で受け取ります。",
   "モバイルデータ通信や省データモードのときは、ほかの回線につながるまで待ちます。",
   "自分の連絡先や通話の履歴を読んだり、変えたり、サービスに送ったりすることはありません。",
-  "を許可すると、受け取った公開データをiOSに渡します。",
   "アカウントの登録、広告、行動の追跡はありません。",
   "受け取ったデータは、アプリを削除すると消えます。",
   "場所をさがすために、施設の名前と住所を",
-  "病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前が出ます。",
   "感想や使い方の質問、不具合、情報のまちがいは、",
   "電話番号や住所など、いらない個人の情報は書かないでください。",
   "あてはまる施設は0件です",
@@ -43,6 +41,17 @@ const sharedStatements = [
   "電話番号のもとになった資料を開きます。",
   "ほかのサイトのページを開きます。",
 ] as const;
+
+const platformStatements = {
+  web: [
+    "を許可すると、受け取った公開データをiOSに渡します。",
+    "病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前が出ます。",
+  ],
+  apple: [
+    "を許可すると、受け取った公開データをシステムに渡します。",
+    "病院や役所などから電話がかかってきたとき、画面に施設の名前が出ます。",
+  ],
+} as const;
 
 const webSources = ["apps/web/src/routes", "apps/web/src/ui"];
 const appSources = ["apps/ios/App"];
@@ -68,8 +77,13 @@ function retiredIn(text: string): string[] {
   return retiredPhrases.filter((phrase) => text.includes(phrase));
 }
 
-function missingFrom(text: string): string[] {
-  return sharedStatements.filter((statement) => !text.includes(statement));
+function missingFrom(
+  text: string,
+  platform: keyof typeof platformStatements,
+): string[] {
+  return [...sharedStatements, ...platformStatements[platform]].filter(
+    (statement) => !text.includes(statement),
+  );
 }
 
 describe("website copy", () => {
@@ -80,9 +94,17 @@ describe("website copy", () => {
     ]);
   });
 
-  it("makes the iPhone app's statements in the app's words", async () => {
-    expect(missingFrom(await sourceText(webSources, /\.tsx?$/u))).toEqual([]);
-    expect(missingFrom(await sourceText(appSources, /\.swift$/u))).toEqual([]);
-    expect(missingFrom("")).toHaveLength(sharedStatements.length);
+  it("keeps shared behavior and device-specific statements in each platform's words", async () => {
+    expect(
+      missingFrom(await sourceText(webSources, /\.tsx?$/u), "web"),
+    ).toEqual([]);
+    expect(
+      missingFrom(await sourceText(appSources, /\.swift$/u), "apple"),
+    ).toEqual([]);
+    for (const platform of ["web", "apple"] as const) {
+      expect(missingFrom("", platform)).toHaveLength(
+        sharedStatements.length + platformStatements[platform].length,
+      );
+    }
   });
 });

@@ -1,68 +1,189 @@
 import PhonebookCore
 import PhonebookKit
 import SwiftUI
-import UIKit
+
+enum SearchDetailRoute: Hashable {
+  case source(Contact)
+  case sources, license
+}
 
 struct SearchScreen: View {
   @Bindable var model: DirectoryModel
   @Bindable var integration: IntegrationModel
-  @State private var path: [Contact] = []
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @State private var destination: Destination?
+  @State private var detailPath: [SearchDetailRoute] = []
+  @State private var compactColumn: NavigationSplitViewColumn = .sidebar
   @State private var announced: [String] = []
+  @FocusState private var searchIsFocused: Bool
   #if PHONEBOOK_VERIFICATION_TOOLS
     @State private var verification = VerificationNumberModel()
   #endif
 
   var body: some View {
-    NavigationStack(path: $path) {
+    NavigationSplitView(preferredCompactColumn: $compactColumn) {
       ScrollViewReader { reader in
-        ScrollView {
-          LazyVStack(alignment: .leading, spacing: 0) { content }
-            .padding(.horizontal, 16).padding(.vertical, 12)
-            // The value names the typed query that the shown results answer, so a UI scenario never reads stale results.
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("search-results")
-            .accessibilityValue(model.results?.input ?? "")
-            .id("search-results-top")
+        List {
+          content
+            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Rectangle().fill(.surface))
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .accessibilityIdentifier("search-results")
+        .accessibilityValue(model.results?.input ?? "")
         .onChange(of: model.results?.input) {
-          reader.scrollTo("search-results-top", anchor: .top)
+          reader.scrollTo(model.results?.groups.first?.key ?? "search-hint", anchor: .top)
         }
       }
+      .safeAreaInset(edge: .top, spacing: 0) { searchField }
       .scrollDismissesKeyboard(.interactively)
-      .background(SingleClearControl())
       .background(.surface)
-      .navigationTitle(AppIdentity.displayName)
+      .navigationTitle("検索")
       .navigationBarTitleDisplayMode(.inline)
       .toolbarBackground(.surface, for: .navigationBar)
-      .searchable(
-        text: $model.query, placement: .navigationBarDrawer(displayMode: .always),
-        prompt: "施設の名前"
-      )
-      .onChange(of: model.query) { model.search() }
-      .onSubmit(of: .search) { model.search() }
+      .toolbarBackgroundVisibility(.visible, for: .navigationBar)
+      .onChange(of: model.query) {
+        let submitted = model.query.components(separatedBy: .newlines).joined(separator: " ")
+        if submitted != model.query {
+          model.query = submitted.trimmingCharacters(in: .whitespacesAndNewlines)
+          searchIsFocused = false
+          return
+        }
+        model.search()
+        if model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+          case .contact = destination
+        {
+          detailPath = []
+          destination = nil
+        }
+      }
       .task(id: announcement) { await announce() }
       .toolbar {
         ToolbarItem(placement: .topBarTrailing) {
           Menu {
-            NavigationLink("Public Phonebookについて") {
-              AboutScreen(model: model, integration: integration)
-            }
-            NavigationLink("設定") { SettingsScreen(model: integration) }
+            Button("Public Phonebookについて") { select(.about) }
+            Button("設定") { select(.settings) }
             #if PHONEBOOK_VERIFICATION_TOOLS
-              NavigationLink("QA用の確認") {
-                VerificationToolsScreen(model: verification, integration: integration)
-              }
+              Button("QA用の確認") { select(.verification) }
             #endif
           } label: {
-            DesignIcon(name: "menu").frame(minWidth: 44, minHeight: 44)
+            Label {
+              Text("メニュー")
+            } icon: {
+              Image("menu").renderingMode(.template)
+            }
+            .labelStyle(.iconOnly)
           }
           .accessibilityLabel("メニュー")
           .accessibilityIdentifier("menu")
         }
       }
-      .navigationDestination(for: Contact.self) { ContactScreen(contact: $0) }
+      .navigationSplitViewColumnWidth(
+        min: dynamicTypeSize.isAccessibilitySize ? 420 : 360,
+        ideal: dynamicTypeSize.isAccessibilitySize ? 500 : 420, max: 600
+      )
+    } detail: {
+      NavigationStack(path: $detailPath) {
+        detailContent
+          .navigationDestination(for: SearchDetailRoute.self) { route in
+            switch route {
+            case .source(let contact): SourceScreen(contact: contact)
+            case .sources: SourcesScreen(categories: model.categories)
+            case .license: LicenseScreen()
+            }
+          }
+      }
     }
+    .navigationSplitViewStyle(.balanced)
     .tint(.ink)
+  }
+
+  private var searchField: some View {
+    HStack(spacing: 8) {
+      HStack(spacing: 8) {
+        DesignIcon(name: "search")
+        TextField(
+          "施設の名前", text: $model.query, prompt: Text("名前").foregroundStyle(.ink),
+          axis: .vertical
+        )
+        .textFieldStyle(.plain)
+        .font(.body)
+        .lineLimit(1...3)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .submitLabel(.search)
+        .focused($searchIsFocused)
+        .onSubmit { model.search() }
+        .frame(minHeight: 44)
+        .accessibilityAddTraits(.isSearchField)
+        .accessibilityLabel("施設の名前")
+        .accessibilityIdentifier("search-field")
+      }
+      .padding(.horizontal, 12).padding(.vertical, 8)
+      .overlay { Rectangle().stroke(.ink, lineWidth: 2) }
+      if !model.query.isEmpty {
+        Button {
+          model.query = ""
+          searchIsFocused = true
+        } label: {
+          Label("検索を消す", systemImage: "xmark")
+            .labelStyle(.iconOnly).frame(minWidth: 44, minHeight: 44)
+        }
+        .buttonStyle(MonoButtonStyle()).fixedSize(horizontal: true, vertical: false)
+        .accessibilityIdentifier("clear-search-field")
+      }
+    }
+    .foregroundStyle(.ink)
+    .padding(16)
+    .background(.surface)
+  }
+
+  @ViewBuilder private var detailContent: some View {
+    switch destination {
+    case .contact(let contact):
+      ContactScreen(contact: contact)
+        .toolbar {
+          ToolbarItem(placement: .topBarTrailing) {
+            Button("検索を消す", systemImage: "xmark", action: clearSearch)
+              .labelStyle(.titleAndIcon)
+              .accessibilityIdentifier("clear-search")
+          }
+        }
+    case .about: AboutScreen(model: model, integration: integration)
+    case .settings: SettingsScreen(model: integration)
+    #if PHONEBOOK_VERIFICATION_TOOLS
+      case .verification:
+        VerificationToolsScreen(model: verification, integration: integration)
+    #endif
+    case nil:
+      ContentUnavailableView("施設を選んでください", image: "search")
+        .background(.surface)
+    }
+  }
+
+  private enum Destination: Hashable {
+    case contact(Contact)
+    case about, settings
+    #if PHONEBOOK_VERIFICATION_TOOLS
+      case verification
+    #endif
+  }
+
+  private func select(_ destination: Destination) {
+    searchIsFocused = false
+    detailPath = []
+    self.destination = destination
+    compactColumn = .detail
+  }
+
+  private func clearSearch() {
+    searchIsFocused = false
+    detailPath = []
+    model.query = ""
+    destination = nil
+    compactColumn = .sidebar
   }
 
   /// What the total announcement depends on, so each keystroke restarts its wait.
@@ -118,15 +239,15 @@ struct SearchScreen: View {
       }
       .accessibilityElement(children: .contain)
       .accessibilityIdentifier("search-hint")
+      .id("search-hint")
       if integration.callerStatus.promptsForSettings {
-        Rectangle().fill(.ink).frame(height: 1).padding(.top, 24)
         VStack(alignment: .leading, spacing: 12) {
-          Text("病院や役所などから電話がかかってきたとき、iPhoneの画面に施設の名前を出せます。")
-          Text("iPhoneの設定で、\(AppIdentity.displayName)を許可してください。")
+          Text("病院や役所などから電話がかかってきたとき、画面に施設の名前を出せます。")
+          Text("設定で、\(AppIdentity.displayName)を許可してください。")
           Button {
             integration.openCallerSettings()
           } label: {
-            IconLabel(icon: "settings", text: "iPhoneの設定を開く")
+            IconLabel(icon: "settings", text: "設定を開く")
           }
           .buttonStyle(MonoButtonStyle())
           .accessibilityIdentifier("caller-prompt-settings")
@@ -165,35 +286,39 @@ struct SearchScreen: View {
   }
 
   @ViewBuilder private func groupView(_ group: ResultGroup) -> some View {
-    HStack(spacing: 6) {
-      DesignIcon(name: IconCatalog.categories[group.key] ?? "file", size: 16)
-      Text(group.label).bold()
-      Text("\(group.total)件")
-    }
-    .font(.title3).padding(.top, 24).padding(.bottom, 8)
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel("\(group.label) \(group.total)件")
-    .accessibilityAddTraits(.isHeader)
-    .accessibilityIdentifier("group-\(group.key)")
-    Rectangle().fill(.ink).frame(height: 2)
     let visible = model.visible(group)
-    ForEach(visible) { contact in
-      ContactCard(contact: contact) { path.append(contact) }
-        .onAppear {
-          if contact.id == visible.last?.id, model.expanded(group) { model.more(group) }
-        }
-      Rectangle().fill(.ink).frame(height: 1)
-    }
-    if model.expandable(group), !model.expanded(group) {
-      Button {
-        model.more(group)
-      } label: {
-        IconLabel(icon: "chevron-down", text: "\(group.label)をもっと見る")
+    Section {
+      ForEach(visible) { contact in
+        ContactCard(contact: contact) { select(.contact(contact)) }
+          .onAppear {
+            if contact.id == visible.last?.id, model.expanded(group) { model.more(group) }
+          }
       }
-      .buttonStyle(MonoButtonStyle())
-      .padding(.vertical, 12)
-      .disabled(model.loadingMore)
-      .accessibilityIdentifier("more-\(group.key)")
+      if model.expandable(group), !model.expanded(group) {
+        Button {
+          model.more(group)
+        } label: {
+          IconLabel(icon: "chevron-down", text: "\(group.label)をもっと見る")
+        }
+        .buttonStyle(MonoButtonStyle())
+        .padding(.vertical, 12)
+        .disabled(model.loadingMore)
+        .accessibilityIdentifier("more-\(group.key)")
+      }
+    } header: {
+      HStack(spacing: 6) {
+        DesignIcon(name: IconCatalog.categories[group.key] ?? "file", size: 16)
+        Text(group.label).bold()
+        Text("\(group.total)件")
+      }
+      .font(.title3).foregroundStyle(.ink).textCase(nil)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(.surface)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel("\(group.label) \(group.total)件")
+      .accessibilityAddTraits(.isHeader)
+      .accessibilityIdentifier("group-\(group.key)")
+      .id(group.key)
     }
   }
 
@@ -213,6 +338,7 @@ private struct ContactCard: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       Text(contact.name).font(.title3.bold()).multilineTextAlignment(.leading)
+        .fixedSize(horizontal: false, vertical: true)
         .accessibilityAddTraits(.isHeader)
         .accessibilityIdentifier("contact-name")
       if !contact.region.isEmpty {
@@ -234,49 +360,5 @@ private struct ContactCard: View {
   /// Names what the details add to the card in plain words: the address, or more about the facility when it has none.
   private var detailLabel: String {
     contact.address.isEmpty ? "くわしい情報を見る" : "住所などを見る"
-  }
-}
-
-/// Removes the clear button inside the field that `.searchable` draws, so the system's close control beside the field is the one control that clears it.
-/// SwiftUI has no setting for that button, and `clearButtonMode` isn't an appearance selector, so this view sets it on the field in its window.
-private struct SingleClearControl: UIViewRepresentable {
-  func makeUIView(context: Context) -> Finder { Finder() }
-  func updateUIView(_ view: Finder, context: Context) { view.hideClearButtons() }
-
-  final class Finder: UIView {
-    override init(frame: CGRect) {
-      super.init(frame: frame)
-      isUserInteractionEnabled = false
-      isAccessibilityElement = false
-      // The field may appear after this view joins the window, and it shows the button only while editing.
-      NotificationCenter.default.addObserver(
-        self, selector: #selector(beganEditing(_:)),
-        name: UITextField.textDidBeginEditingNotification, object: nil)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { nil }
-
-    override func didMoveToWindow() {
-      super.didMoveToWindow()
-      hideClearButtons()
-    }
-
-    @objc private func beganEditing(_ notification: Notification) {
-      guard let field = notification.object as? UISearchTextField, field.window === window else {
-        return
-      }
-      field.clearButtonMode = .never
-    }
-
-    func hideClearButtons() {
-      guard let window else { return }
-      for field in Self.searchFields(in: window) { field.clearButtonMode = .never }
-    }
-
-    private static func searchFields(in view: UIView) -> [UISearchTextField] {
-      if let field = view as? UISearchTextField { return [field] }
-      return view.subviews.flatMap { searchFields(in: $0) }
-    }
   }
 }

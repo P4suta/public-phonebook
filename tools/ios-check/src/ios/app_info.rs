@@ -14,6 +14,12 @@ pub(super) const LOCAL_NETWORKING_INFO: &str = "Config/App-Info-LocalNetworking.
 pub(super) const EXTENSION_INFO: &str = "Config/CallDirectory-Info.plist";
 const LOCAL_NETWORKING: &str = "NSAllowsLocalNetworking";
 const TRANSPORT_SECURITY: &str = "NSAppTransportSecurity";
+const IPAD_ORIENTATIONS: [&str; 4] = [
+    "UIInterfaceOrientationPortrait",
+    "UIInterfaceOrientationPortraitUpsideDown",
+    "UIInterfaceOrientationLandscapeLeft",
+    "UIInterfaceOrientationLandscapeRight",
+];
 
 /// TestFlight receives VerificationRelease and the App Store receives Release, and both talk to the production origin alone.
 /// The other configurations run the UI scenarios, the store screenshots, or development against `http://127.0.0.1`.
@@ -33,6 +39,27 @@ pub(super) fn selected_list(target: &str, configuration: &str) -> Result<&'stati
 
 /// Requires the launch screen, and local networking exactly in the configurations that reach the loopback fixture.
 pub(super) fn require(info: &Value, configuration: &str) -> Result<()> {
+    let orientations = info["UISupportedInterfaceOrientations~ipad"].as_array();
+    ensure!(
+        orientations.is_some_and(|values| {
+            values.len() == IPAD_ORIENTATIONS.len()
+                && IPAD_ORIENTATIONS
+                    .iter()
+                    .all(|expected| values.contains(&json!(expected)))
+        }),
+        "{configuration}: iPad requires all four interface orientations"
+    );
+    ensure!(
+        info.get("UIRequiresFullScreen")
+            .is_none_or(|value| value == &json!(false)),
+        "{configuration}: iPad windows must support resizing"
+    );
+    if let Some(families) = info.get("UIDeviceFamily") {
+        ensure!(
+            families == &json!([1, 2]),
+            "{configuration}: the app must support iPhone and iPad device families"
+        );
+    }
     ensure!(
         info.pointer("/UILaunchScreen/UIColorName")
             .and_then(Value::as_str)
@@ -94,6 +121,10 @@ pub(super) fn check_built(root: &Path, app: &Path, configuration: &str) -> Resul
         &app.join("Info.plist"),
     )?;
     require(&info, configuration)?;
+    ensure!(
+        info.get("UIDeviceFamily").is_some(),
+        "{configuration}: the built app names no device families"
+    );
     let mut without_launch = info.clone();
     without_launch
         .as_object_mut()
@@ -152,10 +183,38 @@ mod tests {
 
     fn info(local: bool) -> Value {
         let mut info = json!({"UILaunchScreen": {"UIColorName": LAUNCH_COLOR}, "CFBundleName": "PublicPhonebook"});
+        info["UISupportedInterfaceOrientations~ipad"] = json!([
+            "UIInterfaceOrientationPortrait",
+            "UIInterfaceOrientationPortraitUpsideDown",
+            "UIInterfaceOrientationLandscapeLeft",
+            "UIInterfaceOrientationLandscapeRight",
+        ]);
         if local {
             info[TRANSPORT_SECURITY] = json!({ LOCAL_NETWORKING: true });
         }
         info
+    }
+
+    #[test]
+    fn tablet_configuration_rejects_missing_orientations_families_and_full_screen_lock()
+    -> Result<()> {
+        require(&info(false), "Release")?;
+        let mut missing_rotation = info(false);
+        missing_rotation["UISupportedInterfaceOrientations~ipad"] =
+            json!(["UIInterfaceOrientationPortrait"]);
+        let mut locked = info(false);
+        locked["UIRequiresFullScreen"] = json!(true);
+        for invalid in [missing_rotation, locked] {
+            assert!(require(&invalid, "Release").is_err());
+        }
+        for families in [json!([1]), json!([2]), json!([]), json!([1, 2, 7])] {
+            let mut invalid = info(false);
+            invalid["UIDeviceFamily"] = families;
+            assert!(require(&invalid, "Release").is_err());
+        }
+        let mut complete = info(false);
+        complete["UIDeviceFamily"] = json!([1, 2]);
+        require(&complete, "Release")
     }
 
     #[test]
