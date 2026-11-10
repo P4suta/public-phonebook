@@ -16,7 +16,9 @@ A successful signature proves installation eligibility, not feature execution.
 Use Device Hub to open, close, rotate, and change the fold angle of the dedicated iPhone Duo simulator while a query, facility, or source is open.
 Check that the query and facility remain selected and that search, back navigation, the menu, settings, and map confirmation remain usable.
 Keep public telephone calls outside the scenario.
-The automated Duo scenarios exercise search, details, clearing, larger text, and accessibility audits on the selected display.
+The automated Duo scenarios exercise rotation, search, details, clearing, larger text, and accessibility audits on the selected display.
+The rotation scenario checks device orientation and preserved navigation without inferring orientation from a window's aspect ratio on a device with two displays.
+Apple's [Duo guidance](https://developer.apple.com/videos/play/tech-talks/111461/) distinguishes interface orientation from available layout space.
 XCTest orientation requests didn't resize the outer display in the local iOS 27.1 run, so the automated suite doesn't claim to exercise folding or all display poses.
 On 2026-11-10, the owner confirmed preserved query and facility state and successful detail, source, back, menu, settings, and map-confirmation operations across opening, closing, rotation, and partial folding.
 The owner then found that facility details lacked a discoverable way to clear the search.

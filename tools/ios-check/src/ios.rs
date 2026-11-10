@@ -175,7 +175,8 @@ const DARK_UI_TESTS: [&str; 2] = [
     "testDarkAppearanceSwapsBlackAndWhite",
     "testCommonTasksPassAccessibilityAuditsInDarkAppearance",
 ];
-const DUO_UI_TESTS: [&str; 6] = [
+const DUO_UI_TESTS: [&str; 7] = [
+    "testPortraitLandscapeRoundTrip",
     "testSearchGroupsRankedResultsAndShowsMore",
     "testEmptyResultsAndLargeText",
     "testContactDetailShowsRegionSourceAndExternalLinkConfirmation",

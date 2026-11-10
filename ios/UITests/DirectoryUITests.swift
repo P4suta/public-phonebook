@@ -347,10 +347,14 @@ final class DirectoryUITests: XCTestCase {
 
   func testPortraitLandscapeRoundTrip() throws {
     let app = prepared()
+    let singleDisplay = XCUIScreen.screens.count == 1
     XCUIDevice.shared.orientation = .landscapeLeft
     waitUntil(
-      "the window is landscape",
-      app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
+      "the device is landscape",
+      XCUIDevice.shared.orientation == .landscapeLeft
+        && (!singleDisplay
+          || app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
+    )
     capture(app, name: "landscape-before-search")
     search("試験", in: app)
     app.buttons["contact-detail"].firstMatch.tap()
@@ -358,16 +362,22 @@ final class DirectoryUITests: XCTestCase {
     capture(app, name: "landscape-detail")
     XCUIDevice.shared.orientation = .portrait
     waitUntil(
-      "the window is portrait",
-      app.windows.firstMatch.frame.width < app.windows.firstMatch.frame.height)
+      "the device is portrait",
+      XCUIDevice.shared.orientation == .portrait
+        && (!singleDisplay
+          || app.windows.firstMatch.frame.width < app.windows.firstMatch.frame.height)
+    )
     reveal(app.buttons["source-link"], in: app)
     capture(app, name: "portrait-detail-after-rotation")
     app.buttons["source-link"].tap()
     XCTAssertTrue(app.staticTexts["source-license"].waitForExistence(timeout: 10))
     XCUIDevice.shared.orientation = .landscapeRight
     waitUntil(
-      "the source window is landscape",
-      app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
+      "the source device is landscape",
+      XCUIDevice.shared.orientation == .landscapeRight
+        && (!singleDisplay
+          || app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
+    )
     XCTAssertTrue(app.staticTexts["source-license"].exists)
     capture(app, name: "landscape-source-after-rotation")
     goBack(app)

@@ -273,7 +273,7 @@ Run `mise x -- just ios-unit-test` for all compiled Swift package tests, strict 
 Run `mise x -- just ios-simulator-runtimes` to install the iOS 27.0 and iPhone Duo's iOS 27.1 simulator runtimes before native checks.
 The native CI jobs run the same setup command.
 Run `mise x -- just ios-check` for those checks, unsigned simulator and device builds, and the complete isolated simulator UI inventory.
-The native gate also runs search, details, clearing, and accessibility scenarios on iPhone Duo and iPad Pro 13-inch.
+The native gate also runs rotation, search, details, clearing, and accessibility scenarios on iPhone Duo and iPad Pro 13-inch.
 Use `mise x -- just ios-ui-test --simulator iphone-duo --test testClearingSearchFromDetailReturnsToTheInitialScreen` for one Duo scenario.
 Select `ipad-pro-13` for the iPad profile, or `iphone-17` for the default phone profile.
 Each profile uses a separate simulator and result record.
