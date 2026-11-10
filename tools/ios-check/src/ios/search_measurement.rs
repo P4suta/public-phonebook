@@ -182,7 +182,7 @@ pub(super) fn run(root: &Path) -> Result<()> {
         serde_json::to_vec_pretty(&json!({
             "result":"measured",
             "configuration":"VerificationRelease",
-            "runtime":super::RUNTIME,
+            "runtime":simulator.runtime(),
             "scope":"Installed literal-search app; five launches from a saved national generation and three four-query memory repetitions; physical iPhone performance is unmeasured.",
             "source_sha256":source_records(&sources),
             "installedApp":startup,

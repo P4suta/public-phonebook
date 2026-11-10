@@ -1,8 +1,9 @@
 use super::{
-    Simulator, device_name, logged, require_current_sources, require_named_ui_case, source_hashes,
-    source_records, ui_test,
+    Simulator, SimulatorModel, device_name, logged, require_current_sources, require_named_ui_case,
+    simulators, source_hashes, source_records, ui_test,
 };
-use anyhow::{Context, Result, ensure};
+use anyhow::{Result, ensure};
+use clap::ValueEnum;
 use serde_json::{Value, json};
 use std::{
     fs,
@@ -10,35 +11,11 @@ use std::{
     process::Command,
 };
 
-const RUNTIME: &str = "com.apple.CoreSimulator.SimRuntime.watchOS-27-0";
 const MODEL: &str = "com.apple.CoreSimulator.SimDeviceType.Apple-Watch-Series-11-46mm";
 const TESTS: [&str; 2] = [
     "testSearchStartsWithALabeledEntry",
     "testPairedPhoneDirectorySearchAndSource",
 ];
-
-fn identifier(devices: &Value, runtime: &str, model: &str, name: &str) -> Result<Option<String>> {
-    let matches = devices["devices"][runtime]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter(|device| device["name"] == name && device["deviceTypeIdentifier"] == model)
-        .collect::<Vec<_>>();
-    ensure!(matches.len() <= 1, "The owned simulator name is ambiguous");
-    matches
-        .first()
-        .map(|device| {
-            let id = device["udid"]
-                .as_str()
-                .context("The owned simulator has no identifier")?;
-            ensure!(
-                super::signing::uuid(id),
-                "The owned simulator identifier is invalid"
-            );
-            Ok(id.to_owned())
-        })
-        .transpose()
-}
 
 struct Pair(String);
 
@@ -54,39 +31,41 @@ impl Drop for Pair {
     }
 }
 
-fn devices(root: &Path) -> Result<Value> {
-    let output = logged(
-        root,
-        "watch-devices",
-        Command::new("xcrun").args(["simctl", "list", "devices", "available", "--json"]),
-    )?;
-    Ok(serde_json::from_slice(&output.stdout)?)
+fn pairs_for_device(
+    name: &str,
+    devices: &Value,
+    pairs: &Value,
+    resetting: &simulators::Record,
+) -> Result<Vec<String>> {
+    let mut handhelds = Vec::new();
+    for model in SimulatorModel::value_variants() {
+        handhelds.extend(simulators::owned(
+            devices,
+            &format!("{name}{}", model.suffix()),
+            model.device_type(),
+        )?);
+    }
+    let watches = simulators::owned(devices, &format!("{name}-watch"), MODEL)?;
+    simulators::pairs_to_remove(pairs, &handhelds, &watches, resetting)
 }
 
-fn unpair_owned(root: &Path, phone: Option<&str>, watch: &str) -> Result<()> {
+pub(super) fn unpair_owned(
+    root: &Path,
+    devices: &Value,
+    resetting: &simulators::Record,
+) -> Result<()> {
     let output = logged(
         root,
         "watch-pairs",
         Command::new("xcrun").args(["simctl", "list", "pairs", "--json"]),
     )?;
     let listing: Value = serde_json::from_slice(&output.stdout)?;
-    for (id, pair) in listing["pairs"]
-        .as_object()
-        .context("The simulator pair listing is malformed")?
-    {
-        let owns_watch = pair["watch"]["udid"] == watch;
-        let owns_phone = phone.is_some_and(|phone| pair["phone"]["udid"] == phone);
-        if owns_watch || owns_phone {
-            ensure!(
-                owns_watch && owns_phone && super::signing::uuid(id),
-                "An owned test simulator is paired to another device"
-            );
-            logged(
-                root,
-                "watch-unpair",
-                Command::new("xcrun").args(["simctl", "unpair", id]),
-            )?;
-        }
+    for id in pairs_for_device(&device_name(root), devices, &listing, resetting)? {
+        logged(
+            root,
+            "watch-unpair",
+            Command::new("xcrun").args(["simctl", "unpair", &id]),
+        )?;
     }
     Ok(())
 }
@@ -97,62 +76,24 @@ pub(super) fn check(root: &Path) -> Result<PathBuf> {
     if receipt.exists() {
         fs::remove_file(&receipt)?;
     }
-    let listing = devices(root)?;
-    ensure!(
-        listing["devices"][RUNTIME].is_array(),
-        "Install the watchOS 27.0 simulator with `xcodebuild -downloadPlatform watchOS -buildVersion 27.0 -architectureVariant arm64` before the paired check"
-    );
     let name = device_name(root);
-    let phone = identifier(&listing, super::RUNTIME, super::DEVICE_TYPE, &name)?;
     let watch_name = format!("{name}-watch");
-    let watch = if let Some(id) = identifier(&listing, RUNTIME, MODEL, &watch_name)? {
-        id
-    } else {
-        let output = logged(
-            root,
-            "watch-create",
-            Command::new("xcrun").args(["simctl", "create", &watch_name, MODEL, RUNTIME]),
-        )?;
-        let id = String::from_utf8(output.stdout)?.trim().to_owned();
-        ensure!(
-            super::signing::uuid(&id),
-            "The created Watch identifier is invalid"
-        );
-        id
-    };
-    unpair_owned(root, phone.as_deref(), &watch)?;
     ui_test(
         root,
         &["testContactDetailShowsRegionSourceAndExternalLinkConfirmation".to_owned()],
         false,
     )?;
     let fixture = super::Fixture::start(root, super::Revision::Baseline)?;
-    let listing = devices(root)?;
-    let phone = Simulator(
-        identifier(&listing, super::RUNTIME, super::DEVICE_TYPE, &name)?
-            .context("The prepared phone simulator is missing")?,
-    );
-    let booted = listing["devices"][RUNTIME]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .any(|device| device["udid"] == watch && device["state"] == "Booted");
-    if booted {
-        logged(
-            root,
-            "watch-shutdown",
-            Command::new("xcrun").args(["simctl", "shutdown", &watch]),
-        )?;
-    }
-    logged(
-        root,
-        "watch-erase",
-        Command::new("xcrun").args(["simctl", "erase", &watch]),
-    )?;
+    let phone = Simulator(simulators::current(
+        &simulators::list(root)?,
+        &name,
+        super::DEVICE_TYPE,
+    )?);
+    let watch = Simulator(simulators::create(root, &watch_name, MODEL)?);
     let output = logged(
         root,
         "watch-pair",
-        Command::new("xcrun").args(["simctl", "pair", &watch, phone.id()]),
+        Command::new("xcrun").args(["simctl", "pair", watch.id(), phone.id()]),
     )?;
     let pair = String::from_utf8(output.stdout)?.trim().to_owned();
     ensure!(
@@ -160,7 +101,6 @@ pub(super) fn check(root: &Path) -> Result<PathBuf> {
         "The new simulator pair identifier is invalid"
     );
     let _pair = Pair(pair);
-    let watch = Simulator(watch);
     for (kind, simulator) in [("phone", &phone), ("watch", &watch)] {
         logged(
             root,
@@ -276,7 +216,7 @@ pub(super) fn check(root: &Path) -> Result<PathBuf> {
     fs::write(
         receipt,
         serde_json::to_vec_pretty(
-            &json!({"result":"passed", "tests":TESTS, "results":directory, "runtime":RUNTIME, "model":MODEL, "source_sha256":source_records(&sources), "transport":"real paired Watch Connectivity; phone fixture prepared by the iOS UI case"}),
+            &json!({"result":"passed", "tests":TESTS, "results":directory, "runtime":watch.runtime(), "phone_runtime":phone.runtime(), "model":MODEL, "source_sha256":source_records(&sources), "transport":"real paired Watch Connectivity; phone fixture prepared by the iOS UI case"}),
         )?,
     )?;
     Ok(directory)
@@ -286,32 +226,85 @@ pub(super) fn check(root: &Path) -> Result<PathBuf> {
 mod tests {
     use super::*;
 
+    const PHONE: &str = "12345678-1234-1234-1234-123456789012";
+    const DUO: &str = "ABCDEF12-1234-1234-1234-123456789012";
+    const IPAD: &str = "EF123456-1234-1234-1234-123456789012";
+    const WATCH: &str = "BCDEF123-1234-1234-1234-123456789012";
+    const FOREIGN: &str = "CDEF1234-1234-1234-1234-123456789012";
+    const PAIR: &str = "DEF12345-1234-1234-1234-123456789012";
+    const OTHER_PAIR: &str = "F1234567-1234-1234-1234-123456789012";
+
+    fn devices() -> Value {
+        let device = |name: &str, model: &str, id: &str| json!({"name":name,"deviceTypeIdentifier":model,"udid":id,"state":"Shutdown","isAvailable":true});
+        json!({"devices":{
+            "com.apple.CoreSimulator.SimRuntime.iOS-27-2":[
+                device("owned", super::super::DEVICE_TYPE, PHONE),
+                device("owned-ipad", SimulatorModel::IpadPro13.device_type(), IPAD)
+            ],
+            "com.apple.CoreSimulator.SimRuntime.iOS-27-2-iPhone19-4":[
+                device("owned-duo", SimulatorModel::IphoneDuo.device_type(), DUO)
+            ],
+            "com.apple.CoreSimulator.SimRuntime.watchOS-27-2":[
+                device("owned-watch", MODEL, WATCH),
+                device("another project", MODEL, FOREIGN)
+            ]
+        }})
+    }
+
+    fn duo(devices: &Value) -> Result<simulators::Record> {
+        simulators::current(
+            devices,
+            "owned-duo",
+            SimulatorModel::IphoneDuo.device_type(),
+        )
+    }
+
     #[test]
-    fn owned_watch_selection_rejects_ambiguous_or_invalid_identities() -> Result<()> {
-        let id = "12345678-1234-1234-1234-123456789012";
-        let device = json!({"name":"owned", "deviceTypeIdentifier":MODEL, "udid":id});
+    fn recreating_a_duo_rejects_its_foreign_watch_before_any_unpairing() -> Result<()> {
+        let devices = devices();
+        let pairs = json!({"pairs":{
+            PAIR:{"phone":{"udid":PHONE},"watch":{"udid":WATCH}},
+            OTHER_PAIR:{"phone":{"udid":DUO},"watch":{"udid":FOREIGN}}
+        }});
+        assert!(pairs_for_device("owned", &devices, &pairs, &duo(&devices)?).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn recreating_an_unpaired_duo_preserves_the_base_phone_pair() -> Result<()> {
+        let devices = devices();
+        let pairs = json!({"pairs":{
+            PAIR:{"phone":{"udid":PHONE},"watch":{"udid":WATCH}}
+        }});
+        assert!(pairs_for_device("owned", &devices, &pairs, &duo(&devices)?)?.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn recreating_an_unpaired_ipad_preserves_the_base_phone_pair() -> Result<()> {
+        let devices = devices();
+        let pairs = json!({"pairs":{
+            PAIR:{"phone":{"udid":PHONE},"watch":{"udid":WATCH}}
+        }});
+        let ipad = simulators::current(
+            &devices,
+            "owned-ipad",
+            SimulatorModel::IpadPro13.device_type(),
+        )?;
+        assert!(pairs_for_device("owned", &devices, &pairs, &ipad)?.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn recreating_the_watch_recognizes_an_owned_duo_peer() -> Result<()> {
+        let devices = devices();
+        let pairs = json!({"pairs":{
+            PAIR:{"phone":{"udid":DUO},"watch":{"udid":WATCH}}
+        }});
+        let watch = simulators::current(&devices, "owned-watch", MODEL)?;
         assert_eq!(
-            identifier(
-                &json!({"devices":{RUNTIME:[device.clone()]}}),
-                RUNTIME,
-                MODEL,
-                "owned"
-            )?,
-            Some(id.to_owned())
-        );
-        assert!(
-            identifier(
-                &json!({"devices":{RUNTIME:[device.clone(),device]}}),
-                RUNTIME,
-                MODEL,
-                "owned"
-            )
-            .is_err()
-        );
-        assert!(identifier(&json!({"devices":{RUNTIME:[{"name":"owned", "deviceTypeIdentifier":MODEL, "udid":"foreign"}]}}), RUNTIME, MODEL, "owned").is_err());
-        assert_eq!(
-            identifier(&json!({"devices":{RUNTIME:[]}}), RUNTIME, MODEL, "owned")?,
-            None
+            pairs_for_device("owned", &devices, &pairs, &watch)?,
+            vec![PAIR]
         );
         Ok(())
     }
