@@ -851,7 +851,7 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
     XCTAssertTrue(
       confirmation.staticTexts.allElementsBoundByIndex.contains {
-        $0.label.contains("https://www.dial.page/privacy")
+        $0.label.contains("行き先：www.dial.page")
       })
     capture(app, name: "accessibility-privacy-policy-confirmation")
     confirmationCancellation(in: app).tap()
@@ -939,8 +939,10 @@ final class DirectoryUITests: XCTestCase {
     privacy.tap()
     XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
     XCTAssertTrue(
-      confirmation.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "/privacy"))
-        .firstMatch.exists)
+      confirmation.staticTexts.matching(
+        NSPredicate(format: "label CONTAINS %@", "行き先：www.dial.page")
+      )
+      .firstMatch.exists)
     confirmationCancellation(in: app).tap()
     XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
     let sources = app.buttons["sources-link"]
