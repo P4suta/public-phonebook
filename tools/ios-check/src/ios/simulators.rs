@@ -79,8 +79,8 @@ pub(super) fn list(root: &Path) -> Result<Value> {
 pub(super) fn create(root: &Path, name: &str, model: &str) -> Result<Record> {
     let listing = list(root)?;
     let previous = owned(&listing, name, model)?;
-    if !previous.is_empty() {
-        super::watch::unpair_owned(root, &listing)?;
+    if let Some(device) = previous.first() {
+        super::watch::unpair_owned(root, &listing, device)?;
     }
     for device in previous {
         if device.booted {
@@ -116,25 +116,29 @@ pub(super) fn create(root: &Path, name: &str, model: &str) -> Result<Record> {
 
 pub(super) fn pairs_to_remove(
     listing: &Value,
-    phones: &[Record],
+    handhelds: &[Record],
     watches: &[Record],
+    resetting: &Record,
 ) -> Result<Vec<String>> {
     let mut selected = Vec::new();
     for (id, pair) in listing["pairs"]
         .as_object()
         .context("The simulator pair listing is malformed")?
     {
-        let owns_phone = phones.iter().any(|phone| pair["phone"]["udid"] == phone.id);
+        if pair["phone"]["udid"] != resetting.id && pair["watch"]["udid"] != resetting.id {
+            continue;
+        }
+        let owns_handheld = handhelds
+            .iter()
+            .any(|device| pair["phone"]["udid"] == device.id);
         let owns_watch = watches
             .iter()
             .any(|watch| pair["watch"]["udid"] == watch.id);
-        if owns_phone || owns_watch {
-            ensure!(
-                owns_phone && owns_watch && super::signing::uuid(id),
-                "An owned test simulator is paired to another device"
-            );
-            selected.push(id.to_owned());
-        }
+        ensure!(
+            owns_handheld && owns_watch && super::signing::uuid(id),
+            "An owned test simulator is paired to another device"
+        );
+        selected.push(id.to_owned());
     }
     Ok(selected)
 }
@@ -226,16 +230,19 @@ mod tests {
         }];
         let pair = json!({"phone":{"udid":ID},"watch":{"udid":watch_id}});
         let mut listing = json!({"pairs":{ID:pair}});
-        assert_eq!(pairs_to_remove(&listing, &records, &watches)?, vec![ID]);
+        assert_eq!(
+            pairs_to_remove(&listing, &records, &watches, &records[0])?,
+            vec![ID]
+        );
         listing["pairs"][ID]["watch"]["udid"] = json!("a foreign Watch");
-        assert!(pairs_to_remove(&listing, &records, &watches).is_err());
+        assert!(pairs_to_remove(&listing, &records, &watches, &records[0]).is_err());
         listing["pairs"][ID]["watch"]["udid"] = json!(watch_id);
         listing["pairs"][ID]["phone"]["udid"] = json!("a foreign phone");
-        assert!(pairs_to_remove(&listing, &records, &watches).is_err());
+        assert!(pairs_to_remove(&listing, &records, &watches, &watches[0]).is_err());
         listing["pairs"][ID]["watch"]["udid"] = json!("a foreign Watch");
         listing["pairs"][ID]["phone"]["udid"] = json!("a foreign phone");
-        assert!(pairs_to_remove(&listing, &records, &watches)?.is_empty());
-        assert!(pairs_to_remove(&json!({}), &records, &watches).is_err());
+        assert!(pairs_to_remove(&listing, &records, &watches, &records[0])?.is_empty());
+        assert!(pairs_to_remove(&json!({}), &records, &watches, &records[0]).is_err());
         Ok(())
     }
 }
