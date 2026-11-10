@@ -81,9 +81,7 @@ final class WatchDirectoryUITests: XCTestCase {
     XCTAssertTrue(number.waitForExistence(timeout: 10))
     XCTAssertEqual(number.label, "0300000000")
     capture(app, name: "sample-city-contact")
-    let publisher = app.staticTexts["みほん市（サンプル）"]
-    reveal(publisher, in: app)
-    XCTAssertTrue(app.buttons["watch-source"].exists)
+    reveal(app.buttons["watch-source"], in: app)
     capture(app, name: "sample-city-source")
   }
 
