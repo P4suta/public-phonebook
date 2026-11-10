@@ -380,7 +380,7 @@ export function SearchPage(): ReactElement {
               <div className={css.searchInput}>
                 <input
                   id="directory-search"
-                  aria-describedby="search-readings"
+                  aria-describedby="search-help"
                   name="q"
                   className={css.input}
                   enterKeyHint="search"
@@ -423,8 +423,8 @@ export function SearchPage(): ReactElement {
               </button>
             </div>
           </form>
-          <p id="search-readings" className={css.searchHint}>
-            {uiCopy.search.readings}
+          <p id="search-help" className={css.searchHint}>
+            {uiCopy.search.help}
           </p>
         </search>
         {active && (

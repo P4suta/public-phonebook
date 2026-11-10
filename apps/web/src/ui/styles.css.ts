@@ -169,7 +169,7 @@ export const fieldLabel = style({ ...typography("rowHeading") });
 /** Puts the search action beside the field on wide screens and below it on narrow screens. */
 export const searchField = style({
   display: "flex",
-  alignItems: "center",
+  alignItems: "stretch",
   gap: tokens.space["8"],
   width: "100%",
   "@media": {

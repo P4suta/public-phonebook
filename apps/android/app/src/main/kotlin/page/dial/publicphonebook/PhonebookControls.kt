@@ -9,16 +9,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -33,9 +34,25 @@ internal fun PhonebookIcon(@DrawableRes icon: Int, description: String? = null) 
 }
 
 @Composable
-internal fun IconAction(@StringRes label: Int, @DrawableRes icon: Int, onClick: () -> Unit) {
-    IconButton(onClick, modifier = Modifier.size(48.dp)) {
-        PhonebookIcon(icon, stringResource(label))
+internal fun IconAction(
+    @StringRes label: Int,
+    @DrawableRes icon: Int,
+    outlined: Boolean = false,
+    onClick: () -> Unit,
+) {
+    if (outlined) {
+        OutlinedIconButton(
+            onClick,
+            modifier = Modifier.size(48.dp),
+            shape = RectangleShape,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
+        ) {
+            PhonebookIcon(icon, stringResource(label))
+        }
+    } else {
+        IconButton(onClick, modifier = Modifier.size(48.dp)) {
+            PhonebookIcon(icon, stringResource(label))
+        }
     }
 }
 
@@ -60,7 +77,7 @@ internal fun Action(
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).semantics { role = Role.Button },
-        shape = RoundedCornerShape(12.dp),
+        shape = RectangleShape,
         color = if (primary) colors.onSurface else colors.surface,
         contentColor = if (primary) colors.surface else colors.onSurface,
         border = BorderStroke(1.dp, colors.onSurface),

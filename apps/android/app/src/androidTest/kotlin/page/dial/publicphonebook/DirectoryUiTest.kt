@@ -92,6 +92,11 @@ class DirectoryUiTest {
         capture("source-code-confirmation")
         rule.onNodeWithText("キャンセル").performClick()
         capture("about-open-source")
+        rule.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("ありません。"))
+        rule.onNodeWithText("ありません。").assertIsDisplayed()
+        selectAction("プライバシーについて読む")
+        rule.onNodeWithText("${BuildConfig.ORIGIN}/privacy", substring = true).assertIsDisplayed()
+        rule.onNodeWithText("キャンセル").performClick()
         selectAction("オープンソースの利用条件")
         rule.waitUntil(SEARCH_TIMEOUT_MILLIS) {
             rule
@@ -111,6 +116,7 @@ class DirectoryUiTest {
             rule.onAllNodes(resultButton).fetchSemanticsNodes().isEmpty()
         }
         rule.onNodeWithText("検索のヒント").assertIsDisplayed()
+        rule.onNodeWithText("施設の名前を入れてください。").assertIsDisplayed()
         capture("search-empty")
         inspectCallerDisplay()
     }

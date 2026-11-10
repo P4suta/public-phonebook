@@ -11,6 +11,8 @@ struct SearchScreen: View {
   @Bindable var model: DirectoryModel
   @Bindable var integration: IntegrationModel
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @ScaledMetric(relativeTo: .body) private var minimumColumnWidth: CGFloat = 320
   @State private var destination: Destination?
   @State private var detailPath: [SearchDetailRoute] = []
   @State private var compactColumn: NavigationSplitViewColumn = .sidebar
@@ -21,83 +23,105 @@ struct SearchScreen: View {
   #endif
 
   var body: some View {
-    NavigationSplitView(preferredCompactColumn: $compactColumn) {
-      ScrollViewReader { reader in
-        List {
-          content
-            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-            .listRowSeparator(.hidden)
-            .listRowBackground(Rectangle().fill(.surface))
+    Group {
+      if horizontalSizeClass == .regular {
+        NavigationSplitView(preferredCompactColumn: $compactColumn) {
+          searchContent
+            .navigationSplitViewColumnWidth(
+              min: dynamicTypeSize.isAccessibilitySize ? 420 : 360,
+              ideal: dynamicTypeSize.isAccessibilitySize ? 500 : 420, max: 600
+            )
+        } detail: {
+          detailStack
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .accessibilityIdentifier("search-results")
-        .accessibilityValue(model.results?.input ?? "")
-        .onChange(of: model.results?.input) {
-          reader.scrollTo(model.results?.groups.first?.key ?? "search-hint", anchor: .top)
-        }
-      }
-      .safeAreaInset(edge: .top, spacing: 0) { searchField }
-      .scrollDismissesKeyboard(.interactively)
-      .background(.surface)
-      .navigationTitle("検索")
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbarBackground(.surface, for: .navigationBar)
-      .toolbarBackgroundVisibility(.visible, for: .navigationBar)
-      .onChange(of: model.query) {
-        let submitted = model.query.components(separatedBy: .newlines).joined(separator: " ")
-        if submitted != model.query {
-          model.query = submitted.trimmingCharacters(in: .whitespacesAndNewlines)
-          searchIsFocused = false
-          return
-        }
-        model.search()
-        if model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-          case .contact = destination
-        {
-          detailPath = []
-          destination = nil
-        }
-      }
-      .task(id: announcement) { await announce() }
-      .toolbar {
-        ToolbarItem(placement: .topBarTrailing) {
-          Menu {
-            Button("Public Phonebookについて") { select(.about) }
-            Button("設定") { select(.settings) }
-            #if PHONEBOOK_VERIFICATION_TOOLS
-              Button("QA用の確認") { select(.verification) }
-            #endif
-          } label: {
-            Label {
-              Text("メニュー")
-            } icon: {
-              Image("menu").renderingMode(.template)
+        .navigationSplitViewStyle(.balanced)
+      } else {
+        GeometryReader { geometry in
+          if geometry.size.width >= minimumColumnWidth * 2 + 1 {
+            HStack(spacing: 0) {
+              NavigationStack { searchContent }
+                .frame(width: max(minimumColumnWidth, geometry.size.width * 0.44))
+              Rectangle().fill(.ink).frame(width: 1)
+              detailStack
             }
-            .labelStyle(.iconOnly)
-          }
-          .accessibilityLabel("メニュー")
-          .accessibilityIdentifier("menu")
-        }
-      }
-      .navigationSplitViewColumnWidth(
-        min: dynamicTypeSize.isAccessibilitySize ? 420 : 360,
-        ideal: dynamicTypeSize.isAccessibilitySize ? 500 : 420, max: 600
-      )
-    } detail: {
-      NavigationStack(path: $detailPath) {
-        detailContent
-          .navigationDestination(for: SearchDetailRoute.self) { route in
-            switch route {
-            case .source(let contact): SourceScreen(contact: contact)
-            case .sources: SourcesScreen(categories: model.categories)
-            case .license: LicenseScreen()
+          } else {
+            NavigationStack(path: $detailPath) {
+              Group {
+                if destination == nil {
+                  searchContent
+                } else {
+                  detailContent
+                    .toolbar {
+                      ToolbarItem(placement: .topBarLeading) {
+                        Button("検索にもどる", systemImage: "chevron.backward", action: returnToSearch)
+                          .accessibilityIdentifier("return-to-search")
+                      }
+                    }
+                }
+              }
+              .navigationDestination(for: SearchDetailRoute.self, destination: detailDestination)
             }
           }
+        }
       }
     }
-    .navigationSplitViewStyle(.balanced)
     .tint(.ink)
+    .onChange(of: model.query) {
+      let submitted = model.query.components(separatedBy: .newlines).joined(separator: " ")
+      if submitted != model.query {
+        model.query = submitted.trimmingCharacters(in: .whitespacesAndNewlines)
+        searchIsFocused = false
+        return
+      }
+      model.search()
+      if model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+        case .contact = destination
+      {
+        detailPath = []
+        destination = nil
+      }
+    }
+    .task(id: announcement) { await announce() }
+  }
+
+  private var searchContent: some View {
+    ScrollViewReader { reader in
+      List {
+        content
+          .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+          .listRowSeparator(.hidden)
+          .listRowBackground(Rectangle().fill(.surface))
+      }
+      .listStyle(.plain)
+      .scrollContentBackground(.hidden)
+      .accessibilityIdentifier("search-results")
+      .accessibilityValue(model.results?.input ?? "")
+      .onChange(of: model.results?.input) {
+        reader.scrollTo(model.results?.groups.first?.key ?? "search-hint", anchor: .top)
+      }
+    }
+    .safeAreaInset(edge: .top, spacing: 0) { searchField }
+    .scrollDismissesKeyboard(.interactively)
+    .background(.surface)
+    .navigationTitle("検索")
+    .navigationBarTitleDisplayMode(.inline)
+    .toolbarBackground(.surface, for: .navigationBar)
+    .toolbarBackgroundVisibility(.visible, for: .navigationBar)
+  }
+
+  private var detailStack: some View {
+    NavigationStack(path: $detailPath) {
+      detailContent
+        .navigationDestination(for: SearchDetailRoute.self, destination: detailDestination)
+    }
+  }
+
+  @ViewBuilder private func detailDestination(_ route: SearchDetailRoute) -> some View {
+    switch route {
+    case .source(let contact): SourceScreen(contact: contact)
+    case .sources: SourcesScreen(categories: model.categories)
+    case .license: LicenseScreen()
+    }
   }
 
   private var searchField: some View {
@@ -115,14 +139,20 @@ struct SearchScreen: View {
         .autocorrectionDisabled()
         .submitLabel(.search)
         .focused($searchIsFocused)
-        .onSubmit { model.search() }
+        .onSubmit {
+          searchIsFocused = false
+          model.search()
+        }
         .frame(minHeight: 44)
         .accessibilityAddTraits(.isSearchField)
         .accessibilityLabel("施設の名前")
         .accessibilityIdentifier("search-field")
       }
-      .padding(.horizontal, 12).padding(.vertical, 8)
-      .overlay { Rectangle().stroke(.ink, lineWidth: 2) }
+      .padding(.horizontal, 12)
+      .frame(maxHeight: .infinity)
+      .overlay { Rectangle().strokeBorder(.ink, lineWidth: 2) }
+      .accessibilityElement(children: .contain)
+      .accessibilityIdentifier("search-field-border")
       if !model.query.isEmpty {
         Button {
           model.query = ""
@@ -131,10 +161,23 @@ struct SearchScreen: View {
           Label("検索を消す", systemImage: "xmark")
             .labelStyle(.iconOnly).frame(minWidth: 44, minHeight: 44)
         }
-        .buttonStyle(MonoButtonStyle()).fixedSize(horizontal: true, vertical: false)
+        .buttonStyle(MonoButtonStyle(iconOnly: true))
         .accessibilityIdentifier("clear-search-field")
       }
+      Menu {
+        Button("Public Phonebookについて") { select(.about) }
+        Button("設定") { select(.settings) }
+        #if PHONEBOOK_VERIFICATION_TOOLS
+          Button("QA用の確認") { select(.verification) }
+        #endif
+      } label: {
+        DesignIcon(name: "menu").frame(minWidth: 44, minHeight: 44)
+      }
+      .buttonStyle(MonoButtonStyle(iconOnly: true))
+      .accessibilityLabel("メニュー")
+      .accessibilityIdentifier("menu")
     }
+    .fixedSize(horizontal: false, vertical: true)
     .foregroundStyle(.ink)
     .padding(16)
     .background(.surface)
@@ -186,6 +229,12 @@ struct SearchScreen: View {
     compactColumn = .sidebar
   }
 
+  private func returnToSearch() {
+    detailPath = []
+    destination = nil
+    compactColumn = .sidebar
+  }
+
   /// What the total announcement depends on, so each keystroke restarts its wait.
   private var announcement: [String] {
     guard let results = model.results else { return [] }
@@ -214,7 +263,6 @@ struct SearchScreen: View {
     } else if model.results == nil, !model.searching, !model.failed {
       VStack(alignment: .leading, spacing: 8) {
         Text("施設の名前を入れてください。")
-        Text("都道府県名と主な分類名は、2文字以上の読み仮名でもさがせます。")
         // Only a first download shows here, because automatic updates stay silent.
         if integration.receiving, let wait = integration.wait {
           FirstDownloadProgress(

@@ -4,9 +4,10 @@ import SwiftUI
 
 struct MonoButtonStyle: ButtonStyle {
   var prominent = false
+  var iconOnly = false
 
   func makeBody(configuration: Configuration) -> some View {
-    MonoButton(configuration: configuration, prominent: prominent)
+    MonoButton(configuration: configuration, prominent: prominent, iconOnly: iconOnly)
   }
 }
 
@@ -14,6 +15,7 @@ struct MonoButtonStyle: ButtonStyle {
 private struct MonoButton: View {
   let configuration: ButtonStyleConfiguration
   let prominent: Bool
+  let iconOnly: Bool
   @Environment(\.isEnabled) private var enabled
 
   var body: some View {
@@ -21,16 +23,19 @@ private struct MonoButton: View {
     configuration.label
       .font(.body.weight(.semibold))
       .fixedSize(horizontal: false, vertical: true)
-      .frame(maxWidth: .infinity, minHeight: 44)
-      .padding(.horizontal, 12)
+      .frame(
+        maxWidth: iconOnly ? nil : .infinity, minHeight: 44,
+        maxHeight: iconOnly ? .infinity : nil
+      )
+      .padding(.horizontal, iconOnly ? 0 : 12)
       .foregroundStyle(filled ? .surface : .ink)
       .background(filled ? .ink : .surface)
       .overlay {
-        Rectangle().stroke(
+        Rectangle().strokeBorder(
           .ink, style: StrokeStyle(lineWidth: 2, dash: enabled ? [] : [6, 4]))
       }
       .contentShape(Rectangle())
-      .fixedSize(horizontal: false, vertical: true)
+      .fixedSize(horizontal: false, vertical: !iconOnly)
   }
 }
 
