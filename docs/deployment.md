@@ -33,6 +33,20 @@ An iOS or Android release campaign is independent of a website deployment.
 A rolling website deployment doesn't create a GitHub release.
 Historical GitHub releases and retained dataset objects remain available.
 
+## Domain connections
+
+Cloudflare keeps the existing `www.dial.page` Custom Domain connection to `dial-production`.
+The build declares no domain changes, so `cf deploy --prebuilt` updates the Worker with the existing per-Worker token.
+The build gate rejects domain declarations before publication.
+Public response checks confirm compatible website and dataset responses at the connected hostname.
+The deployment workflow leaves `DIAL_PUBLIC_VERSION` unset, so the checks don't identify the Worker version serving each response.
+Exact version checks require `DIAL_PUBLIC_VERSION` and `DIAL_PUBLIC_VERSION_MODE=required`.
+
+Create or change a domain connection through [Cloudflare's Custom Domain settings](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/#set-up-a-custom-domain-in-the-dashboard) as a separate infrastructure operation.
+Domain changes need [zone permissions](https://developers.cloudflare.com/workers/authorization/workers/#routes-and-custom-domains), and Custom Domains lack per-Worker role support.
+The deployment token receives no zone permissions.
+An account rebuilt from scratch needs the domain connection before the first public response check can pass.
+
 ## Dataset bindings
 
 `infrastructure/cloudflare/production-dataset.json` pins the ready-manifest digest, snapshot, database digest, and D1 database ID.

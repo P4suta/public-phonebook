@@ -7,6 +7,9 @@ const buildOutput = "apps/web/.cloudflare/output/v0/workers/default";
 const bytesPerKibibyte = 1024;
 const searchWorkerChunk = /^local-search-worker-[\w-]+\.js$/u;
 const noDestinations = v.array(v.never());
+const DeploymentRoutingSchema = v.object({
+  domains: v.optional(v.array(v.never())),
+});
 const RuntimePrivacySchema = v.object({
   logpush: v.literal(false),
   tailConsumers: noDestinations,
@@ -63,6 +66,8 @@ export async function measureBuild(root = "."): Promise<BuildSizes> {
   const configuration: unknown = JSON.parse(
     await readFile(join(root, buildOutput, "worker.config.json"), "utf8"),
   );
+  if (!v.safeParse(DeploymentRoutingSchema, configuration).success)
+    throw new Error("The build must keep domain connections in Cloudflare");
   if (!v.safeParse(RuntimePrivacySchema, configuration).success)
     throw new Error("The built Worker violates the collection policy");
   let workerCompressedBytes = 0;
