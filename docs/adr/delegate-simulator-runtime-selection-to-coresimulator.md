@@ -7,11 +7,12 @@ date: 2026-11-10
 ## Status
 
 Proposed.
+[Issue #406](https://github.com/P4suta/public-phonebook/issues/406) defines the implementation scope.
 
 ## Context
 
 The hosted Xcode image reports a completed runtime download but rejects the pinned iOS runtime when creating a device.
-Separate phone, Duo, Watch, and installer version constants can diverge from the available environment.
+Independent runtime constants can diverge from installed platforms.
 `xcrun simctl help create` specifies that omitting the runtime selects the newest runtime compatible with the requested device type.
 
 ## Decision
