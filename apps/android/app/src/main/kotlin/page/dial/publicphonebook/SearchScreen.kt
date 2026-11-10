@@ -123,10 +123,6 @@ private fun SearchStatus(state: DirectoryUiState, retry: () -> Unit) {
                 stringResource(R.string.empty_query),
                 style = MaterialTheme.typography.bodyLarge,
             )
-            Text(
-                stringResource(R.string.search_example),
-                style = MaterialTheme.typography.bodyMedium,
-            )
         } else if (state.searching) Text(stringResource(R.string.searching))
         else if (state.searchFailed) {
             Text(stringResource(R.string.search_failed))

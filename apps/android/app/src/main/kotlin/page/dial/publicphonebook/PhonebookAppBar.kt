@@ -1,5 +1,8 @@
 package page.dial.publicphonebook
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -39,8 +42,17 @@ internal fun PhonebookAppBar(stack: SnapshotStateList<Screen>) {
         },
         actions = {
             if (stack.size == 1) {
-                IconAction(R.string.settings, R.drawable.ic_settings) { stack += Screen.Settings }
-                IconAction(R.string.about, R.drawable.ic_info) { stack += Screen.About }
+                Row(
+                    Modifier.padding(end = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    IconAction(R.string.settings, R.drawable.ic_settings, outlined = true) {
+                        stack += Screen.Settings
+                    }
+                    IconAction(R.string.about, R.drawable.ic_info, outlined = true) {
+                        stack += Screen.About
+                    }
+                }
             }
         },
     )

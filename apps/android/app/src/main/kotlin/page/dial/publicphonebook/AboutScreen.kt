@@ -43,12 +43,6 @@ internal fun AboutScreen(external: (Intent, String) -> Unit, licenses: () -> Uni
         item { SectionHeading(R.string.privacy_heading) }
         item { Text(stringResource(R.string.privacy), style = MaterialTheme.typography.bodyLarge) }
         item {
-            Text(
-                stringResource(R.string.connection_metadata),
-                style = MaterialTheme.typography.bodyLarge,
-            )
-        }
-        item {
             Action(R.string.privacy_policy, R.drawable.ic_document) {
                 val url = "${BuildConfig.ORIGIN}/privacy"
                 external(Intent(Intent.ACTION_VIEW, url.toUri()), url)

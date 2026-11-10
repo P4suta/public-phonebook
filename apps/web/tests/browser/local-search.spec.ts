@@ -100,7 +100,7 @@ test("built device search matches verified place readings with only the name ind
   await page.goto("/");
   await waitForLocalSearch(page);
   await expect(page.getByRole("searchbox")).toHaveAccessibleDescription(
-    "都道府県名と主な分類名は、2文字以上の読み仮名でもさがせます。",
+    "施設の名前を入れてください。",
   );
   const library = page.locator('[data-result-category="library"]');
   for (const text of [
