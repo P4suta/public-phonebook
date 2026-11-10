@@ -357,6 +357,10 @@ final class DirectoryUITests: XCTestCase {
 
   func testPortraitLandscapeRoundTrip() throws {
     let app = prepared()
+    app.terminate()
+    app.launchEnvironment["PHONEBOOK_CALLER_STATUS"] = "on"
+    app.launch()
+    XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 15))
     let singleDisplay = XCUIScreen.screens.count == 1
     XCUIDevice.shared.orientation = .landscapeLeft
     waitUntil(
@@ -372,11 +376,24 @@ final class DirectoryUITests: XCTestCase {
     capture(app, name: "landscape-detail")
     let field = app.searchFields.firstMatch
     let detail = app.navigationBars["施設の情報"]
-    XCTAssertLessThan(field.frame.maxX, detail.frame.minX)
+    let wideWindow = app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height
+    if wideWindow {
+      let address = app.staticTexts["contact-address"]
+      XCTAssertTrue(address.waitForExistence(timeout: 5))
+      XCTAssertLessThan(field.frame.maxX, address.frame.minX)
+    } else {
+      goBack(app)
+    }
     XCTAssertEqual(field.value as? String, "試験")
+    XCTAssertTrue(field.isHittable, field.debugDescription)
+    XCTAssertTrue(app.windows.firstMatch.frame.contains(field.frame), field.debugDescription)
     field.tap()
     XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
     field.typeText("\n")
+    if !wideWindow {
+      app.buttons["contact-detail"].firstMatch.tap()
+      XCTAssertTrue(detail.waitForExistence(timeout: 10))
+    }
     app.buttons["clear-search"].tap()
     XCTAssertTrue(app.descendants(matching: .any)["search-hint"].waitForExistence(timeout: 10))
     search("試験", in: app)
@@ -401,13 +418,22 @@ final class DirectoryUITests: XCTestCase {
           || app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
     )
     XCTAssertTrue(app.staticTexts["source-license"].exists)
+    capture(app, name: "landscape-source-after-rotation")
+    let wideSourceWindow = app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height
+    if !wideSourceWindow {
+      goBack(app)
+      goBack(app)
+    }
     XCTAssertEqual(field.value as? String, "試験")
+    XCTAssertTrue(field.isHittable, field.debugDescription)
+    XCTAssertTrue(app.windows.firstMatch.frame.contains(field.frame), field.debugDescription)
     field.tap()
     XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
     field.typeText("\n")
-    capture(app, name: "landscape-source-after-rotation")
-    goBack(app)
-    goBack(app)
+    if wideSourceWindow {
+      goBack(app)
+      goBack(app)
+    }
     XCTAssertEqual(app.searchFields.firstMatch.value as? String, "試験")
     waitForGroup("dental", "1件", in: app)
   }
