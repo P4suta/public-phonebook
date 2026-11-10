@@ -51,18 +51,16 @@ A private local archive is never eligible for release, and only the TestFlight w
 ## Store build delivery
 
 The `TestFlight` workflow in `.github/workflows/ios.yml` delivers a signed production build to TestFlight.
-Prepare an iOS plan and request `ios-testflight` through the [independent delivery command](delivery.md).
-Its controller refuses a source that differs from protected `main`, a changed plan, or another workflow identity.
-Dependency checks, formal assurance, and native assurance run independently at the same commit.
-A Linux job runs `just ios-prove`, and a macOS job runs `just delivery platform ios --scope check`, `just ios-sanitize`, and `just ios-mutate`.
-Candidate and TestFlight share the check-only result when sources, commands, toolchains, OS builds, simulator runtimes, and the native output receipt's digest match.
-Missing or changed outputs rerun verification.
+Start it from protected `main` with `gh workflow run ios.yml --ref main`, as the [delivery runbook](delivery.md) describes.
+Repository checks, formal assurance, and native assurance run independently at the checked-out commit.
+A Linux job runs `just ios-prove` and `just delivery-prove`, and a macOS job runs `just ios-check`, `just ios-sanitize`, and `just ios-mutate`.
+Each selected distribution workflow runs its required native verification.
 Jobs for the same source commit serialize their native work.
 The unsigned job waits for every required dependency, formal, and native check.
 The unsigned job downloads their source-bound receipts and runs `just ios-prepare-archive N` without signing credentials or account provisioning.
 It preserves and attests the unsigned archive, source inventory, and receipts.
 
-The signing job waits for review in `testflight-signing` and verifies the unsigned artifact's source and controller attestation before fetching credentials from `ci_testflight_signing`.
+The signing job waits for review in `testflight-signing` and verifies the unsigned artifact's source and workflow attestation before fetching credentials from `ci_testflight_signing`.
 Before importing a private key, the controller copies the original archive and gives both bundles an ad hoc signature containing the declared App Group request.
 The embedded Watch app receives an ad hoc signature without an App Group.
 That signature uses no certificate or private key and preserves the request that Xcode needs during export.
@@ -92,7 +90,7 @@ The [delivery decision](adr/select-delivery-operations-independently-from-requir
 
 ## Submit an app update
 
-Prepare an iOS version proposal with the delivery command, verify its checks, and merge the proposal before preparing the distribution plan.
+Prepare an iOS version proposal through the version workflow, verify its checks, and merge the proposal before preparing the store candidate.
 Use the same App Store Connect app record, a higher display version, and a fresh TestFlight build number, following [Apple's version procedure](https://developer.apple.com/help/app-store-connect/update-your-app/create-a-new-version/).
 Read the changes since the published version when writing the required What's New text.
 Copy the promotional text from `apps/ios/AppStore/metadata.json` when the draft leaves that field empty.

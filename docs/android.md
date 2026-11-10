@@ -313,7 +313,7 @@ Facility information may change.
 Check the source and retrieval date in each facility's details.”
 
 Use the verified candidate's screenshots and the icon and feature graphic in `apps/android/store/`.
-The [candidate record](../android/store/candidate.json) identifies the signed packages and the production screenshots.
+The [candidate record](../apps/android/store/candidate.json) identifies the signed packages and the production screenshots.
 The support email already published by the service is `support@dial.page`.
 The service privacy-policy URL is `https://www.dial.page/privacy`.
 Publish the Android privacy disclosure on the website before store submission.
