@@ -91,7 +91,6 @@ jobs:
       - uses: $/.github/actions/toolchain
         with:
           tools: rust node just xcodegen swiftlint github:ericodx/swift-mutation-testing
-      - run: mise x -- just ios-simulator-runtimes
       - run: mise x -- just ios-check
       - run: mise x -- just ios-sanitize
       - run: mise x -- just ios-mutate

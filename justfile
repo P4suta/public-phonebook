@@ -117,9 +117,8 @@ public-rehearsal bundle:
 prove:
     npm run prove
 
-ios-simulator-runtimes:
-    xcodebuild -downloadPlatform iOS -architectureVariant arm64
-    xcodebuild -downloadPlatform watchOS -architectureVariant arm64
+ios-simulator-runtime platform:
+    xcodebuild -downloadPlatform {{ quote(platform) }} -architectureVariant arm64
 
 ios-generate:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- generate
