@@ -147,7 +147,7 @@ targets:
         buildPhase: resources
       - path: Config/PrivacyInfo.xcprivacy
         buildPhase: resources
-      - path: ../design/licenses/Lucide.txt
+      - path: ../../design/licenses/Lucide.txt
         buildPhase: resources
     dependencies:
       - package: Phonebook
