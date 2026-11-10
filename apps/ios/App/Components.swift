@@ -101,11 +101,11 @@ enum ExternalDestination {
 
   var description: String {
     switch self {
-    case .facility: "この施設のホームページを開きます。"
-    case .publication: "このデータを公開しているページを開きます。"
+    case .facility: "施設のホームページを開きます。"
+    case .publication: "データを公開したページを開きます。"
     case .license: "データを使うときの決まりのページを開きます。"
     case .source: "電話番号のもとになった資料を開きます。"
-    case .sourceCode: "GitHubで、Public Phonebookのプログラムを開きます。"
+    case .sourceCode: "GitHubでプログラムを開きます。"
     case .other: "ほかのサイトのページを開きます。"
     }
   }
@@ -128,7 +128,7 @@ struct ExternalLink<Label: View>: View {
       Button("開く") { openURL(url) }
       Button("キャンセル", role: .cancel) {}
     } message: {
-      Text("\(destination.description)\n行き先：\(url.host() ?? "")\nブラウザーで開きます。")
+      Text("\(destination.description)\n行き先：\(url.host() ?? "")")
     }
   }
 }
@@ -171,7 +171,7 @@ struct MapButton: View {
       }
       Button("キャンセル", role: .cancel) {}
     } message: {
-      Text("Appleのマップで場所をさがすために、施設の名前と住所を送ります。")
+      Text("施設の名前と住所をAppleのマップに送ります。")
     }
     .alert("場所を見つけられませんでした", isPresented: $missing) {
       Button("閉じる", role: .cancel) {}

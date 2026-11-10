@@ -48,7 +48,7 @@ final class DirectoryUITests: XCTestCase {
       "the notice shows the listed size",
       notice.exists && notice.label.contains("受け取るデータは約0.1MBです。"), timeout: 15,
       observed: { notice.exists ? "It shows “\(notice.label)”." : "It doesn't exist." })
-    XCTAssertTrue(notice.label.contains("Wi-Fiなどの速い回線につなぐと、早く終わります。"))
+    XCTAssertEqual(notice.label, "受け取るデータは約0.1MBです。")
     capture(app, name: "onboarding-welcome")
     XCTAssertEqual(try datasetFiles(), 0)
     start.tap()
@@ -180,7 +180,7 @@ final class DirectoryUITests: XCTestCase {
     let empty = app.staticTexts["empty-results"]
     XCTAssertTrue(empty.waitForExistence(timeout: 15))
     XCTAssertEqual(empty.label, "あてはまる施設は0件です")
-    reveal(app.staticTexts["名前の一部を入れるか、別の言葉でさがしてください。"], in: app)
+    reveal(app.staticTexts["別の言葉でさがしてください。"], in: app)
     try app.performAccessibilityAudit()
     capture(app, name: "empty-large-text")
   }
@@ -212,8 +212,10 @@ final class DirectoryUITests: XCTestCase {
       alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Appleのマップ"))
         .firstMatch.exists)
     XCTAssertTrue(
-      alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "名前と住所を送ります"))
-        .firstMatch.exists)
+      alert.staticTexts.matching(
+        NSPredicate(format: "label CONTAINS %@", "施設の名前と住所をAppleのマップに送ります。")
+      )
+      .firstMatch.exists)
     capture(app, name: "external-link-confirmation")
     confirmationCancellation(in: app).tap()
     XCTAssertTrue(alert.waitForNonExistence(timeout: 5))
@@ -262,11 +264,11 @@ final class DirectoryUITests: XCTestCase {
     let prompt = app.descendants(matching: .any)["caller-prompt"]
     XCTAssertTrue(prompt.waitForExistence(timeout: 10))
     XCTAssertTrue(
-      app.staticTexts["病院や役所などから電話がかかってきたとき、画面に施設の名前を出せます。"].exists)
+      app.staticTexts["電話の相手を表示できます。"].exists)
     XCTAssertTrue(
       app.staticTexts.matching(
         NSPredicate(
-          format: "label BEGINSWITH %@ AND label ENDSWITH %@", "設定で、", "を許可してください。")
+          format: "label BEGINSWITH %@ AND label ENDSWITH %@", "設定で「", "」を許可してください。")
       ).firstMatch.exists)
     XCTAssertEqual(app.buttons["caller-prompt-settings"].label, "設定を開く")
     XCTAssertTrue(app.searchFields.firstMatch.isHittable)
@@ -289,8 +291,8 @@ final class DirectoryUITests: XCTestCase {
     capture(app, name: "search-caller-prompt-on")
     // A running load and a refused reload keep the extension on and ask for no further press.
     for (status, label) in [
-      ("loading", "許可しています・準備しています"),
-      ("onRetrying", "許可しています・次にアプリを開くと使えるようになります"),
+      ("loading", "準備しています"),
+      ("onRetrying", "アプリを開き直すと、もう一度準備します"),
     ] {
       app.terminate()
       app.launchEnvironment["PHONEBOOK_CALLER_STATUS"] = status
@@ -465,7 +467,7 @@ final class DirectoryUITests: XCTestCase {
     later.tap()
     let progress = app.descendants(matching: .any)["sync-progress"]
     XCTAssertTrue(progress.waitForExistence(timeout: 10))
-    XCTAssertTrue(app.staticTexts["アプリで使うデータを受け取っています"].exists)
+    XCTAssertTrue(app.staticTexts["電話番号のデータを受け取っています"].exists)
     // The pace starts once the scenario watches, and the held rest keeps the countdown until 10 s pass without bytes.
     try proxy().release()
     waitForValue(of: progress, "the first step counts down in seconds", timeout: 20) {
@@ -544,7 +546,7 @@ final class DirectoryUITests: XCTestCase {
       "the notice names the delta's size",
       notice.exists && notice.label.contains("受け取るデータは約0.1MBです。"), timeout: 15,
       observed: { notice.exists ? "It shows “\(notice.label)”." : "It doesn't exist." })
-    XCTAssertTrue(notice.label.contains("Wi-Fiなどの速い回線につなぐと、早く終わります。"))
+    XCTAssertEqual(notice.label, "受け取るデータは約0.1MBです。")
     capture(app, name: "onboarding-welcome-delta-costly")
     XCTAssertTrue(updated.requests.allSatisfy { !$0.hasPrefix("/api/datasets/") }, updated.log)
     app.buttons["onboarding-start"].tap()
@@ -572,8 +574,7 @@ final class DirectoryUITests: XCTestCase {
     waitUntil(
       "the plan reads the listing",
       (try? self.proxy().requests.contains("/api/datasets")) == true, timeout: 10)
-    XCTAssertTrue(notice.label.contains("データはアプリに入っています。"), notice.label)
-    XCTAssertTrue(notice.label.contains("通信せずに準備できます。"), notice.label)
+    XCTAssertEqual(notice.label, "通信せずに準備できます。")
     capture(app, name: "onboarding-welcome-no-transfer-costly")
     // The first run reads the listing again, and the fixture holds that reply while the scenario reads the ready step.
     try proxy().failNext(.listing, with: .paced(bytes: 0, after: .zero))
@@ -583,9 +584,9 @@ final class DirectoryUITests: XCTestCase {
     later.tap()
     let progress = app.descendants(matching: .any)["sync-progress"]
     XCTAssertTrue(progress.waitForExistence(timeout: 10))
-    XCTAssertTrue(app.staticTexts["アプリで使うデータを準備しています"].exists)
-    XCTAssertFalse(app.staticTexts["アプリで使うデータを受け取っています"].exists)
-    XCTAssertEqual(progress.label, "アプリで使うデータを準備しています")
+    XCTAssertTrue(app.staticTexts["電話番号の準備をしています"].exists)
+    XCTAssertFalse(app.staticTexts["電話番号のデータを受け取っています"].exists)
+    XCTAssertEqual(progress.label, "電話番号の準備をしています")
     waitForValue(of: progress, "the preparing step is current", timeout: 10) {
       $0.contains("パーセント、さがせるように準備する")
     }
@@ -606,7 +607,7 @@ final class DirectoryUITests: XCTestCase {
     app.launch()
     let notice = app.descendants(matching: .any)["data-size-notice"]
     XCTAssertTrue(notice.waitForExistence(timeout: 15))
-    XCTAssertTrue(notice.label.contains("データはアプリに入っています。"), notice.label)
+    XCTAssertEqual(notice.label, "通信せずに準備できます。")
     app.buttons["onboarding-start"].tap()
     let later = app.buttons["onboarding-later"]
     XCTAssertTrue(later.waitForExistence(timeout: 10))
@@ -616,9 +617,9 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(app.staticTexts["準備ができました"].waitForExistence(timeout: 5))
     let date = app.staticTexts["bundled-date"]
     XCTAssertTrue(date.waitForExistence(timeout: 5))
-    XCTAssertTrue(date.label.hasPrefix("アプリに入っている、"), date.label)
+    XCTAssertNotNil(date.label.range(of: #"^\d{4}年\d{1,2}月\d{1,2}日"#, options: .regularExpression))
     XCTAssertTrue(date.label.hasSuffix("のデータを使います。"), date.label)
-    XCTAssertTrue(app.staticTexts["通信できるようになると、新しいデータを自動で受け取ります。"].exists)
+    XCTAssertTrue(app.staticTexts["通信がもどると、新しいデータを自動で確認します。"].exists)
     capture(app, name: "onboarding-ready-bundled")
     finish.tap()
     search("試験", in: app)
@@ -894,13 +895,13 @@ final class DirectoryUITests: XCTestCase {
     -> (message: CGFloat, actions: CGFloat)
   {
     let disclosure = confirmation.staticTexts.matching(
-      NSPredicate(format: "label CONTAINS %@", "名前と住所を送ります。")
+      NSPredicate(format: "label CONTAINS %@", "施設の名前と住所をAppleのマップに送ります。")
     ).firstMatch
     XCTAssertTrue(disclosure.waitForExistence(timeout: 5))
     XCTAssertTrue(disclosure.isHittable)
     XCTAssertEqual(
       confirmation.staticTexts.allElementsBoundByIndex.map(\.label).sorted(),
-      ["マップで開きます", "Appleのマップで場所をさがすために、施設の名前と住所を送ります。"].sorted())
+      ["マップで開きます", "施設の名前と住所をAppleのマップに送ります。"].sorted())
     XCTAssertEqual(
       confirmation.buttons.allElementsBoundByIndex.map(\.label).sorted(),
       (confirmation.buttons["キャンセル"].exists ? ["キャンセル", "開く"] : ["開く"]).sorted())

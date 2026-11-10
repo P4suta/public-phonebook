@@ -103,7 +103,7 @@ test("every external link type confirms its destination before opening a tab", a
     {
       path: "/about",
       link: (): Locator =>
-        page.getByRole("link", { name: /^プログラムと決まりを見る/u }),
+        page.getByRole("link", { name: /^プログラムを見る/u }),
       description: destinations.sourceCode,
     },
     {
@@ -317,7 +317,7 @@ test("external links keep isolated navigation without JavaScript", async ({
       ],
       [
         "/about",
-        "プログラムと決まりを見る",
+        "プログラムを見る",
         "https://github.com/P4suta/public-phonebook",
       ],
     ] as const) {

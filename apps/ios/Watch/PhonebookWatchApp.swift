@@ -33,6 +33,7 @@ struct PhonebookWatchApp: App {
             Section("「\(model.answeredQuery)」の結果") {
               if reply.total == 0 {
                 Text("あてはまる施設は0件です")
+                Text("別の言葉でさがしてください。")
               } else {
                 Text("\(reply.total)件中、\(reply.results.count)件を表示します。")
                 ForEach(reply.results) { facility in
@@ -51,14 +52,14 @@ struct PhonebookWatchApp: App {
               }
             }
           } else if !model.loading, model.message == nil {
-            Text("iPhoneに保存した公開データから、施設の電話番号をさがします。")
-            Text("iPhoneとつながると使えます。")
+            Text("iPhoneでPublic Phonebookを開いてください。")
           }
           NavigationLink {
             WatchAboutScreen()
           } label: {
-            Label("Public Phonebookについて", systemImage: "info.circle")
+            Label("アプリについて", systemImage: "info.circle")
           }
+          .accessibilityIdentifier("watch-about")
         }
         .navigationTitle("電話番号をさがす")
         .navigationDestination(for: WatchFacility.self) { facility in
@@ -73,14 +74,22 @@ struct PhonebookWatchApp: App {
 private struct WatchAboutScreen: View {
   var body: some View {
     List {
-      Text("無料で使えます。プログラムも公開しています。")
-      Text("検索する言葉はiPhoneに送ります。サービスには送りません。")
-      Text("使い方の記録や診断の情報は集めません。")
+      Section("無料で使えます") {
+        Text("プログラムも公開しています。")
+      }
       WatchExternalLink(
         title: "プログラムを見る", destination: "https://github.com/P4suta/public-phonebook",
-        message: "GitHubでPublic Phonebookのプログラムを開きます。")
+        message: "GitHubでプログラムを開きます。")
+      Section("データの収集") {
+        Text("ありません。")
+      }
+      WatchExternalLink(
+        title: "プライバシーについて読む", destination: "https://www.dial.page/privacy",
+        message: "プライバシーのページを開きます。"
+      )
+      .accessibilityIdentifier("watch-privacy")
     }
-    .navigationTitle("Public Phonebookについて")
+    .navigationTitle("アプリについて")
   }
 }
 

@@ -9,10 +9,7 @@ export function OpenSourceInformation(): ReactElement {
       <h2 id="open-source-heading" className={css.subheading}>
         {uiCopy.openSource.heading}
       </h2>
-      <p className={css.body}>{uiCopy.openSource.price}</p>
-      <p className={`${css.body} ${css.informationCopy}`}>
-        {[uiCopy.openSource.description, uiCopy.openSource.freedom].join("\n")}
-      </p>
+      <p className={css.body}>{uiCopy.openSource.description}</p>
       <div className={css.actions}>
         <LinkButton
           href="https://github.com/P4suta/public-phonebook"
