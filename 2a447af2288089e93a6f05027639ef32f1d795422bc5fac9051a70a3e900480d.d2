@@ -1,0 +1,57 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    pad: 40
+    theme-overrides: {
+      N1: "#000000"
+      N2: "#000000"
+      N3: "#000000"
+      N4: "#FFFFFF"
+      N5: "#FFFFFF"
+      N6: "#FFFFFF"
+      N7: "#FFFFFF"
+      B1: "#000000"
+      B2: "#000000"
+      B3: "#FFFFFF"
+      B4: "#FFFFFF"
+      B5: "#FFFFFF"
+      B6: "#FFFFFF"
+      AA2: "#000000"
+      AA4: "#FFFFFF"
+      AA5: "#FFFFFF"
+      AB4: "#FFFFFF"
+      AB5: "#FFFFFF"
+    }
+  }
+}
+
+direction: right
+
+title: "Worker deployment and Custom Domain ownership" {
+  shape: text
+  near: top-center
+}
+
+before: "Current deployment" {
+  artifact: "Tested Build Output"
+  deploy: "cf deploy --prebuilt"
+  worker: "Updated Worker version"
+  domain: "Custom Domain API"
+  failure: "Publication fails\nToken lacks zone authority"
+  artifact -> deploy: reads
+  deploy -> worker: publishes
+  worker -> domain: reapplies connection
+  domain -> failure: rejects request
+}
+
+after: "Proposed deployment" {
+  artifact: "Tested Build Output\nNo domain changes"
+  deploy: "cf deploy --prebuilt"
+  worker: "Updated Worker version"
+  domain: "Existing Custom Domain\nManaged in Cloudflare"
+  checks: "Public browser and API checks"
+  artifact -> deploy: reads
+  deploy -> worker: publishes
+  domain -> worker: routes HTTPS requests
+  worker -> checks: serves public responses
+}
