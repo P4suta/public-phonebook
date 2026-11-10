@@ -1,0 +1,58 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    pad: 40
+    theme-overrides: {
+      N1: "#000000"
+      N2: "#000000"
+      N3: "#000000"
+      N4: "#FFFFFF"
+      N5: "#FFFFFF"
+      N6: "#FFFFFF"
+      N7: "#FFFFFF"
+      B1: "#000000"
+      B2: "#000000"
+      B3: "#FFFFFF"
+      B4: "#FFFFFF"
+      B5: "#FFFFFF"
+      B6: "#FFFFFF"
+      AA2: "#000000"
+      AA4: "#FFFFFF"
+      AA5: "#FFFFFF"
+      AB4: "#FFFFFF"
+      AB5: "#FFFFFF"
+    }
+  }
+}
+
+direction: down
+
+title: "Website deployment\nBuild and publication boundaries" {
+  shape: text
+  near: top-center
+  style.font-size: 28
+}
+
+key: {
+  shape: text
+  near: bottom-center
+  label: "Boxes name workflow jobs and retained resources.\nArrows label prerequisites or file transfers.\niOS and Android distribution use independent workflows."
+}
+
+dataset: "Dataset preparation workflow\nValidate artifacts and prepare D1"
+pin: "Reviewed configuration pull request\nImmutable manifest and D1 resource"
+checks: "Web release checks\nContracts, dataset, four browsers, proofs"
+build: "Production build job\ncf build and deployment dry run"
+artifact: "GitHub artifact\nBuild Output, provenance, npm SBOM"
+deploy: "Protected production job\nVerify artifact and deploy prebuilt output"
+worker: "Cloudflare Workers\nVersion history and retained bindings"
+restore: "Protected restore workflow\nSelect an existing Worker version"
+
+dataset -> pin: Preserve generated binding for review
+pin -> checks: Merge the reviewed source
+checks -> build: Require successful verification
+build -> artifact: Preserve unsigned deployment output
+artifact -> deploy: Download and verify exact source
+deploy -> worker: Deploy with scoped credentials
+worker -> restore: Read the retained version and bindings
+restore -> worker: Restore through the deployment API
