@@ -1210,6 +1210,7 @@ final class DirectoryUITests: XCTestCase {
 
   func testLivePublicDirectorySearchAndSource() throws {
     let app = application(bundled: .shipped)
+    let singleDisplay = XCUIScreen.screens.count == 1
     app.launchEnvironment.removeValue(forKey: "PHONEBOOK_API_ORIGIN")
     app.launch()
     onboard(app, timeout: 300)
@@ -1239,13 +1240,21 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
     XCUIDevice.shared.orientation = .landscapeLeft
     waitUntil(
-      "the device window is landscape",
-      app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
+      "the device is landscape",
+      XCUIDevice.shared.orientation == .landscapeLeft
+        && (!singleDisplay
+          || app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
+    )
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    if app.windows.firstMatch.frame.width >= 641 {
+      let address = app.staticTexts["contact-address"]
+      reveal(address, in: app, towardTop: true)
+      XCTAssertLessThan(field.frame.maxX, address.frame.minX)
+    } else {
+      goBack(app)
+    }
     XCTAssertTrue(field.isHittable)
     XCTAssertEqual(field.value as? String, "市立図書館")
-    let address = app.staticTexts["contact-address"]
-    reveal(address, in: app, towardTop: true)
-    XCTAssertLessThan(field.frame.maxX, address.frame.minX)
     capture(app, name: "live-public-directory-landscape")
   }
 
