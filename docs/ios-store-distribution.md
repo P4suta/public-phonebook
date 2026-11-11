@@ -206,6 +206,9 @@ Run `mise x -- just ios-screenshots` for the iPhone profile.
 Run `mise x -- just ios-screenshots iphone-duo` or `mise x -- just ios-screenshots ipad-pro-13` for the other handheld profiles.
 Run `mise x -- just ios-watch-screenshots` for the paired Watch profile.
 The Watch command first prepares the production phone app with the same sample fixture, then captures the Watch interface through real Simulator pairing.
+The Watch command replaces `target/ios/app-store-screenshots.json` with its companion iPhone capture.
+Preserve or recheck the selected iPhone candidate after the Watch capture.
+Each earlier run's record remains in its capture directory.
 The previous `ios-screenshots ORIGIN [SIMULATOR]` form is no longer accepted.
 The `screenshots` command also rejects `--origin`, including loopback origins.
 Omit the origin and choose an optional simulator profile.
