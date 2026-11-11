@@ -17,6 +17,7 @@ struct SearchScreen: View {
   @ScaledMetric(relativeTo: .body) private var minimumColumnWidth: CGFloat = 320
   @ScaledMetric(relativeTo: .body) private var idealColumnWidth: CGFloat = 420
   @State private var path: [SearchRoute] = []
+  @State private var showsColumns = false
   @State private var announced: [String] = []
   @FocusState private var searchIsFocused: Bool
   #if PHONEBOOK_VERIFICATION_TOOLS
@@ -25,19 +26,25 @@ struct SearchScreen: View {
 
   var body: some View {
     GeometryReader { geometry in
-      if geometry.size.width >= minimumColumnWidth * 2 + 1 {
-        HStack(spacing: 0) {
-          NavigationStack { searchContent }
-            .frame(
-              width: max(minimumColumnWidth, min(idealColumnWidth, geometry.size.width * 0.44)))
-          Rectangle().fill(.ink).frame(width: 1)
-          detailStack
+      Group {
+        if showsColumns {
+          HStack(spacing: 0) {
+            NavigationStack { searchContent }
+              .frame(
+                width: max(minimumColumnWidth, min(idealColumnWidth, geometry.size.width * 0.44)))
+            Rectangle().fill(.ink).frame(width: 1)
+            detailStack
+          }
+        } else {
+          NavigationStack(path: searchPath) {
+            searchContent
+              .navigationDestination(for: SearchRoute.self, destination: detailDestination)
+          }
         }
-      } else {
-        NavigationStack(path: $path) {
-          searchContent
-            .navigationDestination(for: SearchRoute.self, destination: detailDestination)
-        }
+      }
+      .onChange(of: geometry.size.width >= minimumColumnWidth * 2 + 1, initial: true) {
+        _, fits in
+        showsColumns = fits
       }
     }
     .tint(.ink)
@@ -56,6 +63,17 @@ struct SearchScreen: View {
       }
     }
     .task(id: announcement) { await announce() }
+  }
+
+  private var searchPath: Binding<[SearchRoute]> {
+    Binding(
+      get: { path },
+      set: { routes in
+        if !showsColumns {
+          path = routes
+        }
+      }
+    )
   }
 
   private var searchContent: some View {
@@ -102,7 +120,11 @@ struct SearchScreen: View {
   private var nestedPath: Binding<[SearchRoute]> {
     Binding(
       get: { Array(path.dropFirst()) },
-      set: { remaining in path = path.first.map { [$0] + remaining } ?? [] }
+      set: { remaining in
+        if showsColumns {
+          path = path.first.map { [$0] + remaining } ?? []
+        }
+      }
     )
   }
 

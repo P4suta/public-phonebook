@@ -18,6 +18,7 @@ Store the query and one route path in the parent view.
 Narrow windows use search as a native stack root.
 Wide windows use two native stacks with the selected route as the detail root.
 Bind the remaining routes to the detail stack.
+Accept path changes from the active layout.
 Use native stacks for setup steps.
 Scale column widths with Dynamic Type.
 Follow Apple's [layout guidance](https://developer.apple.com/design/human-interface-guidelines/layout) and [navigation stack contract](https://developer.apple.com/documentation/swiftui/navigationstack).

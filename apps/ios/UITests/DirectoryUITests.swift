@@ -422,6 +422,9 @@ final class DirectoryUITests: XCTestCase {
     app.launch()
     XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 15))
     let singleDisplay = XCUIScreen.screens.count == 1
+    search("試験", in: app)
+    app.buttons["contact-detail"].firstMatch.tap()
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
     XCUIDevice.shared.orientation = .landscapeLeft
     waitUntil(
       "the device is landscape",
@@ -429,8 +432,19 @@ final class DirectoryUITests: XCTestCase {
         && (!singleDisplay
           || app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
     )
-    capture(app, name: "landscape-before-search")
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
     let field = app.searchFields.firstMatch
+    let adjacentColumns = app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height
+    if adjacentColumns {
+      let address = app.staticTexts["contact-address"]
+      XCTAssertTrue(address.waitForExistence(timeout: 5))
+      XCTAssertLessThan(field.frame.maxX, address.frame.minX)
+    } else {
+      goBack(app)
+    }
+    XCTAssertEqual(field.value as? String, "試験")
+    capture(app, name: "landscape-selected-facility")
+    app.buttons[adjacentColumns ? "clear-search" : "clear-search-field"].tap()
     waitUntil(
       "the landscape search field accepts input",
       field.exists && field.isHittable && app.windows.firstMatch.frame.contains(field.frame),
@@ -982,29 +996,34 @@ final class DirectoryUITests: XCTestCase {
   }
 
   private func auditVisibleContent(in app: XCUIApplication) throws {
+    var issues: [XCUIAccessibilityAuditIssue] = []
     try app.performAccessibilityAudit { issue in
-      defer {
-        if let element = issue.element {
-          let attachment = XCTAttachment(string: element.debugDescription)
-          attachment.name = "accessibility-issue-element"
-          attachment.lifetime = .keepAlways
-          self.add(attachment)
+      issues.append(issue)
+      return true
+    }
+    // Query UI state after the audit returns, and fail every unhandled report.
+    for issue in issues {
+      if issue.auditType == .contrast, let element = issue.element,
+        element.elementType == .staticText
+      {
+        let navigationText = app.navigationBars.staticTexts.allElementsBoundByIndex.contains {
+          $0.label == element.label && $0.frame == element.frame
+        }
+        let window = app.windows.firstMatch.frame
+        let top = app.navigationBars.firstMatch.frame.maxY
+        let visible = CGRect(
+          x: window.minX, y: top, width: window.width, height: window.maxY - top)
+        let frame = element.frame
+        // XCTest fills the offscreen part of a clipped paragraph's image with black.
+        if !navigationText, !frame.isEmpty, !visible.contains(frame) {
+          continue
         }
       }
-      guard issue.auditType == .contrast, let element = issue.element,
-        element.elementType == .staticText
-      else { return false }
-      if app.navigationBars.staticTexts.allElementsBoundByIndex.contains(where: {
-        $0.label == element.label && $0.frame == element.frame
-      }) {
-        return false
+      attach(issue.detailedDescription, name: "accessibility-issue-details")
+      if let element = issue.element {
+        attach(element.debugDescription, name: "accessibility-issue-element")
       }
-      // XCTest fills the offscreen part of a clipped paragraph's image with black.
-      let window = app.windows.firstMatch.frame
-      let visible = CGRect(
-        x: window.minX, y: app.navigationBars.firstMatch.frame.maxY,
-        width: window.width, height: window.maxY - app.navigationBars.firstMatch.frame.maxY)
-      return !visible.contains(element.frame)
+      XCTFail(issue.compactDescription)
     }
   }
 
@@ -1116,6 +1135,18 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(date.waitForExistence(timeout: 5))
     XCTAssertEqual(date.label, "データの日付：2099年4月1日")
     capture(app, name: "sample-city-source")
+    if XCUIScreen.screens.count == 1 {
+      goBack(app)
+      XCUIDevice.shared.orientation = .landscapeLeft
+      waitUntil(
+        "the sample window is landscape",
+        app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
+      reveal(address, in: app, towardTop: true)
+      let field = app.searchFields.firstMatch
+      XCTAssertTrue(field.isHittable)
+      XCTAssertLessThan(field.frame.maxX, address.frame.minX)
+      capture(app, name: "sample-city-landscape")
+    }
   }
 
   func testLivePublicDirectorySearchAndSource() throws {
@@ -1137,6 +1168,26 @@ final class DirectoryUITests: XCTestCase {
     source.tap()
     XCTAssertTrue(app.staticTexts["source-license"].waitForExistence(timeout: 10))
     capture(app, name: "live-public-directory-source")
+    backGesture(in: app)
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    backGesture(in: app, distance: 0.12)
+    XCTAssertTrue(app.navigationBars["施設の情報"].exists)
+    backGesture(in: app)
+    let field = app.searchFields.firstMatch
+    waitUntil("the device back gesture reveals search", field.exists && field.isHittable)
+    XCTAssertEqual(field.value as? String, "市立図書館")
+    detail.tap()
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    XCUIDevice.shared.orientation = .landscapeLeft
+    waitUntil(
+      "the device window is landscape",
+      app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
+    XCTAssertTrue(field.isHittable)
+    XCTAssertEqual(field.value as? String, "市立図書館")
+    let address = app.staticTexts["contact-address"]
+    reveal(address, in: app, towardTop: true)
+    XCTAssertLessThan(field.frame.maxX, address.frame.minX)
+    capture(app, name: "live-public-directory-landscape")
   }
 
   func testBundledSearchStartupMeasurement() throws {
