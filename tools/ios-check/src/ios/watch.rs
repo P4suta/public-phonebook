@@ -264,7 +264,17 @@ fn run(root: &Path, purpose: Purpose) -> Result<PathBuf> {
     }
     require_current_sources(root, &sources)?;
     let record = if let Some(images) = images {
-        json!({"format":1, "purpose":"App Store screenshot candidate; no upload", "fixture":"sample-city", "locale":"en_US", "content_language":"ja", "configuration":configuration, "simulator_runtime":watch.runtime(), "phone_runtime":phone.runtime(), "simulator_device":MODEL, "directory":images.directory, "size":images.size, "screenshots":images.files, "source_sha256":source_records(&sources)})
+        let revision = super::super::checked(
+            Command::new("git")
+                .current_dir(root)
+                .args(["rev-parse", "HEAD"]),
+        )?;
+        let status = super::super::checked(
+            Command::new("git")
+                .current_dir(root)
+                .args(["status", "--porcelain"]),
+        )?;
+        json!({"format":1, "purpose":"App Store screenshot candidate; no upload", "fixture":"sample-city", "locale":"en_US", "content_language":"ja", "configuration":configuration, "api_origin":format!("http://localhost:{}", fixture.port), "simulator_runtime":watch.runtime(), "phone_runtime":phone.runtime(), "simulator_device":MODEL, "directory":images.directory, "size":images.size, "screenshots":images.files, "source_revision":String::from_utf8(revision.stdout)?.trim(), "working_tree_dirty":!status.stdout.is_empty(), "source_sha256":source_records(&sources)})
     } else {
         json!({"result":"passed", "tests":tests, "results":directory, "runtime":watch.runtime(), "phone_runtime":phone.runtime(), "model":MODEL, "source_sha256":source_records(&sources), "transport":"real paired Watch Connectivity; phone fixture prepared by the iOS UI case"})
     };

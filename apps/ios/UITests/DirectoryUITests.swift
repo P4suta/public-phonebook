@@ -1036,22 +1036,28 @@ final class DirectoryUITests: XCTestCase {
     onboard(app)
     search("みほん", in: app)
     XCTAssertTrue(app.staticTexts["みほん市民図書館"].firstMatch.waitForExistence(timeout: 10))
-    XCTAssertTrue(app.staticTexts["contact-region"].firstMatch.label.contains("サンプル"))
+    let region = app.staticTexts["contact-region"].firstMatch
+    XCTAssertTrue(region.waitForExistence(timeout: 5))
+    XCTAssertTrue(region.label.contains("サンプル"))
     capture(app, name: "sample-city-search")
     app.buttons.matching(identifier: "contact-detail").matching(
       NSPredicate(format: "label CONTAINS %@", "みほん市民図書館")
     )
     .firstMatch.tap()
     XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
-    XCTAssertTrue(app.staticTexts["contact-address"].label.contains("みほん市"))
-    XCTAssertTrue(app.staticTexts["contact-address"].label.contains("サンプル"))
+    let address = app.staticTexts["contact-address"]
+    XCTAssertTrue(address.waitForExistence(timeout: 5))
+    XCTAssertTrue(address.label.contains("みほん市"))
+    XCTAssertTrue(address.label.contains("サンプル"))
     capture(app, name: "sample-city-contact")
     let source = app.buttons["source-link"]
     reveal(source, in: app)
     source.tap()
     XCTAssertTrue(app.staticTexts["source-license"].waitForExistence(timeout: 10))
     XCTAssertTrue(app.staticTexts["みほん市（サンプル）が公開したデータです。"].firstMatch.exists)
-    XCTAssertEqual(app.staticTexts["source-data-date"].label, "データの日付：2099年4月1日")
+    let date = app.staticTexts["source-data-date"]
+    XCTAssertTrue(date.waitForExistence(timeout: 5))
+    XCTAssertEqual(date.label, "データの日付：2099年4月1日")
     capture(app, name: "sample-city-source")
   }
 
