@@ -120,19 +120,29 @@ The scenarios audit onboarding, caller settings, name and number results, facili
 XCTest runs each audit with [`performAccessibilityAudit(for:_:)`](https://developer.apple.com/documentation/xcuiautomation/xcuiapplication/performaccessibilityaudit%28for%3A_%3A%29).
 The scenarios use the default appearance, the largest font size that Dynamic Type offers, and Dark Mode.
 Each audited screen has a screenshot attachment.
-External handoffs use the system's native confirmation dialog, following Apple's [action sheet guidance](https://developer.apple.com/design/human-interface-guidelines/action-sheets).
+External handoffs use the system's native alerts for prior consent, following Apple's [Alerts guidance](https://developer.apple.com/design/human-interface-guidelines/alerts).
 The map confirmation checks its exact title, disclosure, opening action, and native cancellation behavior.
-Its audit preserves the existing exception for the system dialog's Dynamic Type report and checks every other audit category.
+Its audit preserves the existing exception for the system dialog's Dynamic Type report.
+Before and after each modal audit, the test matches the complete title and disclosure and requires both opening and cancellation actions to be reachable.
 The largest-text scenario requires the disclosure to exceed twice its default height and the native action targets to measure at least 44 points.
 App-owned screens keep every audit category enabled.
+Visible-content audits complete Dynamic Type before checking the remaining categories.
 Scrolling information screens exclude contrast findings for clipped static text because XCTest fills the offscreen part of its image with black.
 Navigation-bar titles remain in the contrast audit.
 Failure attachments identify the affected accessibility element.
 Apple's [audit guidance](https://developer.apple.com/videos/play/wwdc2023/10035/) explains why automated findings need investigation and why audits complement assistive-technology testing.
 The source screen expands opaque license identifiers to the published names of [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) and [Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
 The iOS verification gate includes all three scenarios and refuses missing or skipped test results.
+Duo and iPad profiles also audit the common tasks at the largest text size.
 The runner records source hashes and the result of each scenario in `target/ios/ui-receipt.json`.
 Result bundles stay under `target/ios`.
+
+On iOS and iPadOS 27.2, a native confirmation can produce an Element Detection report without an element while the underlying screen passes its full audit.
+A probe on 2026-11-11 reproduced the report with standard SwiftUI controls and with Apple's Settings language confirmation.
+The Settings confirmation produced 22 reports without elements.
+The modal helper accepts that report on iOS and iPadOS 27.2 handoff alerts after matching the title and disclosure and checking both actions.
+It rejects reports with an identified element and all remaining audited categories.
+App-owned content retains the full audit before opening a confirmation.
 
 The simulator uses fixture data and a simulated caller identification state.
 It doesn't place calls, open Apple Maps, change the system's caller identification setting, or operate VoiceOver or Voice Control.

@@ -71,6 +71,8 @@ pub enum SimulatorModel {
     #[default]
     #[value(name = "iphone-17")]
     Iphone17,
+    #[value(name = "iphone-air")]
+    IphoneAir,
     #[value(name = "iphone-duo")]
     IphoneDuo,
     #[value(name = "ipad-pro-13")]
@@ -81,6 +83,7 @@ impl SimulatorModel {
     fn device_type(self) -> &'static str {
         match self {
             Self::Iphone17 => DEVICE_TYPE,
+            Self::IphoneAir => "com.apple.CoreSimulator.SimDeviceType.iPhone-Air",
             Self::IphoneDuo => "com.apple.CoreSimulator.SimDeviceType.iPhone-Duo",
             Self::IpadPro13 => "com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB",
         }
@@ -89,6 +92,7 @@ impl SimulatorModel {
     fn suffix(self) -> &'static str {
         match self {
             Self::Iphone17 => "",
+            Self::IphoneAir => "-air",
             Self::IphoneDuo => "-duo",
             Self::IpadPro13 => "-ipad",
         }
@@ -135,7 +139,7 @@ const SANITIZED_CONTRACTS: [&str; 4] = [
     "cancellationBeforeAndDuringRealRequestsAlwaysCompletes",
     "firstRunAppliesTheListedDeltaToTheBundleOnce",
 ];
-const UI_TESTS: [&str; 28] = [
+const UI_TESTS: [&str; 30] = [
     "testRankedMetadataRemainsReadableAtLargestTextSize",
     "testOnboardingSavesTheDirectoryBeforeSearch",
     "testSearchGroupsRankedResultsAndShowsMore",
@@ -161,6 +165,8 @@ const UI_TESTS: [&str; 28] = [
     "testLargestTextScalesIconsBesideTheirLabels",
     "testSearchFieldShowsOneClearControl",
     "testClearingSearchFromDetailReturnsToTheInitialScreen",
+    "testNativeBackGesturePreservesSearchAndMenuNavigation",
+    "testNativeBackGestureReturnsThroughSetupSteps",
     "testCommonTasksPassAccessibilityAudits",
     "testCommonTasksPassAccessibilityAuditsAtLargestTextSize",
     "testCommonTasksPassAccessibilityAuditsInDarkAppearance",
@@ -170,7 +176,13 @@ const DARK_UI_TESTS: [&str; 2] = [
     "testDarkAppearanceSwapsBlackAndWhite",
     "testCommonTasksPassAccessibilityAuditsInDarkAppearance",
 ];
-const DUO_UI_TESTS: [&str; 7] = [
+const AIR_UI_TESTS: [&str; 4] = [
+    "testNativeBackGesturePreservesSearchAndMenuNavigation",
+    "testNativeBackGestureReturnsThroughSetupSteps",
+    "testPortraitLandscapeRoundTrip",
+    "testLandscapeLargeTextSettings",
+];
+const DUO_UI_TESTS: [&str; 8] = [
     "testPortraitLandscapeRoundTrip",
     "testSearchGroupsRankedResultsAndShowsMore",
     "testEmptyResultsAndLargeText",
@@ -178,14 +190,16 @@ const DUO_UI_TESTS: [&str; 7] = [
     "testClearingSearchFromDetailReturnsToTheInitialScreen",
     "testSearchFieldShowsOneClearControl",
     "testCommonTasksPassAccessibilityAudits",
+    "testCommonTasksPassAccessibilityAuditsAtLargestTextSize",
 ];
-const IPAD_UI_TESTS: [&str; 6] = [
+const IPAD_UI_TESTS: [&str; 7] = [
     "testPortraitLandscapeRoundTrip",
     "testLandscapeLargeTextSettings",
     "testSearchFieldShowsOneClearControl",
     "testContactDetailShowsRegionSourceAndExternalLinkConfirmation",
     "testClearingSearchFromDetailReturnsToTheInitialScreen",
     "testCommonTasksPassAccessibilityAudits",
+    "testCommonTasksPassAccessibilityAuditsAtLargestTextSize",
 ];
 const REQUIRED_TESTS: [&str; 99] = [
     "resultPagesStayWithinBoundsAtSignedExtremes",
@@ -1188,6 +1202,7 @@ fn ui_test_on(
     } else if selected.is_empty() {
         match model {
             SimulatorModel::Iphone17 => UI_TESTS.to_vec(),
+            SimulatorModel::IphoneAir => AIR_UI_TESTS.to_vec(),
             SimulatorModel::IphoneDuo => DUO_UI_TESTS.to_vec(),
             SimulatorModel::IpadPro13 => IPAD_UI_TESTS.to_vec(),
         }
@@ -1783,6 +1798,12 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                 "Release",
             )?;
             let results = ui_test(root, &[], false)?;
+            let air_results = ui_test_on(
+                root,
+                &AIR_UI_TESTS.map(str::to_owned),
+                false,
+                SimulatorModel::IphoneAir,
+            )?;
             let duo_results = ui_test_on(
                 root,
                 &DUO_UI_TESTS.map(str::to_owned),
@@ -1804,6 +1825,8 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
                     "xcode":fs::read_to_string(root.join("apps/ios/.xcode-version"))?.trim(),
                     "ui_results":results.directory, "ui_tests":results.count, "finite_feed_inputs":FINITE_FEED_INPUTS, "finite_publication_inputs":FINITE_PUBLICATION_INPUTS,
                     "watch_ui_results":watch_results,
+                    "air_ui_results":air_results.directory, "air_ui_tests":air_results.count,
+                    "air_runtime":air_results.runtime, "air_device":SimulatorModel::IphoneAir.device_type(),
                     "duo_ui_results":duo_results.directory, "duo_ui_tests":duo_results.count,
                     "duo_runtime":duo_results.runtime, "duo_device":SimulatorModel::IphoneDuo.device_type(),
                     "ipad_ui_results":ipad_results.directory, "ipad_ui_tests":ipad_results.count,
@@ -2155,6 +2178,13 @@ mod tests {
     #[test]
     fn every_dark_appearance_case_is_a_declared_ui_case() {
         assert!(DARK_UI_TESTS.iter().all(|name| UI_TESTS.contains(name)));
+    }
+
+    #[test]
+    fn wide_device_profiles_audit_common_tasks_at_largest_text() {
+        for cases in [DUO_UI_TESTS.as_slice(), IPAD_UI_TESTS.as_slice()] {
+            assert!(cases.contains(&"testCommonTasksPassAccessibilityAuditsAtLargestTextSize"));
+        }
     }
 
     #[test]

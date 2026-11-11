@@ -25,7 +25,7 @@ The owner then found that facility details lacked a discoverable way to clear th
 The detail toolbar and search results expose `検索を消す`, which clears the query and selection and returns to the search screen.
 The map confirmation checks its complete title, disclosure, and two actions through exact accessibility labels.
 The background map action must remain unavailable while the modal is open.
-External handoffs use native confirmation dialogs and verify cancellation through the system's button or popover dismissal control.
+External handoffs use native alerts and verify cancellation through the system's Cancel button.
 The large-text scenario checks disclosure growth and native 44-point toolbar actions.
 Facility selection moves focus away from the search field and preserves the query through the [TextField focus binding](https://developer.apple.com/documentation/swiftui/textfield).
 The focus binding is inside the searchable sidebar.

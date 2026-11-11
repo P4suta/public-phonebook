@@ -42,6 +42,9 @@ final class WatchDirectoryUITests: XCTestCase {
     XCTAssertTrue(privacy.isHittable)
     try app.performAccessibilityAudit()
     privacy.tap()
+    XCTAssertTrue(app.buttons["開く"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["開く"].isHittable)
+    try app.performAccessibilityAudit()
     let cancel = app.buttons["閉じる"].firstMatch
     XCTAssertTrue(cancel.waitForExistence(timeout: 5))
     cancel.tap()
@@ -62,6 +65,9 @@ final class WatchDirectoryUITests: XCTestCase {
     XCTAssertTrue(source.isHittable)
     try app.performAccessibilityAudit()
     source.tap()
+    XCTAssertTrue(app.buttons["開く"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["開く"].isHittable)
+    try app.performAccessibilityAudit()
     let cancel = app.buttons["閉じる"].firstMatch
     XCTAssertTrue(cancel.waitForExistence(timeout: 5))
     cancel.tap()
@@ -69,6 +75,9 @@ final class WatchDirectoryUITests: XCTestCase {
     for _ in 0..<8 where !license.isHittable { app.swipeUp() }
     XCTAssertTrue(license.isHittable)
     license.tap()
+    XCTAssertTrue(app.buttons["開く"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["開く"].isHittable)
+    try app.performAccessibilityAudit()
     XCTAssertTrue(cancel.waitForExistence(timeout: 5))
     cancel.tap()
     let shot = XCTAttachment(screenshot: app.screenshot())

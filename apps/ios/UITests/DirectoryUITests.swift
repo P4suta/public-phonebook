@@ -126,6 +126,61 @@ final class DirectoryUITests: XCTestCase {
       app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "読み仮名")).firstMatch.exists)
   }
 
+  func testNativeBackGesturePreservesSearchAndMenuNavigation() throws {
+    let app = prepared()
+    search("試験", in: app)
+    let field = app.searchFields.firstMatch
+    let detail = app.buttons["contact-detail"].firstMatch
+    XCTAssertTrue(detail.waitForExistence(timeout: 10))
+    detail.tap()
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    backGesture(in: app, distance: 0.12)
+    XCTAssertTrue(app.navigationBars["施設の情報"].exists)
+    reveal(app.buttons["source-link"], in: app)
+    app.buttons["source-link"].tap()
+    XCTAssertTrue(app.staticTexts["source-license"].waitForExistence(timeout: 10))
+    backGesture(in: app)
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    backGesture(in: app)
+    waitUntil("the back gesture reveals search", field.exists && field.isHittable, timeout: 5)
+    XCTAssertEqual(field.value as? String, "試験")
+    for title in ["設定", "Public Phonebookについて"] {
+      app.buttons["menu"].tap()
+      app.buttons[title].tap()
+      XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 10))
+      backGesture(in: app)
+      waitUntil("the menu route returns to search", field.exists && field.isHittable, timeout: 5)
+      XCTAssertEqual(field.value as? String, "試験")
+    }
+  }
+
+  func testNativeBackGestureReturnsThroughSetupSteps() throws {
+    let app = application()
+    app.launchEnvironment["PHONEBOOK_CALLER_STATUS"] = "off"
+    app.launch()
+    let start = app.buttons["onboarding-start"]
+    XCTAssertTrue(start.waitForExistence(timeout: 15))
+    start.tap()
+    let later = app.buttons["onboarding-later"]
+    XCTAssertTrue(later.waitForExistence(timeout: 10))
+    backGesture(in: app)
+    XCTAssertTrue(start.waitForExistence(timeout: 5))
+    start.tap()
+    XCTAssertTrue(later.waitForExistence(timeout: 10))
+    later.tap()
+    let finish = app.buttons["onboarding-finish"]
+    XCTAssertTrue(finish.waitForExistence(timeout: 10))
+    backGesture(in: app)
+    XCTAssertTrue(later.waitForExistence(timeout: 5))
+  }
+
+  private func backGesture(in app: XCUIApplication, distance: CGFloat = 0.85) {
+    let window = app.windows.firstMatch
+    let start = window.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.5))
+    let end = window.coordinate(withNormalizedOffset: CGVector(dx: distance, dy: 0.5))
+    start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.2)
+  }
+
   func testTelephoneSearchFindsEveryRecordForTheNumber() throws {
     let app = prepared()
     for query in ["03-0000-0000", "０３（００００）００００"] {
@@ -207,9 +262,10 @@ final class DirectoryUITests: XCTestCase {
     let map = app.buttons["map-button"]
     reveal(map, in: app)
     XCTAssertEqual(map.label, "\(name)を地図で見る")
+    try auditVisibleContent(in: app)
     capture(app, name: "contact-address")
     map.tap()
-    let alert = app.sheets.firstMatch
+    let alert = app.alerts.firstMatch
     XCTAssertTrue(alert.waitForExistence(timeout: 5))
     XCTAssertTrue(
       alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Appleのマップ"))
@@ -220,6 +276,7 @@ final class DirectoryUITests: XCTestCase {
       )
       .firstMatch.exists)
     capture(app, name: "external-link-confirmation")
+    try auditModal(in: app, title: "地図を開きます", message: "施設の名前と住所をAppleのマップに送ります。")
     confirmationCancellation(in: app).tap()
     XCTAssertTrue(alert.waitForNonExistence(timeout: 5))
     XCTAssertEqual(app.state, .runningForeground)
@@ -367,6 +424,9 @@ final class DirectoryUITests: XCTestCase {
     app.launch()
     XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 15))
     let singleDisplay = XCUIScreen.screens.count == 1
+    search("試験", in: app)
+    app.buttons["contact-detail"].firstMatch.tap()
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
     XCUIDevice.shared.orientation = .landscapeLeft
     waitUntil(
       "the device is landscape",
@@ -374,8 +434,19 @@ final class DirectoryUITests: XCTestCase {
         && (!singleDisplay
           || app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
     )
-    capture(app, name: "landscape-before-search")
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
     let field = app.searchFields.firstMatch
+    let adjacentColumns = app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height
+    if adjacentColumns {
+      let address = app.staticTexts["contact-address"]
+      XCTAssertTrue(address.waitForExistence(timeout: 5))
+      XCTAssertLessThan(field.frame.maxX, address.frame.minX)
+    } else {
+      goBack(app)
+    }
+    XCTAssertEqual(field.value as? String, "試験")
+    capture(app, name: "landscape-selected-facility")
+    app.buttons[adjacentColumns ? "clear-search" : "clear-search-field"].tap()
     waitUntil(
       "the landscape search field accepts input",
       field.exists && field.isHittable && app.windows.firstMatch.frame.contains(field.frame),
@@ -788,7 +859,7 @@ final class DirectoryUITests: XCTestCase {
     let map = app.buttons["map-button"]
     reveal(map, in: app)
     map.tap()
-    let confirmation = app.sheets.firstMatch
+    let confirmation = app.alerts.firstMatch
     XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
     let regular = mapConfirmationSize(in: confirmation, app: app)
     XCTAssertGreaterThan(regular.message, 0)
@@ -855,14 +926,14 @@ final class DirectoryUITests: XCTestCase {
 
     reveal(map, in: app)
     map.tap()
-    let confirmation = app.sheets.firstMatch
+    let confirmation = app.alerts.firstMatch
     XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
     let confirmationSize = mapConfirmationSize(in: confirmation, app: app)
     XCTAssertTrue(confirmationCancellation(in: app).isHittable)
     XCTAssertTrue(confirmation.buttons["開く"].isHittable)
     XCTAssertFalse(map.isHittable)
     capture(app, name: "accessibility-map-confirmation")
-    try app.performAccessibilityAudit(for: .all.subtracting(.dynamicType))
+    try auditModal(in: app, title: "地図を開きます", message: "施設の名前と住所をAppleのマップに送ります。")
     confirmationCancellation(in: app).tap()
     XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
     let source = app.buttons["source-link"]
@@ -902,11 +973,13 @@ final class DirectoryUITests: XCTestCase {
     try auditVisibleContent(in: app)
     capture(app, name: "accessibility-about-source")
     code.tap()
-    let confirmation = app.sheets.firstMatch
+    let confirmation = app.alerts.firstMatch
     XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
     XCTAssertTrue(confirmation.buttons["開く"].isHittable)
     XCTAssertTrue(confirmationCancellation(in: app).isHittable)
     capture(app, name: "accessibility-source-code-confirmation")
+    try auditModal(
+      in: app, title: "ページを開きます", message: "GitHubでプログラムを開きます。\n行き先：github.com")
     confirmationCancellation(in: app).tap()
     XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
     let privacy = app.buttons["privacy-policy-link"]
@@ -920,40 +993,96 @@ final class DirectoryUITests: XCTestCase {
         $0.label.contains("行き先：www.dial.page")
       })
     capture(app, name: "accessibility-privacy-policy-confirmation")
+    try auditModal(
+      in: app, title: "ページを開きます", message: "ほかのサイトのページを開きます。\n行き先：www.dial.page")
     confirmationCancellation(in: app).tap()
     XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
   }
 
+  private func accessibilityIssues(
+    in app: XCUIApplication, for types: XCUIAccessibilityAuditType
+  ) throws -> [XCUIAccessibilityAuditIssue] {
+    var issues: [XCUIAccessibilityAuditIssue] = []
+    try app.performAccessibilityAudit(for: types) { issue in
+      issues.append(issue)
+      return true
+    }
+    return issues
+  }
+
+  private func auditModal(in app: XCUIApplication, title: String, message: String) throws {
+    assertNativeConfirmation(in: app, title: title, message: message)
+    let before = app.debugDescription
+    let issues = try accessibilityIssues(in: app, for: .all.subtracting(.dynamicType))
+    if !issues.isEmpty {
+      attach(before, name: "modal-audit-before")
+      attach(app.debugDescription, name: "modal-audit-after")
+    }
+    let system = ProcessInfo.processInfo.operatingSystemVersion
+    let nativeAlert = app.alerts.firstMatch.exists
+    for issue in issues {
+      // iPadOS 27.2 also reports background text without an element in Settings dialogs.
+      if system.majorVersion == 27, system.minorVersion == 2, nativeAlert,
+        issue.auditType == .elementDetection, issue.element == nil
+      {
+        continue
+      }
+      failAccessibilityIssue(issue)
+    }
+    assertNativeConfirmation(in: app, title: title, message: message)
+  }
+
+  private func assertNativeConfirmation(in app: XCUIApplication, title: String, message: String) {
+    let confirmation = app.alerts.firstMatch
+    XCTAssertTrue(confirmation.exists)
+    XCTAssertEqual(confirmation.label, title)
+    for text in [title, message] {
+      let spokenText = text.replacingOccurrences(of: "\n", with: " ")
+      XCTAssertTrue(
+        confirmation.staticTexts.allElementsBoundByIndex.contains {
+          $0.label.replacingOccurrences(of: "\n", with: " ") == spokenText
+        })
+    }
+    XCTAssertTrue(confirmation.buttons["開く"].isHittable)
+    XCTAssertTrue(confirmationCancellation(in: app).isHittable)
+  }
+
+  private func failAccessibilityIssue(_ issue: XCUIAccessibilityAuditIssue) {
+    attach("\(issue.auditType)\n\(issue.detailedDescription)", name: "accessibility-issue-details")
+    if let element = issue.element {
+      attach(element.debugDescription, name: "accessibility-issue-element")
+    }
+    XCTFail(issue.compactDescription)
+  }
+
   private func auditVisibleContent(in app: XCUIApplication) throws {
-    try app.performAccessibilityAudit { issue in
-      defer {
-        if let element = issue.element {
-          let attachment = XCTAttachment(string: element.debugDescription)
-          attachment.name = "accessibility-issue-element"
-          attachment.lifetime = .keepAlways
-          self.add(attachment)
+    // Query UI state after the audit returns, and fail every unhandled report.
+    for issue in try accessibilityIssues(in: app, for: .dynamicType) {
+      failAccessibilityIssue(issue)
+    }
+    for issue in try accessibilityIssues(in: app, for: .all.subtracting(.dynamicType)) {
+      if issue.auditType == .contrast, let element = issue.element,
+        element.elementType == .staticText
+      {
+        let navigationText = app.navigationBars.staticTexts.allElementsBoundByIndex.contains {
+          $0.label == element.label && $0.frame == element.frame
+        }
+        let window = app.windows.firstMatch.frame
+        let top = app.navigationBars.firstMatch.frame.maxY
+        let visible = CGRect(
+          x: window.minX, y: top, width: window.width, height: window.maxY - top)
+        let frame = element.frame
+        // XCTest fills the offscreen part of a clipped paragraph's image with black.
+        if !navigationText, !frame.isEmpty, !visible.contains(frame) {
+          continue
         }
       }
-      guard issue.auditType == .contrast, let element = issue.element,
-        element.elementType == .staticText
-      else { return false }
-      if app.navigationBars.staticTexts.allElementsBoundByIndex.contains(where: {
-        $0.label == element.label && $0.frame == element.frame
-      }) {
-        return false
-      }
-      // XCTest fills the offscreen part of a clipped paragraph's image with black.
-      let window = app.windows.firstMatch.frame
-      let visible = CGRect(
-        x: window.minX, y: app.navigationBars.firstMatch.frame.maxY,
-        width: window.width, height: window.maxY - app.navigationBars.firstMatch.frame.maxY)
-      return !visible.contains(element.frame)
+      failAccessibilityIssue(issue)
     }
   }
 
   private func confirmationCancellation(in app: XCUIApplication) -> XCUIElement {
-    let cancel = app.sheets.firstMatch.buttons["キャンセル"]
-    return cancel.exists ? cancel : app.otherElements["PopoverDismissRegion"].firstMatch
+    app.alerts.firstMatch.buttons["キャンセル"]
   }
 
   private func mapConfirmationSize(in confirmation: XCUIElement, app: XCUIApplication)
@@ -966,7 +1095,7 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(disclosure.isHittable)
     XCTAssertEqual(
       confirmation.staticTexts.allElementsBoundByIndex.map(\.label).sorted(),
-      ["マップで開きます", "施設の名前と住所をAppleのマップに送ります。"].sorted())
+      ["地図を開きます", "施設の名前と住所をAppleのマップに送ります。"].sorted())
     XCTAssertEqual(
       confirmation.buttons.allElementsBoundByIndex.map(\.label).sorted(),
       (confirmation.buttons["キャンセル"].exists ? ["キャンセル", "開く"] : ["開く"]).sorted())
@@ -995,7 +1124,7 @@ final class DirectoryUITests: XCTestCase {
     shot.lifetime = .keepAlways
     add(shot)
     code.tap()
-    let confirmation = app.sheets.firstMatch
+    let confirmation = app.alerts.firstMatch
     XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
     XCTAssertTrue(
       confirmation.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "github.com"))
@@ -1050,6 +1179,12 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(address.label.contains("みほん市"))
     XCTAssertTrue(address.label.contains("サンプル"))
     capture(app, name: "sample-city-contact")
+    let map = app.buttons["map-button"]
+    reveal(map, in: app)
+    map.tap()
+    XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
+    capture(app, name: "sample-city-map-confirmation")
+    confirmationCancellation(in: app).tap()
     let source = app.buttons["source-link"]
     reveal(source, in: app)
     source.tap()
@@ -1059,10 +1194,23 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(date.waitForExistence(timeout: 5))
     XCTAssertEqual(date.label, "データの日付：2099年4月1日")
     capture(app, name: "sample-city-source")
+    if XCUIScreen.screens.count == 1 {
+      goBack(app)
+      XCUIDevice.shared.orientation = .landscapeLeft
+      waitUntil(
+        "the sample window is landscape",
+        app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
+      reveal(address, in: app, towardTop: true)
+      let field = app.searchFields.firstMatch
+      XCTAssertTrue(field.isHittable)
+      XCTAssertLessThan(field.frame.maxX, address.frame.minX)
+      capture(app, name: "sample-city-landscape")
+    }
   }
 
   func testLivePublicDirectorySearchAndSource() throws {
     let app = application(bundled: .shipped)
+    let singleDisplay = XCUIScreen.screens.count == 1
     app.launchEnvironment.removeValue(forKey: "PHONEBOOK_API_ORIGIN")
     app.launch()
     onboard(app, timeout: 300)
@@ -1080,6 +1228,34 @@ final class DirectoryUITests: XCTestCase {
     source.tap()
     XCTAssertTrue(app.staticTexts["source-license"].waitForExistence(timeout: 10))
     capture(app, name: "live-public-directory-source")
+    backGesture(in: app)
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    backGesture(in: app, distance: 0.12)
+    XCTAssertTrue(app.navigationBars["施設の情報"].exists)
+    backGesture(in: app)
+    let field = app.searchFields.firstMatch
+    waitUntil("the device back gesture reveals search", field.exists && field.isHittable)
+    XCTAssertEqual(field.value as? String, "市立図書館")
+    detail.tap()
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    XCUIDevice.shared.orientation = .landscapeLeft
+    waitUntil(
+      "the device is landscape",
+      XCUIDevice.shared.orientation == .landscapeLeft
+        && (!singleDisplay
+          || app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
+    )
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    if app.windows.firstMatch.frame.width >= 641 {
+      let address = app.staticTexts["contact-address"]
+      reveal(address, in: app, towardTop: true)
+      XCTAssertLessThan(field.frame.maxX, address.frame.minX)
+    } else {
+      goBack(app)
+    }
+    XCTAssertTrue(field.isHittable)
+    XCTAssertEqual(field.value as? String, "市立図書館")
+    capture(app, name: "live-public-directory-landscape")
   }
 
   func testBundledSearchStartupMeasurement() throws {
@@ -1245,8 +1421,6 @@ final class DirectoryUITests: XCTestCase {
       waitUntil(
         "back navigation removes the previous screen",
         titles.contains { !app.navigationBars[$0].exists }, timeout: 5)
-    } else if app.buttons["return-to-search"].exists {
-      app.buttons["return-to-search"].tap()
     } else {
       XCTAssertTrue(app.searchFields.firstMatch.isHittable)
     }

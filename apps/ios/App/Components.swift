@@ -124,7 +124,7 @@ struct ExternalLink<Label: View>: View {
     } label: {
       label()
     }
-    .confirmationDialog("ほかのサイトを開きます", isPresented: $confirming, titleVisibility: .visible) {
+    .alert("ページを開きます", isPresented: $confirming) {
       Button("開く") { openURL(url) }
       Button("キャンセル", role: .cancel) {}
     } message: {
@@ -161,7 +161,7 @@ struct MapButton: View {
     .buttonStyle(MonoButtonStyle())
     .accessibilityLabel(opening ? "\(name)の場所をさがしています" : "\(name)を地図で見る")
     .accessibilityIdentifier("map-button")
-    .confirmationDialog("マップで開きます", isPresented: $confirming, titleVisibility: .visible) {
+    .alert("地図を開きます", isPresented: $confirming) {
       Button("開く") {
         opening = true
         Task {

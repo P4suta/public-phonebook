@@ -2,67 +2,67 @@ import PhonebookCore
 import PhonebookKit
 import SwiftUI
 
-enum SearchDetailRoute: Hashable {
+enum SearchRoute: Hashable {
+  case contact(Contact)
   case source(Contact)
-  case sources, license
+  case about, settings, sources, license
+  #if PHONEBOOK_VERIFICATION_TOOLS
+    case verification
+  #endif
 }
 
 struct SearchScreen: View {
   @Bindable var model: DirectoryModel
   @Bindable var integration: IntegrationModel
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-  @ScaledMetric(relativeTo: .body) private var minimumColumnWidth: CGFloat = 320
-  @State private var destination: Destination?
-  @State private var detailPath: [SearchDetailRoute] = []
-  @State private var compactColumn: NavigationSplitViewColumn = .sidebar
+  @Environment(\.verticalSizeClass) private var verticalSizeClass
+  private let minimumColumnWidth: CGFloat = 320
+  private let idealColumnWidth: CGFloat = 420
+  @State private var path: [SearchRoute] = []
+  @State private var layout = Layout.stack
+  @State private var columnVisibility = NavigationSplitViewVisibility.all
   @State private var announced: [String] = []
   @FocusState private var searchIsFocused: Bool
   #if PHONEBOOK_VERIFICATION_TOOLS
     @State private var verification = VerificationNumberModel()
   #endif
 
+  private enum Layout: Equatable {
+    case stack, columns, split
+  }
+
   var body: some View {
-    Group {
-      if horizontalSizeClass == .regular {
-        NavigationSplitView(preferredCompactColumn: $compactColumn) {
-          searchContent
-            .navigationSplitViewColumnWidth(
-              min: dynamicTypeSize.isAccessibilitySize ? 420 : 360,
-              ideal: dynamicTypeSize.isAccessibilitySize ? 500 : 420, max: 600
-            )
-        } detail: {
-          detailStack
-        }
-        .navigationSplitViewStyle(.balanced)
-      } else {
-        GeometryReader { geometry in
-          if geometry.size.width >= minimumColumnWidth * 2 + 1 {
-            HStack(spacing: 0) {
-              NavigationStack { searchContent }
-                .frame(width: max(minimumColumnWidth, geometry.size.width * 0.44))
-              Rectangle().fill(.ink).frame(width: 1)
-              detailStack
-            }
-          } else {
-            NavigationStack(path: $detailPath) {
-              Group {
-                if destination == nil {
-                  searchContent
-                } else {
-                  detailContent
-                    .toolbar {
-                      ToolbarItem(placement: .topBarLeading) {
-                        Button("検索にもどる", systemImage: "chevron.backward", action: returnToSearch)
-                          .accessibilityIdentifier("return-to-search")
-                      }
-                    }
-                }
-              }
-              .navigationDestination(for: SearchDetailRoute.self, destination: detailDestination)
-            }
+    GeometryReader { geometry in
+      Group {
+        switch layout {
+        case .split:
+          NavigationSplitView(columnVisibility: $columnVisibility) {
+            searchContent
+              .navigationSplitViewColumnWidth(
+                min: minimumColumnWidth, ideal: idealColumnWidth, max: idealColumnWidth)
+          } detail: {
+            detailStack(for: .split)
+              .navigationSplitViewColumnWidth(
+                min: minimumColumnWidth, ideal: idealColumnWidth)
+          }
+          .navigationSplitViewStyle(.balanced)
+        case .columns:
+          HStack(spacing: 0) {
+            NavigationStack { searchContent }
+              .frame(
+                width: max(minimumColumnWidth, min(idealColumnWidth, geometry.size.width * 0.44)))
+            Rectangle().fill(.ink).frame(width: 1)
+            detailStack(for: .columns)
+          }
+        case .stack:
+          NavigationStack(path: searchPath) {
+            searchContent
+              .navigationDestination(for: SearchRoute.self, destination: detailDestination)
           }
         }
+      }
+      .onChange(of: fittingLayout(width: geometry.size.width), initial: true) { _, fitting in
+        layout = fitting
       }
     }
     .tint(.ink)
@@ -75,13 +75,28 @@ struct SearchScreen: View {
       }
       model.search()
       if model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-        case .contact = destination
+        case .contact = path.first
       {
-        detailPath = []
-        destination = nil
+        path = []
       }
     }
     .task(id: announcement) { await announce() }
+  }
+
+  private func fittingLayout(width: CGFloat) -> Layout {
+    if horizontalSizeClass == .regular && verticalSizeClass == .regular { return .split }
+    return width >= minimumColumnWidth * 2 + 1 ? .columns : .stack
+  }
+
+  private var searchPath: Binding<[SearchRoute]> {
+    Binding(
+      get: { path },
+      set: { routes in
+        if layout == .stack {
+          path = routes
+        }
+      }
+    )
   }
 
   private var searchContent: some View {
@@ -111,15 +126,48 @@ struct SearchScreen: View {
     .toolbarBackgroundVisibility(.visible, for: .navigationBar)
   }
 
-  private var detailStack: some View {
-    NavigationStack(path: $detailPath) {
-      detailContent
-        .navigationDestination(for: SearchDetailRoute.self, destination: detailDestination)
+  private func detailStack(for container: Layout) -> some View {
+    NavigationStack(path: nestedPath(for: container)) {
+      Group {
+        if let selected = path.first {
+          detailDestination(selected)
+        } else {
+          ContentUnavailableView("施設を選んでください", image: "search")
+            .background(.surface)
+        }
+      }
+      .navigationDestination(for: SearchRoute.self, destination: detailDestination)
     }
   }
 
-  @ViewBuilder private func detailDestination(_ route: SearchDetailRoute) -> some View {
+  private func nestedPath(for container: Layout) -> Binding<[SearchRoute]> {
+    Binding(
+      get: { Array(path.dropFirst()) },
+      set: { remaining in
+        if layout == container {
+          path = path.first.map { [$0] + remaining } ?? []
+        }
+      }
+    )
+  }
+
+  @ViewBuilder private func detailDestination(_ route: SearchRoute) -> some View {
     switch route {
+    case .contact(let contact):
+      ContactScreen(contact: contact)
+        .toolbar {
+          ToolbarItem(placement: .topBarTrailing) {
+            Button("検索を消す", systemImage: "xmark", action: clearSearch)
+              .labelStyle(.titleAndIcon)
+              .accessibilityIdentifier("clear-search")
+          }
+        }
+    case .about: AboutScreen(model: model, integration: integration)
+    case .settings: SettingsScreen(model: integration)
+    #if PHONEBOOK_VERIFICATION_TOOLS
+      case .verification:
+        VerificationToolsScreen(model: verification, integration: integration)
+    #endif
     case .source(let contact): SourceScreen(contact: contact)
     case .sources: SourcesScreen(categories: model.categories)
     case .license: LicenseScreen()
@@ -185,56 +233,16 @@ struct SearchScreen: View {
     .background(.surface)
   }
 
-  @ViewBuilder private var detailContent: some View {
-    switch destination {
-    case .contact(let contact):
-      ContactScreen(contact: contact)
-        .toolbar {
-          ToolbarItem(placement: .topBarTrailing) {
-            Button("検索を消す", systemImage: "xmark", action: clearSearch)
-              .labelStyle(.titleAndIcon)
-              .accessibilityIdentifier("clear-search")
-          }
-        }
-    case .about: AboutScreen(model: model, integration: integration)
-    case .settings: SettingsScreen(model: integration)
-    #if PHONEBOOK_VERIFICATION_TOOLS
-      case .verification:
-        VerificationToolsScreen(model: verification, integration: integration)
-    #endif
-    case nil:
-      ContentUnavailableView("施設を選んでください", image: "search")
-        .background(.surface)
-    }
-  }
-
-  private enum Destination: Hashable {
-    case contact(Contact)
-    case about, settings
-    #if PHONEBOOK_VERIFICATION_TOOLS
-      case verification
-    #endif
-  }
-
-  private func select(_ destination: Destination) {
+  private func select(_ route: SearchRoute) {
     searchIsFocused = false
-    detailPath = []
-    self.destination = destination
-    compactColumn = .detail
+    path = [route]
   }
 
   private func clearSearch() {
     searchIsFocused = false
-    detailPath = []
+    columnVisibility = .all
+    path = []
     model.query = ""
-    destination = nil
-    compactColumn = .sidebar
-  }
-
-  private func returnToSearch() {
-    detailPath = []
-    destination = nil
-    compactColumn = .sidebar
   }
 
   /// What the total announcement depends on, so each keystroke restarts its wait.

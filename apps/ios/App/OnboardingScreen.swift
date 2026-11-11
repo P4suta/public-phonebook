@@ -5,48 +5,40 @@ import SwiftUI
 struct OnboardingScreen: View {
   @Bindable var integration: IntegrationModel
   let finish: () -> Void
-  @State private var step = Step.welcome
-  @AccessibilityFocusState private var headingFocused: Bool
+  @State private var path: [Step] = []
 
-  private enum Step: Int, CaseIterable {
+  private enum Step: Int, Hashable {
     case welcome, caller, ready
   }
 
   var body: some View {
-    NavigationStack {
-      ScrollView {
-        VStack(alignment: .leading, spacing: 20) {
-          if step != .welcome {
-            Text("\(step.rawValue) / 2").font(.subheadline).fixedSize(
-              horizontal: false, vertical: true
-            )
-            .accessibilityLabel("2つのうち\(step.rawValue)つめ")
-          }
-          content
-        }
-        .padding(20).frame(maxWidth: .infinity, alignment: .leading)
-      }
-      .background(.surface)
-      .safeAreaInset(edge: .bottom, spacing: 0) { footer }
-      .toolbar {
-        if step != .welcome {
-          ToolbarItem(placement: .topBarLeading) {
-            Button {
-              move(to: Step(rawValue: step.rawValue - 1) ?? .welcome)
-            } label: {
-              DesignIcon(name: "chevron-left").frame(minWidth: 44, minHeight: 44)
-            }
-            .accessibilityLabel("前にもどる")
-          }
-        }
-      }
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbarBackground(.surface, for: .navigationBar)
+    NavigationStack(path: $path) {
+      screen(.welcome)
+        .navigationDestination(for: Step.self) { screen($0) }
     }
     .tint(.ink)
   }
 
-  @ViewBuilder private var content: some View {
+  private func screen(_ step: Step) -> some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 20) {
+        if step != .welcome {
+          Text("\(step.rawValue) / 2").font(.subheadline).fixedSize(
+            horizontal: false, vertical: true
+          )
+          .accessibilityLabel("2つのうち\(step.rawValue)つめ")
+        }
+        content(step)
+      }
+      .padding(20).frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .background(.surface)
+    .safeAreaInset(edge: .bottom, spacing: 0) { footer(step) }
+    .navigationBarTitleDisplayMode(.inline)
+    .toolbarBackground(.surface, for: .navigationBar)
+  }
+
+  @ViewBuilder private func content(_ step: Step) -> some View {
     switch step {
     case .welcome:
       heading(AppIdentity.displayName)
@@ -95,7 +87,7 @@ struct OnboardingScreen: View {
     }
   }
 
-  private var footer: some View {
+  private func footer(_ step: Step) -> some View {
     VStack(alignment: .leading, spacing: 12) {
       switch step {
       case .welcome:
@@ -140,7 +132,6 @@ struct OnboardingScreen: View {
   private func heading(_ text: String) -> some View {
     Text(text).font(.largeTitle.bold()).fixedSize(horizontal: false, vertical: true)
       .accessibilityAddTraits(.isHeader)
-      .accessibilityFocused($headingFocused)
   }
 
   private func next(_ target: Step) -> some View {
@@ -164,8 +155,7 @@ struct OnboardingScreen: View {
   }
 
   private func move(to target: Step) {
-    step = target
-    headingFocused = true
+    path.append(target)
   }
 }
 
