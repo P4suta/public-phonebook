@@ -357,6 +357,10 @@ final class DirectoryUITests: XCTestCase {
 
   func testPortraitLandscapeRoundTrip() throws {
     let app = prepared()
+    app.terminate()
+    app.launchEnvironment["PHONEBOOK_CALLER_STATUS"] = "on"
+    app.launch()
+    XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 15))
     let singleDisplay = XCUIScreen.screens.count == 1
     XCUIDevice.shared.orientation = .landscapeLeft
     waitUntil(
@@ -366,18 +370,64 @@ final class DirectoryUITests: XCTestCase {
           || app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
     )
     capture(app, name: "landscape-before-search")
-    search("試験", in: app)
-    app.buttons["contact-detail"].firstMatch.tap()
+    let field = app.searchFields.firstMatch
+    waitUntil(
+      "the landscape search field accepts input",
+      field.exists && field.isHittable && app.windows.firstMatch.frame.contains(field.frame),
+      timeout: 5)
+    XCTAssertTrue(field.isHittable)
+    search("Index", in: app)
+    waitForGroup("library", "100件", in: app)
+    let results = app.collectionViews["search-results"]
+    XCTAssertTrue(results.waitForExistence(timeout: 5))
+    let names = results.staticTexts.matching(identifier: "contact-name")
+    let more = results.buttons["more-library"]
+    for _ in 0..<8 where !more.isHittable { results.swipeUp() }
+    XCTAssertTrue(more.isHittable)
+    let previous = Set(names.allElementsBoundByIndex.map(\.label))
+    more.tap()
+    waitUntil("the more button disappears", !more.exists, timeout: 10)
+    waitUntil(
+      "the next library page appears",
+      names.allElementsBoundByIndex.contains { !previous.contains($0.label) }, timeout: 10)
+    let firstVisible = try XCTUnwrap(names.allElementsBoundByIndex.first { $0.isHittable })
+    let anchor = names.matching(NSPredicate(format: "label == %@", firstVisible.label)).firstMatch
+    let firstY = anchor.frame.minY
+    results.swipeUp()
+    waitUntil(
+      "scrolling moves the results",
+      !anchor.exists || anchor.frame.minY < firstY - 1,
+      timeout: 5, observed: { results.debugDescription })
+    capture(app, name: "landscape-scrolled-results")
+    let contact = try XCTUnwrap(
+      results.buttons.matching(identifier: "contact-detail").allElementsBoundByIndex.first {
+        $0.isHittable
+      })
+    contact.tap()
     XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
     capture(app, name: "landscape-detail")
-    let field = app.searchFields.firstMatch
-    let detail = app.navigationBars["施設の情報"]
-    XCTAssertLessThan(field.frame.maxX, detail.frame.minX)
-    XCTAssertEqual(field.value as? String, "試験")
+    let wideWindow = app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height
+    if wideWindow {
+      let address = app.staticTexts["contact-address"]
+      XCTAssertTrue(address.waitForExistence(timeout: 5))
+      XCTAssertLessThan(field.frame.maxX, address.frame.minX)
+    } else {
+      goBack(app)
+    }
+    XCTAssertEqual(field.value as? String, "Index")
+    waitUntil(
+      "the search field accepts input after scrolling",
+      field.exists && field.isHittable && app.windows.firstMatch.frame.contains(field.frame),
+      timeout: 5, observed: { field.debugDescription })
+    XCTAssertTrue(field.isHittable)
     field.tap()
     XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+    field.typeText("あ")
+    waitForValue(of: field, "editing changes the search after scrolling", timeout: 5) {
+      $0 != "Index" && $0.contains("あ")
+    }
     field.typeText("\n")
-    app.buttons["clear-search"].tap()
+    app.buttons[wideWindow ? "clear-search" : "clear-search-field"].tap()
     XCTAssertTrue(app.descendants(matching: .any)["search-hint"].waitForExistence(timeout: 10))
     search("試験", in: app)
     app.buttons["contact-detail"].firstMatch.tap()
@@ -401,13 +451,25 @@ final class DirectoryUITests: XCTestCase {
           || app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height)
     )
     XCTAssertTrue(app.staticTexts["source-license"].exists)
+    capture(app, name: "landscape-source-after-rotation")
+    let wideSourceWindow = app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height
+    if !wideSourceWindow {
+      goBack(app)
+      goBack(app)
+    }
     XCTAssertEqual(field.value as? String, "試験")
+    waitUntil(
+      "the search field accepts input after rotating the source",
+      field.exists && field.isHittable && app.windows.firstMatch.frame.contains(field.frame),
+      timeout: 5, observed: { field.debugDescription })
+    XCTAssertTrue(field.isHittable)
     field.tap()
     XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
     field.typeText("\n")
-    capture(app, name: "landscape-source-after-rotation")
-    goBack(app)
-    goBack(app)
+    if wideSourceWindow {
+      goBack(app)
+      goBack(app)
+    }
     XCTAssertEqual(app.searchFields.firstMatch.value as? String, "試験")
     waitForGroup("dental", "1件", in: app)
   }
@@ -1171,7 +1233,9 @@ final class DirectoryUITests: XCTestCase {
       clear.tap()
       field.tap()
     }
-    field.typeText(text + "\n")
+    field.typeText(text)
+    waitForValue(of: field, "the field holds “\(text)”", file: file, line: line) { $0 == text }
+    field.typeText("\n")
     waitForValue(
       of: app.descendants(matching: .any)["search-results"], "the results answer “\(text)”",
       timeout: timeout, file: file, line: line

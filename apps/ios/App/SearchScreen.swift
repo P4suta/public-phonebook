@@ -85,22 +85,24 @@ struct SearchScreen: View {
   }
 
   private var searchContent: some View {
-    ScrollViewReader { reader in
-      List {
-        content
-          .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-          .listRowSeparator(.hidden)
-          .listRowBackground(Rectangle().fill(.surface))
-      }
-      .listStyle(.plain)
-      .scrollContentBackground(.hidden)
-      .accessibilityIdentifier("search-results")
-      .accessibilityValue(model.results?.input ?? "")
-      .onChange(of: model.results?.input) {
-        reader.scrollTo(model.results?.groups.first?.key ?? "search-hint", anchor: .top)
+    VStack(spacing: 0) {
+      searchField
+      ScrollViewReader { reader in
+        List {
+          content
+            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Rectangle().fill(.surface))
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .accessibilityIdentifier("search-results")
+        .accessibilityValue(model.results?.input ?? "")
+        .onChange(of: model.results?.input) {
+          reader.scrollTo(model.results?.groups.first?.key ?? "search-hint", anchor: .top)
+        }
       }
     }
-    .safeAreaInset(edge: .top, spacing: 0) { searchField }
     .scrollDismissesKeyboard(.interactively)
     .background(.surface)
     .navigationTitle("検索")
