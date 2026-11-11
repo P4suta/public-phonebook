@@ -262,9 +262,10 @@ final class DirectoryUITests: XCTestCase {
     let map = app.buttons["map-button"]
     reveal(map, in: app)
     XCTAssertEqual(map.label, "\(name)を地図で見る")
+    try auditVisibleContent(in: app)
     capture(app, name: "contact-address")
     map.tap()
-    let alert = app.sheets.firstMatch
+    let alert = app.alerts.firstMatch
     XCTAssertTrue(alert.waitForExistence(timeout: 5))
     XCTAssertTrue(
       alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Appleのマップ"))
@@ -275,6 +276,7 @@ final class DirectoryUITests: XCTestCase {
       )
       .firstMatch.exists)
     capture(app, name: "external-link-confirmation")
+    try auditModal(in: app, title: "地図を開きます", message: "施設の名前と住所をAppleのマップに送ります。")
     confirmationCancellation(in: app).tap()
     XCTAssertTrue(alert.waitForNonExistence(timeout: 5))
     XCTAssertEqual(app.state, .runningForeground)
@@ -857,7 +859,7 @@ final class DirectoryUITests: XCTestCase {
     let map = app.buttons["map-button"]
     reveal(map, in: app)
     map.tap()
-    let confirmation = app.sheets.firstMatch
+    let confirmation = app.alerts.firstMatch
     XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
     let regular = mapConfirmationSize(in: confirmation, app: app)
     XCTAssertGreaterThan(regular.message, 0)
@@ -924,14 +926,14 @@ final class DirectoryUITests: XCTestCase {
 
     reveal(map, in: app)
     map.tap()
-    let confirmation = app.sheets.firstMatch
+    let confirmation = app.alerts.firstMatch
     XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
     let confirmationSize = mapConfirmationSize(in: confirmation, app: app)
     XCTAssertTrue(confirmationCancellation(in: app).isHittable)
     XCTAssertTrue(confirmation.buttons["開く"].isHittable)
     XCTAssertFalse(map.isHittable)
     capture(app, name: "accessibility-map-confirmation")
-    try app.performAccessibilityAudit(for: .all.subtracting(.dynamicType))
+    try auditModal(in: app, title: "地図を開きます", message: "施設の名前と住所をAppleのマップに送ります。")
     confirmationCancellation(in: app).tap()
     XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
     let source = app.buttons["source-link"]
@@ -971,12 +973,13 @@ final class DirectoryUITests: XCTestCase {
     try auditVisibleContent(in: app)
     capture(app, name: "accessibility-about-source")
     code.tap()
-    let confirmation = app.sheets.firstMatch
+    let confirmation = app.alerts.firstMatch
     XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
     XCTAssertTrue(confirmation.buttons["開く"].isHittable)
     XCTAssertTrue(confirmationCancellation(in: app).isHittable)
     capture(app, name: "accessibility-source-code-confirmation")
-    try app.performAccessibilityAudit(for: .all.subtracting(.dynamicType))
+    try auditModal(
+      in: app, title: "ページを開きます", message: "GitHubでプログラムを開きます。\n行き先：github.com")
     confirmationCancellation(in: app).tap()
     XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
     let privacy = app.buttons["privacy-policy-link"]
@@ -990,19 +993,71 @@ final class DirectoryUITests: XCTestCase {
         $0.label.contains("行き先：www.dial.page")
       })
     capture(app, name: "accessibility-privacy-policy-confirmation")
-    try app.performAccessibilityAudit(for: .all.subtracting(.dynamicType))
+    try auditModal(
+      in: app, title: "ページを開きます", message: "ほかのサイトのページを開きます。\n行き先：www.dial.page")
     confirmationCancellation(in: app).tap()
     XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
   }
 
-  private func auditVisibleContent(in app: XCUIApplication) throws {
+  private func accessibilityIssues(
+    in app: XCUIApplication, for types: XCUIAccessibilityAuditType
+  ) throws -> [XCUIAccessibilityAuditIssue] {
     var issues: [XCUIAccessibilityAuditIssue] = []
-    try app.performAccessibilityAudit { issue in
+    try app.performAccessibilityAudit(for: types) { issue in
       issues.append(issue)
       return true
     }
-    // Query UI state after the audit returns, and fail every unhandled report.
+    return issues
+  }
+
+  private func auditModal(in app: XCUIApplication, title: String, message: String) throws {
+    assertNativeConfirmation(in: app, title: title, message: message)
+    let before = app.debugDescription
+    let issues = try accessibilityIssues(in: app, for: .all.subtracting(.dynamicType))
+    if !issues.isEmpty {
+      attach(before, name: "modal-audit-before")
+      attach(app.debugDescription, name: "modal-audit-after")
+    }
+    let system = ProcessInfo.processInfo.operatingSystemVersion
+    let nativeAlert = app.alerts.firstMatch.exists
     for issue in issues {
+      // iPadOS 27.2 also reports background text without an element in Settings dialogs.
+      if system.majorVersion == 27, system.minorVersion == 2, nativeAlert,
+        issue.auditType == .elementDetection, issue.element == nil
+      {
+        continue
+      }
+      failAccessibilityIssue(issue)
+    }
+    assertNativeConfirmation(in: app, title: title, message: message)
+  }
+
+  private func assertNativeConfirmation(in app: XCUIApplication, title: String, message: String) {
+    let confirmation = app.alerts.firstMatch
+    XCTAssertTrue(confirmation.exists)
+    XCTAssertEqual(confirmation.label, title)
+    for text in [title, message] {
+      let spokenText = text.replacingOccurrences(of: "\n", with: " ")
+      XCTAssertTrue(
+        confirmation.staticTexts.allElementsBoundByIndex.contains {
+          $0.label.replacingOccurrences(of: "\n", with: " ") == spokenText
+        })
+    }
+    XCTAssertTrue(confirmation.buttons["開く"].isHittable)
+    XCTAssertTrue(confirmationCancellation(in: app).isHittable)
+  }
+
+  private func failAccessibilityIssue(_ issue: XCUIAccessibilityAuditIssue) {
+    attach("\(issue.auditType)\n\(issue.detailedDescription)", name: "accessibility-issue-details")
+    if let element = issue.element {
+      attach(element.debugDescription, name: "accessibility-issue-element")
+    }
+    XCTFail(issue.compactDescription)
+  }
+
+  private func auditVisibleContent(in app: XCUIApplication) throws {
+    // Query UI state after the audit returns, and fail every unhandled report.
+    for issue in try accessibilityIssues(in: app, for: .all) {
       if issue.auditType == .contrast, let element = issue.element,
         element.elementType == .staticText
       {
@@ -1019,17 +1074,12 @@ final class DirectoryUITests: XCTestCase {
           continue
         }
       }
-      attach(issue.detailedDescription, name: "accessibility-issue-details")
-      if let element = issue.element {
-        attach(element.debugDescription, name: "accessibility-issue-element")
-      }
-      XCTFail(issue.compactDescription)
+      failAccessibilityIssue(issue)
     }
   }
 
   private func confirmationCancellation(in app: XCUIApplication) -> XCUIElement {
-    let cancel = app.sheets.firstMatch.buttons["キャンセル"]
-    return cancel.exists ? cancel : app.otherElements["PopoverDismissRegion"].firstMatch
+    app.alerts.firstMatch.buttons["キャンセル"]
   }
 
   private func mapConfirmationSize(in confirmation: XCUIElement, app: XCUIApplication)
@@ -1042,7 +1092,7 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(disclosure.isHittable)
     XCTAssertEqual(
       confirmation.staticTexts.allElementsBoundByIndex.map(\.label).sorted(),
-      ["施設の名前と住所をAppleのマップに送ります。"])
+      ["地図を開きます", "施設の名前と住所をAppleのマップに送ります。"].sorted())
     XCTAssertEqual(
       confirmation.buttons.allElementsBoundByIndex.map(\.label).sorted(),
       (confirmation.buttons["キャンセル"].exists ? ["キャンセル", "開く"] : ["開く"]).sorted())
@@ -1071,7 +1121,7 @@ final class DirectoryUITests: XCTestCase {
     shot.lifetime = .keepAlways
     add(shot)
     code.tap()
-    let confirmation = app.sheets.firstMatch
+    let confirmation = app.alerts.firstMatch
     XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
     XCTAssertTrue(
       confirmation.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "github.com"))
@@ -1126,6 +1176,12 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(address.label.contains("みほん市"))
     XCTAssertTrue(address.label.contains("サンプル"))
     capture(app, name: "sample-city-contact")
+    let map = app.buttons["map-button"]
+    reveal(map, in: app)
+    map.tap()
+    XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
+    capture(app, name: "sample-city-map-confirmation")
+    confirmationCancellation(in: app).tap()
     let source = app.buttons["source-link"]
     reveal(source, in: app)
     source.tap()

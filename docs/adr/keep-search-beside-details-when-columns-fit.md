@@ -16,24 +16,29 @@ iPhone Air needs adjacent search and details without losing native back navigati
 
 Store the query and one route path in the parent view.
 Narrow windows use search as a native stack root.
-Wide windows use two native stacks with the selected route as the detail root.
+Regular width and height use a native split view.
+Keep the split container stable as text grows.
+Compact windows with room for both columns use adjacent native stacks.
 Bind the remaining routes to the detail stack.
-Accept path changes from the active layout.
-Use native stacks for setup steps.
-Scale column widths with Dynamic Type.
+Accept path changes from the active container.
+Setup uses native stacks.
+Wrap enlarged text within the columns.
 Follow Apple's [layout guidance](https://developer.apple.com/design/human-interface-guidelines/layout) and [navigation stack contract](https://developer.apple.com/documentation/swiftui/navigationstack).
+Use the system's [split view adaptation](https://developer.apple.com/documentation/swiftui/navigationsplitview) in regular windows.
 
 ## Alternatives
 
 The native split view can collapse or overlay columns at iPhone widths.
+Adjacent stacks replace native split behavior.
 Replacing the navigation root loses native history and transitions.
 
 ## Consequences
 
-Large text can require one column.
-Reconsider adjacent stacks if the system split view supports persistent columns at the required widths.
+Resizing can change the container.
+Reconsider compact columns when the system supports persistent columns at iPhone widths.
 
 ## Confirmation
 
 Verify back gestures, partial cancellation, rotation, and clearing on iPhone Air, iPhone, Duo, and iPad.
 Keep the query, selection, and nested route through resizing and enlarged text.
+Verify native dialogs remain open during text audits.

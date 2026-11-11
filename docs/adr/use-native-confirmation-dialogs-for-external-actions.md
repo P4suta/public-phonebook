@@ -2,7 +2,7 @@
 date: 2026-11-10
 ---
 
-# Use native confirmation dialogs for external actions
+# Use native alerts before external handoffs
 
 ## Status
 
@@ -11,30 +11,28 @@ Proposed.
 ## Context
 
 External actions require confirmation with a readable destination disclosure.
-The app used alerts for intentional actions, and custom modal sheets added layout and accessibility behavior to maintain.
+The confirmation popover places Open outside the visible window on the Duo simulator running build 24B91016s.
 
 ## Decision
 
-Use SwiftUI `confirmationDialog` for map and external-link actions.
-Apple's [action sheet guidance](https://developer.apple.com/design/human-interface-guidelines/action-sheets) recommends the native presentation for choices related to an intentional action.
-Keep the existing disclosure and explicit Open and Cancel actions.
-Use the disclosure as the visible title without a redundant heading or secondary message.
-The native secondary label fails the dark-appearance contrast audit on the current runtime.
-Apple's [accessibility guidance](https://developer.apple.com/design/human-interface-guidelines/accessibility) calls for readable contrast in both appearances.
-Let the system adapt presentation and dismissal to iPhone and iPad.
+Use SwiftUI alerts for binary consent before map and external-link handoffs on iPhone and iPad.
+Use a short title, the destination disclosure, and explicit Open and Cancel actions.
+Apple's [Alerts guidance](https://developer.apple.com/design/human-interface-guidelines/alerts) permits confirmation of important initiated actions.
+Treat leaving the app and sending the disclosed data as requiring prior consent.
 Keep failure alerts for unavailable map destinations.
 
 ## Alternatives
 
-Custom sheets provide full layout control but duplicate system presentation behavior.
-Opening immediately removes the required confirmation.
+Apple recommends [action sheets](https://developer.apple.com/design/human-interface-guidelines/action-sheets) for related action choices.
+The current popover can leave confirmation inoperable on Duo.
+Custom sheets duplicate system behavior, and immediate opening removes prior consent.
 
 ## Consequences
 
-The operating system owns action layout and adaptive presentation.
-Reconsider the presentation when external actions require user input.
+Alerts interrupt the task before handoff.
+Reconsider the presentation if the flow adds alternative actions or removes prior consent.
 
 ## Confirmation
 
-Verify readable disclosures, cancellation, action targets, and rendered text growth on iPhone, Duo, and iPad.
-Run the full audit on app screens and preserve the system dialog's existing Dynamic Type exception.
+Verify disclosures, cancellation, visible action targets, and enlarged text on iPhone, Duo, and iPad.
+Audit app content and native confirmations in both appearances.

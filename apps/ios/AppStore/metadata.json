@@ -16,5 +16,5 @@
   "primaryCategory": "UTILITIES",
   "secondaryCategory": "REFERENCE",
   "signInRequired": false,
-  "reviewNotes": "This update adds iPad and iPhone Duo support, Apple Watch search, and a button to clear the search.\nOn wide screens, search and facility details appear side by side.\nSearch, source, and privacy screens use shorter text.\nOn first launch, tap 「はじめる」.\nSelect 「あとで設定する」 to set up caller identification later, or enable Public Phonebook in iPhone Settings and tap 「次へ」.\nWhen setup finishes, tap 「さがしはじめる」.\nFor Apple Watch, finish setup on the paired iPhone and keep the iPhone app open while searching on the Watch.\nStore screenshots use sample data."
+  "reviewNotes": "This update adds iPad and iPhone Duo support, Apple Watch search, and a button to clear the search.\nOn wide screens, search and facility details appear side by side.\nOn first launch, tap 「はじめる」.\nSelect 「あとで設定する」 to set up caller identification later, or enable Public Phonebook in iPhone Settings and tap 「次へ」.\nWhen setup finishes, tap 「さがしはじめる」.\nFor Apple Watch, finish setup on the paired iPhone and keep the iPhone app open while searching on the Watch.\nStore screenshots use sample data."
 }
