@@ -163,32 +163,35 @@ test("the palette gate accepts black and white and rejects prohibited styles", a
 });
 
 for (const width of [320, 390, 1440]) {
-  test(`layout, palette, and accessibility at ${width}px`, async ({
-    page,
-    request,
-    httpFailures,
-  }, info) => {
-    httpFailures.add(400);
-    httpFailures.add(404);
-    const raw: unknown = await (
-      await request.get("/api/contacts?q=国立国会図書館")
-    ).json();
-    const contact = v.parse(SearchResponseSchema, raw).data[0];
-    if (!contact) throw new Error("Known visual fixture missing");
-    const detail = `/contacts/${encodeURIComponent(contact.id)}`;
-    await page.setViewportSize({ width, height: 900 });
-    for (const [name, path] of [
-      ["home", "/"],
-      ["about", "/about"],
-      ["results", "/?q=国立国会図書館&category=library"],
-      ["empty", "/?q=存在しない施設000000"],
-      ["data", "/data"],
-      ["detail", detail],
-      ["source", `${detail}/source`],
-      ["invalid", "/?q=国立国会図書館&category=unknown"],
-      ["missing", "/contacts/does-not-exist"],
-    ]) {
-      if (!name || !path) throw new Error("Missing visual case");
+  for (const [name, route] of [
+    ["home", "/"],
+    ["about", "/about"],
+    ["results", "/?q=国立国会図書館&category=library"],
+    ["empty", "/?q=存在しない施設000000"],
+    ["data", "/data"],
+    ["detail", "/contacts/"],
+    ["source", "/contacts/"],
+    ["invalid", "/?q=国立国会図書館&category=unknown"],
+    ["missing", "/contacts/does-not-exist"],
+  ] as const) {
+    test(`layout, palette, and accessibility for ${name} at ${width}px`, async ({
+      page,
+      request,
+      httpFailures,
+    }, info) => {
+      httpFailures.add(400);
+      httpFailures.add(404);
+      let path: string = route;
+      if (name === "detail" || name === "source") {
+        const raw: unknown = await (
+          await request.get("/api/contacts?q=国立国会図書館")
+        ).json();
+        const contact = v.parse(SearchResponseSchema, raw).data[0];
+        if (!contact) throw new Error("Known visual fixture missing");
+        const detail = `/contacts/${encodeURIComponent(contact.id)}`;
+        path = name === "source" ? `${detail}/source` : detail;
+      }
+      await page.setViewportSize({ width, height: 900 });
       await page.goto(path);
       await expect(page.locator("html")).toHaveAttribute(
         "data-enhanced",
@@ -325,8 +328,8 @@ for (const width of [320, 390, 1440]) {
       else await recordFullPage(page, info, `${name}-${width}`);
       if (name === "home" || name === "results")
         await expect(page.getByRole("combobox"), name).toHaveCount(0);
-    }
-  });
+    });
+  }
 }
 
 for (const width of [320, 1440]) {
