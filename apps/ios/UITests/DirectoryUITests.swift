@@ -1057,7 +1057,10 @@ final class DirectoryUITests: XCTestCase {
 
   private func auditVisibleContent(in app: XCUIApplication) throws {
     // Query UI state after the audit returns, and fail every unhandled report.
-    for issue in try accessibilityIssues(in: app, for: .all) {
+    for issue in try accessibilityIssues(in: app, for: .dynamicType) {
+      failAccessibilityIssue(issue)
+    }
+    for issue in try accessibilityIssues(in: app, for: .all.subtracting(.dynamicType)) {
       if issue.auditType == .contrast, let element = issue.element,
         element.elementType == .staticText
       {

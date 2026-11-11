@@ -126,6 +126,7 @@ Its audit preserves the existing exception for the system dialog's Dynamic Type 
 Before and after each modal audit, the test matches the complete title and disclosure and requires both opening and cancellation actions to be reachable.
 The largest-text scenario requires the disclosure to exceed twice its default height and the native action targets to measure at least 44 points.
 App-owned screens keep every audit category enabled.
+Visible-content audits complete Dynamic Type before checking the remaining categories.
 Scrolling information screens exclude contrast findings for clipped static text because XCTest fills the offscreen part of its image with black.
 Navigation-bar titles remain in the contrast audit.
 Failure attachments identify the affected accessibility element.
