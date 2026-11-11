@@ -100,6 +100,7 @@ private final class JSONTransfer: NSObject, URLSessionDataDelegate {
       value.finished = true
       value.continuation = nil
       value.task = nil
+      if value.cancelled { return (continuation, .failure(CancellationError())) }
       if let error { return (continuation, .failure(error)) }
       guard let response = value.response else {
         return (continuation, .failure(ServiceError.invalidResponse))

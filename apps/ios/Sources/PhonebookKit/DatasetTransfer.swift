@@ -111,6 +111,7 @@ final class DatasetTransfer: NSObject, URLSessionDataDelegate, Sendable {
       value.task = nil
       try? value.handle?.close()
       value.handle = nil
+      if value.cancelled { return (continuation, .failure(CancellationError())) }
       if let failure = value.failure ?? error { return (continuation, .failure(failure)) }
       return (continuation, .success(value.response))
     }
