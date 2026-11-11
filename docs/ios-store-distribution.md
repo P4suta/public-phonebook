@@ -107,7 +107,7 @@ Keep incoming numbers on the phone.
 Repeat VoiceOver, Voice Control, and large-text checks when affected screens or accessibility behavior changed.
 [Apple's release testing guidance](https://developer.apple.com/documentation/xcode/testing-a-release-build) explains why a development-signed QA build doesn't establish the distributed build's behavior.
 
-Use Safari for the authenticated App Store Connect session.
+Use the authenticated App Store Connect session in the owner's selected browser.
 Save the draft, verify the selected version and build, and submit the update for App Review only after the distributed build check passes.
 An upload or review submission doesn't establish App Store availability.
 
