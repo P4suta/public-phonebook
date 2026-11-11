@@ -64,6 +64,10 @@ import { contactVCard } from "@public-phonebook/directory/vcard";
 import { Miniflare } from "miniflare";
 import * as v from "valibot";
 import { api, type DirectoryApiBindings } from "../apps/web/src/server/api.ts";
+import {
+  requireSampleCityEnvironment,
+  sampleCityDirectory,
+} from "./sample-city.ts";
 
 export const contractOrigin = "https://contract.example";
 export const fixturePort = 3100;
@@ -145,6 +149,7 @@ async function readRealDirectory(
 }
 
 export type FixtureRevision = "baseline" | "updated";
+export type FixtureScenario = "contract" | "sample-city";
 
 /** Builds the synthetic contacts of a revision, where `updated` renames the first contact. */
 function fixtureContacts(revision: FixtureRevision): Contact[] {
@@ -324,14 +329,26 @@ interface SyntheticRevision {
   readonly archiveText: string;
 }
 
-function syntheticRevision(revision: FixtureRevision): SyntheticRevision {
-  const contacts = fixtureContacts(revision);
+function syntheticRevision(
+  revision: FixtureRevision,
+  scenario: FixtureScenario = "contract",
+): SyntheticRevision {
+  const contacts =
+    scenario === "sample-city"
+      ? sampleCityDirectory.contacts
+      : fixtureContacts(revision);
   const jsonl = contacts
     .map((contact) => `${JSON.stringify(contact)}\n`)
     .join("");
   const snapshot = sha256Hex(jsonl);
-  const catalog = fixtureCatalog(contacts, snapshot);
-  const source = fixtureSource(contacts);
+  const catalog =
+    scenario === "sample-city"
+      ? { ...sampleCityDirectory.catalog, snapshot }
+      : fixtureCatalog(contacts, snapshot);
+  const source =
+    scenario === "sample-city"
+      ? sampleCityDirectory.source
+      : fixtureSource(contacts);
   const archiveText = encodeDirectoryArchive(contacts, {
     snapshot,
     catalog,
@@ -388,13 +405,22 @@ function syntheticDelta(
 }
 
 export async function directoryFixture(
-  options: { readonly revision: FixtureRevision } = {
+  options: {
+    readonly revision: FixtureRevision;
+    readonly scenario?: FixtureScenario;
+  } = {
     revision: "baseline",
   },
 ): Promise<{
   readonly fetch: (request: Request) => Promise<Response>;
   readonly dispose: () => Promise<void>;
 }> {
+  const scenario = options.scenario ?? "contract";
+  if (scenario === "sample-city") {
+    requireSampleCityEnvironment(process.env);
+    if (options.revision !== "baseline")
+      throw new Error("Sample images require the baseline sample revision");
+  }
   const runtime = new Miniflare({
     cf: false,
     telemetry: { enabled: false },
@@ -426,11 +452,12 @@ export async function directoryFixture(
   try {
     const DB = await runtime.getD1Database("DB");
     const bucket = await runtime.getR2Bucket("DATASETS");
-    const synthetic = syntheticRevision(options.revision);
+    const synthetic = syntheticRevision(options.revision, scenario);
     const { contacts, jsonl, snapshot, catalog, source } = synthetic;
     await DB.exec(databaseSchema.replaceAll("\n", " "));
     const rowNumbers = contactRowNumbers(contacts);
-    const real = await readRealDirectory(snapshot);
+    const real =
+      scenario === "sample-city" ? null : await readRealDirectory(snapshot);
     const published = real?.catalog ?? catalog;
     await DB.batch(
       [
