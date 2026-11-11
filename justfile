@@ -136,8 +136,11 @@ ios-build-number run attempt output:
 ios-testflight:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- testflight
 
-ios-screenshots origin simulator="iphone-17":
-    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- screenshots --origin {{ quote(origin) }} --simulator {{ quote(simulator) }}
+ios-screenshots simulator="iphone-17":
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- screenshots --simulator {{ quote(simulator) }}
+
+ios-watch-screenshots:
+    cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- watch-screenshots
 
 icons:
     cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- icons

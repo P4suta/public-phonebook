@@ -100,6 +100,7 @@ impl SimulatorModel {
 }
 
 const LIVE_UI_TEST: &str = "testLivePublicDirectorySearchAndSource";
+const SAMPLE_UI_TEST: &str = "testSampleCityScreenshots";
 const STARTUP_UI_TEST: &str = "testBundledSearchStartupMeasurement";
 const SEARCH_MEMORY_UI_TEST: &str = "testBundledSearchMemoryMeasurement";
 /// A hang guard that exceeds the longest sum of one scenario's own waits.
@@ -438,14 +439,13 @@ pub enum Action {
     /// Builds Release with the verification tools condition and requires the store-build step to reject it.
     StoreBuildControl,
     Screenshots {
-        #[arg(long)]
-        origin: String,
         #[arg(long, value_enum, default_value_t = SimulatorModel::Iphone17)]
         simulator: SimulatorModel,
     },
     Check,
     UnitTest,
     WatchCheck,
+    WatchScreenshots,
     ImportWatchProfile {
         #[arg(long)]
         profile: PathBuf,
@@ -679,20 +679,40 @@ struct Fixture {
 impl Fixture {
     /// Starts the fixture on a loopback port that the kernel reports free, so another process on the development port can't stop the gate.
     fn start(root: &Path, revision: Revision) -> Result<Self> {
+        Self::start_with_sample(root, revision, None)
+    }
+
+    fn sample_city(root: &Path, directory: &Path) -> Result<Self> {
+        Self::start_with_sample(root, Revision::Baseline, Some(directory))
+    }
+
+    fn start_with_sample(root: &Path, revision: Revision, sample: Option<&Path>) -> Result<Self> {
         let listener = TcpListener::bind((LOOPBACK_HOST, 0))
             .context("The iOS fixture found no free loopback port")?;
         let port = listener.local_addr()?.port();
         drop(listener);
         let address = (LOOPBACK_HOST, port);
         let file = fs::File::create(root.join(revision.log()))?;
-        let child = Command::new("node")
+        let mut command = Command::new("node");
+        command
             .current_dir(root)
             .args(["tools/native-fixture.ts", "--serve"])
             .env(FIXTURE_PORT_VARIABLE, port.to_string())
             .env(FIXTURE_REVISION_VARIABLE, revision.name())
+            .env(
+                "PHONEBOOK_FIXTURE_SCENARIO",
+                if sample.is_some() {
+                    "sample-city"
+                } else {
+                    "contract"
+                },
+            )
             .stdout(Stdio::from(file.try_clone()?))
-            .stderr(Stdio::from(file))
-            .spawn()?;
+            .stderr(Stdio::from(file));
+        if let Some(directory) = sample {
+            command.env("PHONEBOOK_FIXTURE_SAMPLE_BUNDLE", directory);
+        }
+        let child = command.spawn()?;
         let mut fixture = Self { child, port };
         let deadline = Instant::now() + FIXTURE_READINESS;
         loop {
@@ -1066,7 +1086,12 @@ fn require_ui_inventory(inventory: &Value) -> Result<()> {
     let expected = UI_TESTS
         .iter()
         .copied()
-        .chain([LIVE_UI_TEST, STARTUP_UI_TEST, SEARCH_MEMORY_UI_TEST])
+        .chain([
+            LIVE_UI_TEST,
+            SAMPLE_UI_TEST,
+            STARTUP_UI_TEST,
+            SEARCH_MEMORY_UI_TEST,
+        ])
         .map(|name| format!("PhonebookUITests/DirectoryUITests/{name}()"))
         .collect::<BTreeSet<_>>();
     ensure!(
@@ -1491,9 +1516,10 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
         Action::PrepareArchive { build_number } => {
             distribution::prepare_archive(root, BuildNumber::new(build_number)?)
         }
-        Action::Screenshots { origin, simulator } => screenshots::capture(root, &origin, simulator),
+        Action::Screenshots { simulator } => screenshots::capture(root, simulator),
         Action::Generate => Ok(()),
         Action::WatchCheck => watch::check(root).map(|_| ()),
+        Action::WatchScreenshots => watch::capture(root).map(|_| ()),
         Action::SearchMeasure => search_measurement::run(root),
         Action::DeviceRecord { .. } => {
             let (device, delta) = prepared.context("The device record was not prepared")?;
@@ -1990,14 +2016,7 @@ mod tests {
     fn duo_simulator_selection_is_explicit_and_distinct_from_a_physical_phone() {
         for arguments in [
             vec!["ios-check", "ui-test", "--simulator", "iphone-duo"],
-            vec![
-                "ios-check",
-                "screenshots",
-                "--origin",
-                "https://www.dial.page",
-                "--simulator",
-                "iphone-duo",
-            ],
+            vec!["ios-check", "screenshots", "--simulator", "iphone-duo"],
         ] {
             assert!(<crate::Arguments as clap::Parser>::try_parse_from(arguments).is_ok());
         }
@@ -2197,7 +2216,12 @@ mod tests {
         let enabled = UI_TESTS
             .iter()
             .copied()
-            .chain([LIVE_UI_TEST, STARTUP_UI_TEST, SEARCH_MEMORY_UI_TEST])
+            .chain([
+                LIVE_UI_TEST,
+                SAMPLE_UI_TEST,
+                STARTUP_UI_TEST,
+                SEARCH_MEMORY_UI_TEST,
+            ])
             .map(|name| json!({"identifier":format!("PhonebookUITests/DirectoryUITests/{name}()")}))
             .collect::<Vec<_>>();
         let inventory = json!({"errors":[],"values":[{"enabledTests":enabled,"disabledTests":[]}]});

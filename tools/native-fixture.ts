@@ -4,7 +4,7 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import {
   DatasetFileListingSchema,
   DirectoryDeltaListingSchema,
@@ -18,8 +18,10 @@ import {
   contractOrigin,
   directoryFixture,
   type FixtureRevision,
+  type FixtureScenario,
   fixturePort,
 } from "./directory-fixture.ts";
+import { requireSampleCityEnvironment } from "./sample-city.ts";
 
 const listenHostname = "127.0.0.1";
 const loopbackHostnames = [listenHostname, "localhost"];
@@ -45,6 +47,51 @@ export function servePort(environment: NodeJS.ProcessEnv): number {
       v.maxValue(highestPort),
     ),
     chosen,
+  );
+}
+
+export function fixtureScenario(
+  environment: NodeJS.ProcessEnv,
+): FixtureScenario {
+  const scenario = v.parse(
+    v.picklist(["contract", "sample-city"]),
+    environment.PHONEBOOK_FIXTURE_SCENARIO ?? "contract",
+  );
+  if (scenario === "sample-city") requireSampleCityEnvironment(environment);
+  return scenario;
+}
+
+async function writeSampleBundle(
+  fixture: Awaited<ReturnType<typeof directoryFixture>>,
+  directory: string,
+): Promise<void> {
+  const response = await fixture.fetch(
+    new Request(new URL(datasetListingPath, contractOrigin)),
+  );
+  const listing = v.parse(DatasetFileListingSchema, await response.json());
+  const archive = listing.files.find(
+    (file) => file.format === directoryArchiveFormat,
+  );
+  if (!archive) throw new Error("The sample fixture has no directory archive");
+  const download = await fixture.fetch(
+    new Request(new URL(archive.url, contractOrigin)),
+  );
+  if (!download.ok) throw new Error("The sample archive download failed");
+  await mkdir(directory, { recursive: true });
+  await writeFile(
+    join(directory, "directory.tsv.br"),
+    new Uint8Array(await download.arrayBuffer()),
+  );
+  await writeFile(
+    join(directory, "directory.json"),
+    JSON.stringify({
+      snapshot: listing.snapshot,
+      generatedAt: listing.generatedAt,
+      contacts: listing.contacts,
+      format: archive.format,
+      bytes: archive.bytes,
+      sha256: archive.sha256,
+    }),
   );
 }
 
@@ -131,11 +178,18 @@ async function revisionResponses(
 }
 
 async function serve(): Promise<void> {
+  const scenario = fixtureScenario(process.env);
   const revision = v.parse(
     v.picklist(["baseline", "updated"]),
     process.env.PHONEBOOK_FIXTURE_REVISION ?? "baseline",
   );
-  const fixture = await directoryFixture({ revision });
+  const fixture = await directoryFixture({ revision, scenario });
+  if (scenario === "sample-city") {
+    const directory = process.env.PHONEBOOK_FIXTURE_SAMPLE_BUNDLE;
+    if (!directory)
+      throw new Error("Sample capture requires its bundle directory");
+    await writeSampleBundle(fixture, directory);
+  }
   const publicOrigin = process.env.PHONEBOOK_FIXTURE_PUBLIC_ORIGIN;
   if (publicOrigin) {
     const origin = new URL(publicOrigin);

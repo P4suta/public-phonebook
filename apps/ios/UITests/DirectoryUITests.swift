@@ -1085,6 +1085,39 @@ final class DirectoryUITests: XCTestCase {
     capture(app, name: "license")
   }
 
+  func testSampleCityScreenshots() throws {
+    let app = application(bundled: .sampleCity)
+    app.launchEnvironment.removeValue(forKey: "PHONEBOOK_API_ORIGIN")
+    app.launchArguments = ["-AppleLanguages", "(ja)", "-AppleLocale", "ja_JP"]
+    app.launch()
+    onboard(app)
+    search("みほん", in: app)
+    XCTAssertTrue(app.staticTexts["みほん市民図書館"].firstMatch.waitForExistence(timeout: 10))
+    let region = app.staticTexts["contact-region"].firstMatch
+    XCTAssertTrue(region.waitForExistence(timeout: 5))
+    XCTAssertTrue(region.label.contains("サンプル"))
+    capture(app, name: "sample-city-search")
+    app.buttons.matching(identifier: "contact-detail").matching(
+      NSPredicate(format: "label CONTAINS %@", "みほん市民図書館")
+    )
+    .firstMatch.tap()
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    let address = app.staticTexts["contact-address"]
+    XCTAssertTrue(address.waitForExistence(timeout: 5))
+    XCTAssertTrue(address.label.contains("みほん市"))
+    XCTAssertTrue(address.label.contains("サンプル"))
+    capture(app, name: "sample-city-contact")
+    let source = app.buttons["source-link"]
+    reveal(source, in: app)
+    source.tap()
+    XCTAssertTrue(app.staticTexts["source-license"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["みほん市（サンプル）が公開したデータです。"].firstMatch.exists)
+    let date = app.staticTexts["source-data-date"]
+    XCTAssertTrue(date.waitForExistence(timeout: 5))
+    XCTAssertEqual(date.label, "データの日付：2099年4月1日")
+    capture(app, name: "sample-city-source")
+  }
+
   func testLivePublicDirectorySearchAndSource() throws {
     let app = application(bundled: .shipped)
     app.launchEnvironment.removeValue(forKey: "PHONEBOOK_API_ORIGIN")
@@ -1154,17 +1187,18 @@ final class DirectoryUITests: XCTestCase {
   private enum Bundled {
     /// The fixture's baseline archive, which the fixture's baseline listing names.
     case fixture
+    case sampleCity
     /// Missing files, so the first run downloads the complete archive.
     case missing
     /// The archive that the build copied into the app.
     case shipped
   }
 
-  /// The fixture's admitted pair, which the simulator reads from the checkout that built the tests.
-  private static let fixtureBundle = URL(fileURLWithPath: #filePath)
+  private static let checkout = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     .deletingLastPathComponent()
-    .appendingPathComponent("target/ios/bundled-dataset/fixture")
+  private static let fixtureBundle = checkout.appendingPathComponent(
+    "target/ios/bundled-dataset/fixture")
 
   private func application(
     textSize: String = "UICTContentSizeCategoryL", bundled: Bundled = .fixture
@@ -1176,10 +1210,22 @@ final class DirectoryUITests: XCTestCase {
     let directory: URL? =
       switch bundled {
       case .fixture: Self.fixtureBundle
+      case .sampleCity:
+        Self.checkout.appendingPathComponent("target/ios/screenshot-sample")
       case .missing: URL(fileURLWithPath: "/dev/null/missing")
       case .shipped: nil
       }
     if let directory {
+      switch bundled {
+      case .fixture, .sampleCity:
+        XCTAssertTrue(
+          FileManager.default.fileExists(
+            atPath: directory.appendingPathComponent("directory.tsv.br").path))
+        XCTAssertTrue(
+          FileManager.default.fileExists(
+            atPath: directory.appendingPathComponent("directory.json").path))
+      case .missing, .shipped: break
+      }
       app.launchEnvironment["PHONEBOOK_BUNDLED_ARCHIVE"] =
         directory.appendingPathComponent("directory.tsv.br").path
       app.launchEnvironment["PHONEBOOK_BUNDLED_ENTRY"] =

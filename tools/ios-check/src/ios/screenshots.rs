@@ -1,35 +1,24 @@
 use super::{
-    LIVE_UI_TEST, SimulatorModel, device_for, logged, require_current_sources, require_ui_case,
-    source_hashes, source_records,
+    Fixture, SAMPLE_UI_TEST, SimulatorModel, device_for, logged, require_current_sources,
+    require_ui_case, source_hashes, source_records,
 };
-use crate::locations::LOOPBACK_HOST;
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
-use std::{fs, path::Path, process::Command};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 const SIZE: (u32, u32) = (1206, 2622);
+const WATCH_SIZE: [u32; 2] = [416, 496];
 const RGBA_CHANNELS: usize = 4;
 const OPAQUE_ALPHA: u8 = 255;
 const SCREENS: [(&str, &str); 3] = [
-    ("live-public-directory-search", "directory-search.png"),
-    ("live-public-directory-contact", "contact-details.png"),
-    ("live-public-directory-source", "source-attribution.png"),
+    ("sample-city-search", "directory-search.png"),
+    ("sample-city-contact", "contact-details.png"),
+    ("sample-city-source", "source-attribution.png"),
 ];
-
-fn require_origin(origin: &str) -> Result<()> {
-    let authority = origin
-        .strip_prefix("https://")
-        .or_else(|| origin.strip_prefix(&format!("http://{LOOPBACK_HOST}:")))
-        .context("The screenshot origin must use HTTPS or loopback HTTP")?;
-    ensure!(
-        !authority.is_empty()
-            && authority
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || b".-:".contains(&byte)),
-        "The screenshot origin must be a bare origin without a path, query, or credentials"
-    );
-    Ok(())
-}
 
 fn select(manifest: &Value) -> Result<Vec<(String, &'static str)>> {
     let attachments = manifest
@@ -53,7 +42,7 @@ fn select(manifest: &Value) -> Result<Vec<(String, &'static str)>> {
             .collect::<Vec<_>>();
         ensure!(
             matches.len() == 1,
-            "The live UI case must attach {attachment} exactly once"
+            "The sample UI case must attach {attachment} exactly once"
         );
         let file = matches[0]["exportedFileName"]
             .as_str()
@@ -85,6 +74,14 @@ fn accepted_size(model: SimulatorModel, size: [u32; 2]) -> bool {
 }
 
 fn opaque_rgb(bytes: &[u8], model: SimulatorModel) -> Result<StoreScreenshot> {
+    opaque_image(bytes, |size| accepted_size(model, size))
+}
+
+fn opaque_watch_rgb(bytes: &[u8]) -> Result<StoreScreenshot> {
+    opaque_image(bytes, |size| size == WATCH_SIZE)
+}
+
+fn opaque_image(bytes: &[u8], accepts: impl Fn([u32; 2]) -> bool) -> Result<StoreScreenshot> {
     let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
     decoder.set_transformations(png::Transformations::normalize_to_color8());
     let mut reader = decoder.read_info()?;
@@ -96,8 +93,8 @@ fn opaque_rgb(bytes: &[u8], model: SimulatorModel) -> Result<StoreScreenshot> {
     ];
     let info = reader.next_frame(&mut buffer)?;
     ensure!(
-        accepted_size(model, [info.width, info.height]),
-        "The screenshot size {} x {} isn't a supported store size for {model:?}",
+        accepts([info.width, info.height]),
+        "The screenshot size {} x {} isn't a supported store size for the selected device",
         info.width,
         info.height
     );
@@ -127,9 +124,62 @@ fn opaque_rgb(bytes: &[u8], model: SimulatorModel) -> Result<StoreScreenshot> {
     })
 }
 
-pub fn capture(root: &Path, origin: &str, model: SimulatorModel) -> Result<()> {
-    require_origin(origin)?;
+pub(super) struct Images {
+    pub directory: PathBuf,
+    pub size: [u32; 2],
+    pub files: Vec<Value>,
+}
+
+fn export_images(
+    root: &Path,
+    result: &Path,
+    directory: &Path,
+    convert: impl Fn(&[u8]) -> Result<StoreScreenshot>,
+) -> Result<Images> {
+    let attachments = directory.join("attachments");
+    logged(
+        root,
+        "store-screenshots-attachments",
+        Command::new("xcrun")
+            .args(["xcresulttool", "export", "attachments", "--path"])
+            .arg(result)
+            .arg("--output-path")
+            .arg(&attachments),
+    )?;
+    let manifest: Value = serde_json::from_slice(&fs::read(attachments.join("manifest.json"))?)?;
+    let screens = directory.join("ja");
+    fs::create_dir_all(&screens)?;
+    let mut files = Vec::new();
+    let mut size: Option<[u32; 2]> = None;
+    for (exported, output) in select(&manifest)? {
+        let image = convert(&fs::read(attachments.join(exported))?)?;
+        if let Some(expected) = size {
+            ensure!(
+                expected == image.size,
+                "The screenshot display changed during capture"
+            );
+        }
+        size = Some(image.size);
+        fs::write(screens.join(output), &image.bytes)?;
+        files.push(
+            json!({"file":output,"sha256":crate::sha256_hex(&image.bytes),"size":image.size}),
+        );
+    }
+    Ok(Images {
+        directory: screens,
+        size: size.context("No sample screenshots were exported")?,
+        files,
+    })
+}
+
+pub(super) fn watch_images(root: &Path, result: &Path, directory: &Path) -> Result<Images> {
+    export_images(root, result, directory, opaque_watch_rgb)
+}
+
+pub fn capture(root: &Path, model: SimulatorModel) -> Result<()> {
     let sources = source_hashes(root)?;
+    let fixture = Fixture::sample_city(root, &root.join("target/ios/screenshot-sample"))?;
+    let origin = format!("http://localhost:{}", fixture.port);
     let simulator = device_for(root, model)?;
     let identifier = simulator.id().to_owned();
     let directory = tempfile::Builder::new()
@@ -162,7 +212,7 @@ pub fn capture(root: &Path, origin: &str, model: SimulatorModel) -> Result<()> {
                 "NO",
                 "-collect-test-diagnostics",
                 "never",
-                &format!("-only-testing:PhonebookUITests/DirectoryUITests/{LIVE_UI_TEST}"),
+                &format!("-only-testing:PhonebookUITests/DirectoryUITests/{SAMPLE_UI_TEST}"),
                 &format!("PHONEBOOK_API_ORIGIN={origin}"),
                 "CODE_SIGN_IDENTITY=-",
                 "CODE_SIGN_STYLE=Manual",
@@ -185,37 +235,9 @@ pub fn capture(root: &Path, origin: &str, model: SimulatorModel) -> Result<()> {
     require_ui_case(
         &read_result("summary")?,
         &read_result("tests")?,
-        LIVE_UI_TEST,
+        SAMPLE_UI_TEST,
     )?;
-    let attachments = directory.join("attachments");
-    logged(
-        root,
-        "store-screenshots-attachments",
-        Command::new("xcrun")
-            .args(["xcresulttool", "export", "attachments", "--path"])
-            .arg(&result)
-            .arg("--output-path")
-            .arg(&attachments),
-    )?;
-    let manifest: Value = serde_json::from_slice(&fs::read(attachments.join("manifest.json"))?)?;
-    let screens = directory.join("ja");
-    fs::create_dir_all(&screens)?;
-    let mut files = Vec::new();
-    let mut size: Option<[u32; 2]> = None;
-    for (exported, output) in select(&manifest)? {
-        let image = opaque_rgb(&fs::read(attachments.join(exported))?, model)?;
-        if let Some(expected) = size {
-            ensure!(
-                expected == image.size,
-                "The screenshot display changed during capture"
-            );
-        }
-        size = Some(image.size);
-        fs::write(screens.join(output), &image.bytes)?;
-        files.push(
-            json!({"file":output,"sha256":crate::sha256_hex(&image.bytes),"size":image.size}),
-        );
-    }
+    let images = export_images(root, &result, &directory, |bytes| opaque_rgb(bytes, model))?;
     require_current_sources(root, &sources)?;
     let revision = super::super::checked(
         Command::new("git")
@@ -227,7 +249,7 @@ pub fn capture(root: &Path, origin: &str, model: SimulatorModel) -> Result<()> {
             .current_dir(root)
             .args(["status", "--porcelain"]),
     )?;
-    let record = json!({"format":1,"purpose":"App Store screenshot candidate; no upload","locale":"ja_JP","configuration":"ProductionDebug","api_origin":origin,"simulator_runtime":simulator.runtime(),"simulator_device":model.device_type(),"size":size,"directory":screens,"screenshots":files,"source_revision":String::from_utf8(revision.stdout)?.trim(),"working_tree_dirty":!status.stdout.is_empty(),"source_sha256":source_records(&sources)});
+    let record = json!({"format":1,"purpose":"App Store screenshot candidate; no upload","fixture":"sample-city","locale":"ja_JP","configuration":"ProductionDebug","api_origin":origin,"simulator_runtime":simulator.runtime(),"simulator_device":model.device_type(),"size":images.size,"directory":images.directory,"screenshots":images.files,"source_revision":String::from_utf8(revision.stdout)?.trim(),"working_tree_dirty":!status.stdout.is_empty(),"source_sha256":source_records(&sources)});
     fs::write(
         directory.join("screenshots.json"),
         serde_json::to_vec_pretty(&record)?,
@@ -242,7 +264,7 @@ pub fn capture(root: &Path, origin: &str, model: SimulatorModel) -> Result<()> {
     println!(
         "PASS: {} Japanese store screenshots from the production configuration at {}",
         SCREENS.len(),
-        screens.display()
+        images.directory.display()
     );
     Ok(())
 }
@@ -250,17 +272,68 @@ pub fn capture(root: &Path, origin: &str, model: SimulatorModel) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use clap::Parser;
+
+    #[test]
+    fn store_capture_uses_a_managed_sample_without_an_origin_argument() {
+        assert!(crate::Arguments::try_parse_from(["ios-check", "screenshots"]).is_ok());
+        assert!(
+            crate::Arguments::try_parse_from([
+                "ios-check",
+                "screenshots",
+                "--origin",
+                "https://www.dial.page"
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn store_capture_selects_sample_attachments_and_rejects_live_captures() {
+        let entry = |name: &str| json!({"suggestedHumanReadableName":format!("{name}_0_ID.png"),"exportedFileName":format!("{name}.png")});
+        let sample = json!([{"attachments":[
+            entry("sample-city-search"),
+            entry("sample-city-contact"),
+            entry("sample-city-source"),
+        ]}]);
+        assert!(select(&sample).is_ok());
+        let live = json!([{"attachments":[
+            entry("live-public-directory-search"),
+            entry("live-public-directory-contact"),
+            entry("live-public-directory-source"),
+        ]}]);
+        assert!(select(&live).is_err());
+    }
 
     fn image(color: png::ColorType, width: u32, alpha: u8) -> Result<Vec<u8>> {
+        image_at(color, width, SIZE.1, alpha)
+    }
+
+    fn image_at(color: png::ColorType, width: u32, height: u32, alpha: u8) -> Result<Vec<u8>> {
         let channels = if color == png::ColorType::Rgba { 4 } else { 3 };
         let pixel = [255, 255, 255, alpha];
-        let pixels = pixel[..channels].repeat(width as usize * SIZE.1 as usize);
+        let pixels = pixel[..channels].repeat(width as usize * height as usize);
         let mut result = Vec::new();
-        let mut encoder = png::Encoder::new(&mut result, width, SIZE.1);
+        let mut encoder = png::Encoder::new(&mut result, width, height);
         encoder.set_color(color);
         encoder.set_depth(png::BitDepth::Eight);
         encoder.write_header()?.write_image_data(&pixels)?;
         Ok(result)
+    }
+
+    #[test]
+    fn watch_images_require_the_supported_portrait_size_without_transparency() -> Result<()> {
+        for (width, height, alpha, accepted) in [
+            (416, 496, 255, true),
+            (416, 496, 254, false),
+            (496, 416, 255, false),
+            (415, 496, 255, false),
+            (416, 495, 255, false),
+        ] {
+            let bytes = image_at(png::ColorType::Rgba, width, height, alpha)?;
+            assert_eq!(opaque_watch_rgb(&bytes).is_ok(), accepted);
+        }
+        Ok(())
     }
 
     #[test]
@@ -329,9 +402,9 @@ mod tests {
     fn attachments_map_each_declared_screen_exactly_once() -> Result<()> {
         let entry = |name: &str, file: &str| json!({"suggestedHumanReadableName":format!("{name}_0_ID.png"),"exportedFileName":file});
         let complete = json!([{"attachments":[
-            entry("live-public-directory-search", "a.png"),
-            entry("live-public-directory-contact", "b.png"),
-            entry("live-public-directory-source", "c.png"),
+            entry("sample-city-search", "a.png"),
+            entry("sample-city-contact", "b.png"),
+            entry("sample-city-source", "c.png"),
             entry("failure", "d.png"),
         ]}]);
         assert_eq!(
@@ -346,7 +419,7 @@ mod tests {
         duplicate[0]["attachments"]
             .as_array_mut()
             .context("attachments")?
-            .push(entry("live-public-directory-search", "e.png"));
+            .push(entry("sample-city-search", "e.png"));
         assert!(select(&duplicate).is_err());
         let mut missing = complete.clone();
         missing[0]["attachments"]
@@ -355,27 +428,11 @@ mod tests {
             .remove(2);
         assert!(select(&missing).is_err());
         let traversal = json!([{"attachments":[
-            entry("live-public-directory-search", "../a.png"),
-            entry("live-public-directory-contact", "b.png"),
-            entry("live-public-directory-source", "c.png"),
+            entry("sample-city-search", "../a.png"),
+            entry("sample-city-contact", "b.png"),
+            entry("sample-city-source", "c.png"),
         ]}]);
         assert!(select(&traversal).is_err());
         Ok(())
-    }
-
-    #[test]
-    fn origins_are_bare_https_or_loopback_http() {
-        for valid in ["https://www.dial.page", "http://127.0.0.1:8787"] {
-            assert!(require_origin(valid).is_ok());
-        }
-        for invalid in [
-            "http://www.dial.page",
-            "https://www.dial.page/api",
-            "https://user@www.dial.page",
-            "https://",
-            "http://127.0.0.1:8787/?q=1",
-        ] {
-            assert!(require_origin(invalid).is_err());
-        }
     }
 }
