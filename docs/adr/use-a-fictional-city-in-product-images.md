@@ -6,13 +6,13 @@ date: 2026-11-10
 
 ## Status
 
-Proposed.
+Accepted.
 The owner selected the sample setting in [issue #413](https://github.com/P4suta/public-phonebook/issues/413).
 
 ## Context
 
 Product images need recognizable examples without suggesting endorsement by real facilities or exposing personal information.
-[Apple requires screenshots to show the app in use](https://developer.apple.com/app-store/review/guidelines/#accurate-metadata).
+[Apple recommends screenshots showing the app in use](https://developer.apple.com/app-store/review/guidelines/#accurate-metadata).
 
 ## Decision
 
@@ -36,4 +36,5 @@ Reconsider the setting if product scope requires another consistent fictional co
 
 ## Confirmation
 
-Require fixture checks, rejecting controls, and actual device-family captures before acceptance.
+Fixture checks reject live-data overrides.
+Simulator captures from the production configuration show the sample city on iPhone, Duo, iPad, and Watch.

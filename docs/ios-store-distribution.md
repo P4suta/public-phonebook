@@ -107,7 +107,7 @@ Keep incoming numbers on the phone.
 Repeat VoiceOver, Voice Control, and large-text checks when affected screens or accessibility behavior changed.
 [Apple's release testing guidance](https://developer.apple.com/documentation/xcode/testing-a-release-build) explains why a development-signed QA build doesn't establish the distributed build's behavior.
 
-Use Safari for the authenticated App Store Connect session.
+Use the authenticated App Store Connect session in the owner's selected browser.
 Save the draft, verify the selected version and build, and submit the update for App Review only after the distributed build check passes.
 An upload or review submission doesn't establish App Store availability.
 
@@ -219,6 +219,8 @@ The actual interface appears without verification controls.
 The sample UI case requires the sample archive and checks the fictional facility, region, address, publisher, and date before export.
 The command exports three Japanese attachments as opaque images with red, green, and blue channels.
 It rejects a failed case, live-case attachments, missing or repeated attachments, transparency, and dimensions outside the selected device's accepted sizes.
+Inspect exported images at their original resolution.
+Compare decoded pixels with the original attachment before changing capture or conversion code to address a preview artifact.
 The iPhone profile uses 1206 × 2622 pixels.
 The Duo profile accepts the outer display at 1398 × 2034 and the inner display at 2007 × 2853, including their landscape counterparts.
 The iPad Pro 13-inch profile uses 2064 × 2752 pixels or its landscape counterpart.
