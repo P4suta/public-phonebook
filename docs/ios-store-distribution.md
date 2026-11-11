@@ -107,7 +107,7 @@ Keep incoming numbers on the phone.
 Repeat VoiceOver, Voice Control, and large-text checks when affected screens or accessibility behavior changed.
 [Apple's release testing guidance](https://developer.apple.com/documentation/xcode/testing-a-release-build) explains why a development-signed QA build doesn't establish the distributed build's behavior.
 
-Use the authenticated App Store Connect session in the owner's selected browser.
+Use Safari for the authenticated App Store Connect session.
 Save the draft, verify the selected version and build, and submit the update for App Review only after the distributed build check passes.
 An upload or review submission doesn't establish App Store availability.
 
@@ -207,6 +207,8 @@ Run `mise x -- just ios-screenshots iphone-duo` or `mise x -- just ios-screensho
 Run `mise x -- just ios-watch-screenshots` for the paired Watch profile.
 The Watch command first prepares the production phone app with the same sample fixture, then captures the Watch interface through real Simulator pairing.
 The previous `ios-screenshots ORIGIN [SIMULATOR]` form is no longer accepted.
+The `screenshots` command also rejects `--origin`, including loopback origins.
+Omit the origin and choose an optional simulator profile.
 The command manages its own loopback sample provider and bundled archive instead of accepting a live origin.
 It rejects real-data and public-origin fixture overrides.
 National-data correctness and performance checks remain separate from public-image capture.
