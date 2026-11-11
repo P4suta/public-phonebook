@@ -45,15 +45,15 @@ class DirectoryUiTest {
     @Test
     fun searchDetailsAndExternalConfirmationRemainAccessible() {
         rule.waitUntil(PREPARATION_TIMEOUT_MILLIS) {
-            rule.onAllNodesWithText("検索語").fetchSemanticsNodes().isNotEmpty()
+            rule.onAllNodesWithText("施設の名前").fetchSemanticsNodes().isNotEmpty()
         }
         composeSearch()
-        rule.onNodeWithText("検索語").performImeAction()
+        rule.onNodeWithText("施設の名前").performImeAction()
         rule.waitUntil(SEARCH_TIMEOUT_MILLIS) { !imeVisible() }
         rule.waitUntil(SEARCH_TIMEOUT_MILLIS) {
             rule.onAllNodes(resultButton).fetchSemanticsNodes().isNotEmpty()
         }
-        rule.onNodeWithText("施設を探す").assertIsDisplayed()
+        rule.onNodeWithText("電話番号をさがす").assertIsDisplayed()
         capture("search")
         expandLibrary()
         rule
@@ -62,30 +62,30 @@ class DirectoryUiTest {
             .assert(buttonRole)
             .assertHeightIsAtLeast(48.dp)
             .performClick()
-        selectAction("電話番号を開く")
+        selectAction("電話をかける")
         capture("call-confirmation")
         rule.onNodeWithText("キャンセル").assertIsDisplayed().assertHeightIsAtLeast(48.dp).performClick()
-        selectAction("地図を開く")
+        selectAction("地図で見る")
         capture("map-confirmation")
         rule.onNodeWithText("キャンセル").performClick()
         rule.onNode(hasScrollToIndexAction()).performScrollToIndex(0)
         capture("details")
         back()
         rule
-            .onNodeWithContentDescription("着信とデータ更新")
+            .onNodeWithContentDescription("設定")
             .assertHeightIsAtLeast(48.dp)
             .assertWidthIsAtLeast(48.dp)
             .performClick()
-        rule.onNodeWithText("着信時の施設名表示").assertIsDisplayed()
+        rule.onNodeWithText("電話の相手が分かるようにする").assertIsDisplayed()
         capture("settings")
         back()
         rule
-            .onNodeWithContentDescription("アプリ情報")
+            .onNodeWithContentDescription("アプリについて")
             .assertHeightIsAtLeast(48.dp)
             .assertWidthIsAtLeast(48.dp)
             .performClick()
         capture("about")
-        selectAction("プログラムと決まりを見る")
+        selectAction("プログラムを見る")
         rule
             .onNodeWithText("https://github.com/P4suta/public-phonebook", substring = true)
             .assertIsDisplayed()
@@ -97,7 +97,7 @@ class DirectoryUiTest {
         selectAction("プライバシーについて読む")
         rule.onNodeWithText("${BuildConfig.ORIGIN}/privacy", substring = true).assertIsDisplayed()
         rule.onNodeWithText("キャンセル").performClick()
-        selectAction("オープンソースの利用条件")
+        selectAction("プログラムを使うときの決まり")
         rule.waitUntil(SEARCH_TIMEOUT_MILLIS) {
             rule
                 .onAllNodesWithText("Apache License", substring = true)
@@ -108,7 +108,7 @@ class DirectoryUiTest {
         back()
         rule.onNodeWithText("とうきょう としょかん").assertIsDisplayed()
         rule
-            .onNodeWithContentDescription("検索語を消去")
+            .onNodeWithContentDescription("検索を消す")
             .assertHeightIsAtLeast(48.dp)
             .assertWidthIsAtLeast(48.dp)
             .performClick()
@@ -135,12 +135,12 @@ class DirectoryUiTest {
         rule.onNodeWithText("閉じる").performScrollTo().assertHeightIsAtLeast(48.dp)
         capture("incoming")
         rule.onNodeWithText("閉じる").performClick()
-        rule.onNodeWithText("施設を探す").assertIsDisplayed()
+        rule.onNodeWithText("電話番号をさがす").assertIsDisplayed()
     }
 
     private fun back() {
         rule
-            .onNodeWithContentDescription("戻る")
+            .onNodeWithContentDescription("もどる")
             .assertHeightIsAtLeast(48.dp)
             .assertWidthIsAtLeast(48.dp)
             .performClick()
@@ -152,7 +152,7 @@ class DirectoryUiTest {
     }
 
     private fun composeSearch() {
-        rule.onNodeWithText("検索語").performClick()
+        rule.onNodeWithText("施設の名前").performClick()
         rule.waitUntil(SEARCH_TIMEOUT_MILLIS) { imeVisible() }
         val model = rule.runOnIdle {
             ViewModelProvider(rule.activity)[DirectoryViewModel::class.java]
@@ -172,16 +172,16 @@ class DirectoryUiTest {
 
     private fun expandLibrary() {
         val list = rule.onNode(hasScrollToIndexAction())
-        list.performScrollToNode(hasText("図書館の続きを表示"))
+        list.performScrollToNode(hasText("図書館をもっと見る"))
         rule
-            .onNodeWithText("図書館の続きを表示")
+            .onNodeWithText("図書館をもっと見る")
             .assert(buttonRole)
             .assertHeightIsAtLeast(48.dp)
             .performClick()
         rule.waitUntil(SEARCH_TIMEOUT_MILLIS) {
-            rule.onAllNodesWithText("続きを読み込んでいます").fetchSemanticsNodes().isEmpty()
+            rule.onAllNodesWithText("続きを読みこんでいます").fetchSemanticsNodes().isEmpty()
         }
-        rule.onAllNodesWithText("続きを読み込めませんでした。").assertCountEquals(0)
+        rule.onAllNodesWithText("続きを読みこめませんでした。").assertCountEquals(0)
         capture("search-expanded")
         list.performScrollToIndex(0)
     }

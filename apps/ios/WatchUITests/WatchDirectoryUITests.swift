@@ -33,6 +33,19 @@ final class WatchDirectoryUITests: XCTestCase {
     shot.lifetime = .keepAlways
     add(shot)
     try app.performAccessibilityAudit()
+    let about = app.buttons["watch-about"]
+    for _ in 0..<8 where !about.isHittable { app.swipeUp() }
+    XCTAssertTrue(about.isHittable)
+    about.tap()
+    let privacy = app.buttons["watch-privacy"]
+    for _ in 0..<8 where !privacy.isHittable { app.swipeUp() }
+    XCTAssertTrue(privacy.isHittable)
+    try app.performAccessibilityAudit()
+    privacy.tap()
+    let cancel = app.buttons["閉じる"].firstMatch
+    XCTAssertTrue(cancel.waitForExistence(timeout: 5))
+    cancel.tap()
+    XCTAssertTrue(privacy.isHittable)
   }
 
   func testPairedPhoneDirectorySearchAndSource() throws {

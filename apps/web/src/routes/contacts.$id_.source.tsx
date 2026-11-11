@@ -60,8 +60,8 @@ function SourcePage(): ReactElement {
           {publicationUrls.map((url, index) => (
             <OfficialLink href={url} key={url} destination="publication">
               {publicationUrls.length === 1
-                ? "データを公開したページを見る"
-                : `データを公開したページを見る（${index + 1}）`}
+                ? "データのページを開く"
+                : `データのページを開く（${index + 1}）`}
             </OfficialLink>
           ))}
         </div>
@@ -77,7 +77,7 @@ function SourcePage(): ReactElement {
         </p>
         <div className={css.actions}>
           <OfficialLink href={contact.licenseUrl} destination="license">
-            データを使うときの決まりを見る
+            使うときの決まりを見る
           </OfficialLink>
           <OfficialLink href={source.url} destination="source">
             もとの資料を開く

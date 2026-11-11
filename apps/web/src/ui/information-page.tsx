@@ -12,7 +12,7 @@ export function InformationPage({
     <main id="main" className={css.page}>
       <div className={css.stack}>
         <BackButton />
-        <h1 className={css.heading}>Public Phonebookの{information.title}</h1>
+        <h1 className={css.heading}>{information.title}</h1>
         {information.updated ? (
           <p className={css.body}>{information.updated}</p>
         ) : null}

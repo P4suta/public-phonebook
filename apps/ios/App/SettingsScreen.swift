@@ -10,10 +10,10 @@ struct SettingsScreen: View {
       VStack(alignment: .leading, spacing: 12) {
         Text("電話の相手が分かるようにする").font(.headline).accessibilityAddTraits(.isHeader)
         Text(
-          "設定で\(AppIdentity.displayName)を許可すると、病院や役所などから電話がかかってきたとき、画面に施設の名前が出ます。"
+          "設定で「\(AppIdentity.displayName)」を許可してください。"
         )
         .font(.callout)
-        Text("許可してから使えるようになるまで、20秒ほどかかります。")
+        Text("アプリにある番号から電話がかかってきたとき、施設の名前が出ます。")
           .font(.callout)
         CallerStatusLabel(status: model.callerStatus)
         Button {
@@ -53,8 +53,8 @@ private struct CallerStatusLabel: View {
     switch status {
     case .checking: "確認しています"
     case .on: "許可しています"
-    case .loading: "許可しています・準備しています"
-    case .onRetrying: "許可しています・次にアプリを開くと使えるようになります"
+    case .loading: "準備しています"
+    case .onRetrying: "アプリを開き直すと、もう一度準備します"
     case .off: "まだ許可していません"
     case .unknown: "確認できません"
     }

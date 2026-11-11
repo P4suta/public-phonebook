@@ -9,9 +9,7 @@ export function AppInvitation(): ReactElement {
       <h2 id="iphone-app-heading" className={css.subheading}>
         {uiCopy.app.heading}
       </h2>
-      <p className={`${css.body} ${css.informationCopy}`}>
-        {[uiCopy.app.description, uiCopy.app.coverage].join("\n")}
-      </p>
+      <p className={css.body}>{uiCopy.app.description}</p>
       <p className={css.body}>{uiCopy.app.setup}</p>
       <div className={css.actions}>
         <LinkButton

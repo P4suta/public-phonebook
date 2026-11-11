@@ -50,32 +50,32 @@ struct OnboardingScreen: View {
     switch step {
     case .welcome:
       heading(AppIdentity.displayName)
-      Text("学校や役所、病院などの電話番号を、通信なしでさがせるアプリです。")
+      Text("役所や学校、病院などの電話番号をさがせます。")
       Feature(
         icon: "phone", title: "電話の相手が分かります",
-        detail: "病院や役所などから電話がかかってきたとき、画面に施設の名前が出ます。")
+        detail: "アプリにある番号からiPhoneに電話がかかってきたとき、施設の名前が出ます。")
       Feature(
-        icon: "search", title: "通信なしで、すぐにさがせます",
-        detail: "アプリで使うデータを先に受け取っておくので、電波がなくてもさがせます。")
+        icon: "search", title: "通信なしでさがせます",
+        detail: "初めの準備が終わると、通信なしでさがせます。")
     case .caller:
       heading("電話の相手が分かるようにする")
-      Text("病院や役所などから電話がかかってきたとき、画面に施設の名前が出ます。")
+      Text("アプリにある番号から電話がかかってきたとき、施設の名前が出ます。")
       if integration.callerEnabled {
         Done(text: "許可しています。")
       } else {
-        Text("設定で、\(AppIdentity.displayName)を許可してください。")
-        Text("許可したら、このアプリにもどってください。")
+        Text("設定で「\(AppIdentity.displayName)」を許可してください。")
+        Text("許可したら、アプリにもどってください。")
       }
     case .ready:
       if integration.ready {
         heading("準備ができました")
-        Text("施設の名前を入れると、さがせます。")
+        Text("施設の名前を入れてください。")
         if integration.bundledOnly, let manifest = integration.manifest {
-          Text("アプリに入っている、\(manifest.dataDate.formatted(date: .long, time: .omitted))のデータを使います。")
+          Text("\(manifest.dataDate.formatted(date: .long, time: .omitted))のデータを使います。")
             .accessibilityIdentifier("bundled-date")
-          Text("通信できるようになると、新しいデータを自動で受け取ります。")
+          Text("通信がもどると、新しいデータを自動で確認します。")
         }
-        Text("電話の相手が分かるようにする設定は、あとから「設定」で変えられます。")
+        Text("電話の相手の表示は、あとから「設定」で変えられます。")
       } else if let stopped = integration.stopped {
         heading("データの受け取りが止まりました")
         Text(stopped).fixedSize(horizontal: false, vertical: true)

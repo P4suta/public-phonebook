@@ -13,24 +13,21 @@ export const uiCopy = {
       `${total}件 見つかりました`,
     none: "あてはまる施設は0件です",
     invalid: "さがす名前をたしかめてください" satisfies Instruction,
-    empty:
-      "名前の一部を入れるか、別の言葉でさがしてください。" satisfies Instruction,
+    empty: "別の言葉でさがしてください。" satisfies Instruction,
   },
-  about: "Public Phonebookについてくわしく知る" satisfies Action,
+  about: "Public Phonebookについて知る" satisfies Action,
   app: {
     heading: "iPhoneで、電話の相手が分かります",
-    description: "無料のアプリで、病院や役所などからの電話に名前が出ます。",
-    coverage: "アプリに番号がある施設の名前が出ます。",
+    description:
+      "アプリにある番号から電話がかかってきたとき、施設の名前が出ます。",
     setup:
-      "使いはじめに、iPhoneの設定でPublic Phonebookをオンにしてください。" satisfies Instruction,
+      "iPhoneの設定でPublic Phonebookを許可してください。" satisfies Instruction,
     store: "App Storeでアプリを見る" satisfies Action,
   },
   openSource: {
     heading: "無料で使えます",
-    price: "アプリもウェブサイトも、無料で使えます。",
-    description: "プログラムの中身を公開する「オープンソース」です。",
-    freedom: "決まりにそって、だれでも使ったり、作りかえたりできます。",
-    source: "プログラムと決まりを見る" satisfies Action,
+    description: "プログラムも公開しています。",
+    source: "プログラムを見る" satisfies Action,
   },
   searchReturn: "さがす画面にもどる" satisfies Action,
   rowUpdated: {
@@ -51,7 +48,7 @@ export const uiCopy = {
   },
   facilityHomepage: "施設のホームページを開く" satisfies Action,
   sourceTitle: "電話番号のもとの情報",
-  sourceAction: "電話番号のもとの情報を見る" satisfies Action,
+  sourceAction: "もとの情報を見る" satisfies Action,
   loadFailed: (subject: string): `${string}を読みこめませんでした` =>
     `${subject}を読みこめませんでした`,
   reloadFromStart: (subject: string): Action =>
@@ -60,20 +57,16 @@ export const uiCopy = {
   external: {
     heading: "ほかのサイトを開きます",
     destinations: {
-      address:
-        "この施設の場所を、Googleマップで表示します。場所をさがすために、施設の名前と住所をGoogleに送ります。" satisfies Statement,
-      facility: "この施設のホームページを開きます。" satisfies Statement,
-      publication:
-        "このデータを公開しているページを開きます。" satisfies Statement,
+      address: "施設の名前と住所をGoogleマップに送ります。" satisfies Statement,
+      facility: "施設のホームページを開きます。" satisfies Statement,
+      publication: "データを公開したページを開きます。" satisfies Statement,
       license:
         "データを使うときの決まりのページを開きます。" satisfies Statement,
       source: "電話番号のもとになった資料を開きます。" satisfies Statement,
       cloudflarePrivacy:
         "Cloudflareのプライバシーのページを開きます。" satisfies Statement,
-      appStore:
-        "App Storeで、Public Phonebookのページを開きます。" satisfies Statement,
-      sourceCode:
-        "GitHubで、Public Phonebookのプログラムを開きます。" satisfies Statement,
+      appStore: "App StoreでPublic Phonebookを開きます。" satisfies Statement,
+      sourceCode: "GitHubでプログラムを開きます。" satisfies Statement,
       other: "ほかのサイトのページを開きます。" satisfies Statement,
     },
     host: (host: string): `行き先：${string}` => `行き先：${host}`,

@@ -11,33 +11,27 @@ struct AboutScreen: View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
         Text("Public Phonebookについて").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
-        Text("病院や役所などから電話がかかってきたとき、画面に施設の名前が出ます。")
-        Text("アプリに番号がある施設の名前が出ます。")
-        Text("学校や役所、病院などの電話番号を、名前でさがせるアプリです。")
-        Text("国や自治体などが公開しているデータをもとにしています。")
-        Text("国や自治体の公式アプリではありません。")
+        Text("役所や学校、病院などの電話番号をさがせます。")
+        Text("iPhoneでは、アプリにある番号から電話がかかってきたとき、施設の名前が出ます。")
 
         section("無料で使えます")
-        Text("アプリもウェブサイトも、無料で使えます。")
-        Text("プログラムの中身を公開する「オープンソース」です。")
-        Text("決まりにそって、だれでも使ったり、作りかえたりできます。")
+        Text("プログラムも公開しています。")
         if let url = URL(string: "https://github.com/P4suta/public-phonebook") {
           ExternalLink(url: url, destination: .sourceCode) {
-            IconLabel(icon: "external", text: "プログラムと決まりを見る")
+            IconLabel(icon: "external", text: "プログラムを見る")
           }
           .buttonStyle(MonoButtonStyle())
           .accessibilityIdentifier("source-code-link")
         }
 
         section("使い方")
-        Text("検索欄に施設の名前を入れます。")
+        Text("検索欄に施設の名前を入れてください。")
         Text("電話の相手を表示するには、「設定」で許可してください。")
-        Text("電話をかけたり受けたりするのは、いつもの電話アプリです。")
 
         section("データについて")
-        Text("全国の施設が公開した電話番号のデータを、アプリの中に受け取って使います。")
-        Text("新しいデータが出ると、自動で受け取ります。")
-        Text("モバイルデータ通信や省データモードのときは、ほかの回線につながるまで待ちます。")
+        Text("国や自治体などが公開した電話番号を使います。")
+        Text("新しいデータを自動で確認します。")
+        Text("モバイルデータ通信や「省データモード」では、自動の受け取りを待ちます。")
         if let manifest = integration.manifest {
           Text("データの日付：\(manifest.dataDate.formatted(date: .long, time: .omitted))")
             .accessibilityIdentifier("data-date")
@@ -61,13 +55,13 @@ struct AboutScreen: View {
           .accessibilityIdentifier("privacy-policy-link")
         }
 
-        section("開発者に声を伝える")
-        Text("感想や使い方の質問、不具合、情報のまちがいは、メールで送ってください。")
+        section("お問い合わせ")
+        Text("質問や不具合、情報のまちがいは、メールでお知らせください。")
         Text("あなたの電話番号や住所などは書かないでください。")
         Button {
           if let url = URL(string: "mailto:support@dial.page") { openURL(url) }
         } label: {
-          IconLabel(icon: "messages-square", text: "開発者にメールを送る")
+          IconLabel(icon: "messages-square", text: "メールを送る")
         }
         .buttonStyle(MonoButtonStyle())
         .accessibilityHint("メールアプリを開きます。")
@@ -101,7 +95,7 @@ struct SourcesScreen: View {
   var body: some View {
     ScrollView {
       LazyVStack(alignment: .leading, spacing: 0) {
-        Text("施設の種類ごとに、データを公開している組織と、使うときの決まりです。")
+        Text("データの公開元と、使うときの決まりです。")
           .padding(.bottom, 12)
         ForEach(categories) { category in
           VStack(alignment: .leading, spacing: 4) {

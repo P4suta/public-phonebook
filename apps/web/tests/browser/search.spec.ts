@@ -188,7 +188,7 @@ test("typing searches, exact names rank first, and contact actions work", async 
       exact: true,
     }),
   ).toHaveAttribute("href", /google\.com\/maps\/search/);
-  await page.getByRole("link", { name: "電話番号のもとの情報を見る" }).click();
+  await page.getByRole("link", { name: "もとの情報を見る" }).click();
   await expect(
     page.getByRole("link", { name: "もとの資料を開く" }),
   ).toBeVisible();

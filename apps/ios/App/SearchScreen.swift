@@ -85,22 +85,24 @@ struct SearchScreen: View {
   }
 
   private var searchContent: some View {
-    ScrollViewReader { reader in
-      List {
-        content
-          .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-          .listRowSeparator(.hidden)
-          .listRowBackground(Rectangle().fill(.surface))
-      }
-      .listStyle(.plain)
-      .scrollContentBackground(.hidden)
-      .accessibilityIdentifier("search-results")
-      .accessibilityValue(model.results?.input ?? "")
-      .onChange(of: model.results?.input) {
-        reader.scrollTo(model.results?.groups.first?.key ?? "search-hint", anchor: .top)
+    VStack(spacing: 0) {
+      searchField
+      ScrollViewReader { reader in
+        List {
+          content
+            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Rectangle().fill(.surface))
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .accessibilityIdentifier("search-results")
+        .accessibilityValue(model.results?.input ?? "")
+        .onChange(of: model.results?.input) {
+          reader.scrollTo(model.results?.groups.first?.key ?? "search-hint", anchor: .top)
+        }
       }
     }
-    .safeAreaInset(edge: .top, spacing: 0) { searchField }
     .scrollDismissesKeyboard(.interactively)
     .background(.surface)
     .navigationTitle("検索")
@@ -290,8 +292,8 @@ struct SearchScreen: View {
       .id("search-hint")
       if integration.callerStatus.promptsForSettings {
         VStack(alignment: .leading, spacing: 12) {
-          Text("病院や役所などから電話がかかってきたとき、画面に施設の名前を出せます。")
-          Text("設定で、\(AppIdentity.displayName)を許可してください。")
+          Text("電話の相手を表示できます。")
+          Text("設定で「\(AppIdentity.displayName)」を許可してください。")
           Button {
             integration.openCallerSettings()
           } label: {
@@ -326,7 +328,7 @@ struct SearchScreen: View {
         if results.total == 0 { emptyResults }
       #endif
       if results.limited {
-        Text("関連度順に100件まで表示します。").padding(.top, 12)
+        Text("結果は100件まで表示します。").padding(.top, 12)
           .accessibilityIdentifier("search-limit")
       }
       ForEach(results.groups) { group in groupView(group) }
@@ -374,7 +376,7 @@ struct SearchScreen: View {
     Text("あてはまる施設は0件です").font(.title2.bold()).padding(.vertical, 12)
       .accessibilityAddTraits(.isHeader)
       .accessibilityIdentifier("empty-results")
-    Text("名前の一部を入れるか、別の言葉でさがしてください。")
+    Text("別の言葉でさがしてください。")
   }
 
 }
@@ -385,13 +387,17 @@ private struct ContactCard: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
-      Text(contact.name).font(.title3.bold()).multilineTextAlignment(.leading)
-        .fixedSize(horizontal: false, vertical: true)
-        .accessibilityAddTraits(.isHeader)
-        .accessibilityIdentifier("contact-name")
-      if !contact.region.isEmpty {
-        Text(contact.region).font(.callout).accessibilityIdentifier("contact-region")
+      VStack(alignment: .leading, spacing: 10) {
+        Text(contact.name).font(.title3.bold()).multilineTextAlignment(.leading)
+          .fixedSize(horizontal: false, vertical: true)
+          .accessibilityIdentifier("contact-name")
+        if !contact.region.isEmpty {
+          Text(contact.region).font(.callout).accessibilityIdentifier("contact-region")
+        }
       }
+      .accessibilityElement(children: .combine)
+      .accessibilityAddTraits(.isHeader)
+      .accessibilityIdentifier("contact-summary")
       ForEach(contact.phones, id: \.e164) { PhoneActions(phone: $0) }
       // The one control that opens the details names its action, so the name stays plain heading text.
       Button(action: detail) {
