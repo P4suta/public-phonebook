@@ -1192,11 +1192,13 @@ final class DirectoryUITests: XCTestCase {
   }
 
   private func goBack(_ app: XCUIApplication) {
-    let navigationBar = app.navigationBars.containing(.button, identifier: "BackButton").firstMatch
-    if navigationBar.exists {
-      let title = navigationBar.identifier
-      navigationBar.buttons["BackButton"].tap()
-      XCTAssertTrue(app.navigationBars[title].waitForNonExistence(timeout: 5))
+    let back = app.buttons["BackButton"].firstMatch
+    if back.exists {
+      let titles = app.navigationBars.allElementsBoundByIndex.map(\.identifier)
+      back.tap()
+      waitUntil(
+        "back navigation removes the previous screen",
+        titles.contains { !app.navigationBars[$0].exists }, timeout: 5)
     } else if app.buttons["return-to-search"].exists {
       app.buttons["return-to-search"].tap()
     } else {
