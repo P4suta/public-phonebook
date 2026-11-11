@@ -55,7 +55,7 @@ test("the initial screen gives one search instruction and one project-informatio
   const navigation = page.getByRole("navigation", { name: "サービスの情報" });
   await expect(navigation.getByRole("link")).toHaveCount(1);
   const link = navigation.getByRole("link", {
-    name: "Public Phonebookについてくわしく知る",
+    name: uiCopy.about,
     exact: true,
   });
   const [box, heading, label] = await Promise.all(
@@ -96,7 +96,7 @@ test("the about page describes search with the iPhone app's sentence at every wi
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/about");
     await expect(
-      page.getByText("検索欄に施設の名前を入れます。", {
+      page.getByText("検索欄に施設の名前を入れてください。", {
         exact: true,
       }),
     ).toBeVisible();
@@ -116,10 +116,10 @@ test("the about page explains iPhone setup and links the published app", async (
   });
   await expect(invitation).toBeVisible();
   await expect(
-    invitation.getByText(/アプリに番号がある施設の名前が出ます。/u),
+    invitation.getByText(uiCopy.app.description, { exact: true }),
   ).toBeVisible();
   await expect(
-    invitation.getByText(/設定でPublic Phonebookをオン/u),
+    invitation.getByText(uiCopy.app.setup, { exact: true }),
   ).toBeVisible();
   const link = invitation.getByRole("link", {
     name: "App Storeでアプリを見る （新しいタブ）",
@@ -147,14 +147,12 @@ test("the about page explains free use and links the public source", async ({
   });
   await expect(information).toBeVisible();
   await expect(
-    information.getByText("アプリもウェブサイトも、無料で使えます。", {
+    information.getByText("プログラムも公開しています。", {
       exact: true,
     }),
   ).toBeVisible();
-  await expect(information.getByText(/プログラムの中身を公開/u)).toBeVisible();
-  await expect(information.getByText(/決まりにそって/u)).toBeVisible();
   await expect(
-    information.getByRole("link", { name: /^プログラムと決まりを見る/u }),
+    information.getByRole("link", { name: /^プログラムを見る/u }),
   ).toHaveAttribute("href", "https://github.com/P4suta/public-phonebook");
 });
 
@@ -165,7 +163,7 @@ test("each page action leads with its own icon", async ({ page, request }) => {
     ["/about", "プライバシーについて読む", "shield-check"],
     ["/about", "さがす画面にもどる", "arrow-left"],
     ["/data", "contacts.csv.gzをダウンロードする", "download"],
-    ["/support", "開発者にメールを送る", "mail"],
+    ["/support", "メールを送る", "mail"],
     [contact, uiCopy.sourceAction, "file-search"],
     [contact, "電話帳に入れる", "book-user"],
     [`${contact}/source`, "開発者向けの記録を見る", "file-braces"],
@@ -187,7 +185,7 @@ for (const width of [320, 1440])
     for (const information of serviceInformation) {
       await page.goto(`/${information.key}`);
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-        `Public Phonebookの${information.title}`,
+        information.title,
       );
       for (const section of information.sections)
         await expect(
@@ -220,7 +218,7 @@ for (const width of [320, 1440])
     await expect(page).toHaveURL("/privacy");
     await page
       .getByRole("link", {
-        name: "使い方と、声を伝える方法を見る",
+        name: "使い方とお問い合わせ",
         exact: true,
       })
       .click();

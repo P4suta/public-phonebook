@@ -12,7 +12,7 @@ const datasetFormats: Readonly<
   "contacts.jsonl.gz": "JSON Lines（1行に1件のJSON）、gzipで圧縮",
   "contacts.csv.gz": "CSV（表計算ソフトで開ける形式）、gzipで圧縮",
   "contacts.vcf.gz": "vCard（電話帳の形式）、gzipで圧縮",
-  "directory.tsv.br": "iPhoneアプリが読む形式、Brotliで圧縮",
+  "directory.tsv.br": "アプリで使う形式、Brotliで圧縮",
 };
 
 export const Route = createFileRoute("/data")({
@@ -33,10 +33,12 @@ function DataPage(): ReactElement {
       <div className={css.stack}>
         <BackButton href="/about">サイトの説明にもどる</BackButton>
         <h1 className={css.heading}>データについて</h1>
-        <p className={css.body}>施設が公開した電話番号をさがせます。</p>
-        <h2 className={css.subheading}>すべてのデータをダウンロードする</h2>
         <p className={css.body}>
-          すべての施設のデータを、だれでも登録せずにダウンロードできます。
+          国や自治体などが公開した電話番号を使っています。
+        </p>
+        <h2 className={css.subheading}>データをダウンロードする</h2>
+        <p className={css.body}>
+          電話番号のデータをダウンロードできます。
           使うときの決まりは、施設ごとにファイルの中にあります。
         </p>
         <div>

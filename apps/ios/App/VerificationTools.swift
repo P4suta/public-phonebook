@@ -58,8 +58,8 @@
       let code = reload.code.map { "（iPhoneの返答のコード：\($0)）" } ?? ""
       switch reload.status {
       case .on: return "iPhoneに反映しました。"
-      case .off: return "iPhoneの設定で許可すると、電話がかかってきたときにこの名前が出ます。"
-      case .loading: return "iPhoneが読み込んでいる途中です。読み込みが終わると反映します。\(code)"
+      case .off: return "iPhoneの設定で「\(AppIdentity.displayName)」を許可してください。"
+      case .loading: return "iPhoneが読みこんでいます。終わると反映します。\(code)"
       case .checking, .onRetrying, .unknown: return "iPhoneへの反映は未確認です。\(code)"
       }
     }
@@ -111,8 +111,8 @@
         VStack(alignment: .leading, spacing: 0) {
           VStack(alignment: .leading, spacing: 12) {
             Text("確認用の電話番号").font(.headline).accessibilityAddTraits(.isHeader)
-            Text("入れた番号と名前は、このiPhoneの中に保存します。").font(.callout)
-            Text("保存すると、検索の結果と、電話がかかってきたときの画面に、この名前が出ます。").font(.callout)
+            Text("入れた番号と名前は、iPhoneの中に保存します。").font(.callout)
+            Text("保存した名前が、検索の結果と着信時の画面に出ます。").font(.callout)
             LabeledField(
               label: "電話番号", text: $model.telephone, telephone: true,
               identifier: "verification-telephone")
@@ -152,7 +152,7 @@
           Rectangle().fill(.ink).frame(height: 1)
           AutomaticUpdateStatus(integration: integration).padding(.vertical, 24)
           Rectangle().fill(.ink).frame(height: 1)
-          Text("この画面は、QA用のビルドで使います。").font(.footnote).padding(.vertical, 24)
+          Text("QA用のアプリで使う画面です。").font(.footnote).padding(.vertical, 24)
         }
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)

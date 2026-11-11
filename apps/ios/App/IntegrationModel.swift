@@ -482,14 +482,14 @@ final class IntegrationModel {
     switch notice {
     case .firstRunRetries:
       "データを受け取れませんでした。\(duration(delay))後に、自動でもう一度受け取ります。"
-    case .appTooOld: "このアプリでは新しいデータを読めません。App Storeでアプリを新しくしてください。"
+    case .appTooOld: "新しいデータを使うには、App Storeでアプリを更新してください。"
     case .reopen: "データを受け取れませんでした。アプリを開き直してください。"
     case .silent: ""
     }
   }
 
   /// The passive line for an app that can't read the published data.
-  static let newerAppLine = "新しいデータを使うには、App Storeでアプリを新しくしてください。"
+  static let newerAppLine = "新しいデータを使うには、App Storeでアプリを更新してください。"
 
   private func scheduleRetry(after seconds: Int) {
     retry = Task { [weak self] in

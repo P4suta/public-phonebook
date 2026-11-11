@@ -63,16 +63,9 @@ internal fun AboutScreen(external: (Intent, String) -> Unit, licenses: () -> Uni
 
 private fun LazyListScope.openSourceInformation(external: (Intent, String) -> Unit) {
     item { SectionHeading(R.string.free_heading) }
-    item { Text(stringResource(R.string.free_use), style = MaterialTheme.typography.bodyLarge) }
     item {
         Text(
             stringResource(R.string.open_source_description),
-            style = MaterialTheme.typography.bodyLarge,
-        )
-    }
-    item {
-        Text(
-            stringResource(R.string.open_source_freedom),
             style = MaterialTheme.typography.bodyLarge,
         )
     }

@@ -33,7 +33,9 @@ final class WatchSearchModel: NSObject, WCSessionDelegate {
     guard let request = try? WatchSearchRequest(id: UUID(), query: query),
       let data = try? request.encoded()
     else {
-      message = "検索する言葉を短くしてください。"
+      message =
+        SearchInput.words(query).isEmpty
+        ? "施設の名前を入れてください。" : "検索する言葉を短くしてください。"
       return
     }
     let session = WCSession.default
@@ -71,7 +73,7 @@ final class WatchSearchModel: NSObject, WCSessionDelegate {
     case .needsPreparation:
       message = "iPhoneでPublic Phonebookを開き、検索の準備を終えてください。"
     case .unavailable:
-      message = "さがせませんでした。iPhoneで確認してください。"
+      message = "さがせませんでした。iPhoneでPublic Phonebookを開いて、もう一度さがしてください。"
     }
   }
 

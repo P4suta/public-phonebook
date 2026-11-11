@@ -11,7 +11,7 @@ struct FirstDownloadProgress: View {
   let showsHeading: Bool
 
   static func heading(preparing: Bool) -> String {
-    preparing ? "アプリで使うデータを準備しています" : "アプリで使うデータを受け取っています"
+    preparing ? "電話番号の準備をしています" : "電話番号のデータを受け取っています"
   }
   static let steps = ["データを受け取る", "さがせるように準備する", "電話の相手が分かるようにする"]
 
@@ -49,7 +49,6 @@ struct FirstDownloadProgress: View {
             timeLines: index == current ? lines : [])
         }
       }
-      Text("次からは、すぐに使えます。").font(.callout).fixedSize(horizontal: false, vertical: true)
     }
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(heading)
@@ -126,11 +125,9 @@ struct DataSizeNotice: View {
       VStack(alignment: .leading, spacing: 0) {
         switch notice {
         case .noTransfer:
-          Text("データはアプリに入っています。")
           Text("通信せずに準備できます。")
         case .size(let bytes):
           Text("受け取るデータは約\(DownloadSchedule.megabytes(bytes))MBです。")
-          Text("Wi-Fiなどの速い回線につなぐと、早く終わります。")
         }
       }
       .font(prominent ? .body.weight(.semibold) : .body)

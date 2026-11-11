@@ -37,7 +37,7 @@ struct ContactScreen: View {
           Text("データの日付：\(date)").accessibilityIdentifier("source-data-date")
         }
         NavigationLink(value: SearchDetailRoute.source(contact)) {
-          IconLabel(icon: "info", text: "電話番号のもとの情報を見る")
+          IconLabel(icon: "info", text: "もとの情報を見る")
         }
         .buttonStyle(MonoButtonStyle())
         .accessibilityIdentifier("source-link")
@@ -84,7 +84,7 @@ struct SourceScreen: View {
               IconLabel(
                 icon: "external",
                 text: publications.count == 1
-                  ? "データを公開したページを見る" : "データを公開したページを見る（\(index + 1)）")
+                  ? "データのページを開く" : "データのページを開く（\(index + 1)）")
             }.buttonStyle(MonoButtonStyle())
           }
         }
@@ -97,7 +97,7 @@ struct SourceScreen: View {
           .accessibilityIdentifier("source-license")
         if let url = WebAddress.url(provenance.licenseURL) {
           ExternalLink(url: url, destination: .license) {
-            IconLabel(icon: "external", text: "データを使うときの決まりを見る")
+            IconLabel(icon: "external", text: "使うときの決まりを見る")
           }.buttonStyle(MonoButtonStyle())
         }
         if let raw = provenance.sourceURL, let url = WebAddress.url(raw) {
