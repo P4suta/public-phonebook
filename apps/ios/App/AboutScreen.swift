@@ -39,7 +39,7 @@ struct AboutScreen: View {
         if integration.needsNewerApp {
           Text(IntegrationModel.newerAppLine).accessibilityIdentifier("newer-app")
         }
-        NavigationLink(value: SearchDetailRoute.sources) {
+        NavigationLink(value: SearchRoute.sources) {
           IconLabel(icon: "info", text: "データのもとを見る")
         }
         .buttonStyle(MonoButtonStyle())
@@ -66,7 +66,7 @@ struct AboutScreen: View {
         .buttonStyle(MonoButtonStyle())
         .accessibilityHint("メールアプリを開きます。")
 
-        NavigationLink(value: SearchDetailRoute.license) {
+        NavigationLink(value: SearchRoute.license) {
           IconLabel(icon: "file", text: "ライセンスを見る")
         }
         .buttonStyle(MonoButtonStyle())

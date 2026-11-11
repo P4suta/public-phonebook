@@ -10,7 +10,7 @@ Proposed.
 
 ## Context
 
-Opening a public facility in Maps or a browser requires an explicit confirmation with a readable destination disclosure.
+External actions require confirmation with a readable destination disclosure.
 The app used alerts for intentional actions, and custom modal sheets added layout and accessibility behavior to maintain.
 
 ## Decision
@@ -18,6 +18,9 @@ The app used alerts for intentional actions, and custom modal sheets added layou
 Use SwiftUI `confirmationDialog` for map and external-link actions.
 Apple's [action sheet guidance](https://developer.apple.com/design/human-interface-guidelines/action-sheets) recommends the native presentation for choices related to an intentional action.
 Keep the existing disclosure and explicit Open and Cancel actions.
+Use the disclosure as the visible title without a redundant heading or secondary message.
+The native secondary label fails the dark-appearance contrast audit on the current runtime.
+Apple's [accessibility guidance](https://developer.apple.com/design/human-interface-guidelines/accessibility) calls for readable contrast in both appearances.
 Let the system adapt presentation and dismissal to iPhone and iPad.
 Keep failure alerts for unavailable map destinations.
 

@@ -36,7 +36,7 @@ struct ContactScreen: View {
         if let date = DateText.japanese(contact.provenance.dataAsOf) {
           Text("データの日付：\(date)").accessibilityIdentifier("source-data-date")
         }
-        NavigationLink(value: SearchDetailRoute.source(contact)) {
+        NavigationLink(value: SearchRoute.source(contact)) {
           IconLabel(icon: "info", text: "もとの情報を見る")
         }
         .buttonStyle(MonoButtonStyle())

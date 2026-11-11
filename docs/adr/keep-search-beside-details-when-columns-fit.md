@@ -10,30 +10,29 @@ Proposed.
 
 ## Context
 
-The owner needs search results beside facility details on wide iPhone windows.
-The collapsed sidebar obscures the selected facility.
+iPhone Air needs adjacent search and details without losing native back navigation.
 
 ## Decision
 
-Keep the system split view in regular horizontal size classes.
-In compact size classes, use two adjacent navigation stacks when both columns fit, and one stack otherwise.
+Store the query and one route path in the parent view.
+Narrow windows use search as a native stack root.
+Wide windows use two native stacks with the selected route as the detail root.
+Bind the remaining routes to the detail stack.
+Use native stacks for setup steps.
 Scale column widths with Dynamic Type.
-Preserve the query, selection, and detail path in the parent view.
-Apple's [layout guidance](https://developer.apple.com/design/human-interface-guidelines/layout) recommends adapting to available space and retaining features through size changes.
-Preserve native navigation and dialogs with monochrome search controls.
+Follow Apple's [layout guidance](https://developer.apple.com/design/human-interface-guidelines/layout) and [navigation stack contract](https://developer.apple.com/documentation/swiftui/navigationstack).
 
 ## Alternatives
 
-The collapsed sidebar adapts automatically but retains the overlay.
-One stack prevents comparison with search results.
+The native split view can collapse or overlay columns at iPhone widths.
+Replacing the navigation root loses native history and transitions.
 
 ## Consequences
 
-Compact navigation needs a return to search preserving the query.
-Large text can require one column even in a wide window.
-Reconsider the custom compact layout if the system split view supports persistent columns at the required widths.
+Large text can require one column.
+Reconsider adjacent stacks if the system split view supports persistent columns at the required widths.
 
 ## Confirmation
 
-Verify visible, usable columns, matching control borders, and retained query, selection, and source navigation through rotation.
-Verify narrow windows, enlarged text, light and dark appearances, and clearing from search and details.
+Verify back gestures, partial cancellation, rotation, and clearing on iPhone Air, iPhone, Duo, and iPad.
+Keep the query, selection, and nested route through resizing and enlarged text.

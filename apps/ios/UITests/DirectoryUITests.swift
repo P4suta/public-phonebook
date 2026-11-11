@@ -126,6 +126,61 @@ final class DirectoryUITests: XCTestCase {
       app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "読み仮名")).firstMatch.exists)
   }
 
+  func testNativeBackGesturePreservesSearchAndMenuNavigation() throws {
+    let app = prepared()
+    search("試験", in: app)
+    let field = app.searchFields.firstMatch
+    let detail = app.buttons["contact-detail"].firstMatch
+    XCTAssertTrue(detail.waitForExistence(timeout: 10))
+    detail.tap()
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    backGesture(in: app, distance: 0.12)
+    XCTAssertTrue(app.navigationBars["施設の情報"].exists)
+    reveal(app.buttons["source-link"], in: app)
+    app.buttons["source-link"].tap()
+    XCTAssertTrue(app.staticTexts["source-license"].waitForExistence(timeout: 10))
+    backGesture(in: app)
+    XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    backGesture(in: app)
+    waitUntil("the back gesture reveals search", field.exists && field.isHittable, timeout: 5)
+    XCTAssertEqual(field.value as? String, "試験")
+    for title in ["設定", "Public Phonebookについて"] {
+      app.buttons["menu"].tap()
+      app.buttons[title].tap()
+      XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 10))
+      backGesture(in: app)
+      waitUntil("the menu route returns to search", field.exists && field.isHittable, timeout: 5)
+      XCTAssertEqual(field.value as? String, "試験")
+    }
+  }
+
+  func testNativeBackGestureReturnsThroughSetupSteps() throws {
+    let app = application()
+    app.launchEnvironment["PHONEBOOK_CALLER_STATUS"] = "off"
+    app.launch()
+    let start = app.buttons["onboarding-start"]
+    XCTAssertTrue(start.waitForExistence(timeout: 15))
+    start.tap()
+    let later = app.buttons["onboarding-later"]
+    XCTAssertTrue(later.waitForExistence(timeout: 10))
+    backGesture(in: app)
+    XCTAssertTrue(start.waitForExistence(timeout: 5))
+    start.tap()
+    XCTAssertTrue(later.waitForExistence(timeout: 10))
+    later.tap()
+    let finish = app.buttons["onboarding-finish"]
+    XCTAssertTrue(finish.waitForExistence(timeout: 10))
+    backGesture(in: app)
+    XCTAssertTrue(later.waitForExistence(timeout: 5))
+  }
+
+  private func backGesture(in app: XCUIApplication, distance: CGFloat = 0.85) {
+    let window = app.windows.firstMatch
+    let start = window.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.5))
+    let end = window.coordinate(withNormalizedOffset: CGVector(dx: distance, dy: 0.5))
+    start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.2)
+  }
+
   func testTelephoneSearchFindsEveryRecordForTheNumber() throws {
     let app = prepared()
     for query in ["03-0000-0000", "０３（００００）００００"] {
@@ -907,6 +962,7 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(confirmation.buttons["開く"].isHittable)
     XCTAssertTrue(confirmationCancellation(in: app).isHittable)
     capture(app, name: "accessibility-source-code-confirmation")
+    try app.performAccessibilityAudit(for: .all.subtracting(.dynamicType))
     confirmationCancellation(in: app).tap()
     XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
     let privacy = app.buttons["privacy-policy-link"]
@@ -920,6 +976,7 @@ final class DirectoryUITests: XCTestCase {
         $0.label.contains("行き先：www.dial.page")
       })
     capture(app, name: "accessibility-privacy-policy-confirmation")
+    try app.performAccessibilityAudit(for: .all.subtracting(.dynamicType))
     confirmationCancellation(in: app).tap()
     XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
   }
@@ -966,7 +1023,7 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(disclosure.isHittable)
     XCTAssertEqual(
       confirmation.staticTexts.allElementsBoundByIndex.map(\.label).sorted(),
-      ["マップで開きます", "施設の名前と住所をAppleのマップに送ります。"].sorted())
+      ["施設の名前と住所をAppleのマップに送ります。"])
     XCTAssertEqual(
       confirmation.buttons.allElementsBoundByIndex.map(\.label).sorted(),
       (confirmation.buttons["キャンセル"].exists ? ["キャンセル", "開く"] : ["開く"]).sorted())
@@ -1199,8 +1256,6 @@ final class DirectoryUITests: XCTestCase {
       waitUntil(
         "back navigation removes the previous screen",
         titles.contains { !app.navigationBars[$0].exists }, timeout: 5)
-    } else if app.buttons["return-to-search"].exists {
-      app.buttons["return-to-search"].tap()
     } else {
       XCTAssertTrue(app.searchFields.firstMatch.isHittable)
     }

@@ -75,6 +75,7 @@ struct StoreScreenshot {
 fn accepted_size(model: SimulatorModel, size: [u32; 2]) -> bool {
     match model {
         SimulatorModel::Iphone17 => size == [SIZE.0, SIZE.1],
+        SimulatorModel::IphoneAir => matches!(size, [1260, 2736] | [2736, 1260]),
         SimulatorModel::IphoneDuo => matches!(
             size,
             [1398, 2034] | [2034, 1398] | [2007, 2853] | [2853, 2007]
