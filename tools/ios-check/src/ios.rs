@@ -182,7 +182,7 @@ const AIR_UI_TESTS: [&str; 4] = [
     "testPortraitLandscapeRoundTrip",
     "testLandscapeLargeTextSettings",
 ];
-const DUO_UI_TESTS: [&str; 7] = [
+const DUO_UI_TESTS: [&str; 8] = [
     "testPortraitLandscapeRoundTrip",
     "testSearchGroupsRankedResultsAndShowsMore",
     "testEmptyResultsAndLargeText",
@@ -190,14 +190,16 @@ const DUO_UI_TESTS: [&str; 7] = [
     "testClearingSearchFromDetailReturnsToTheInitialScreen",
     "testSearchFieldShowsOneClearControl",
     "testCommonTasksPassAccessibilityAudits",
+    "testCommonTasksPassAccessibilityAuditsAtLargestTextSize",
 ];
-const IPAD_UI_TESTS: [&str; 6] = [
+const IPAD_UI_TESTS: [&str; 7] = [
     "testPortraitLandscapeRoundTrip",
     "testLandscapeLargeTextSettings",
     "testSearchFieldShowsOneClearControl",
     "testContactDetailShowsRegionSourceAndExternalLinkConfirmation",
     "testClearingSearchFromDetailReturnsToTheInitialScreen",
     "testCommonTasksPassAccessibilityAudits",
+    "testCommonTasksPassAccessibilityAuditsAtLargestTextSize",
 ];
 const REQUIRED_TESTS: [&str; 99] = [
     "resultPagesStayWithinBoundsAtSignedExtremes",
@@ -2176,6 +2178,13 @@ mod tests {
     #[test]
     fn every_dark_appearance_case_is_a_declared_ui_case() {
         assert!(DARK_UI_TESTS.iter().all(|name| UI_TESTS.contains(name)));
+    }
+
+    #[test]
+    fn wide_device_profiles_audit_common_tasks_at_largest_text() {
+        for cases in [DUO_UI_TESTS.as_slice(), IPAD_UI_TESTS.as_slice()] {
+            assert!(cases.contains(&"testCommonTasksPassAccessibilityAuditsAtLargestTextSize"));
+        }
     }
 
     #[test]

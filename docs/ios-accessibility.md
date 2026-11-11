@@ -133,6 +133,7 @@ Failure attachments identify the affected accessibility element.
 Apple's [audit guidance](https://developer.apple.com/videos/play/wwdc2023/10035/) explains why automated findings need investigation and why audits complement assistive-technology testing.
 The source screen expands opaque license identifiers to the published names of [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) and [Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
 The iOS verification gate includes all three scenarios and refuses missing or skipped test results.
+Duo and iPad profiles also audit the common tasks at the largest text size.
 The runner records source hashes and the result of each scenario in `target/ios/ui-receipt.json`.
 Result bundles stay under `target/ios`.
 
