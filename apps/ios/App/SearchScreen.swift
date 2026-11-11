@@ -90,7 +90,7 @@ struct SearchScreen: View {
 
   private var searchPath: Binding<[SearchRoute]> {
     Binding(
-      get: { path },
+      get: { layout == .stack ? path : [] },
       set: { routes in
         if layout == .stack {
           path = routes
@@ -142,7 +142,7 @@ struct SearchScreen: View {
 
   private func nestedPath(for container: Layout) -> Binding<[SearchRoute]> {
     Binding(
-      get: { Array(path.dropFirst()) },
+      get: { layout == container ? Array(path.dropFirst()) : [] },
       set: { remaining in
         if layout == container {
           path = path.first.map { [$0] + remaining } ?? []
