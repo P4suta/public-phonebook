@@ -133,6 +133,7 @@ Visible-content audits inspect the remaining categories before Dynamic Type chan
 The audit can scroll clipped text into view before reporting a contrast finding.
 A frozen accessibility snapshot records text positions before auditing.
 Scrolling screens exclude a contrast finding when every snapshot match by identifier, label, and horizontal bounds extends beyond the initial viewport.
+The comparison tolerates floating-point differences below 0.001 point in each horizontal edge.
 Any fully visible match, unknown match, empty frame, or invalid frame keeps the finding fatal.
 Navigation-bar titles remain in the contrast audit.
 Failure attachments identify the affected accessibility element.

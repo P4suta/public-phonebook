@@ -1084,14 +1084,14 @@ final class DirectoryUITests: XCTestCase {
         let frame = element.frame
         let matching = texts.filter {
           $0.identifier == element.identifier && $0.label == element.label
-            && $0.frame.minX == frame.minX && $0.frame.maxX == frame.maxX
+            && sameHorizontalBounds($0.frame, frame)
         }
         // The audit can scroll clipped text into view before returning its report.
         if !navigationText, framesAreClipped(matching.map(\.frame), in: visible) {
           continue
         }
         attach(
-          "Viewport: \(visible)\nBefore: \(matching.map(\.frame))\nReported: \(frame)",
+          "Viewport: \(visible)\nBefore: \(matching.map(\.frame))\nCandidates: \(texts.filter { $0.label == element.label }.map { "\($0.identifier): \($0.frame)" })\nReported: \(frame)",
           name: "contrast-visibility")
       }
       failAccessibilityIssue(issue)
@@ -1119,6 +1119,13 @@ final class DirectoryUITests: XCTestCase {
     }
   }
 
+  private func sameHorizontalBounds(_ first: CGRect, _ second: CGRect) -> Bool {
+    // Accessibility snapshots can round the same point differently.
+    let tolerance: CGFloat = 0.001
+    return abs(first.minX - second.minX) < tolerance
+      && abs(first.maxX - second.maxX) < tolerance
+  }
+
   private func assertContrastViewport() {
     let viewport = CGRect(x: 0, y: 20, width: 100, height: 100)
     let clipped = CGRect(x: 0, y: 0, width: 20, height: 30)
@@ -1133,6 +1140,14 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertFalse(framesAreClipped([clipped], in: .infinite))
     XCTAssertFalse(
       framesAreClipped([CGRect(x: CGFloat.nan, y: 0, width: 20, height: 20)], in: viewport))
+    XCTAssertTrue(
+      sameHorizontalBounds(
+        visible, CGRect(x: 0, y: 200, width: CGFloat(20).nextUp, height: 30)))
+    XCTAssertFalse(sameHorizontalBounds(visible, visible.offsetBy(dx: 1, dy: 0)))
+    XCTAssertFalse(sameHorizontalBounds(visible, CGRect(x: 0, y: 20, width: 21, height: 20)))
+    XCTAssertFalse(sameHorizontalBounds(visible, .infinite))
+    XCTAssertFalse(
+      sameHorizontalBounds(visible, CGRect(x: CGFloat.nan, y: 20, width: 20, height: 20)))
   }
 
   private func confirmationCancellation(in app: XCUIApplication) -> XCUIElement {
