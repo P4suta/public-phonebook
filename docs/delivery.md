@@ -22,23 +22,29 @@ The workflow run number supplies the separate store build number.
 
 ## Apple app distribution
 
-Run every iOS release check locally on the intended source before starting the distribution workflow.
+Review the intended source and run the applicable checks locally before starting distribution.
+For app or interface changes, run the native verification with the fast checks.
 
 ```sh
-mise x -- just check check-rust ios-mutate ios-sanitize ios-prove delivery-prove ios-check
+mise x -- just check check-rust ios-check
 ```
 
-After the checks pass, dispatch the protected main-branch workflow.
+For production core or proof changes, also run the affected sanitizer, mutation, and proof commands.
+Reuse successful results while their checked inputs remain unchanged.
+After verification and merge, dispatch the protected main-branch workflow.
 
 ```sh
 gh workflow run ios.yml --ref main
 ```
 
-The TestFlight workflow runs repository checks, native tests, sanitizers, mutation checks, and the required proofs before preparing an unsigned archive.
+The TestFlight workflow runs fast repository checks and prepares an unsigned archive.
 The archive job has no signing or upload credentials.
 Fresh protected jobs verify the original artifact, sign the preserved archive, and upload the preserved package.
 GitHub attestations bind the files to the repository, workflow, and exact source revision.
 Signing and upload use separate environment-bound Doppler configurations.
+Approve the signing environment after reviewing the source and applicable local results.
+Approve upload after verifying the preserved package.
+The [local verification decision](adr/keep-ios-assurance-local-and-distribution-protected.md) records the trust boundary.
 
 Build allocation preserves `run_number * 100 + 1` across retries.
 Keep the workflow identity stable and reconcile accepted store builds before introducing another allocator.

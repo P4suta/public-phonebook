@@ -40,18 +40,57 @@ pub enum Signing {
     Ci,
 }
 
-pub(super) fn admit_request(
-    signing: Signing,
-    require_receipts: bool,
-    build: Option<BuildNumber>,
-) -> Result<BuildNumber> {
+fn source_requirements(revision: &str) -> [(&str, &str); 6] {
+    [
+        ("GITHUB_ACTIONS", "true"),
+        ("GITHUB_EVENT_NAME", "workflow_dispatch"),
+        ("GITHUB_REPOSITORY", "P4suta/public-phonebook"),
+        ("GITHUB_REF", "refs/heads/main"),
+        (
+            "GITHUB_WORKFLOW_REF",
+            "P4suta/public-phonebook/.github/workflows/ios.yml@refs/heads/main",
+        ),
+        ("GITHUB_SHA", revision),
+    ]
+}
+
+fn admit_ci_source(environment: &BTreeMap<String, String>, revision: &str) -> Result<()> {
+    ensure!(
+        revision.len() == 40 && revision.bytes().all(|byte| byte.is_ascii_hexdigit()),
+        "The distribution source must be a Git commit SHA"
+    );
+    for (name, expected) in source_requirements(revision) {
+        ensure!(
+            environment.get(name).map(String::as_str) == Some(expected),
+            "Distribution requires the protected main-branch TestFlight workflow: {name} differs"
+        );
+    }
+    Ok(())
+}
+
+pub(super) fn require_ci_source(root: &Path) -> Result<()> {
+    let output = crate::checked(
+        Command::new("git")
+            .current_dir(root)
+            .args(["rev-parse", "HEAD"]),
+    )?;
+    let revision = String::from_utf8(output.stdout)?;
+    let revision = revision.trim();
+    let environment = source_requirements(revision)
+        .into_iter()
+        .filter_map(|(name, _)| {
+            std::env::var(name)
+                .ok()
+                .map(|value| (name.to_owned(), value))
+        })
+        .collect();
+    admit_ci_source(&environment, revision)
+}
+
+pub(super) fn admit_request(signing: Signing, build: Option<BuildNumber>) -> Result<BuildNumber> {
     match signing {
         Signing::Local => Ok(build.unwrap_or(BuildNumber::LOCAL)),
         Signing::Ci => {
-            ensure!(
-                require_receipts,
-                "CI signing requires --require-receipts so that only verified sources are signed"
-            );
             let build = build.context("CI signing requires --build-number")?;
             ensure!(
                 build.is_ci(),
@@ -1289,17 +1328,52 @@ mod tests {
     }
 
     #[test]
-    fn ci_requests_require_receipts_and_a_run_derived_build() -> Result<()> {
+    fn ci_source_requires_the_dispatched_main_workflow_at_the_checked_revision() -> Result<()> {
+        let revision = "a".repeat(40);
+        let environment = BTreeMap::from([
+            ("GITHUB_ACTIONS".to_owned(), "true".to_owned()),
+            (
+                "GITHUB_EVENT_NAME".to_owned(),
+                "workflow_dispatch".to_owned(),
+            ),
+            (
+                "GITHUB_REPOSITORY".to_owned(),
+                "P4suta/public-phonebook".to_owned(),
+            ),
+            ("GITHUB_REF".to_owned(), "refs/heads/main".to_owned()),
+            (
+                "GITHUB_WORKFLOW_REF".to_owned(),
+                "P4suta/public-phonebook/.github/workflows/ios.yml@refs/heads/main".to_owned(),
+            ),
+            ("GITHUB_SHA".to_owned(), revision.clone()),
+        ]);
+        admit_ci_source(&environment, &revision)?;
+        for name in environment.keys() {
+            let mut missing = environment.clone();
+            missing.remove(name);
+            assert!(
+                admit_ci_source(&missing, &revision).is_err(),
+                "missing {name}"
+            );
+            let mut changed = environment.clone();
+            changed.insert(name.clone(), "another source".to_owned());
+            assert!(
+                admit_ci_source(&changed, &revision).is_err(),
+                "changed {name}"
+            );
+        }
+        assert!(admit_ci_source(&environment, &"b".repeat(40)).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn ci_requests_require_a_run_derived_build() -> Result<()> {
         let ci = BuildNumber::from_run(7, 1)?;
-        assert_eq!(admit_request(Signing::Ci, true, Some(ci))?, ci);
-        assert!(admit_request(Signing::Ci, false, Some(ci)).is_err());
-        assert!(admit_request(Signing::Ci, true, None).is_err());
-        assert!(admit_request(Signing::Ci, true, Some(BuildNumber::LOCAL)).is_err());
-        assert_eq!(
-            admit_request(Signing::Local, false, None)?,
-            BuildNumber::LOCAL
-        );
-        assert_eq!(admit_request(Signing::Local, true, Some(ci))?, ci);
+        assert_eq!(admit_request(Signing::Ci, Some(ci))?, ci);
+        assert!(admit_request(Signing::Ci, None).is_err());
+        assert!(admit_request(Signing::Ci, Some(BuildNumber::LOCAL)).is_err());
+        assert_eq!(admit_request(Signing::Local, None)?, BuildNumber::LOCAL);
+        assert_eq!(admit_request(Signing::Local, Some(ci))?, ci);
         Ok(())
     }
 

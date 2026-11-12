@@ -565,14 +565,14 @@ export const scheduleSpecifications: Readonly<
   },
   "ios.yml": {
     properties: [
-      requires("unsigned", ["fast", "proofs", "native"]),
-      requires("signing", ["fast", "proofs", "native", "unsigned"]),
+      requires("unsigned", ["fast"]),
+      requires("signing", ["fast", "unsigned"]),
       requires("upload", ["signing"]),
     ],
     promises: [
       {
         inputs: {},
-        runs: ["fast", "proofs", "native", "unsigned", "signing", "upload"],
+        runs: ["fast", "unsigned", "signing", "upload"],
       },
     ],
   },

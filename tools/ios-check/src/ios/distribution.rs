@@ -648,9 +648,7 @@ pub(super) fn prepare_archive(root: &Path, build: BuildNumber) -> Result<()> {
         build.is_ci(),
         "Prepared store archives require an allocated CI build identity"
     );
-    delivery::proof::require_current(root)?;
     let sources = source_hashes(root)?;
-    receipts::require(root, &sources)?;
     let directory = root.join(UNSIGNED_DIRECTORY);
     ensure!(
         !directory.exists(),
@@ -771,7 +769,7 @@ fn prepare_requested_entitlements(root: &Path, archive: &Path) -> Result<()> {
 }
 
 pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
-    let build = signing::admit_request(request.signing, request.require_receipts, request.build)?;
+    let build = signing::admit_request(request.signing, request.build)?;
     let ci = request.signing == Signing::Ci;
     let sources = source_hashes(root)?;
     let status = super::super::checked(
@@ -930,7 +928,14 @@ pub(super) fn archive(root: &Path, request: &ArchiveRequest) -> Result<()> {
             ]),
         )
     };
-    let manifest = json!({"format":1,"purpose":purpose,"signing":signing_record,"source_revision":String::from_utf8(revision.stdout)?.trim(),"working_tree_dirty":dirty,"source_sha256":sources,"receipts":receipts,"version":version,"build":build.value(),"bundle":bundle,"archive":archive,"artifact":preserved.strip_prefix(root)?,"sha256":sha256,"signature":"verified with production identities, app group, build number, and get-task-allow=false for the app and its extension","release_eligible":ci && !dirty && !receipts.is_empty(),"pending":pending});
+    let verification = if ci {
+        "protected-github-environment"
+    } else if request.require_receipts {
+        "local-receipts"
+    } else {
+        "private-preparation"
+    };
+    let manifest = json!({"format":1,"purpose":purpose,"signing":signing_record,"source_revision":String::from_utf8(revision.stdout)?.trim(),"working_tree_dirty":dirty,"source_sha256":sources,"verification":verification,"receipts":receipts,"version":version,"build":build.value(),"bundle":bundle,"archive":archive,"artifact":preserved.strip_prefix(root)?,"sha256":sha256,"signature":"verified with production identities, app group, build number, and get-task-allow=false for the app and its extension","release_eligible":ci && !dirty && request.prepared,"pending":pending});
     fs::write(
         directory.join("candidate.json"),
         serde_json::to_vec_pretty(&manifest)?,

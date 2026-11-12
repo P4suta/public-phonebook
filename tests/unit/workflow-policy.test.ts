@@ -44,6 +44,29 @@ it("accepts the repository workflows and composite actions", async () => {
   expect(audit.actions).toBeGreaterThanOrEqual(1);
 });
 
+it("keeps heavy iOS assurance outside TestFlight delivery", async () => {
+  const source = await readFile(".github/workflows/ios.yml", "utf8");
+  const original = "      - run: mise x -- just check\n";
+  for (const command of [
+    "mise x -- just ios-check",
+    "just ios-sanitize",
+    "mise x -- just ios-mutate",
+    "just ios-prove",
+    "just delivery-prove",
+  ]) {
+    const document: unknown = parse(
+      source.replace(original, `      - run: ${command}\n`),
+    );
+    expect(
+      workflowViolations("ios.yml", document).map(({ rule }) => rule),
+    ).toContain("ios-hosted-assurance");
+  }
+  const quoted: unknown = parse(
+    source.replace(original, "      - run: echo 'just ios-check'\n"),
+  );
+  expect(workflowViolations("ios.yml", quoted)).toEqual([]);
+});
+
 it("accepts empty workflow permissions, granted job permissions, pinned and local actions, and environment indirection", () => {
   expect(
     rules(

@@ -90,26 +90,19 @@ describe("workflow schedules", () => {
     }
   });
 
-  it("runs independent iOS checks while every failed check blocks archive preparation and signing", async () => {
+  it("blocks iOS delivery after a failed fast check", async () => {
     const text = await workflowText("ios.yml");
     const schedule = workflowSchedule(parse(text));
-    for (const failed of ["fast", "proofs", "native"]) {
-      const results = followRun(schedule, {}, { [failed]: "failure" });
-      for (const job of ["fast", "proofs", "native"])
-        expect(results[job]).toBe(job === failed ? "failure" : "success");
-      for (const job of ["unsigned", "signing", "upload"])
-        expect(results[job]).toBe("skipped");
-    }
+    const results = followRun(schedule, {}, { fast: "failure" });
+    expect(results.fast).toBe("failure");
+    for (const job of ["unsigned", "signing", "upload"])
+      expect(results[job]).toBe("skipped");
     expect(
       findings(
         "ios.yml",
-        planted(
-          text,
-          "    needs: [fast, proofs, native]\n",
-          "    needs: [proofs, native]\n",
-        ),
+        planted(text, "    needs: [fast]\n", "    needs: []\n"),
       ),
-    ).toContain("unsigned runs only after fast, proofs, native succeeded");
+    ).toContain("unsigned runs only after fast succeeded");
   });
 
   it("finds a planted defect in each release-path workflow", async () => {

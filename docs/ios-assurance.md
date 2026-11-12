@@ -118,6 +118,7 @@ It refuses missing or ambiguous identifiers and treats missing result lines as i
 The local adapter preserves `just ios-unit-test` as the authoritative native unit gate.
 
 The manual Assurance workflow runs the declared checks on hosted runners.
-The TestFlight workflow requires native checks, Lean proofs, sanitizers, and mutation checks before delivery.
+TestFlight runs fast checks, then builds, signs, and uploads the reviewed source through protected environments.
+Release approval trusts the maintainer's review of applicable local verification, as the [distribution decision](adr/keep-ios-assurance-local-and-distribution-protected.md) describes.
 No local QA installation grants authority to sign a distribution, upload a build, or publish a release.
 Physical-device procedures and recorded limits remain in [device verification](ios-device-verification.md).
