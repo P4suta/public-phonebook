@@ -48,7 +48,10 @@ it("keeps heavy iOS assurance outside TestFlight delivery", async () => {
   const source = await readFile(".github/workflows/ios.yml", "utf8");
   const original = "      - run: mise x -- just check\n";
   for (const command of [
+    "just assurance",
     "mise x -- just ios-check",
+    "mise exec -- just ios-check",
+    "just check check-rust ios-check",
     "just ios-sanitize",
     "mise x -- just ios-mutate",
     "just ios-prove",
@@ -61,10 +64,39 @@ it("keeps heavy iOS assurance outside TestFlight delivery", async () => {
       workflowViolations("ios.yml", document).map(({ rule }) => rule),
     ).toContain("ios-hosted-assurance");
   }
-  const quoted: unknown = parse(
-    source.replace(original, "      - run: echo 'just ios-check'\n"),
-  );
-  expect(workflowViolations("ios.yml", quoted)).toEqual([]);
+  for (const command of ["echo 'just ios-check'", "just test ios-check"]) {
+    const harmless: unknown = parse(
+      source.replace(original, `      - run: ${command}\n`),
+    );
+    expect(workflowViolations("ios.yml", harmless)).toEqual([]);
+  }
+});
+
+it("rejects heavy iOS checks through the repository audit", async () => {
+  const root = await mkdtemp(join(tmpdir(), "phonebook-ios-policy-"));
+  try {
+    await mkdir(join(root, ".github/workflows"), { recursive: true });
+    const source = await readFile(".github/workflows/ios.yml", "utf8");
+    await writeFile(
+      join(root, ".github/workflows/ios.yml"),
+      source.replace(
+        "      - run: mise x -- just check\n",
+        "      - run: just ios-check\n",
+      ),
+    );
+    const audit = await auditWorkflows(root);
+    expect(audit.violations).toContainEqual(
+      expect.objectContaining({
+        file: ".github/workflows/ios.yml",
+        rule: "ios-hosted-assurance",
+      }),
+    );
+    await expect(requireWorkflowPolicy(root)).rejects.toThrow(
+      "Workflows violate the repository policy",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 it("accepts empty workflow permissions, granted job permissions, pinned and local actions, and environment indirection", () => {

@@ -82,7 +82,7 @@ const releaseGateCommand = new RegExp(
 const releaseGateWorkflow =
   /^(?:\$|\.)\/\.github\/workflows\/assurance\.ya?ml$/u;
 const hostedIosAssurance =
-  /(?:^|\n)[ \t]*(?:mise[ \t]+x[ \t]+--[ \t]+)?just[ \t]+(?:ios-(?:check|sanitize|mutate|prove)|delivery-prove)(?=[ \t\r\n]|$)/u;
+  /(?:^|\n)[ \t]*(?:mise[ \t]+(?:x|exec)[ \t]+--[ \t]+)?just[ \t]+(?:check(?:-rust)?[ \t]+)*(?:assurance|ios-(?:check|sanitize|mutate|prove)|delivery-prove)(?=[ \t\r\n]|$)/u;
 
 const StepSchema = v.looseObject({
   uses: v.optional(v.string()),
@@ -183,7 +183,7 @@ function stepViolations(
             },
           ]
         : []),
-      ...(file === "ios.yml" &&
+      ...(basename(file) === "ios.yml" &&
       step.run !== undefined &&
       hostedIosAssurance.test(step.run)
         ? [
