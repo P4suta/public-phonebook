@@ -30,17 +30,10 @@ final class WatchSearchModel: NSObject, WCSessionDelegate {
   var canSearch: Bool { !loading && !SearchInput.words(query).isEmpty }
 
   func search() {
-    guard let request = try? WatchSearchRequest(id: UUID(), query: query),
-      let data = try? request.encoded()
-    else {
+    guard let request = try? WatchSearchRequest(id: UUID(), query: query) else {
       message =
         SearchInput.words(query).isEmpty
         ? "施設の名前を入れてください。" : "検索する言葉を短くしてください。"
-      return
-    }
-    let session = WCSession.default
-    guard session.activationState == .activated, session.isReachable else {
-      message = "iPhoneでPublic Phonebookを開いてください。"
       return
     }
     state.begin(request)
@@ -49,6 +42,19 @@ final class WatchSearchModel: NSObject, WCSessionDelegate {
     timeout = Task { [weak self] in
       do { try await Task.sleep(for: .seconds(20)) } catch { return }
       self?.failed(request.id)
+    }
+    sendWhenReady()
+  }
+
+  private func sendWhenReady() {
+    let session = WCSession.default
+    guard
+      let request = state.takeRequestToSend(
+        whenReady: session.activationState == .activated && session.isReachable)
+    else { return }
+    guard let data = try? request.encoded() else {
+      failed(request.id)
+      return
     }
     session.sendMessageData(
       data,
@@ -86,5 +92,11 @@ final class WatchSearchModel: NSObject, WCSessionDelegate {
   nonisolated func session(
     _ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState,
     error: (any Error)?
-  ) {}
+  ) {
+    Task { @MainActor [weak self] in self?.sendWhenReady() }
+  }
+
+  nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
+    Task { @MainActor [weak self] in self?.sendWhenReady() }
+  }
 }
