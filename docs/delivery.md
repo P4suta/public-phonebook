@@ -22,6 +22,14 @@ The workflow run number supplies the separate store build number.
 
 ## Apple app distribution
 
+Run every iOS release check locally on the intended source before starting the distribution workflow.
+
+```sh
+mise x -- just check check-rust ios-mutate ios-sanitize ios-prove delivery-prove ios-check
+```
+
+After the checks pass, dispatch the protected main-branch workflow.
+
 ```sh
 gh workflow run ios.yml --ref main
 ```

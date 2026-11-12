@@ -10,32 +10,33 @@ Proposed.
 
 ## Context
 
-Search and facility details must survive Duo display changes and iPad resizing.
-Apple recommends [adaptive containers](https://developer.apple.com/documentation/technologyoverviews/preparing-your-app-for-iphone-duo) and [using the iPad display](https://developer.apple.com/design/human-interface-guidelines/designing-for-ipados).
+Search and facility details must survive resizing.
+Air rotation checks reach their 600-second guard while XCTest awaits animation completion.
 
 ## Decision
 
-Keep one NavigationSplitView with a typed destination and the existing query model.
-Bind detail navigation's typed path so source information survives a resize.
-Enable the iPad device family and its supported orientations.
-Clear query and selection from the detail toolbar.
-Place a SwiftUI [TextField](https://developer.apple.com/documentation/swiftui/textfield) and a labeled 44-point clear button before sidebar results.
-The Duo audit rejects the system search field's small clear target.
-Use public focus bindings and a native [List](https://developer.apple.com/documentation/swiftui/list) for result rows.
-Follow Apple's [search-field guidance](https://developer.apple.com/design/human-interface-guidelines/search-fields) for sidebar filtering.
+Keep one [NavigationSplitView](https://developer.apple.com/documentation/swiftui/navigationsplitview) alive with a [typed detail stack](https://developer.apple.com/documentation/swiftui/navigationstack).
+Keep the sidebar visible when both columns fit.
+Remove the sidebar toggle from the [sidebar's toolbar](https://developer.apple.com/documentation/swiftui/view/toolbar(removing:)).
+Give the split container a [regular horizontal size class](https://developer.apple.com/documentation/swiftui/environmentvalues/horizontalsizeclass) when two 320-point columns fit.
+Use compact otherwise.
+Keep the query model, native List, focus bindings, and labeled 44-point clear action.
 
 ## Alternatives
 
-Separate layouts can share the model but duplicate navigation rules.
-A single stack leaves wide displays unused.
+Three root containers keep the current appearance but duplicate navigation ownership.
+Unmodified size classes collapse wide iPhones.
+A hideable sidebar gives details more room but obscures search.
 
 ## Consequences
 
-Both column configurations require UI checks and store screenshots.
+The size-class override affects descendant layouts.
+System containers own transitions and [Duo resizing](https://developer.apple.com/documentation/technologyoverviews/preparing-your-app-for-iphone-duo).
 Keep shared storage and privacy behavior.
 Reconsider when folding or resizing breaks a task.
 
 ## Confirmation
 
-Check search, detail, source, settings, rotation, and accessibility on iPhone, Duo, and iPad.
-Inspect display changes and saved query state.
+Check search, detail, source, settings, rotation, clear, gestures, keyboard focus, and accessibility on iPhone, Duo, and iPad.
+Capture sample-city screens.
+Reconsider if resizing breaks a task.

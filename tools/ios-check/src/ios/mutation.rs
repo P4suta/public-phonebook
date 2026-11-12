@@ -14,7 +14,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-/// The maximum accepted sample of the requested temporary files and the shared Swift sandbox.
+/// The maximum accepted sample of the requested temporary files and package sandboxes.
 const SCRATCH_BUDGET_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 /// How often the gate samples the size of a profile's temporary directory.
 const SCRATCH_SAMPLE_INTERVAL: Duration = Duration::from_millis(500);
@@ -24,7 +24,19 @@ const SCRATCH_REPORT_FILE_LIMIT: usize = 12;
 /// A cap on the tool's whole process tree stops its sandbox build even at 4 GiB, so the core tests carry it.
 const FILE_LIMIT_ERROR: &str = "File too large";
 
-const VERSION: &str = "1.6.4";
+fn declared_version(root: &Path) -> Result<String> {
+    let output = super::super::checked(
+        Command::new("mise")
+            .current_dir(root)
+            .args(["config", "get", "--file"])
+            .arg(root.join("mise.toml"))
+            .arg(r#"tools."github:ericodx/swift-mutation-testing".version"#),
+    )?;
+    let version = String::from_utf8(output.stdout)?.trim().to_owned();
+    ensure!(!version.is_empty(), "The Swift mutation tool pin is empty");
+    Ok(version)
+}
+
 /// The pinned tool limits each mutant's test run in wall-clock seconds and offers no CPU-time limit.
 /// The guard is a multiple of the unmutated run, so only a hang reaches it, and it never drops below the floor.
 const GUARD_FACTOR: u32 = 5;
@@ -172,29 +184,50 @@ fn large_files(path: &Path, files: &mut Vec<(u64, PathBuf)>) {
 struct ScratchPeak {
     allocated: u64,
     logical: u64,
+    sandbox_observed: bool,
 }
 
-/// Samples both directories until `done` turns true, and retains each measure's maximum.
+fn package_sandboxes(directory: &Path, manifest: &Path) -> Vec<PathBuf> {
+    fs::read_dir(directory)
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+        .map(|entry| entry.path())
+        .filter(|path| {
+            fs::canonicalize(path.join("Package.swift")).is_ok_and(|source| source == manifest)
+        })
+        .collect()
+}
+
+/// Samples the requested directory and package sandboxes until `done` turns true.
 fn sample_peak(
     path: PathBuf,
     sandbox: PathBuf,
+    manifest: PathBuf,
     done: Arc<AtomicBool>,
 ) -> thread::JoinHandle<ScratchPeak> {
     thread::spawn(move || {
         let mut peak = ScratchPeak::default();
         let mut reported = false;
         loop {
-            peak.logical = peak
-                .logical
-                .max(tree_bytes(&path).saturating_add(tree_bytes(&sandbox)));
-            peak.allocated = peak
-                .allocated
-                .max(tree_allocated_bytes(&path).saturating_add(tree_allocated_bytes(&sandbox)));
+            let mut paths = package_sandboxes(&sandbox, &manifest);
+            peak.sandbox_observed |= !paths.is_empty();
+            paths.push(path.clone());
+            peak.logical = peak.logical.max(
+                paths
+                    .iter()
+                    .fold(0_u64, |total, path| total.saturating_add(tree_bytes(path))),
+            );
+            peak.allocated = peak.allocated.max(paths.iter().fold(0_u64, |total, path| {
+                total.saturating_add(tree_allocated_bytes(path))
+            }));
             if peak.allocated > SCRATCH_BUDGET_BYTES && !reported {
                 reported = true;
                 let mut files = Vec::new();
-                large_files(&path, &mut files);
-                large_files(&sandbox, &mut files);
+                for path in &paths {
+                    large_files(path, &mut files);
+                }
                 files.sort_by_key(|entry| std::cmp::Reverse(entry.0));
                 for (bytes, file) in files.into_iter().take(SCRATCH_REPORT_FILE_LIMIT) {
                     println!(
@@ -258,7 +291,7 @@ fn baseline(root: &Path, name: &str, target: &str) -> Result<Duration> {
             "swift",
             "build",
             "--package-path",
-            "ios",
+            "apps/ios",
             "--build-tests",
         ]),
     )?;
@@ -270,7 +303,7 @@ fn baseline(root: &Path, name: &str, target: &str) -> Result<Duration> {
             "swift",
             "test",
             "--package-path",
-            "ios",
+            "apps/ios",
             "--skip-build",
             "--filter",
             &format!("^{target}\\."),
@@ -330,10 +363,11 @@ fn results(
     logs: &Path,
     equivalents: &[Equivalent],
 ) -> Result<Counts> {
+    let version = declared_version(root)?;
     ensure!(
         plan["formatVersion"] == 1
-            && plan["toolVersion"] == VERSION
-            && report["config"]["toolVersion"] == VERSION
+            && plan["toolVersion"] == version
+            && report["config"]["toolVersion"] == version
             && report["config"]["planSha256"] == plan_hash,
         "Mutation report identity does not match its plan and pinned tool"
     );
@@ -539,6 +573,16 @@ pub fn run(root: &Path, affected: bool, jobs: u16, profile: Option<&str>) -> Res
                 "PhonebookCoreTests",
             ),
             (
+                "place-readings",
+                "Sources/PhonebookCore/PlaceReadings.swift",
+                "PhonebookCoreTests",
+            ),
+            (
+                "watch-messages",
+                "Sources/PhonebookCore/WatchSearch.swift",
+                "PhonebookCoreTests",
+            ),
+            (
                 "delta",
                 "Sources/PhonebookKit/DirectoryDelta.swift",
                 "PhonebookKitTests",
@@ -594,6 +638,7 @@ fn run_profiles(
         fs::remove_file(&receipt)?;
     }
     let sources = source_hashes(root)?;
+    let pinned = declared_version(root)?;
     let version = logged(
         root,
         "mutation-version",
@@ -601,8 +646,8 @@ fn run_profiles(
     )?;
     ensure!(
         String::from_utf8_lossy(&version.stdout)
-            .starts_with(&format!("swift-mutation-testing {VERSION} [")),
-        "The Swift mutation tool differs from the project pin"
+            .starts_with(&format!("swift-mutation-testing {pinned} [")),
+        "The Swift mutation tool differs from the project pin {pinned}"
     );
     let directory = tempfile::Builder::new()
         .prefix("mutation-")
@@ -677,6 +722,7 @@ fn run_profiles(
         let sampler = sample_peak(
             scratch.path().to_owned(),
             sandbox.clone(),
+            fs::canonicalize(root.join("apps/ios/Package.swift"))?,
             Arc::clone(&done),
         );
         let run = logged(
@@ -709,12 +755,16 @@ fn run_profiles(
             .join()
             .map_err(|_| anyhow::anyhow!("The scratch size sampler stopped"))?;
         drop(scratch);
+        run?;
+        ensure!(
+            peak.sandbox_observed,
+            "INCONCLUSIVE: no mutation sandbox linked to the package was sampled"
+        );
         ensure!(
             peak.allocated <= SCRATCH_BUDGET_BYTES,
             "INCONCLUSIVE: the {name} profile's sampled temporary files allocated {} bytes, past the {SCRATCH_BUDGET_BYTES}-byte budget",
             peak.allocated
         );
-        run?;
         let counts = results(
             root,
             &plan,
@@ -723,7 +773,7 @@ fn run_profiles(
             &logs,
             &EQUIVALENTS,
         )?;
-        completed_profiles.push(json!({"scope":source,"target":target,"workers":workers,"plan":plan_path,"report":report_path,"plan_sha256":hash,"baseline_seconds":measured.as_secs_f64(),"hang_guard_seconds":guard,"killed":counts.killed,"crashed":counts.crashed,"compiler_rejected_declaration_renames":counts.compiler_rejected,"equivalent":counts.equivalent,"survived":0,"uncovered":0,"inconclusive_timeouts":counts.inconclusive,"resource_stopped":counts.resource_stopped,"test_file_limit":"Core test processes cap individual files at 256 MiB","scratch_scope":"Requested TMPDIR and shared Foundation Swift sandbox; other OS-managed temporary files excluded","scratch_budget_bytes":SCRATCH_BUDGET_BYTES,"scratch_peak_bytes":peak.allocated,"scratch_peak_logical_bytes":peak.logical,"scratch_measure":"Allocated bytes on macOS; logical capacity recorded separately"}));
+        completed_profiles.push(json!({"scope":source,"target":target,"workers":workers,"plan":plan_path,"report":report_path,"plan_sha256":hash,"baseline_seconds":measured.as_secs_f64(),"hang_guard_seconds":guard,"killed":counts.killed,"crashed":counts.crashed,"compiler_rejected_declaration_renames":counts.compiler_rejected,"equivalent":counts.equivalent,"survived":0,"uncovered":0,"inconclusive_timeouts":counts.inconclusive,"resource_stopped":counts.resource_stopped,"test_file_limit":"Core test processes cap individual files at 256 MiB","scratch_scope":"Requested TMPDIR and sandboxes linked to the package manifest; other projects and OS-managed files excluded","scratch_budget_bytes":SCRATCH_BUDGET_BYTES,"scratch_peak_bytes":peak.allocated,"scratch_peak_logical_bytes":peak.logical,"scratch_measure":"Allocated bytes on macOS; logical capacity recorded separately"}));
         inconclusive.extend(counts.inconclusive);
         inconclusive.extend(counts.resource_stopped);
         if !inconclusive.is_empty() {
@@ -739,7 +789,7 @@ fn run_profiles(
     fs::write(
         receipt,
         serde_json::to_vec_pretty(
-            &json!({"result":result,"tool":"swift-mutation-testing","version":VERSION,"maximum_workers":jobs,"operators":OPERATORS,"hang_guard":format!("{GUARD_FACTOR} times the unmutated test run, at least {} s, in wall-clock time because the tool has no CPU-time limit", GUARD_FLOOR.as_secs()),"profiles":completed_profiles,"source_sha256":source_records(&sources),"scope_limit":"selected source profiles; not every application or framework path","compiler_rejection":"Only source-checked renames of the required Comparable operator with the matching compiler diagnostic; never counted as killed"}),
+            &json!({"result":result,"tool":"swift-mutation-testing","version":pinned,"maximum_workers":jobs,"operators":OPERATORS,"hang_guard":format!("{GUARD_FACTOR} times the unmutated test run, at least {} s, in wall-clock time because the tool has no CPU-time limit", GUARD_FLOOR.as_secs()),"profiles":completed_profiles,"source_sha256":source_records(&sources),"scope_limit":"selected source profiles; not every application or framework path","compiler_rejection":"Only source-checked renames of the required Comparable operator with the matching compiler diagnostic; never counted as killed"}),
         )?,
     )?;
     ensure!(
@@ -759,6 +809,19 @@ fn run_profiles(
 mod tests {
     use super::*;
 
+    const VERSION: &str = "1.6.4";
+
+    fn configured_root(version: &str) -> Result<tempfile::TempDir> {
+        let root = tempfile::tempdir()?;
+        fs::write(
+            root.path().join("mise.toml"),
+            format!(
+                "[tools]\n\"github:ericodx/swift-mutation-testing\" = {{ version = \"{version}\" }}\n"
+            ),
+        )?;
+        Ok(root)
+    }
+
     #[test]
     fn focused_profiles_preserve_exact_targets_and_refuse_unknown_names() -> Result<()> {
         let profiles = [
@@ -774,22 +837,45 @@ mod tests {
     }
 
     #[test]
-    fn scratch_samples_include_the_foundation_sandbox() -> Result<()> {
+    fn scratch_samples_include_only_sandboxes_linked_to_the_package() -> Result<()> {
         let requested = tempfile::tempdir()?;
         let foundation = tempfile::tempdir()?;
+        let package = tempfile::tempdir()?;
+        let other_package = tempfile::tempdir()?;
+        let manifest = package.path().join("Package.swift");
+        let other_manifest = other_package.path().join("Package.swift");
+        fs::write(&manifest, b"")?;
+        fs::write(&other_manifest, b"")?;
+        let schema = foundation.path().join("schema");
+        let warm = foundation.path().join("warm");
+        let foreign = foundation.path().join("foreign");
+        for (directory, source) in [
+            (&schema, &manifest),
+            (&warm, &manifest),
+            (&foreign, &other_manifest),
+        ] {
+            fs::create_dir(directory)?;
+            std::os::unix::fs::symlink(source, directory.join("Package.swift"))?;
+        }
         fs::write(requested.path().join("partial"), b"12345")?;
-        fs::write(foundation.path().join("build"), b"1234567")?;
+        fs::write(schema.join("build"), b"1234567")?;
+        fs::write(warm.join("build"), b"12345678901")?;
+        fs::write(foreign.join("build"), [0; 16])?;
         let sample = sample_peak(
             requested.path().to_owned(),
             foundation.path().to_owned(),
+            fs::canonicalize(manifest)?,
             Arc::new(AtomicBool::new(true)),
         )
         .join()
         .map_err(|_| anyhow::anyhow!("The scratch sampler stopped"))?;
-        assert_eq!(sample.logical, 12);
+        assert!(sample.sandbox_observed);
+        assert_eq!(sample.logical, 23);
         assert_eq!(
             sample.allocated,
-            tree_allocated_bytes(requested.path()) + tree_allocated_bytes(foundation.path())
+            tree_allocated_bytes(requested.path())
+                + tree_allocated_bytes(&schema)
+                + tree_allocated_bytes(&warm)
         );
         Ok(())
     }
@@ -845,7 +931,7 @@ mod tests {
 
     #[test]
     fn an_equivalent_entry_explains_exactly_its_own_surviving_mutant() -> Result<()> {
-        let root = tempfile::tempdir()?;
+        let root = configured_root(VERSION)?;
         fs::create_dir_all(root.path().join("apps/ios/Sources"))?;
         let source = root.path().join("apps/ios/Sources/Example.swift");
         fs::write(&source, "  ready = true\n  done = true\n")?;
@@ -922,11 +1008,12 @@ mod tests {
 
     #[test]
     fn mutation_receipts_reject_missing_duplicate_unactivated_and_non_killed_cases() -> Result<()> {
-        let root = tempfile::tempdir()?;
+        let version = "1.7.0";
+        let root = configured_root(version)?;
         let planned = json!({"fingerprint":"one","file":"Sources/Example.swift","operator":"NegateConditional","original":"ready","replacement":"!ready","line":1,"column":1});
-        let plan = json!({"formatVersion":1,"toolVersion":VERSION,"scope":{"operators":OPERATORS,"excludePatterns":[]},"mutants":[planned]});
+        let plan = json!({"formatVersion":1,"toolVersion":version,"scope":{"operators":OPERATORS,"excludePatterns":[]},"mutants":[planned]});
         let mutant = json!({"fingerprint":"one","id":"swift-mutation-testing_0","mutatorName":"NegateConditional","originalText":"ready","replacement":"!ready","location":{"start":{"line":1,"column":1}},"status":"Killed","activated":true,"killedBy":["contract()"]});
-        let report = json!({"config":{"toolVersion":VERSION,"planSha256":"hash"},"files":{"/Sources/Example.swift":{"mutants":[mutant.clone()]}}});
+        let report = json!({"config":{"toolVersion":version,"planSha256":"hash"},"files":{"/Sources/Example.swift":{"mutants":[mutant.clone()]}}});
         let log = root.path().join("swift-mutation-testing_0.log");
         fs::write(
             &log,
@@ -939,6 +1026,12 @@ mod tests {
                 ..Counts::default()
             }
         );
+        let mut wrong_plan = plan.clone();
+        wrong_plan["toolVersion"] = json!(VERSION);
+        assert!(results(root.path(), &wrong_plan, &report, "hash", root.path(), &[]).is_err());
+        let mut wrong_report = report.clone();
+        wrong_report["config"]["toolVersion"] = json!(VERSION);
+        assert!(results(root.path(), &plan, &wrong_report, "hash", root.path(), &[]).is_err());
         let mut timed_out = report.clone();
         timed_out["files"]["/Sources/Example.swift"]["mutants"][0]["status"] = json!("Timeout");
         assert_eq!(
@@ -1007,6 +1100,10 @@ mod tests {
             invalid["files"]["/Sources/Example.swift"]["mutants"][0][field] = value;
             assert!(results(root.path(), &plan, &invalid, "hash", root.path(), &[]).is_err());
         }
+        fs::write(root.path().join("mise.toml"), "[tools]\n")?;
+        assert!(results(root.path(), &plan, &report, "hash", root.path(), &[]).is_err());
+        let empty = configured_root("")?;
+        assert!(declared_version(empty.path()).is_err());
         Ok(())
     }
 

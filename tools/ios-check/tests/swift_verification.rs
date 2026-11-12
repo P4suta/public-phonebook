@@ -158,7 +158,7 @@ fn runs_only_the_requested_functions() {
         [
             "test",
             "--package-path",
-            "ios",
+            "apps/ios",
             "--filter",
             r"^(?:PhonebookCoreTests\.alpha\(\)|PhonebookKitTests\.Suite/beta\(value:\))(?:/|$)",
         ]

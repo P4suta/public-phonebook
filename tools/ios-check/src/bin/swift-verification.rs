@@ -10,8 +10,8 @@ use std::{
 };
 
 /// The Swift package that holds the tests, relative to the repository root where the runner starts.
-const PACKAGE: &str = "ios";
-const TARGET: &str = "Swift Testing functions of the ios package on the host macOS toolchain";
+const PACKAGE: &str = "apps/ios";
+const TARGET: &str = "Swift Testing functions in apps/ios on the host macOS toolchain";
 const BOUNDS: &str = "only the requested functions, selected through swift test --filter; no app, extension, or UI test execution";
 const REGEX_SYNTAX: &str = r"\.+*?()|[]{}^$";
 

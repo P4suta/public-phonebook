@@ -75,3 +75,45 @@ private func watchReply(_ request: WatchSearchRequest, name: String) throws -> W
     #expect(state.answeredQuery == successful.query)
   }
 }
+
+@Test func watchRequestsWaitForReadinessAndSendOnce() throws {
+  let request = try WatchSearchRequest(id: UUID(), query: "library")
+  var state = WatchSearchState()
+  #expect(state.takeRequestToSend(whenReady: true) == nil)
+  state.begin(request)
+  #expect(state.takeRequestToSend(whenReady: false) == nil)
+  #expect(state.pending == request)
+  #expect(state.takeRequestToSend(whenReady: true) == request)
+  #expect(state.pending == request)
+  #expect(state.takeRequestToSend(whenReady: true) == nil)
+}
+
+@Test func onlyTheLatestWatchRequestWaitsForTheConnection() throws {
+  let earlier = try WatchSearchRequest(id: UUID(), query: "library")
+  let latest = try WatchSearchRequest(id: UUID(), query: "clinic")
+  var state = WatchSearchState()
+  state.begin(earlier)
+  state.begin(latest)
+  #expect(state.takeRequestToSend(whenReady: true) == latest)
+  #expect(state.takeRequestToSend(whenReady: true) == nil)
+  let acceptedEarlier = state.accept(try watchReply(earlier, name: "Library"))
+  #expect(!acceptedEarlier)
+  state.begin(latest)
+  #expect(state.takeRequestToSend(whenReady: true) == latest)
+}
+
+@Test func completedWatchRequestsCannotSendAfterAConnectionChange() throws {
+  let request = try WatchSearchRequest(id: UUID(), query: "library")
+  var state = WatchSearchState()
+  state.begin(request)
+  state.cancel()
+  #expect(state.takeRequestToSend(whenReady: true) == nil)
+  state.begin(request)
+  let failed = state.fail(request.id)
+  #expect(failed)
+  #expect(state.takeRequestToSend(whenReady: true) == nil)
+  state.begin(request)
+  let accepted = state.accept(try watchReply(request, name: "Library"))
+  #expect(accepted)
+  #expect(state.takeRequestToSend(whenReady: true) == nil)
+}

@@ -228,7 +228,7 @@ final class DirectoryUITests: XCTestCase {
     let summary = app.descendants(matching: .any)["contact-summary"].firstMatch
     XCTAssertTrue(summary.label.contains("公開図書館"))
     XCTAssertTrue(summary.label.contains("Test prefecture 13Test city 13"))
-    try app.performAccessibilityAudit()
+    try auditVisibleContent(in: app)
     capture(app, name: "ranked-metadata-large-text")
   }
 
@@ -239,7 +239,7 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(empty.waitForExistence(timeout: 15))
     XCTAssertEqual(empty.label, "あてはまる施設は0件です")
     reveal(app.staticTexts["別の言葉でさがしてください。"], in: app)
-    try app.performAccessibilityAudit()
+    try auditVisibleContent(in: app)
     capture(app, name: "empty-large-text")
   }
 
@@ -332,7 +332,7 @@ final class DirectoryUITests: XCTestCase {
       ).firstMatch.exists)
     XCTAssertEqual(app.buttons["caller-prompt-settings"].label, "設定を開く")
     XCTAssertTrue(app.searchFields.firstMatch.isHittable)
-    try app.performAccessibilityAudit()
+    try auditVisibleContent(in: app)
     capture(app, name: "search-caller-prompt-off")
     let state = app.descendants(matching: .any)["caller-state"]
     openSettings(in: app)
@@ -805,7 +805,7 @@ final class DirectoryUITests: XCTestCase {
     let height = try XCTUnwrap(iconHeight(in: settings, app: app))
     XCTAssertGreaterThan(height, 33, "The icon beside the label is \(height) points tall.")
     XCTAssertGreaterThanOrEqual(settings.frame.height, 44)
-    try app.performAccessibilityAudit()
+    try auditVisibleContent(in: app)
     capture(app, name: "largest-text-caller")
   }
 
@@ -843,7 +843,7 @@ final class DirectoryUITests: XCTestCase {
     openSettings(in: app)
     XCTAssertFalse(app.staticTexts["アプリのデータ"].exists)
     reveal(app.buttons["caller-settings"], in: app)
-    try app.performAccessibilityAudit()
+    try auditVisibleContent(in: app)
     capture(app, name: "landscape-large-settings")
   }
 
@@ -878,24 +878,25 @@ final class DirectoryUITests: XCTestCase {
   private func auditCommonTasks(textSize: String = "UICTContentSizeCategoryL") throws
     -> (message: CGFloat, actions: CGFloat)
   {
+    assertContrastViewport()
     let app = application(textSize: textSize)
     app.launchEnvironment["PHONEBOOK_CALLER_STATUS"] = "off"
     app.launch()
     let start = app.buttons["onboarding-start"]
     XCTAssertTrue(start.waitForExistence(timeout: 15))
-    try app.performAccessibilityAudit()
+    try auditVisibleContent(in: app)
     capture(app, name: "accessibility-onboarding")
     start.tap()
     let later = app.buttons["onboarding-later"]
     XCTAssertTrue(later.waitForExistence(timeout: 10))
-    try app.performAccessibilityAudit()
+    try auditVisibleContent(in: app)
     capture(app, name: "accessibility-caller-onboarding")
     reveal(later, in: app)
     later.tap()
     let finish = app.buttons["onboarding-finish"]
     XCTAssertTrue(finish.waitForExistence(timeout: 10))
     waitUntilSaved(finish, in: app, timeout: 60)
-    try app.performAccessibilityAudit()
+    try auditVisibleContent(in: app)
     capture(app, name: "accessibility-directory-ready")
     reveal(finish, in: app)
     finish.tap()
@@ -904,7 +905,7 @@ final class DirectoryUITests: XCTestCase {
     let caller = app.buttons["caller-settings"]
     reveal(caller, in: app)
     XCTAssertEqual(caller.label, "設定を開く")
-    try app.performAccessibilityAudit()
+    try auditVisibleContent(in: app)
     capture(app, name: "accessibility-settings")
     goBack(app)
 
@@ -913,7 +914,7 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(detail.waitForExistence(timeout: 15))
     let call = app.buttons["03-0000-0000に電話をかける"].firstMatch
     reveal(call, in: app)
-    try app.performAccessibilityAudit()
+    try auditVisibleContent(in: app)
     capture(app, name: "accessibility-name-search")
     reveal(detail, in: app, towardTop: true)
     detail.tap()
@@ -954,7 +955,9 @@ final class DirectoryUITests: XCTestCase {
 
     search("03-0000-0000", in: app)
     waitForGroup("library", "147件", in: app)
-    try app.performAccessibilityAudit()
+    reveal(call, in: app)
+    XCTAssertTrue(app.windows.firstMatch.frame.contains(call.frame))
+    try auditVisibleContent(in: app)
     capture(app, name: "accessibility-number-search")
     try auditOpenSourceInformation(in: app)
     app.terminate()
@@ -1003,9 +1006,11 @@ final class DirectoryUITests: XCTestCase {
     in app: XCUIApplication, for types: XCUIAccessibilityAuditType
   ) throws -> [XCUIAccessibilityAuditIssue] {
     var issues: [XCUIAccessibilityAuditIssue] = []
-    try app.performAccessibilityAudit(for: types) { issue in
-      issues.append(issue)
-      return true
+    try XCTContext.runActivity(named: "Audit accessibility") { _ in
+      try app.performAccessibilityAudit(for: types) { issue in
+        issues.append(issue)
+        return true
+      }
     }
     return issues
   }
@@ -1051,15 +1056,24 @@ final class DirectoryUITests: XCTestCase {
     attach("\(issue.auditType)\n\(issue.detailedDescription)", name: "accessibility-issue-details")
     if let element = issue.element {
       attach(element.debugDescription, name: "accessibility-issue-element")
+      if issue.auditType == .contrast {
+        let attachment = XCTAttachment(screenshot: element.screenshot())
+        attachment.name = "contrast-element"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+      }
     }
     XCTFail(issue.compactDescription)
   }
 
   private func auditVisibleContent(in app: XCUIApplication) throws {
-    // Query UI state after the audit returns, and fail every unhandled report.
-    for issue in try accessibilityIssues(in: app, for: .dynamicType) {
-      failAccessibilityIssue(issue)
-    }
+    let window = app.windows.firstMatch
+    let before = try window.snapshot()
+    let texts = staticTextSnapshots(in: before)
+    let bar = app.navigationBars.firstMatch
+    let top = bar.exists ? bar.frame.maxY : before.frame.minY
+    let visible = CGRect(
+      x: before.frame.minX, y: top, width: before.frame.width, height: before.frame.maxY - top)
     for issue in try accessibilityIssues(in: app, for: .all.subtracting(.dynamicType)) {
       if issue.auditType == .contrast, let element = issue.element,
         element.elementType == .staticText
@@ -1067,18 +1081,73 @@ final class DirectoryUITests: XCTestCase {
         let navigationText = app.navigationBars.staticTexts.allElementsBoundByIndex.contains {
           $0.label == element.label && $0.frame == element.frame
         }
-        let window = app.windows.firstMatch.frame
-        let top = app.navigationBars.firstMatch.frame.maxY
-        let visible = CGRect(
-          x: window.minX, y: top, width: window.width, height: window.maxY - top)
         let frame = element.frame
-        // XCTest fills the offscreen part of a clipped paragraph's image with black.
-        if !navigationText, !frame.isEmpty, !visible.contains(frame) {
+        let matching = texts.filter {
+          $0.identifier == element.identifier && $0.label == element.label
+            && sameHorizontalBounds($0.frame, frame)
+        }
+        // The audit can scroll clipped text into view before returning its report.
+        if !navigationText, framesAreClipped(matching.map(\.frame), in: visible) {
           continue
         }
+        attach(
+          "Viewport: \(visible)\nBefore: \(matching.map(\.frame))\nCandidates: \(texts.filter { $0.label == element.label }.map { "\($0.identifier): \($0.frame)" })\nReported: \(frame)",
+          name: "contrast-visibility")
       }
       failAccessibilityIssue(issue)
     }
+    for issue in try accessibilityIssues(in: app, for: .dynamicType) {
+      failAccessibilityIssue(issue)
+    }
+  }
+
+  private func staticTextSnapshots(in snapshot: any XCUIElementSnapshot)
+    -> [any XCUIElementSnapshot]
+  {
+    let descendants = snapshot.children.flatMap { staticTextSnapshots(in: $0) }
+    return (snapshot.elementType == .staticText ? [snapshot] : []) + descendants
+  }
+
+  private func framesAreClipped(_ frames: [CGRect], in viewport: CGRect) -> Bool {
+    guard !frames.isEmpty, !viewport.isEmpty, !viewport.isInfinite,
+      [viewport.minX, viewport.minY, viewport.maxX, viewport.maxY].allSatisfy(\.isFinite)
+    else { return false }
+    return frames.allSatisfy { frame in
+      !frame.isEmpty && !frame.isInfinite
+        && [frame.minX, frame.minY, frame.maxX, frame.maxY].allSatisfy(\.isFinite)
+        && !viewport.contains(frame)
+    }
+  }
+
+  private func sameHorizontalBounds(_ first: CGRect, _ second: CGRect) -> Bool {
+    // Accessibility snapshots can round the same point differently.
+    let tolerance: CGFloat = 0.001
+    return abs(first.minX - second.minX) < tolerance
+      && abs(first.maxX - second.maxX) < tolerance
+  }
+
+  private func assertContrastViewport() {
+    let viewport = CGRect(x: 0, y: 20, width: 100, height: 100)
+    let clipped = CGRect(x: 0, y: 0, width: 20, height: 30)
+    let offscreen = CGRect(x: 0, y: 200, width: 20, height: 20)
+    let visible = CGRect(x: 0, y: 20, width: 20, height: 20)
+    XCTAssertTrue(framesAreClipped([clipped, offscreen], in: viewport))
+    XCTAssertFalse(framesAreClipped([clipped, visible], in: viewport))
+    XCTAssertFalse(framesAreClipped([], in: viewport))
+    XCTAssertFalse(framesAreClipped([.zero], in: viewport))
+    XCTAssertFalse(framesAreClipped([.infinite], in: viewport))
+    XCTAssertFalse(framesAreClipped([clipped], in: .zero))
+    XCTAssertFalse(framesAreClipped([clipped], in: .infinite))
+    XCTAssertFalse(
+      framesAreClipped([CGRect(x: CGFloat.nan, y: 0, width: 20, height: 20)], in: viewport))
+    XCTAssertTrue(
+      sameHorizontalBounds(
+        visible, CGRect(x: 0, y: 200, width: CGFloat(20).nextUp, height: 30)))
+    XCTAssertFalse(sameHorizontalBounds(visible, visible.offsetBy(dx: 1, dy: 0)))
+    XCTAssertFalse(sameHorizontalBounds(visible, CGRect(x: 0, y: 20, width: 21, height: 20)))
+    XCTAssertFalse(sameHorizontalBounds(visible, .infinite))
+    XCTAssertFalse(
+      sameHorizontalBounds(visible, CGRect(x: CGFloat.nan, y: 20, width: 20, height: 20)))
   }
 
   private func confirmationCancellation(in app: XCUIApplication) -> XCUIElement {
@@ -1622,7 +1691,7 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(scroll(to: element, in: app, swipes: swipes, towardTop: towardTop))
   }
 
-  /// Scrolls until the element is hittable inside the window, and reports whether it got there.
+  /// Scrolls within the target's column until its center is hittable inside the window.
   private func scroll(
     to element: XCUIElement, in app: XCUIApplication, swipes: Int, towardTop: Bool = false
   ) -> Bool {
@@ -1636,8 +1705,11 @@ final class DirectoryUITests: XCTestCase {
       guard bottom > top else { return false }
       let viewport = CGRect(x: frame.minX, y: top, width: frame.width, height: bottom - top)
       var scrollDown = towardTop
+      var horizontal = frame.width / 2
       if element.exists {
-        let center = CGPoint(x: element.frame.midX, y: element.frame.midY)
+        let target = element.frame
+        let center = CGPoint(x: target.midX, y: target.midY)
+        horizontal = center.x - frame.minX
         if element.isHittable && viewport.contains(center) { return true }
         if center.y < top { scrollDown = true }
         if center.y > bottom { scrollDown = false }
@@ -1646,10 +1718,10 @@ final class DirectoryUITests: XCTestCase {
       let origin = window.coordinate(withNormalizedOffset: .zero)
       let start = origin.withOffset(
         CGVector(
-          dx: frame.width / 2, dy: top - frame.minY + (bottom - top) * (scrollDown ? 0.45 : 0.7)))
+          dx: horizontal, dy: top - frame.minY + (bottom - top) * (scrollDown ? 0.45 : 0.7)))
       let end = origin.withOffset(
         CGVector(
-          dx: frame.width / 2, dy: top - frame.minY + (bottom - top) * (scrollDown ? 0.7 : 0.45)))
+          dx: horizontal, dy: top - frame.minY + (bottom - top) * (scrollDown ? 0.7 : 0.45)))
       start.press(forDuration: 0.01, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
     }
     return false

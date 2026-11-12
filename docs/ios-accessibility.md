@@ -126,8 +126,15 @@ Its audit preserves the existing exception for the system dialog's Dynamic Type 
 Before and after each modal audit, the test matches the complete title and disclosure and requires both opening and cancellation actions to be reachable.
 The largest-text scenario requires the disclosure to exceed twice its default height and the native action targets to measure at least 44 points.
 App-owned screens keep every audit category enabled.
-Visible-content audits complete Dynamic Type before checking the remaining categories.
-Scrolling information screens exclude contrast findings for clipped static text because XCTest fills the offscreen part of its image with black.
+App screens share the visible-content audit.
+When a target exists, scroll gestures follow its column.
+The number-search audit scrolls the call button into view and requires its complete frame inside the window.
+Visible-content audits inspect the remaining categories before Dynamic Type changes the layout.
+The audit can scroll clipped text into view before reporting a contrast finding.
+A frozen accessibility snapshot records text positions before auditing.
+Scrolling screens exclude a contrast finding when every snapshot match by identifier, label, and horizontal bounds extends beyond the initial viewport.
+The comparison tolerates floating-point differences below 0.001 point in each horizontal edge.
+Any fully visible match, unknown match, empty frame, or invalid frame keeps the finding fatal.
 Navigation-bar titles remain in the contrast audit.
 Failure attachments identify the affected accessibility element.
 Apple's [audit guidance](https://developer.apple.com/videos/play/wwdc2023/10035/) explains why automated findings need investigation and why audits complement assistive-technology testing.
