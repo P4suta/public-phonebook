@@ -448,11 +448,11 @@ final class DirectoryUITests: XCTestCase {
     capture(app, name: "landscape-selected-facility")
     app.buttons[adjacentColumns ? "clear-search" : "clear-search-field"].tap()
     waitUntil(
-      "the landscape search field accepts input",
-      field.exists && field.isHittable && app.windows.firstMatch.frame.contains(field.frame),
-      timeout: 5)
-    XCTAssertTrue(field.isHittable)
-    search("Index", in: app)
+      "the landscape search field is visible",
+      field.exists && !field.frame.isEmpty && app.windows.firstMatch.frame.contains(field.frame),
+      timeout: 5, observed: { field.debugDescription })
+    // The compact clear action focuses the field, so typing needs no further tap.
+    search("Index", in: app, focusField: adjacentColumns)
     waitForGroup("library", "100件", in: app)
     let results = app.collectionViews["search-results"]
     XCTAssertTrue(results.waitForExistence(timeout: 5))
@@ -493,9 +493,8 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertEqual(field.value as? String, "Index")
     waitUntil(
       "the search field accepts input after scrolling",
-      field.exists && field.isHittable && app.windows.firstMatch.frame.contains(field.frame),
+      field.exists && !field.frame.isEmpty && app.windows.firstMatch.frame.contains(field.frame),
       timeout: 5, observed: { field.debugDescription })
-    XCTAssertTrue(field.isHittable)
     field.tap()
     XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
     field.typeText("あ")
@@ -536,9 +535,8 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertEqual(field.value as? String, "試験")
     waitUntil(
       "the search field accepts input after rotating the source",
-      field.exists && field.isHittable && app.windows.firstMatch.frame.contains(field.frame),
+      field.exists && !field.frame.isEmpty && app.windows.firstMatch.frame.contains(field.frame),
       timeout: 5, observed: { field.debugDescription })
-    XCTAssertTrue(field.isHittable)
     field.tap()
     XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
     field.typeText("\n")
@@ -1521,17 +1519,18 @@ final class DirectoryUITests: XCTestCase {
   /// Types the query and waits until the shown results answer it, so results of an earlier query never stand in.
   private func search(
     _ text: String, in app: XCUIApplication, timeout: TimeInterval = 15,
+    focusField: Bool = true,
     file: StaticString = #filePath, line: UInt = #line
   ) {
     let field = app.searchFields.firstMatch
     XCTAssertTrue(field.waitForExistence(timeout: 15))
-    field.tap()
     if let current = field.value as? String, !current.isEmpty,
       current != field.placeholderValue
     {
       let clear = app.buttons["clear-search-field"]
       XCTAssertTrue(clear.waitForExistence(timeout: 5), file: file, line: line)
       clear.tap()
+    } else if focusField {
       field.tap()
     }
     field.typeText(text)

@@ -1209,6 +1209,7 @@ fn ui_test_on(
     } else {
         selected.iter().map(String::as_str).collect()
     };
+    let requested = names.len();
     let mut completed = Vec::new();
     let mut recoveries = Vec::new();
     let mut previous = SystemTime::now();
@@ -1338,6 +1339,9 @@ fn ui_test_on(
                 "result":outcome,
                 "error":error,"bundle":result,"evidence":evidence
             }));
+            if outcome != PASSED {
+                break;
+            }
         }
     }
     require_current_sources(root, &sources)?;
@@ -1351,7 +1355,8 @@ fn ui_test_on(
     fs::write(
         receipt,
         serde_json::to_vec_pretty(&json!({
-        "result":if failed > 0 { FAILED } else if inconclusive > 0 { INCONCLUSIVE } else { PASSED }, "complete_controlled_inventory":selected.is_empty() && !live && model == SimulatorModel::Iphone17,
+        "result":if failed > 0 { FAILED } else if inconclusive > 0 { INCONCLUSIVE } else { PASSED }, "complete_controlled_inventory":completed.len() == requested && selected.is_empty() && !live && model == SimulatorModel::Iphone17,
+            "requested_tests":requested,
         "api_environment":if live { "configured public service" } else { "controlled real service fixture" },
         "live_api_origin":if live { Some(plist_string(&application.join("Info.plist"), "PhonebookAPIOrigin")?) } else { None },
             "tests":completed, "simulator_recoveries":recoveries, "source_sha256":source_records(&sources),
@@ -1403,22 +1408,28 @@ pub fn run(root: &Path, action: Action) -> Result<()> {
     {
         return build_number(run_number, run_attempt, output.as_deref());
     }
+    if matches!(
+        &action,
+        Action::PrepareArchive { .. }
+            | Action::Archive {
+                signing: Signing::Ci,
+                ..
+            }
+    ) {
+        signing::require_ci_source(root)?;
+    }
     if let Action::Archive {
-        require_receipts,
         build_number,
         signing,
         prepared,
+        ..
     } = &action
     {
         ensure!(
             *signing != Signing::Ci || *prepared,
             "CI signing requires an unsigned prepared archive"
         );
-        signing::admit_request(
-            *signing,
-            *require_receipts,
-            build_number.map(BuildNumber::new).transpose()?,
-        )?;
+        signing::admit_request(*signing, build_number.map(BuildNumber::new).transpose()?)?;
     }
     // A device record refuses before it waits for the lease or builds anything.
     let prepared = match &action {

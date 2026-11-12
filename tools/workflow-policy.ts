@@ -32,6 +32,7 @@ export type WorkflowRule =
   | "id-token-outside-dispatch"
   | "change-runner-not-linux"
   | "change-release-check"
+  | "ios-hosted-assurance"
   | "gate-not-always"
   | "gate-needs-incomplete"
   | "gate-script-unrecognized"
@@ -80,6 +81,8 @@ const releaseGateCommand = new RegExp(
 );
 const releaseGateWorkflow =
   /^(?:\$|\.)\/\.github\/workflows\/assurance\.ya?ml$/u;
+const hostedIosAssurance =
+  /(?:^|\n)[ \t]*(?:mise[ \t]+(?:x|exec)[ \t]+--[ \t]+)?just[ \t]+(?:check(?:-rust)?[ \t]+)*(?:assurance|ios-(?:check|sanitize|mutate|prove)|delivery-prove)(?=[ \t\r\n]|$)/u;
 
 const StepSchema = v.looseObject({
   uses: v.optional(v.string()),
@@ -177,6 +180,17 @@ function stepViolations(
               file,
               location: stepLocation,
               rule: "script-interpolation" as const,
+            },
+          ]
+        : []),
+      ...(basename(file) === "ios.yml" &&
+      step.run !== undefined &&
+      hostedIosAssurance.test(step.run)
+        ? [
+            {
+              file,
+              location: stepLocation,
+              rule: "ios-hosted-assurance" as const,
             },
           ]
         : []),

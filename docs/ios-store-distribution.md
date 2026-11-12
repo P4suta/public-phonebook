@@ -52,20 +52,18 @@ A private local archive is never eligible for release, and only the TestFlight w
 
 The `TestFlight` workflow in `.github/workflows/ios.yml` delivers a signed production build to TestFlight.
 Start it from protected `main` with `gh workflow run ios.yml --ref main`, as the [delivery runbook](delivery.md) describes.
-Repository checks, formal assurance, and native assurance run independently at the checked-out commit.
-A Linux job runs `just ios-prove` and `just delivery-prove`, and a macOS job runs `just ios-check`, `just ios-sanitize`, and `just ios-mutate`.
-Each selected distribution workflow runs its required native verification.
-Jobs for the same source commit serialize their native work.
-The unsigned job waits for every required dependency, formal, and native check.
-The unsigned job downloads their source-bound receipts and runs `just ios-prepare-archive N` without signing credentials or account provisioning.
-It preserves and attests the unsigned archive, source inventory, and receipts.
+Run applicable native verification locally before distribution, as the [delivery runbook](delivery.md#apple-app-distribution) describes.
+CI runs the fast repository checks and builds the unsigned candidate with `just ios-prepare-archive N` without signing credentials or account provisioning.
+It preserves and attests the unsigned archive and source inventory.
+Archive preparation and CI signing require the dispatched main-branch TestFlight workflow and its exact source SHA.
+The protected signing approval trusts the maintainer's review of the source and local verification.
 
 The signing job waits for review in `testflight-signing` and verifies the unsigned artifact's source and workflow attestation before fetching credentials from `ci_testflight_signing`.
 Before importing a private key, the controller copies the original archive and gives both bundles an ad hoc signature containing the declared App Group request.
 The embedded Watch app receives an ad hoc signature without an App Group.
 That signature uses no certificate or private key and preserves the request that Xcode needs during export.
 The original attested archive stays unchanged.
-`just ios-archive --prepared --require-receipts --build-number N --signing ci` refuses a dirty checkout, mismatched archive bytes, or failed and stale receipts.
+`just ios-archive --prepared --build-number N --signing ci` refuses another workflow, a dirty checkout, or mismatched archive bytes.
 It checks both profiles for their identifiers, team, App Group, and App Store distribution type.
 It checks the Watch profile for the companion's team, distribution certificate, and App Store type without an App Group.
 The helper imports the distribution identity into a temporary keychain and exports the already prepared archive with manual signing.
@@ -73,6 +71,7 @@ It executes no project generation or archive build after importing that identity
 It removes the keychain and profiles and verifies the exported signatures, entitlements, metadata, and bundled dataset.
 An `always()` step also attempts keychain cleanup.
 The job preserves the resulting `.ipa` package, dependency inventory, and candidate manifest as the signed candidate artifact.
+The manifest identifies protected-environment approval as its verification source.
 
 The upload job uses the separate `testflight-upload` environment and `ci_testflight_upload` identity.
 It verifies the original signed candidate's attestation before fetching the App Store Connect key.

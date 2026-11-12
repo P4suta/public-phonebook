@@ -311,9 +311,11 @@ Pull requests run none of these native or proof checks.
 The manual Assurance workflow runs `just ios-check` on the hosted `xcode-27` runner, and `just prove` and `just ios-prove` on Linux.
 Its `campaigns` input adds the sanitizer and mutation campaigns.
 No commit, push, or pull request starts the Assurance workflow.
-The manual TestFlight workflow runs all four campaigns for one `main` commit before it signs and uploads that commit.
+The TestFlight workflow builds, signs, and uploads a reviewed `main` commit after applicable local verification.
+Signing and upload use separate protected environment approvals.
 
 The full UI harness creates and erases its own simulator and reinstalls the app for every scenario.
+It stops after its first failed scenario and preserves the failure record with the requested inventory count.
 Each checkout gets its own simulator, named `Public Phonebook Checks` with the first eight hexadecimal digits of the SHA-256 of its path.
 The harness starts the fixture on a loopback port that the kernel reports free and passes it as `PHONEBOOK_FIXTURE_PORT` to the fixture and to the UI test runner.
 Another process on port 3100 can't stop the gate, and `node tools/native-fixture.ts --serve` alone still uses 3100.
@@ -337,7 +339,7 @@ The gate prints each failing assertion and its location, and records them in the
 The gate checks that the simulator is still booted before each scenario.
 If it isn't, the gate keeps `host.log` under `target/ios/ui-failures/simulator-before-<scenario>/`, boots the simulator once more, and records the recovery in the UI receipt.
 A second departure from the booted state fails the run.
-A failed or cancelled Native assurance job uploads `target/ios` as a seven-day artifact.
+The manual Assurance workflow uploads native failure records as seven-day artifacts.
 Never run the destructive simulator setup on a personal phone.
 Use only the read-only live case and the [device verification procedure](ios-device-verification.md) on a physical device.
 The [assurance map](ios-assurance.md) separates proven core properties from Apple and filesystem boundaries.
