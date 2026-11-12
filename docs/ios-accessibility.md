@@ -1,8 +1,11 @@
 # Accessibility evaluation
 
-Public Phonebook's Accessibility Nutrition Labels remain undeclared until device observations support every common task for a feature.
+Public Phonebook evaluates Accessibility Nutrition Labels per device and feature.
 Apple requires all common tasks to work with each declared feature and includes first launch and settings in that scope.
 The [Accessibility Nutrition Labels overview](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/overview-of-accessibility-nutrition-labels) governs the evaluation.
+Use Simulator observations and source inspection for visual properties when they cover the feature's criteria.
+The absence of a physical device doesn't exclude every feature on that platform.
+VoiceOver and Voice Control declarations require observed operation with the assistive technology on the evaluated platform.
 Captions and Audio Descriptions remain undeclared because the app provides no audio or video content.
 
 ## Common tasks
@@ -158,10 +161,29 @@ Passing automated checks don't establish completion of the device evaluation or 
 
 ## Device records
 
-The owner-reported checks cover part of the physical-device evaluation.
-The complete common-task matrix remains pending, so the observations don't establish eligibility for a store label.
+The records cover owner observations from QA and TestFlight builds and the release's Simulator checks.
 Keep one record per feature, task, and device configuration.
 Record failures and incomplete attempts alongside passing observations.
+
+### Distribution checks on 2026-11-12
+
+The owner installed TestFlight version 1.1.0, build 2001, on iPhone Air.
+The [protected delivery](https://github.com/P4suta/public-phonebook/actions/runs/43196789927) used source `872803dec2366a842dd34fe2722038568e328eca`.
+With VoiceOver alone, the owner completed first launch, name and number search, query clearing, facility details, call cancellation, maps, sources, and settings.
+With Voice Control alone, the owner completed the same tasks and checked Show names and Show numbers.
+The owner reported successful operation for every requested task.
+
+The owner also checked the largest text size, Dark Mode, Grayscale, Increase Contrast, Reduce Transparency, and Reduce Motion through first launch, search, details, sources, and settings.
+The owner reported readable content, operable controls, and no bright flashes or uncomfortable motion.
+Larger Text still needs evaluation at every supported font size.
+Sufficient Contrast still needs measured ratios and the Bold Text combinations in the [contrast criteria](#contrast).
+
+The iPad visual evaluation uses the shared adaptive black-and-white palette, the successful iPhone Dark Mode common-task audit, and the successful iPad layout and common-task audits.
+The paired Watch Simulator checks cover search, facility details, source information, About, and external-link confirmation.
+Watch uses standard dark lists and textual progress and recovery messages.
+Source inspection confirms that both platforms convey information through text and shapes without depending on color.
+Dark Interface and Differentiate Without Color Alone qualify for iPad and Apple Watch.
+VoiceOver on iPad and Apple Watch and Voice Control on iPad still need direct operation checks.
 
 ### Owner observations on 2026-11-08
 
@@ -180,8 +202,8 @@ The owner enabled the QA extension and confirmed incoming labels before and afte
 A private incoming-call screenshot identifies Public Phonebook QA as the provider.
 Keep the screenshot and device archives private because they contain personal device information.
 
-First launch, interrupted preparation, empty and expanded results, complete-number search, long names, two telephone numbers, and the complete information-screen flow still need feature-specific observations.
-The store declaration remains at the post-release stage specified by issue #284.
+The November 8 observations left first launch, interrupted preparation, empty and expanded results, complete-number search, long names, two telephone numbers, and the complete information-screen flow pending.
+The November 12 distribution checks record the owner's TestFlight observations.
 Record the date, tester, iPhone model, iOS version and build, and app version and build.
 Include the source revision, artifact digest, directory snapshot, language, orientation, and feature settings.
 Describe the exact task, observed behavior, and evidence location.
@@ -194,8 +216,15 @@ Use the [device verification procedure](ios-device-verification.md) for installa
 
 ## Store declaration
 
-After every common task passes for a feature, the owner can select that feature for iPhone in App Store Connect's App Accessibility section.
+After every common task passes for a feature, select that feature for the evaluated device in App Store Connect's App Accessibility section.
 Record the exact supported features, reviewed device records, app version and build, date, and the saved or published store state here.
 Keep Captions and Audio Descriptions unselected while the app has no audio or video content.
 Apple saves responses as a draft and permits publication only for devices with a live App Store version, as described in [Manage Accessibility Nutrition Labels](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/manage-accessibility-nutrition-labels).
-The store declaration and publication remain pending.
+On 2026-11-12, the owner confirmed publication of VoiceOver, Voice Control, Dark Interface, Differentiate Without Color Alone, and Reduced Motion for iPhone.
+The owner also confirmed publication of Dark Interface and Differentiate Without Color Alone for iPad and Apple Watch.
+Larger Text and Sufficient Contrast await the font-size and contrast evaluations.
+
+The submitted iOS app supports iPhone and iPad and embeds the Watch app.
+The owner enabled Apple Vision Pro availability on 2026-11-12 for the compatible iPad app, following [Apple's availability settings](https://developer.apple.com/help/app-store-connect/manage-your-apps-availability/manage-availability-of-iphone-and-ipad-apps-on-apple-vision-pro).
+The project has no dedicated visionOS target.
+Apple shows the iPhone or iPad accessibility responses for compatible apps on Vision Pro, so that distribution needs no separate Vision Pro responses.
