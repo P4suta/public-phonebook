@@ -127,6 +127,7 @@ Before and after each modal audit, the test matches the complete title and discl
 The largest-text scenario requires the disclosure to exceed twice its default height and the native action targets to measure at least 44 points.
 App-owned screens keep every audit category enabled.
 App screens share the visible-content audit.
+When a target exists, scroll gestures follow its column.
 The number-search audit scrolls the call button into view and requires its complete frame inside the window.
 Visible-content audits inspect the remaining categories before Dynamic Type changes the layout.
 The audit can scroll clipped text into view before reporting a contrast finding.

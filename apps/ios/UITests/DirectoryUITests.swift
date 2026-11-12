@@ -1676,7 +1676,7 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(scroll(to: element, in: app, swipes: swipes, towardTop: towardTop))
   }
 
-  /// Scrolls until the element is hittable inside the window, and reports whether it got there.
+  /// Scrolls within the target's column until its center is hittable inside the window.
   private func scroll(
     to element: XCUIElement, in app: XCUIApplication, swipes: Int, towardTop: Bool = false
   ) -> Bool {
@@ -1690,8 +1690,11 @@ final class DirectoryUITests: XCTestCase {
       guard bottom > top else { return false }
       let viewport = CGRect(x: frame.minX, y: top, width: frame.width, height: bottom - top)
       var scrollDown = towardTop
+      var horizontal = frame.width / 2
       if element.exists {
-        let center = CGPoint(x: element.frame.midX, y: element.frame.midY)
+        let target = element.frame
+        let center = CGPoint(x: target.midX, y: target.midY)
+        horizontal = center.x - frame.minX
         if element.isHittable && viewport.contains(center) { return true }
         if center.y < top { scrollDown = true }
         if center.y > bottom { scrollDown = false }
@@ -1700,10 +1703,10 @@ final class DirectoryUITests: XCTestCase {
       let origin = window.coordinate(withNormalizedOffset: .zero)
       let start = origin.withOffset(
         CGVector(
-          dx: frame.width / 2, dy: top - frame.minY + (bottom - top) * (scrollDown ? 0.45 : 0.7)))
+          dx: horizontal, dy: top - frame.minY + (bottom - top) * (scrollDown ? 0.45 : 0.7)))
       let end = origin.withOffset(
         CGVector(
-          dx: frame.width / 2, dy: top - frame.minY + (bottom - top) * (scrollDown ? 0.7 : 0.45)))
+          dx: horizontal, dy: top - frame.minY + (bottom - top) * (scrollDown ? 0.7 : 0.45)))
       start.press(forDuration: 0.01, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
     }
     return false
