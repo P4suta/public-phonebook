@@ -87,6 +87,12 @@ Preserve them in the authorized owner archive before they expire.
 A missing original artifact or attempt record stops reconciliation rather than authorizing a replacement upload.
 The [delivery decision](adr/select-delivery-operations-independently-from-required-checks.md) records the changed retry contract and the counter's allocation assumptions.
 
+On 2026-11-12, [run 43196789927](https://github.com/P4suta/public-phonebook/actions/runs/43196789927) delivered 1.1.0, build 2001, from `872803dec2366a842dd34fe2722038568e328eca`.
+Unsigned and signed artifact attestations passed verification for that source and workflow.
+Apple reported the build as `VALID`.
+The owner installed the TestFlight update and confirmed saved data, search, details, sources, settings, portrait and landscape, and the back gesture.
+The owner archive preserves the original packages, attestations, upload state, and local native verification output.
+
 ## Submit an app update
 
 Prepare an iOS version proposal through the version workflow, verify its checks, and merge the proposal before preparing the store candidate.
@@ -107,7 +113,12 @@ Repeat VoiceOver, Voice Control, and large-text checks when affected screens or 
 [Apple's release testing guidance](https://developer.apple.com/documentation/xcode/testing-a-release-build) explains why a development-signed QA build doesn't establish the distributed build's behavior.
 
 Use the authenticated App Store Connect session in the owner's selected browser.
+Before adding the version for review, check the Header and Search Results tab and the screenshots for every supported device family.
+For 1.1.0, reuse the approved `product-page-header-ja-opaque.png` and `search-results-ja-opaque.png` from Asset Library, following [Apple's asset procedure](https://developer.apple.com/help/app-store-connect/manage-app-information/manage-your-app-store-assets).
+Verify that both creative placements show one asset, then save the version.
 Save the draft, verify the selected version and build, and submit the update for App Review only after the distributed build check passes.
+The [Ready for Review state](https://developer.apple.com/help/app-store-connect/reference/app-information/app-and-submission-statuses) still requires submission from the draft.
+Confirm Waiting for Review on App Review after submitting.
 An upload or review submission doesn't establish App Store availability.
 
 ### Doppler values
