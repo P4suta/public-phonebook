@@ -6,7 +6,8 @@ date: 2026-11-12
 
 ## Status
 
-Proposed.
+Accepted.
+The owner selected local assurance and protected CI distribution.
 
 ## Context
 
@@ -35,5 +36,6 @@ Reconsider when releases require independent hosted verification.
 
 ## Confirmation
 
-Reject local distribution, dirty sources, another workflow, and changed artifacts.
-Verify the workflow's approval and credential boundaries and complete a TestFlight delivery.
+Source and artifact checks reject local distribution, dirty sources, another workflow, and changed artifacts.
+[Run 43196789927](https://github.com/P4suta/public-phonebook/actions/runs/43196789927) completed the protected build, signing, and upload jobs for 1.1.0, build 2001.
+The build reached `VALID`, and the owner installed the TestFlight update and confirmed the main tasks on iPhone.
