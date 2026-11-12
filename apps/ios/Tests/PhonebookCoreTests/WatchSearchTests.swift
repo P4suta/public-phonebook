@@ -106,3 +106,88 @@ import Testing
     }
   }
 }
+
+@Test func watchRequestsAcceptExactQueryAndWireBounds() throws {
+  let id = UUID()
+  let query = String(repeating: "a", count: SearchInput.maximumQueryBytes)
+  let request = try WatchSearchRequest(id: id, query: query)
+  #expect(request.query.utf8.count == SearchInput.maximumQueryBytes)
+  #expect(throws: WatchSearchError.self) { try WatchSearchRequest(id: id, query: query + "a") }
+  let words = Array(repeating: "a", count: SearchInput.maximumQueryWords).joined(separator: " ")
+  _ = try WatchSearchRequest(id: id, query: words)
+  #expect(throws: WatchSearchError.self) { try WatchSearchRequest(id: id, query: words + " a") }
+  var data = try request.encoded()
+  data.append(Data(repeating: 32, count: 4096 - data.count))
+  #expect(try WatchSearchRequest.decode(data) == request)
+  data.append(32)
+  #expect(throws: WatchSearchError.invalidRequest) { try WatchSearchRequest.decode(data) }
+}
+
+@Test func watchFacilitiesAcceptClosedMetadataAndTelephoneBounds() throws {
+  let text = String(repeating: "a", count: 4096)
+  let license = String(repeating: "a", count: 8192)
+  let prefix = "https://example.com/"
+  let url = prefix + String(repeating: "a", count: 8192 - prefix.utf8.count)
+  let numbers = (0..<32).map { "+" + String(81_300_000_000 + $0) }
+  _ = try WatchFacility(
+    id: 1, name: text, region: text, numbers: numbers, publisher: text, sourceURL: url,
+    license: license, licenseURL: url)
+  #expect(throws: WatchSearchError.self) {
+    try WatchFacility(
+      id: 0, name: "a", region: "", numbers: numbers, publisher: "a", sourceURL: nil, license: "a")
+  }
+  #expect(throws: WatchSearchError.self) {
+    try WatchFacility(
+      id: 1, name: "a", region: "", numbers: numbers + ["+81300000032"], publisher: "a",
+      sourceURL: nil, license: "a")
+  }
+  for (name, region, publisher) in [
+    (text + "a", "", "a"), ("a", text + "a", "a"), ("a", "", text + "a"),
+  ] {
+    #expect(throws: WatchSearchError.self) {
+      try WatchFacility(
+        id: 1, name: name, region: region, numbers: ["+81300000000"], publisher: publisher,
+        sourceURL: nil, license: "a")
+    }
+  }
+}
+
+@Test func watchRepliesAcceptExactCountsEmptyStatesAndWireBounds() throws {
+  let id = UUID()
+  let facilities = try (1...WatchSearchReply.maximumResults).map {
+    try WatchFacility(
+      id: Int64($0), name: "a", region: "", numbers: ["+81300000000"], publisher: "a",
+      sourceURL: nil, license: "a")
+  }
+  let reply = try WatchSearchReply(
+    requestID: id, state: .ready, results: facilities, total: Int(Int32.max))
+  #expect(reply.results.count == WatchSearchReply.maximumResults)
+  #expect(throws: WatchSearchError.self) {
+    try WatchSearchReply(
+      requestID: id, state: .ready, results: facilities, total: Int(Int32.max) + 1)
+  }
+  for state in [WatchSearchReply.State.ready, .needsPreparation, .unavailable] {
+    _ = try WatchSearchReply(requestID: id, state: state, results: [], total: 0)
+    #expect(throws: WatchSearchError.self) {
+      try WatchSearchReply(requestID: id, state: state, results: [], total: 1)
+    }
+  }
+  var data = try reply.encoded()
+  data.append(Data(repeating: 32, count: 65_536 - data.count))
+  #expect(try WatchSearchReply.decode(data) == reply)
+  data.append(32)
+  #expect(throws: WatchSearchError.invalidReply) { try WatchSearchReply.decode(data) }
+}
+
+@Test func watchRepliesRejectContentAboveTheEncodedMessageLimit() throws {
+  let facilities = try (1...WatchSearchReply.maximumResults).map {
+    try WatchFacility(
+      id: Int64($0), name: String(repeating: "a", count: 4096), region: "",
+      numbers: ["+81300000000"], publisher: "a", sourceURL: nil,
+      license: String(repeating: "a", count: 8192))
+  }
+  #expect(throws: WatchSearchError.invalidReply) {
+    try WatchSearchReply(
+      requestID: UUID(), state: .ready, results: facilities, total: facilities.count)
+  }
+}

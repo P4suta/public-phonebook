@@ -14,56 +14,35 @@ enum SearchRoute: Hashable {
 struct SearchScreen: View {
   @Bindable var model: DirectoryModel
   @Bindable var integration: IntegrationModel
-  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-  @Environment(\.verticalSizeClass) private var verticalSizeClass
   private let minimumColumnWidth: CGFloat = 320
   private let idealColumnWidth: CGFloat = 420
   @State private var path: [SearchRoute] = []
-  @State private var layout = Layout.stack
-  @State private var columnVisibility = NavigationSplitViewVisibility.all
+  @State private var compactColumn = NavigationSplitViewColumn.sidebar
   @State private var announced: [String] = []
   @FocusState private var searchIsFocused: Bool
   #if PHONEBOOK_VERIFICATION_TOOLS
     @State private var verification = VerificationNumberModel()
   #endif
 
-  private enum Layout: Equatable {
-    case stack, columns, split
-  }
-
   var body: some View {
     GeometryReader { geometry in
-      Group {
-        switch layout {
-        case .split:
-          NavigationSplitView(columnVisibility: $columnVisibility) {
-            searchContent
-              .navigationSplitViewColumnWidth(
-                min: minimumColumnWidth, ideal: idealColumnWidth, max: idealColumnWidth)
-          } detail: {
-            detailStack(for: .split)
-              .navigationSplitViewColumnWidth(
-                min: minimumColumnWidth, ideal: idealColumnWidth)
-          }
-          .navigationSplitViewStyle(.balanced)
-        case .columns:
-          HStack(spacing: 0) {
-            NavigationStack { searchContent }
-              .frame(
-                width: max(minimumColumnWidth, min(idealColumnWidth, geometry.size.width * 0.44)))
-            Rectangle().fill(.ink).frame(width: 1)
-            detailStack(for: .columns)
-          }
-        case .stack:
-          NavigationStack(path: searchPath) {
-            searchContent
-              .navigationDestination(for: SearchRoute.self, destination: detailDestination)
-          }
-        }
+      NavigationSplitView(
+        columnVisibility: .constant(.all), preferredCompactColumn: $compactColumn
+      ) {
+        searchContent
+          .toolbar(removing: .sidebarToggle)
+          .navigationSplitViewColumnWidth(
+            min: minimumColumnWidth, ideal: idealColumnWidth, max: idealColumnWidth)
+      } detail: {
+        detailStack
+          .navigationSplitViewColumnWidth(
+            min: minimumColumnWidth, ideal: idealColumnWidth)
       }
-      .onChange(of: fittingLayout(width: geometry.size.width), initial: true) { _, fitting in
-        layout = fitting
-      }
+      .navigationSplitViewStyle(.balanced)
+      .environment(
+        \.horizontalSizeClass,
+        geometry.size.width >= minimumColumnWidth * 2 + 1 ? .regular : .compact
+      )
     }
     .tint(.ink)
     .onChange(of: model.query) {
@@ -78,25 +57,10 @@ struct SearchScreen: View {
         case .contact = path.first
       {
         path = []
+        compactColumn = .sidebar
       }
     }
     .task(id: announcement) { await announce() }
-  }
-
-  private func fittingLayout(width: CGFloat) -> Layout {
-    if horizontalSizeClass == .regular && verticalSizeClass == .regular { return .split }
-    return width >= minimumColumnWidth * 2 + 1 ? .columns : .stack
-  }
-
-  private var searchPath: Binding<[SearchRoute]> {
-    Binding(
-      get: { layout == .stack ? path : [] },
-      set: { routes in
-        if layout == .stack {
-          path = routes
-        }
-      }
-    )
   }
 
   private var searchContent: some View {
@@ -126,8 +90,8 @@ struct SearchScreen: View {
     .toolbarBackgroundVisibility(.visible, for: .navigationBar)
   }
 
-  private func detailStack(for container: Layout) -> some View {
-    NavigationStack(path: nestedPath(for: container)) {
+  private var detailStack: some View {
+    NavigationStack(path: nestedPath) {
       Group {
         if let selected = path.first {
           detailDestination(selected)
@@ -140,13 +104,11 @@ struct SearchScreen: View {
     }
   }
 
-  private func nestedPath(for container: Layout) -> Binding<[SearchRoute]> {
+  private var nestedPath: Binding<[SearchRoute]> {
     Binding(
-      get: { layout == container ? Array(path.dropFirst()) : [] },
+      get: { Array(path.dropFirst()) },
       set: { remaining in
-        if layout == container {
-          path = path.first.map { [$0] + remaining } ?? []
-        }
+        path = path.first.map { [$0] + remaining } ?? []
       }
     )
   }
@@ -236,12 +198,13 @@ struct SearchScreen: View {
   private func select(_ route: SearchRoute) {
     searchIsFocused = false
     path = [route]
+    compactColumn = .detail
   }
 
   private func clearSearch() {
     searchIsFocused = false
-    columnVisibility = .all
     path = []
+    compactColumn = .sidebar
     model.query = ""
   }
 

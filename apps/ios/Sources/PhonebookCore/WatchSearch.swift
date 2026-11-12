@@ -4,6 +4,13 @@ public enum WatchSearchError: Error, Equatable, Sendable {
   case invalidRequest, invalidReply, invalidFacility
 }
 
+private func watchMessageData(
+  _ data: Data, maximumBytes: Int, failure: WatchSearchError
+) throws -> Data {
+  guard data.count <= maximumBytes else { throw failure }
+  return data
+}
+
 public struct WatchSearchRequest: Equatable, Sendable {
   public let id: UUID
   public let query: String
@@ -24,13 +31,13 @@ public struct WatchSearchRequest: Equatable, Sendable {
   }
 
   public func encoded() throws -> Data {
-    let data = try JSONEncoder().encode(Wire(version: 1, id: id, query: query))
-    guard data.count <= 4096 else { throw WatchSearchError.invalidRequest }
-    return data
+    return try watchMessageData(
+      JSONEncoder().encode(Wire(version: 1, id: id, query: query)),
+      maximumBytes: 4096, failure: .invalidRequest)
   }
 
   public static func decode(_ data: Data) throws -> Self {
-    guard data.count <= 4096 else { throw WatchSearchError.invalidRequest }
+    let data = try watchMessageData(data, maximumBytes: 4096, failure: .invalidRequest)
     do {
       let wire = try JSONDecoder().decode(Wire.self, from: data)
       guard wire.version == 1 else { throw WatchSearchError.invalidRequest }
@@ -128,14 +135,14 @@ public struct WatchSearchReply: Equatable, Sendable {
   }
 
   public func encoded() throws -> Data {
-    let data = try JSONEncoder().encode(
-      Wire(version: 1, requestID: requestID, state: state, results: results, total: total))
-    guard data.count <= 65_536 else { throw WatchSearchError.invalidReply }
-    return data
+    return try watchMessageData(
+      JSONEncoder().encode(
+        Wire(version: 1, requestID: requestID, state: state, results: results, total: total)),
+      maximumBytes: 65_536, failure: .invalidReply)
   }
 
   public static func decode(_ data: Data) throws -> Self {
-    guard data.count <= 65_536 else { throw WatchSearchError.invalidReply }
+    let data = try watchMessageData(data, maximumBytes: 65_536, failure: .invalidReply)
     do {
       let wire = try JSONDecoder().decode(Wire.self, from: data)
       guard wire.version == 1 else { throw WatchSearchError.invalidReply }
