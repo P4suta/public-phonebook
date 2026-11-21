@@ -229,7 +229,10 @@ final class DirectoryUITests: XCTestCase {
   }
 
   func testContactDetailShowsRegionSourceAndExternalLinkConfirmation() throws {
-    let app = prepared()
+    let app = application()
+    app.launchArguments.append("--verify-unavailable-map")
+    app.launch()
+    onboard(app)
     search("試験", in: app)
     waitForGroup("dental", "1件", in: app)
     let name = "試験歯科 <script> & Test, clinic"
@@ -263,6 +266,17 @@ final class DirectoryUITests: XCTestCase {
     confirmationCancellation(in: app).tap()
     XCTAssertTrue(alert.waitForNonExistence(timeout: 5))
     XCTAssertEqual(app.state, .runningForeground)
+    map.tap()
+    alert.buttons["開く"].tap()
+    let failure = app.descendants(matching: .any)["map-error"].firstMatch
+    XCTAssertTrue(failure.waitForExistence(timeout: 5))
+    XCTAssertTrue(failure.label.contains("場所を見つけられませんでした"))
+    XCTAssertTrue(failure.label.contains("もう一度試してください"))
+    reveal(map, in: app)
+    map.tap()
+    XCTAssertTrue(alert.waitForExistence(timeout: 5))
+    confirmationCancellation(in: app).tap()
+    XCTAssertTrue(alert.waitForNonExistence(timeout: 5))
     let source = app.buttons["source-link"]
     reveal(source, in: app)
     let requests = try proxy().requests.count
@@ -497,6 +511,26 @@ final class DirectoryUITests: XCTestCase {
     let results = app.collectionViews["search-results"]
     XCTAssertTrue(results.waitForExistence(timeout: 5))
     let names = results.buttons.matching(identifier: "contact-detail")
+    if adjacentColumns {
+      let second = names.element(boundBy: 1)
+      let secondName = try XCTUnwrap(second.label.components(separatedBy: "、").first)
+      names.element(boundBy: 0).tap()
+      let source = app.buttons["source-link"]
+      reveal(source, in: app, within: app.collectionViews["contact-content"])
+      source.tap()
+      XCTAssertTrue(app.navigationBars["電話番号のもとの情報"].waitForExistence(timeout: 5))
+      let cell = results.cells.containing(
+        NSPredicate(format: "identifier == %@ AND label == %@", "contact-detail", second.label)
+      ).firstMatch
+      XCTAssertTrue(cell.exists)
+      let leadingInset = second.frame.minX - cell.frame.minX
+      XCTAssertGreaterThan(leadingInset, 4)
+      cell.coordinate(withNormalizedOffset: .zero)
+        .withOffset(CGVector(dx: leadingInset - 4, dy: cell.frame.height / 2)).tap()
+      XCTAssertTrue(
+        app.collectionViews["contact-content"].staticTexts[secondName].waitForExistence(timeout: 5))
+      XCTAssertEqual(field.value as? String, "Index")
+    }
     let more = results.buttons["more-library"]
     for _ in 0..<8 where !more.isHittable { results.swipeUp() }
     XCTAssertTrue(more.isHittable)
@@ -741,7 +775,9 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(files.first?.contains("/directory-delta-") == true, updated.log)
     finish.tap()
     search("Updated public directory record", in: app)
-    XCTAssertTrue(app.staticTexts["Updated public directory record"].waitForExistence(timeout: 10))
+    let result = app.buttons.matching(identifier: "contact-detail").matching(
+      NSPredicate(format: "label CONTAINS %@", "Updated public directory record"))
+    XCTAssertTrue(result.firstMatch.waitForExistence(timeout: 10))
   }
 
   /// A bundle that the listing names shows the no-transfer notice, plain on a costly path, and prepares its data with the receive step done.
@@ -919,45 +955,16 @@ final class DirectoryUITests: XCTestCase {
     try checkRenderedText("設定を開く", in: caller)
     openSettings(in: app)
     var sizes: [String: CGSize] = [:]
+    let traits = UITraitCollection(preferredContentSizeCategory: category)
     func measure(_ identifier: String, below title: String, last: String) throws {
-      let list = app.collectionViews[identifier].firstMatch
-      XCTAssertTrue(list.waitForExistence(timeout: 10), identifier)
-      let traits = UITraitCollection(preferredContentSizeCategory: category)
-      let toolbar = listTextSnapshots(in: try app.navigationBars[title].snapshot()).map(\.frame)
-      for _ in 0..<32 {
-        let snapshot = try list.snapshot()
-        let window = app.windows.firstMatch.frame
-        let rect = snapshot.frame.intersection(window)
-        let row = snapshot.children.first { $0.elementType == .cell }?.frame ?? rect
-        let chrome = toolbar.filter { $0.minX < row.maxX && row.minX < $0.maxX }
-        let top = max(rect.minY, chrome.map(\.maxY).max() ?? rect.minY)
-        let viewport = CGRect(x: rect.minX, y: top, width: rect.width, height: rect.maxY - top)
-        let texts = listTextSnapshots(in: snapshot)
-        let visible = texts.filter {
-          !$0.label.isEmpty && !$0.frame.isEmpty && $0.frame.minY >= viewport.minY - 1
-            && $0.frame.maxY <= viewport.maxY + 1
-        }
-        for text in visible {
-          let frame = text.frame
-          let style = listTextStyle(text.label, in: identifier)
-          let font = UIFont.preferredFont(forTextStyle: style, compatibleWith: traits)
-          let measured = (text.label as NSString).boundingRect(
-            with: CGSize(width: row.width, height: .greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin], attributes: [.font: font], context: nil)
-          XCTAssertGreaterThanOrEqual(frame.height + 2, measured.height, text.label)
-          sizes[identifier + "/" + text.label] = frame.size
-        }
-        if visible.contains(where: { $0.label == last }) { return }
-        let origin = app.windows.firstMatch.coordinate(withNormalizedOffset: .zero)
-        let step = viewport.height * 0.2
-        let start = origin.withOffset(
-          CGVector(dx: viewport.midX, dy: viewport.midY + step / 2))
-        let end = origin.withOffset(
-          CGVector(dx: viewport.midX, dy: viewport.midY - step / 2))
-        start.press(
-          forDuration: 0.01, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
+      if identifier == "integration-content" || identifier == "source-content" {
+        try verifyToolbarText(title, in: app)
       }
-      XCTFail("\(last) never became fully visible in \(identifier).")
+      for (label, size) in try measureList(
+        identifier, below: title, through: last, in: app, traits: traits)
+      {
+        sizes[identifier + "/" + label] = size
+      }
     }
     try measure("integration-content", below: "設定", last: "QA用の確認")
     goBack(app)
@@ -966,12 +973,78 @@ final class DirectoryUITests: XCTestCase {
     try measure("contact-content", below: "施設の情報", last: "もとの情報を見る")
     app.buttons["source-link"].tap()
     try measure("source-content", below: "電話番号のもとの情報", last: "もとの資料を開く")
+    if category == .large {
+      let title = "電話番号のもとの情報"
+      let heading = app.navigationBars[title].staticTexts[title].firstMatch
+      let label = heading.exists ? heading : app.buttons["もとの資料を開く"]
+      let expected = compactText(label.label)
+      XCTAssertFalse(expected.isEmpty)
+      let image = try XCTUnwrap(label.screenshot().image.cgImage)
+      let lines = try recognizedText(in: image, languages: ["ja-JP", "en-US"])
+      let line = try XCTUnwrap(
+        lines.first { $0.topCandidates(1).contains { compactText($0.string).contains(expected) } })
+      let box = line.boundingBox
+      let crop = CGRect(
+        x: box.minX * CGFloat(image.width), y: (1 - box.maxY) * CGFloat(image.height),
+        width: box.width * CGFloat(image.width) / 2, height: box.height * CGFloat(image.height))
+      let cropped = try XCTUnwrap(image.cropping(to: crop))
+      XCTAssertFalse(try renderedText(in: cropped).contains(expected))
+    }
     for key in [
       "integration-content/設定を開く", "integration-content/ライセンス",
       "contact-content/地図で見る", "contact-content/データの日付：2026年10月1日",
       "source-content/使うときの決まり：Creative Commons CC0 1.0 Universal",
     ] { XCTAssertNotNil(sizes[key], key) }
     app.terminate()
+    return sizes
+  }
+
+  private func measureList(
+    _ identifier: String, below title: String, through last: String, in app: XCUIApplication,
+    traits: UITraitCollection
+  ) throws -> [String: CGSize] {
+    let list = app.collectionViews[identifier].firstMatch
+    XCTAssertTrue(list.waitForExistence(timeout: 10), identifier)
+    var sizes: [String: CGSize] = [:]
+    var labels = Set<String>()
+    let toolbar = listTextSnapshots(in: try app.navigationBars[title].snapshot()).map(\.frame)
+    for _ in 0..<32 {
+      let snapshot = try list.snapshot()
+      let window = app.windows.firstMatch.frame
+      let rect = snapshot.frame.intersection(window)
+      let row = snapshot.children.first { $0.elementType == .cell }?.frame ?? rect
+      let chrome = toolbar.filter { $0.minX < row.maxX && row.minX < $0.maxX }
+      let top = max(rect.minY, chrome.map(\.maxY).max() ?? rect.minY)
+      let viewport = CGRect(x: rect.minX, y: top, width: rect.width, height: rect.maxY - top)
+      let texts = listTextSnapshots(in: snapshot)
+      labels.formUnion(texts.map(\.label).filter { !$0.isEmpty })
+      let visible = texts.filter {
+        !$0.label.isEmpty && !$0.frame.isEmpty && $0.frame.minY >= viewport.minY - 1
+          && $0.frame.maxY <= viewport.maxY + 1
+      }
+      for text in visible {
+        let frame = text.frame
+        XCTAssertTrue(
+          try listLabelFits(text, in: list, traits: traits, window: app.windows.firstMatch),
+          "\(text.label) in \(frame)")
+        sizes[text.label] = frame.size
+      }
+      if visible.contains(where: { $0.label == last }) {
+        XCTAssertTrue(
+          labels.isSubset(of: Set(sizes.keys)),
+          "Unmeasured text in \(identifier): \(labels.subtracting(sizes.keys))")
+        return sizes
+      }
+      let origin = app.windows.firstMatch.coordinate(withNormalizedOffset: .zero)
+      let step = viewport.height * 0.2
+      let start = origin.withOffset(
+        CGVector(dx: viewport.midX, dy: viewport.midY + step / 2))
+      let end = origin.withOffset(
+        CGVector(dx: viewport.midX, dy: viewport.midY - step / 2))
+      start.press(
+        forDuration: 0.01, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
+    }
+    XCTFail("\(last) never became fully visible in \(identifier).")
     return sizes
   }
 
@@ -1100,6 +1173,7 @@ final class DirectoryUITests: XCTestCase {
     let fullHeight = about.frame.maxY >= app.windows.firstMatch.frame.maxY - 1
     func audit(around target: XCUIElement) throws {
       try auditVisibleContent(in: app, floatingSheet: fullHeight ? nil : (about, target))
+      reveal(target, in: app, within: about, swipes: 32)
     }
     let free = app.staticTexts["無料で使えます"]
     reveal(free, in: app, within: about)
@@ -1232,10 +1306,20 @@ final class DirectoryUITests: XCTestCase {
 
   private func checkRenderedText(_ expected: String, in element: XCUIElement) throws {
     let image = try XCTUnwrap(element.screenshot().image.cgImage)
-    let rendered = try recognizedText(in: image).compactMap { $0.topCandidates(1).first?.string }
-      .joined().filter { !$0.isWhitespace }
+    let rendered = try renderedText(in: image)
     XCTAssertTrue(
-      rendered.contains(expected), "Expected “\(expected)” in the image, read “\(rendered)”.")
+      rendered.contains(compactText(expected)),
+      "Expected “\(expected)” in the image, read “\(rendered)”.")
+  }
+
+  private func compactText(_ value: String) -> String {
+    value.precomposedStringWithCompatibilityMapping.filter { !$0.isWhitespace }
+  }
+
+  private func renderedText(in image: CGImage) throws -> String {
+    compactText(
+      try recognizedText(in: image, languages: ["ja-JP", "en-US"])
+        .compactMap { $0.topCandidates(1).first?.string }.joined())
   }
 
   private func recognizedText(in image: CGImage, languages: [String] = ["ja-JP"]) throws
@@ -1315,11 +1399,17 @@ final class DirectoryUITests: XCTestCase {
     let system = ProcessInfo.processInfo.operatingSystemVersion
     let list = try measuredList.map { try app.collectionViews[$0].firstMatch.snapshot() }
     let nativeList = system.majorVersion == 27 && system.minorVersion == 2 ? list : nil
+    let category: UIContentSizeCategory =
+      app.launchArguments.contains("UICTContentSizeCategoryAccessibilityXXXL")
+      ? .accessibilityExtraExtraExtraLarge : .large
+    let traits = UITraitCollection(preferredContentSizeCategory: category)
     let bar = app.navigationBars.firstMatch
     let top = bar.exists ? bar.frame.maxY : before.frame.minY
     let visible = CGRect(
       x: before.frame.minX, y: top, width: before.frame.width, height: before.frame.maxY - top)
-    let texts = staticTextSnapshots(in: before, viewport: visible)
+    let actions = app.descendants(matching: .any)["onboarding-actions"].firstMatch
+    let footer = actions.exists ? actions.frame : nil
+    let texts = staticTextSnapshots(in: before, viewport: visible, footer: footer)
     let checksSheet =
       UIDevice.current.userInterfaceIdiom == .pad
       && system.majorVersion == 27 && system.minorVersion == 2
@@ -1346,9 +1436,16 @@ final class DirectoryUITests: XCTestCase {
           $0.element.identifier == element.identifier && $0.element.label == element.label
             && sameHorizontalBounds($0.element.frame, frame)
         }
-        // The audit can scroll clipped text into view before returning its report.
+        // XCTest can scroll a label into view after the initial snapshot.
         if !navigationText, !matching.isEmpty,
-          matching.allSatisfy({ frameIsClipped($0.element.frame, in: $0.viewport) })
+          matching.allSatisfy({ frameIsOutside($0.element.frame, in: $0.viewport) })
+        {
+          continue
+        }
+        if !navigationText, matching.count == 1, let match = matching.first,
+          match.viewport.intersects(match.element.frame),
+          !match.viewport.contains(match.element.frame),
+          try recheckContrast(of: element, in: app)
         {
           continue
         }
@@ -1361,8 +1458,14 @@ final class DirectoryUITests: XCTestCase {
       }
       failAccessibilityIssue(issue)
     }
+    var unnamed: [XCUIAccessibilityAuditIssue] = []
     for type in [XCUIAccessibilityAuditType.textClipped, .dynamicType] {
-      for issue in try accessibilityIssues(in: app, for: type) {
+      let issues = try accessibilityIssues(in: app, for: type)
+      for issue in issues {
+        if type == .textClipped, issue.element == nil {
+          unnamed.append(issue)
+          continue
+        }
         if checksSearchHint, system.majorVersion == 27, system.minorVersion == 2,
           issue.auditType == .textClipped, let element = issue.element
         {
@@ -1378,27 +1481,229 @@ final class DirectoryUITests: XCTestCase {
             continue
           }
         }
-        if measuredListText(issue, in: nativeList) { continue }
+        if try measuredListText(issue, in: nativeList, traits: traits, app: app) { continue }
         failAccessibilityIssue(issue)
       }
+    }
+    // Keep the audited scene in place until both text audits have finished.
+    if !unnamed.isEmpty {
+      guard let nativeList, try verifyClippingCandidates(in: nativeList, app: app, traits: traits)
+      else {
+        for issue in unnamed { failAccessibilityIssue(issue) }
+        return
+      }
+    }
+  }
+
+  /// An unidentified clipping report requires checking the list, its toolbar, and any adjoining search.
+  private func verifyClippingCandidates(
+    in snapshot: any XCUIElementSnapshot, app: XCUIApplication, traits: UITraitCollection
+  ) throws -> Bool {
+    let title: String
+    let first: String
+    let last: String
+    switch snapshot.identifier {
+    case "integration-content":
+      (title, first, last) = ("設定", "着信時の施設名表示", "QA用の確認")
+    case "source-content":
+      (title, first, last) = ("電話番号のもとの情報", "試験歯科 <script> & Test, clinic", "もとの資料を開く")
+    default:
+      return false
+    }
+    let bar = app.navigationBars[title]
+    let list = app.collectionViews[snapshot.identifier].firstMatch
+    guard bar.exists, list.exists, !app.alerts.firstMatch.exists else { return false }
+    try verifyToolbarText(title, in: app)
+    let search = app.searchFields.firstMatch
+    if search.exists, search.isHittable {
+      let sidebar = app.collectionViews["search-results"].firstMatch
+      guard sidebar.exists, sidebar.frame.maxX <= list.frame.minX + 1,
+        let query = search.value as? String, !query.isEmpty
+      else { return false }
+      try checkRenderedText(query, in: search)
+      try verifyToolbarText("検索", in: app)
+      for label in sidebar.staticTexts.allElementsBoundByIndex where label.isHittable {
+        try checkRenderedText(label.label, in: label)
+      }
+      for button in sidebar.buttons.matching(identifier: "contact-detail").allElementsBoundByIndex
+      where button.isHittable {
+        for part in button.label.components(separatedBy: "、") {
+          try checkRenderedText(part, in: button)
+        }
+      }
+    }
+    let start = list.staticTexts[first].firstMatch
+    reveal(start, in: app, within: list, towardTop: true)
+    let measured = try measureList(
+      snapshot.identifier, below: title, through: last, in: app, traits: traits)
+    let candidates = Set(listTextSnapshots(in: snapshot).map(\.label).filter { !$0.isEmpty })
+    return measured[first] != nil && measured[last] != nil
+      && candidates.isSubset(of: Set(measured.keys))
+  }
+
+  private func verifyToolbarText(_ title: String, in app: XCUIApplication) throws {
+    let bar = app.navigationBars[title]
+    let heading = bar.staticTexts[title].firstMatch
+    let controls: XCUIElement
+    if heading.exists {
+      try checkRenderedText(title, in: heading)
+      controls = bar
+    } else {
+      // The Duo's side toolbar carries the controls while its empty navigation bar names the screen.
+      XCTAssertEqual(bar.identifier, title)
+      XCTAssertEqual(bar.children(matching: .any).count, 0)
+      let sidebars = app.toolbars.allElementsBoundByIndex.filter { toolbar in
+        let bounds = toolbar.frame
+        return bounds.height > bar.frame.height * 2
+          && toolbar.buttons.allElementsBoundByIndex.contains { button in
+            let frame = button.frame
+            return button.isHittable && !frame.intersects(bar.frame)
+              && (frame.midX > bounds.maxX - bounds.width / 4
+                || frame.midX < bounds.minX + bounds.width / 4)
+          }
+      }
+      XCTAssertEqual(sidebars.count, 1)
+      controls = try XCTUnwrap(sidebars.first)
+    }
+    for label in controls.staticTexts.allElementsBoundByIndex
+    where label.isHittable && label.label != title {
+      try checkRenderedText(label.label, in: label)
+    }
+    for button in controls.buttons.allElementsBoundByIndex where button.isHittable {
+      let labels = button.staticTexts.allElementsBoundByIndex.filter {
+        $0.exists && !$0.label.isEmpty
+      }
+      for label in labels { try checkRenderedText(label.label, in: button) }
+      if labels.isEmpty {
+        XCTAssertTrue(button.identifier == "BackButton" || !button.label.isEmpty)
+        XCTAssertTrue(controls.frame.contains(CGPoint(x: button.frame.midX, y: button.frame.midY)))
+        let icon =
+          ["close-settings", "open-settings", "BackButton"].contains(button.identifier)
+          || button.label == "Back" || button.label == "戻る"
+        if icon {
+          let image = try XCTUnwrap(button.screenshot().image.cgImage)
+          let glyph = normalizedLabel(try renderedText(in: image))
+          XCTAssertTrue(
+            ["", "x", "メ", "く"].contains(glyph),
+            "Unexpected toolbar text “\(glyph)” in \(button.label).")
+        } else {
+          try checkRenderedText(button.label, in: button)
+        }
+      }
+    }
+  }
+
+  /// The scroll edge can cover part of a label while XCTest samples its contrast.
+  private func recheckContrast(of element: XCUIElement, in app: XCUIApplication)
+    throws -> Bool
+  {
+    let label = element.label
+    let identifier = element.identifier
+    let original = element.frame
+    let predicate = NSPredicate(
+      format: "elementType == %d AND label == %@ AND identifier == %@",
+      XCUIElement.ElementType.staticText.rawValue, label, identifier)
+    let containers =
+      app.scrollViews.containing(predicate).allElementsBoundByIndex
+      + app.collectionViews.containing(predicate).allElementsBoundByIndex
+    guard
+      let list = containers.first(where: {
+        $0.staticTexts.matching(predicate).allElementsBoundByIndex.contains {
+          sameHorizontalBounds($0.frame, original)
+        }
+      })
+    else { return false }
+    let matches = list.staticTexts.matching(predicate).allElementsBoundByIndex.filter {
+      sameHorizontalBounds($0.frame, original)
+    }
+    guard matches.count == 1, let target = matches.first,
+      scroll(to: target, in: app, within: list, swipes: 16, fullyVisible: true)
+    else {
+      return false
+    }
+    let window = app.windows.firstMatch
+    let captured = try window.snapshot()
+    let bar = app.navigationBars.firstMatch
+    let top = bar.exists ? bar.frame.maxY : captured.frame.minY
+    let content = CGRect(
+      x: captured.frame.minX, y: top, width: captured.frame.width, height: captured.frame.maxY - top
+    )
+    let targetFrame = target.frame
+    let actions = app.descendants(matching: .any)["onboarding-actions"].firstMatch
+    let footer = actions.exists ? actions.frame : nil
+    let candidates = staticTextSnapshots(in: captured, viewport: content, footer: footer).filter {
+      $0.element.identifier == identifier && $0.element.label == label
+    }
+    guard
+      candidates.contains(where: {
+        sameHorizontalBounds($0.element.frame, targetFrame)
+          && abs($0.element.frame.midY - targetFrame.midY) < 1
+          && $0.viewport.contains($0.element.frame)
+      })
+    else {
+      attach(
+        "Target \(targetFrame)\n\(candidates.map { "\($0.element.frame) in \($0.viewport)" })",
+        name: "contrast-recheck-geometry")
+      return false
+    }
+    return try accessibilityIssues(in: app, for: .contrast).allSatisfy {
+      guard let reported = $0.element else { return false }
+      return reported.label != label || reported.identifier != identifier
+        || !sameHorizontalBounds(reported.frame, original)
     }
   }
 
   /// The list text scenario scrolls each native row into view at both real content sizes.
   private func measuredListText(
-    _ issue: XCUIAccessibilityAuditIssue, in list: (any XCUIElementSnapshot)?
-  ) -> Bool {
-    guard let list else { return false }
-    guard let element = issue.element else {
-      return issue.auditType == .textClipped
-        && ["integration-content", "source-content"].contains(list.identifier)
-    }
-    guard let reported = try? element.snapshot(), reported.elementType == .staticText else {
+    _ issue: XCUIAccessibilityAuditIssue, in list: (any XCUIElementSnapshot)?,
+    traits: UITraitCollection, app: XCUIApplication
+  ) throws -> Bool {
+    guard let list, let element = issue.element, let reported = try? element.snapshot(),
+      reported.elementType == .staticText
+    else {
       return false
     }
-    return listTextSnapshots(in: list).contains {
-      $0.label == reported.label && $0.identifier == reported.identifier
+    guard
+      let match = listTextSnapshots(in: list).first(where: {
+        $0.label == reported.label && $0.identifier == reported.identifier
+          && sameHorizontalBounds($0.frame, reported.frame)
+      })
+    else { return false }
+    return try listLabelFits(
+      match, in: app.collectionViews[list.identifier].firstMatch, traits: traits,
+      window: app.windows.firstMatch)
+  }
+
+  private func listLabelFits(
+    _ text: any XCUIElementSnapshot, in list: XCUIElement, traits: UITraitCollection,
+    window: XCUIElement
+  ) throws -> Bool {
+    let frame = text.frame
+    guard !text.label.isEmpty, !frame.isEmpty else { return false }
+    let font = UIFont.preferredFont(
+      forTextStyle: listTextStyle(text.label, in: list.identifier), compatibleWith: traits)
+    let extent = (text.label as NSString).boundingRect(
+      with: CGSize(width: frame.width + 1, height: .greatestFiniteMagnitude),
+      options: [.usesLineFragmentOrigin], attributes: [.font: font], context: nil)
+    if frame.height + 2 >= extent.height { return true }
+    // A native Label can wrap a later line underneath its leading icon at accessibility sizes.
+    let midpoint = CGPoint(x: frame.midX, y: frame.midY)
+    guard
+      let cell = list.cells.allElementsBoundByIndex.first(where: { $0.frame.contains(midpoint) })
+    else {
+      return false
     }
+    let bounds = window.frame
+    let lines = CGRect(
+      x: cell.frame.minX, y: frame.minY, width: frame.maxX - cell.frame.minX, height: frame.height)
+    guard bounds.contains(lines), list.frame.contains(lines),
+      let image = window.screenshot().image.cgImage
+    else { return false }
+    let pixels = lines.offsetBy(dx: -bounds.minX, dy: -bounds.minY).applying(
+      CGAffineTransform(
+        scaleX: CGFloat(image.width) / bounds.width, y: CGFloat(image.height) / bounds.height))
+    guard let crop = image.cropping(to: pixels) else { return false }
+    return try renderedText(in: crop).contains(compactText(text.label))
   }
 
   private func listTextStyle(_ text: String, in list: String) -> UIFont.TextStyle {
@@ -1426,11 +1731,21 @@ final class DirectoryUITests: XCTestCase {
     return texts
   }
 
-  private func staticTextSnapshots(in snapshot: any XCUIElementSnapshot, viewport: CGRect)
+  private func staticTextSnapshots(
+    in snapshot: any XCUIElementSnapshot, viewport: CGRect, footer: CGRect?
+  )
     -> [(element: any XCUIElementSnapshot, viewport: CGRect)]
   {
-    let bounds = textViewport(in: snapshot.elementType, frame: snapshot.frame, parent: viewport)
-    let descendants = snapshot.children.flatMap { staticTextSnapshots(in: $0, viewport: bounds) }
+    var bounds = textViewport(in: snapshot.elementType, frame: snapshot.frame, parent: viewport)
+    if let footer {
+      if snapshot.identifier == "onboarding-actions" { bounds = footer }
+      if snapshot.elementType == .scrollView && snapshot.identifier == "onboarding-content" {
+        bounds.size.height = max(0, min(bounds.maxY, footer.minY) - bounds.minY)
+      }
+    }
+    let descendants = snapshot.children.flatMap {
+      staticTextSnapshots(in: $0, viewport: bounds, footer: footer)
+    }
     return (snapshot.elementType == .staticText ? [(snapshot, bounds)] : []) + descendants
   }
 
@@ -1443,10 +1758,10 @@ final class DirectoryUITests: XCTestCase {
     }
   }
 
-  private func frameIsClipped(_ frame: CGRect, in viewport: CGRect) -> Bool {
+  private func frameIsOutside(_ frame: CGRect, in viewport: CGRect) -> Bool {
     [frame, viewport].allSatisfy {
       !$0.isEmpty && !$0.isInfinite && [$0.minX, $0.minY, $0.maxX, $0.maxY].allSatisfy(\.isFinite)
-    } && !viewport.contains(frame)
+    } && frame.intersection(viewport).isEmpty
   }
 
   private func sameHorizontalBounds(_ first: CGRect, _ second: CGRect) -> Bool {
@@ -1461,15 +1776,15 @@ final class DirectoryUITests: XCTestCase {
     let clipped = CGRect(x: 0, y: 0, width: 20, height: 30)
     let offscreen = CGRect(x: 0, y: 200, width: 20, height: 20)
     let visible = CGRect(x: 0, y: 20, width: 20, height: 20)
-    XCTAssertTrue(frameIsClipped(clipped, in: viewport))
-    XCTAssertTrue(frameIsClipped(offscreen, in: viewport))
-    XCTAssertFalse(frameIsClipped(visible, in: viewport))
-    XCTAssertFalse(frameIsClipped(.zero, in: viewport))
-    XCTAssertFalse(frameIsClipped(.infinite, in: viewport))
-    XCTAssertFalse(frameIsClipped(clipped, in: .zero))
-    XCTAssertFalse(frameIsClipped(clipped, in: .infinite))
+    XCTAssertFalse(frameIsOutside(clipped, in: viewport))
+    XCTAssertTrue(frameIsOutside(offscreen, in: viewport))
+    XCTAssertFalse(frameIsOutside(visible, in: viewport))
+    XCTAssertFalse(frameIsOutside(.zero, in: viewport))
+    XCTAssertFalse(frameIsOutside(.infinite, in: viewport))
+    XCTAssertFalse(frameIsOutside(clipped, in: .zero))
+    XCTAssertFalse(frameIsOutside(clipped, in: .infinite))
     XCTAssertFalse(
-      frameIsClipped(CGRect(x: CGFloat.nan, y: 0, width: 20, height: 20), in: viewport))
+      frameIsOutside(CGRect(x: CGFloat.nan, y: 0, width: 20, height: 20), in: viewport))
     let sheet = CGRect(x: 10, y: 10, width: 80, height: 80)
     let scroll = CGRect(x: 10, y: 15, width: 80, height: 90)
     let insideSheet = textViewport(in: .sheet, frame: sheet, parent: viewport)
@@ -2025,7 +2340,7 @@ final class DirectoryUITests: XCTestCase {
   /// Scrolls within the window or presented container until the target's center is hittable.
   private func scroll(
     to element: XCUIElement, in app: XCUIApplication, within container: XCUIElement? = nil,
-    swipes: Int, towardTop: Bool = false, centered: Bool = false
+    swipes: Int, towardTop: Bool = false, centered: Bool = false, fullyVisible: Bool = false
   ) -> Bool {
     let surface = container ?? app.windows.firstMatch
     for attempt in 0...swipes {
@@ -2034,7 +2349,11 @@ final class DirectoryUITests: XCTestCase {
       let top =
         bar.exists ? max(frame.minY, bar.frame.maxY) : frame.minY
       let keyboard = app.keyboards.firstMatch
-      let bottom = keyboard.exists ? min(frame.maxY, keyboard.frame.minY) : frame.maxY
+      var bottom = keyboard.exists ? min(frame.maxY, keyboard.frame.minY) : frame.maxY
+      if fullyVisible && surface.identifier == "onboarding-content" {
+        let actions = app.descendants(matching: .any)["onboarding-actions"].firstMatch
+        if actions.exists { bottom = min(bottom, actions.frame.minY) }
+      }
       guard bottom > top else { return false }
       let viewport = CGRect(x: frame.minX, y: top, width: frame.width, height: bottom - top)
       let targetArea = centered ? viewport.insetBy(dx: 0, dy: viewport.height / 4) : viewport
@@ -2044,9 +2363,17 @@ final class DirectoryUITests: XCTestCase {
         let target = element.frame
         let center = CGPoint(x: target.midX, y: target.midY)
         horizontal = center.x - frame.minX
-        if element.isHittable && targetArea.contains(center) { return true }
-        if center.y < targetArea.minY { scrollDown = true }
-        if center.y > targetArea.maxY { scrollDown = false }
+        if element.isHittable
+          && (fullyVisible ? viewport.contains(target) : targetArea.contains(center))
+        {
+          return true
+        }
+        if (fullyVisible ? target.minY : center.y) < targetArea.minY { scrollDown = true }
+        if (fullyVisible ? target.maxY : center.y) > targetArea.maxY { scrollDown = false }
+      } else if surface.elementType == .collectionView {
+        // A split-view list can span the window while its cells occupy only the detail column.
+        let row = surface.cells.firstMatch
+        if row.exists { horizontal = row.frame.midX - frame.minX }
       }
       guard attempt < swipes else { return false }
       let origin = surface.coordinate(withNormalizedOffset: .zero)

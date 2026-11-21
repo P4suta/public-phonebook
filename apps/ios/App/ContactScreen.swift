@@ -7,6 +7,8 @@ struct ContactScreen: View {
   @State private var confirmsMap = false
   @State private var openingMap = false
   @State private var mapMissing = false
+  private let mapError = "場所を見つけられませんでした"
+  private let mapRetry = "インターネットにつながっているかたしかめて、もう一度試してください。"
 
   var body: some View {
     List {
@@ -31,7 +33,18 @@ struct ContactScreen: View {
           .textSelection(.enabled)
           .accessibilityIdentifier("contact-address")
         if !contact.address.isEmpty {
-          MapButton(name: contact.name, opening: openingMap) { confirmsMap = true }
+          MapButton(name: contact.name, opening: openingMap) {
+            mapMissing = false
+            confirmsMap = true
+          }
+          if mapMissing {
+            VStack(alignment: .leading) {
+              Text(mapError).font(.headline)
+              Text(mapRetry)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("map-error")
+          }
         }
       } header: {
         Text("住所").foregroundStyle(TintShapeStyle())
@@ -58,7 +71,7 @@ struct ContactScreen: View {
       }
     }
     .accessibilityIdentifier("contact-content")
-    .accessibilityHidden(confirmsMap || mapMissing || page != nil)
+    .accessibilityHidden(confirmsMap || page != nil)
     .modifier(ExternalPageConfirmation(page: $page))
     .alert("地図を開きます", isPresented: $confirmsMap) {
       Button("開く") {
@@ -66,16 +79,12 @@ struct ContactScreen: View {
         Task {
           mapMissing = !(await MapDestination.open(name: contact.name, address: contact.address))
           openingMap = false
+          if mapMissing { AccessibilityAnnouncement.post(mapError + "。" + mapRetry) }
         }
       }
       Button("キャンセル", role: .cancel) {}
     } message: {
       Text("施設の名前と住所をAppleのマップに送ります。")
-    }
-    .alert("場所を見つけられませんでした", isPresented: $mapMissing) {
-      Button("閉じる", role: .cancel) {}
-    } message: {
-      Text("インターネットにつながっているかたしかめて、もう一度試してください。")
     }
     .navigationTitle("施設の情報").navigationBarTitleDisplayMode(.inline)
   }

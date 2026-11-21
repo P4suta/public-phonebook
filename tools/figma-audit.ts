@@ -143,7 +143,7 @@ export function mergeCapture(page: AuditPage, capture: Capture): AuditPage {
   };
 }
 
-function nativeInspection(ids: string[]): string {
+export function nativeInspection(ids: string[]): string {
   if (!ids.length || ids.some((id) => !/^\d+:\d+$/u.test(id)))
     throw new Error("Select one or more Figma screen or component IDs");
   return `
@@ -159,10 +159,14 @@ async function inspect(root) {
       if (!changed(field) || !Array.isArray(node[field])) continue;
       for (const paint of node[field]) {
         if (paint.visible === false) continue;
+        if ((paint.blendMode ?? "NORMAL") !== "NORMAL") paints.add("blend:" + node.id + "/" + field);
         const id = paint.boundVariables?.color?.id;
         if (id) {
-          if (!variables.has(id)) variables.set(id, (await figma.variables.getVariableByIdAsync(id))?.key);
-          paints.add("variable:" + variables.get(id));
+          if (!variables.has(id)) variables.set(id, await figma.variables.getVariableByIdAsync(id));
+          const variable = variables.get(id);
+          const color = variable?.resolveForConsumer(node).value;
+          if ((paint.opacity ?? 1) !== (color?.a ?? 1)) paints.add("opacity:" + node.id + "/" + field);
+          paints.add("variable:" + variable?.key);
         } else if (paint.type === "SOLID") {
           const rgba = [paint.color.r, paint.color.g, paint.color.b, paint.opacity ?? 1];
           paints.add("#" + rgba.map(value => Math.round(value * 255).toString(16).padStart(2, "0")).join(""));
@@ -179,6 +183,7 @@ async function inspect(root) {
       const master = await node.getMainComponentAsync();
       if (!master) throw new Error("Missing component " + node.id);
       const key = master.parent?.type === "COMPONENT_SET" ? master.parent.key : master.key;
+      if (!master.remote) inherited = false;
       if (master.remote && (!inherited || library.has(key))) {
         components.add(key);
         inherited = library.has(key);

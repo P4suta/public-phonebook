@@ -225,7 +225,7 @@ VoiceOver reads that button as the facility name followed by `を地図で見る
 The app then geocodes the address once and opens that point in Apple Maps as a map item named after the facility, without a search by the facility name.
 iOS 26 and later use `MKGeocodingRequest`, and iOS 18 to 25 search MapKit for the address alone, because iOS 26 deprecates `CLGeocoder`.
 While the lookup runs, an activity indicator replaces the map pin, the label reads `場所をさがしています`, and VoiceOver reads the facility name followed by `の場所をさがしています`.
-A lookup that finds no place shows `場所を見つけられませんでした`.
+A failed lookup shows `場所を見つけられませんでした` below the map button and announces how to retry with VoiceOver.
 The settings sheet groups caller identification, app information, sources, and the license in a form.
 The GitHub and privacy links show the purpose and host in the same sheet before opening the site.
 Cancel returns to About.
@@ -264,8 +264,8 @@ A reload that meets `currentlyLoading` waits 3 seconds and asks again, up to fou
 The screen never asks the owner to press the button again.
 The screen also shows the saved data date, the last answered check, the next check time, a waiting transfer, and any problem.
 Its `いま受け取る` button starts a transfer as the person, which may use any path, or the first download before any data exists.
-The gate in `ios-check` scans every file of the unsigned Release app and extension for QA code markers, including the telephone handoff test flag.
-The markers include the verification screen's type name, filenames, identifier, launch argument, diagnostic output, and three phrases.
+The gate in `ios-check` scans every file of the unsigned Release app and extension for QA code markers, including the launch arguments for telephone handoff and failed map lookups.
+The markers also cover the verification screen's type name, filenames, identifier, diagnostic output, and three phrases.
 The gate rejects name-index, ranking, packed-search, mapping, and search declaration resources by filename, including empty resources.
 The gate requires every marker in the VerificationDebug build, which establishes the scan's detection control.
 `mise x -- cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- store-build-control` builds Release with the condition defined.

@@ -60,7 +60,6 @@ struct SearchScreen: View {
         case .contact = path.first
       {
         path = []
-        selection = nil
         compactColumn = .sidebar
       }
     }
@@ -69,7 +68,7 @@ struct SearchScreen: View {
 
   private var searchContent: some View {
     ScrollViewReader { reader in
-      List(selection: $selection) {
+      List(selection: selection) {
         content
       }
       .listStyle(.plain)
@@ -97,7 +96,21 @@ struct SearchScreen: View {
     }
   }
 
-  @State private var selection: Int64?
+  private var selection: Binding<Contact?> {
+    Binding(
+      get: {
+        guard case .contact(let contact) = path.first else { return nil }
+        return contact
+      },
+      set: { contact in
+        if let contact {
+          if path.first != .contact(contact) { select(contact) }
+        } else {
+          path = []
+          compactColumn = .sidebar
+        }
+      })
+  }
 
   private var detailStack: some View {
     NavigationStack(path: nestedPath) {
@@ -139,7 +152,6 @@ struct SearchScreen: View {
 
   private func select(_ contact: Contact) {
     searchIsFocused = false
-    selection = contact.id
     path = [.contact(contact)]
     compactColumn = .detail
   }
@@ -148,7 +160,6 @@ struct SearchScreen: View {
     searchIsFocused = false
     path = []
     compactColumn = .sidebar
-    selection = nil
     model.query = ""
   }
 
@@ -257,7 +268,7 @@ struct SearchScreen: View {
     Section {
       ForEach(model.visible(group)) { contact in
         FacilityRow(contact: contact) { select(contact) }
-          .tag(contact.id)
+          .tag(contact)
       }
       if model.expandable(group) {
         Button("\(group.label)をもっと見る", systemImage: "chevron.down") { model.more(group) }

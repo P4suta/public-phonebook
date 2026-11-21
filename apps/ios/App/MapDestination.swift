@@ -5,6 +5,9 @@ import MapKit
 @MainActor
 enum MapDestination {
   static func open(name: String, address: String) async -> Bool {
+    #if PHONEBOOK_VERIFICATION_TOOLS
+      if ProcessInfo.processInfo.arguments.contains("--verify-unavailable-map") { return false }
+    #endif
     guard let item = await geocode(address) else { return false }
     item.name = name
     return item.openInMaps()

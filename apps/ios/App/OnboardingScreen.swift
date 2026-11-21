@@ -31,6 +31,7 @@ struct OnboardingScreen: View {
       }
       .padding(20).frame(maxWidth: .infinity, alignment: .leading)
     }
+    .accessibilityIdentifier("onboarding-content")
     .safeAreaInset(edge: .bottom, spacing: 0) { footer(step) }
     .navigationBarTitleDisplayMode(.inline)
   }
@@ -126,6 +127,8 @@ struct OnboardingScreen: View {
     }
     .padding(20)
     .background(.bar)
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("onboarding-actions")
   }
 
   private func heading(_ text: String) -> some View {
