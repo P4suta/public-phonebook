@@ -5,7 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.21" apply false
     id("com.ncorti.ktfmt.gradle") version "0.28.0" apply false
     id("dev.detekt") version "2.0.0-alpha.6" apply false
-    id("org.cyclonedx.bom") version "3.5.1" apply false
+    id("org.cyclonedx.bom") version "3.6.1" apply false
     id("info.solidsoft.pitest") version "1.19.0" apply false
 }
 allprojects {
