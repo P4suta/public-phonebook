@@ -39,7 +39,7 @@ struct FirstDownloadProgress: View {
         if showsHeading {
           Text(heading).font(.headline).fixedSize(horizontal: false, vertical: true)
         }
-        ProgressTrack(fraction: fraction)
+        ProgressView(value: fraction).progressViewStyle(.linear)
       }
       VStack(alignment: .leading, spacing: 12) {
         ForEach(Self.steps.indices, id: \.self) { index in
@@ -56,25 +56,6 @@ struct FirstDownloadProgress: View {
       (["\(percent)パーセント", Self.steps[current]] + lines).joined(separator: "、")
     )
     .accessibilityIdentifier("sync-progress")
-  }
-}
-
-/// One continuous bar: an ink fill inside a surface track with an ink outline.
-private struct ProgressTrack: View {
-  let fraction: Double
-
-  var body: some View {
-    GeometryReader { geometry in
-      ZStack(alignment: .leading) {
-        Rectangle().fill(.ink)
-          .frame(width: max(0, geometry.size.width * min(max(fraction, 0), 1)))
-      }
-      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-      .background(.surface)
-      .clipShape(RoundedRectangle(cornerRadius: 3))
-      .overlay { RoundedRectangle(cornerRadius: 3).strokeBorder(.ink, lineWidth: 1) }
-    }
-    .frame(height: 6)
   }
 }
 
@@ -103,7 +84,7 @@ private struct DownloadStep: View {
   @ViewBuilder private var icon: some View {
     switch status {
     case .done: Image(systemName: "checkmark.circle.fill").resizable().scaledToFit()
-    case .current: DesignIcon(name: "circle-half-filled")
+    case .current: Image(systemName: "circle.lefthalf.filled").resizable().scaledToFit()
     case .pending: Image(systemName: "circle").resizable().scaledToFit()
     }
   }
@@ -121,7 +102,7 @@ struct DataSizeNotice: View {
 
   var body: some View {
     HStack(alignment: .top, spacing: 8) {
-      if prominent { DesignIcon(name: "info") }
+      if prominent { Image(systemName: "info.circle").accessibilityHidden(true) }
       VStack(alignment: .leading, spacing: 0) {
         switch notice {
         case .noTransfer:

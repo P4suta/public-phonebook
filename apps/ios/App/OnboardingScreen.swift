@@ -16,7 +16,6 @@ struct OnboardingScreen: View {
       screen(.welcome)
         .navigationDestination(for: Step.self) { screen($0) }
     }
-    .tint(.ink)
   }
 
   private func screen(_ step: Step) -> some View {
@@ -32,10 +31,8 @@ struct OnboardingScreen: View {
       }
       .padding(20).frame(maxWidth: .infinity, alignment: .leading)
     }
-    .background(.surface)
     .safeAreaInset(edge: .bottom, spacing: 0) { footer(step) }
     .navigationBarTitleDisplayMode(.inline)
-    .toolbarBackground(.surface, for: .navigationBar)
   }
 
   @ViewBuilder private func content(_ step: Step) -> some View {
@@ -47,7 +44,7 @@ struct OnboardingScreen: View {
         icon: "phone", title: "電話の相手が分かります",
         detail: "アプリにある番号からiPhoneに電話がかかってきたとき、施設の名前が出ます。")
       Feature(
-        icon: "search", title: "通信なしでさがせます",
+        icon: "magnifyingglass", title: "通信なしでさがせます",
         detail: "初めの準備が終わると、通信なしでさがせます。")
     case .caller:
       heading("電話の相手が分かるようにする")
@@ -61,7 +58,7 @@ struct OnboardingScreen: View {
     case .ready:
       if integration.ready {
         heading("準備ができました")
-        Text("施設の名前を入れてください。")
+        Text("施設名または電話番号を入力してください。")
         if integration.bundledOnly, let manifest = integration.manifest {
           Text("\(manifest.dataDate.formatted(date: .long, time: .omitted))のデータを使います。")
             .accessibilityIdentifier("bundled-date")
@@ -98,9 +95,10 @@ struct OnboardingScreen: View {
           integration.startFirstDownload()
           move(to: .caller)
         } label: {
-          Text("はじめる")
+          Label("はじめる", systemImage: "arrow.down.circle")
+            .frame(maxWidth: .infinity, minHeight: 44)
         }
-        .buttonStyle(MonoButtonStyle(prominent: true))
+        .buttonStyle(.borderedProminent)
         .accessibilityIdentifier("onboarding-start")
       case .caller:
         if integration.callerEnabled {
@@ -109,24 +107,25 @@ struct OnboardingScreen: View {
           Button {
             integration.openCallerSettings()
           } label: {
-            IconLabel(icon: "settings", text: "設定を開く")
+            Label("設定を開く", systemImage: "gearshape")
+              .frame(maxWidth: .infinity, minHeight: 44)
           }
-          .buttonStyle(MonoButtonStyle(prominent: true))
+          .buttonStyle(.borderedProminent)
           .accessibilityIdentifier("onboarding-caller")
           later(.ready)
         }
       case .ready:
         Button(action: finish) {
-          IconLabel(icon: "search", text: "さがしはじめる")
+          Label("さがしはじめる", systemImage: "magnifyingglass")
+            .frame(maxWidth: .infinity, minHeight: 44)
         }
-        .buttonStyle(MonoButtonStyle(prominent: true))
+        .buttonStyle(.borderedProminent)
         .disabled(!integration.ready)
         .accessibilityIdentifier("onboarding-finish")
       }
     }
     .padding(20)
-    .background(.surface)
-    .overlay(alignment: .top) { Rectangle().fill(.ink).frame(height: 1) }
+    .background(.bar)
   }
 
   private func heading(_ text: String) -> some View {
@@ -138,9 +137,9 @@ struct OnboardingScreen: View {
     Button {
       move(to: target)
     } label: {
-      Text("次へ")
+      Label("次へ", systemImage: "arrow.right").frame(maxWidth: .infinity, minHeight: 44)
     }
-    .buttonStyle(MonoButtonStyle(prominent: true))
+    .buttonStyle(.borderedProminent)
     .accessibilityIdentifier("onboarding-next")
   }
 
@@ -148,9 +147,11 @@ struct OnboardingScreen: View {
     Button {
       move(to: target)
     } label: {
-      Text("あとで設定する")
+      Label("あとで設定する", systemImage: "clock")
     }
-    .buttonStyle(MonoButtonStyle())
+    .buttonStyle(.borderless)
+    .controlSize(.large)
+    .frame(maxWidth: .infinity, minHeight: 44)
     .accessibilityIdentifier("onboarding-later")
   }
 
@@ -166,7 +167,7 @@ private struct Feature: View {
 
   var body: some View {
     HStack(alignment: .top, spacing: 12) {
-      DesignIcon(name: icon, size: 28)
+      Image(systemName: icon).font(.title2).accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 4) {
         Text(title).font(.headline)
         Text(detail).font(.callout)
@@ -182,7 +183,7 @@ private struct Done: View {
 
   var body: some View {
     HStack(spacing: 8) {
-      DesignIcon(name: "check")
+      Image(systemName: "checkmark.circle").accessibilityHidden(true)
       Text(text).bold()
     }
     .accessibilityElement(children: .combine)

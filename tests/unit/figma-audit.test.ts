@@ -1,5 +1,10 @@
+import * as v from "valibot";
 import { expect, it } from "vitest";
-import { type AuditPage, mergeCapture } from "../../tools/figma-audit.ts";
+import {
+  type AuditPage,
+  mergeCapture,
+  NativeAppearanceSchema,
+} from "../../tools/figma-audit.ts";
 
 const page: AuditPage = {
   id: "14:2",
@@ -55,4 +60,27 @@ it("replaces every text under a recaptured instance and keeps other instances", 
     ["1:3", 20],
   ]);
   expect(merged.observedNodes).toBe(12);
+});
+
+it("accepts an Apple toolbar material and rejects an authored paint or toolbar override", () => {
+  const appearance = {
+    id: "470:1490",
+    components: ["5a5c7f4643552b05f680c5ee9b1c085a942881cc"],
+    paints: ["variable:f53b56d4ed0520da1fb2c8586d67d82113ae1dcb"],
+    toolbarOverrides: [],
+  };
+  expect(v.is(NativeAppearanceSchema, appearance)).toBe(true);
+  for (const change of [
+    { components: ["local-toolbar"] },
+    { components: [] },
+    { paints: ["#ff0000ff"] },
+    { paints: ["#000000ff"] },
+    { paints: ["variable:app-gray"] },
+    { paints: ["effect:Drop shadow"] },
+    { toolbarOverrides: ["I1:2;3:4"] },
+  ]) {
+    expect(v.is(NativeAppearanceSchema, { ...appearance, ...change })).toBe(
+      false,
+    );
+  }
 });

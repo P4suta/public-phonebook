@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import * as v from "valibot";
 import { expect, it } from "vitest";
+import { NativeAppearanceSchema, TextTone } from "../../tools/figma-audit.ts";
 
 const finite = v.pipe(v.number(), v.finite());
 const dimension = v.pipe(finite, v.minValue(0.01));
@@ -46,14 +47,15 @@ const layoutSchema = v.object({
       observedNodes: count,
       references: v.object({ instances: count, resolved: count }),
       placements: v.array(placement),
+      nativeAppearance: v.optional(v.array(NativeAppearanceSchema)),
       texts: v.array(
         v.tuple([
           v.string(),
           dimension,
           dimension,
           dimension,
-          v.picklist([0, 1]),
-          v.picklist([0, 1]),
+          TextTone,
+          TextTone,
         ]),
       ),
       issues: v.array(v.unknown()),
@@ -69,7 +71,7 @@ const textMeasurements = [
   ["0:1", 365],
   ["14:3", 22],
   ["14:4", 103],
-  ["468:1270", 399],
+  ["468:1270", 491],
   ["316:1010", 134],
 ] as const;
 const dialogGutter = 480;
@@ -209,8 +211,45 @@ it("fits the native Figma text measurements and keeps text distinct from its opa
       background,
     ] of page.texts) {
       expect(requiredHeight, id).toBeLessThanOrEqual(height + 0.5);
-      expect(foreground, id).not.toBe(background);
+      if (foreground === "system" || background === "system") {
+        expect(
+          [page.id, id.startsWith("I"), foreground, background],
+          id,
+        ).toEqual(["468:1270", true, "system", "system"]);
+      } else expect(foreground, id).not.toBe(background);
     }
+  }
+});
+
+it("covers each current iPhone screen and shared phone control with Apple library components", async () => {
+  const { pages } = await readLayout();
+  const records =
+    pages.find((page) => page.id === "468:1270")?.nativeAppearance ?? [];
+  expect(records.map(({ id }) => id).sort()).toEqual(
+    [
+      ...iphoneScreens,
+      "653:3541",
+      "658:3858",
+      "673:3282",
+      "681:3314",
+      "681:3353",
+    ].sort(),
+  );
+  const requiredComponents = [
+    ["470:1522", "36f66ff9efa4a6b7fe73789336378af7a8a9171a"],
+    ["471:1699", "f4cc12bab154ac2830f85336b02b62532f4fd980"],
+    ["471:1728", "b638240e95811750ac62526a67cc8e1d81a2c820"],
+    ["563:2295", "38117a30dd18e50d4c086b01121258a32567f920"],
+    ["653:3541", "bba76d7e88d66c8704a07953ccc6056a185022b0"],
+    ["658:3858", "05a77c017ecd555207ab56a1cf529b6cc0b7b54d"],
+    ["673:3282", "bd20115b7590fd2829c6a16b6cc2c64555026517"],
+    ["681:3314", "bba76d7e88d66c8704a07953ccc6056a185022b0"],
+    ["681:3353", "bba76d7e88d66c8704a07953ccc6056a185022b0"],
+  ];
+  for (const [id, key] of requiredComponents) {
+    expect(records.find((entry) => entry.id === id)?.components, id).toContain(
+      key,
+    );
   }
 });
 

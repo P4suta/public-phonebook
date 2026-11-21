@@ -139,14 +139,15 @@ const SANITIZED_CONTRACTS: [&str; 4] = [
     "cancellationBeforeAndDuringRealRequestsAlwaysCompletes",
     "firstRunAppliesTheListedDeltaToTheBundleOnce",
 ];
-const UI_TESTS: [&str; 30] = [
+const UI_TESTS: [&str; 32] = [
     "testRankedMetadataRemainsReadableAtLargestTextSize",
     "testOnboardingSavesTheDirectoryBeforeSearch",
     "testSearchGroupsRankedResultsAndShowsMore",
     "testTelephoneSearchFindsEveryRecordForTheNumber",
     "testEmptyResultsAndLargeText",
     "testContactDetailShowsRegionSourceAndExternalLinkConfirmation",
-    "testPhoneNumberIsTextOverTheCallButton",
+    "testFacilityActionsChooseTheNumberWithoutNavigating",
+    "testFacilityActionsChooseTheNumberInDarkAppearance",
     "testCallerPromptAppearsOnlyWhileCallerNamesAreOff",
     "testVerificationNumberAppearsInSearchAndClears",
     "testPortraitLandscapeRoundTrip",
@@ -161,43 +162,51 @@ const UI_TESTS: [&str; 30] = [
     "testDeltaNoticeReceivesOnlyTheDeltaFromTheBundle",
     "testNoTransferNoticePreparesTheBundledData",
     "testFirstRunWithTheServiceStoppedUsesTheBundledData",
-    "testDarkAppearanceSwapsBlackAndWhite",
-    "testLargestTextScalesIconsBesideTheirLabels",
+    "testDarkAppearanceUsesSystemSurfacesAndLabelAccent",
+    "testLargestTextKeepsOnboardingControlsReadable",
     "testSearchFieldShowsOneClearControl",
     "testClearingSearchFromDetailReturnsToTheInitialScreen",
-    "testNativeBackGesturePreservesSearchAndMenuNavigation",
+    "testNativeBackGestureAndSettingsPreserveSearch",
     "testNativeBackGestureReturnsThroughSetupSteps",
+    "testNativeListTextFitsAtDefaultAndLargestSizes",
     "testCommonTasksPassAccessibilityAudits",
     "testCommonTasksPassAccessibilityAuditsAtLargestTextSize",
     "testCommonTasksPassAccessibilityAuditsInDarkAppearance",
 ];
 /// The UI scenarios that run with the simulator in the dark appearance.
-const DARK_UI_TESTS: [&str; 2] = [
-    "testDarkAppearanceSwapsBlackAndWhite",
+const DARK_UI_TESTS: [&str; 3] = [
+    "testFacilityActionsChooseTheNumberInDarkAppearance",
+    "testDarkAppearanceUsesSystemSurfacesAndLabelAccent",
     "testCommonTasksPassAccessibilityAuditsInDarkAppearance",
 ];
 const AIR_UI_TESTS: [&str; 4] = [
-    "testNativeBackGesturePreservesSearchAndMenuNavigation",
+    "testNativeBackGestureAndSettingsPreserveSearch",
     "testNativeBackGestureReturnsThroughSetupSteps",
     "testPortraitLandscapeRoundTrip",
     "testLandscapeLargeTextSettings",
 ];
-const DUO_UI_TESTS: [&str; 8] = [
+const DUO_UI_TESTS: [&str; 11] = [
+    "testFacilityActionsChooseTheNumberWithoutNavigating",
+    "testFacilityActionsChooseTheNumberInDarkAppearance",
     "testPortraitLandscapeRoundTrip",
     "testSearchGroupsRankedResultsAndShowsMore",
     "testEmptyResultsAndLargeText",
     "testContactDetailShowsRegionSourceAndExternalLinkConfirmation",
     "testClearingSearchFromDetailReturnsToTheInitialScreen",
     "testSearchFieldShowsOneClearControl",
+    "testNativeListTextFitsAtDefaultAndLargestSizes",
     "testCommonTasksPassAccessibilityAudits",
     "testCommonTasksPassAccessibilityAuditsAtLargestTextSize",
 ];
-const IPAD_UI_TESTS: [&str; 7] = [
+const IPAD_UI_TESTS: [&str; 10] = [
+    "testFacilityActionsChooseTheNumberWithoutNavigating",
+    "testFacilityActionsChooseTheNumberInDarkAppearance",
     "testPortraitLandscapeRoundTrip",
     "testLandscapeLargeTextSettings",
     "testSearchFieldShowsOneClearControl",
     "testContactDetailShowsRegionSourceAndExternalLinkConfirmation",
     "testClearingSearchFromDetailReturnsToTheInitialScreen",
+    "testNativeListTextFitsAtDefaultAndLargestSizes",
     "testCommonTasksPassAccessibilityAudits",
     "testCommonTasksPassAccessibilityAuditsAtLargestTextSize",
 ];
@@ -1263,6 +1272,24 @@ fn ui_test_on(
             if dark {
                 appearance(root, &identifier, &case, "dark")?;
             }
+            let contrast = matches!(
+                name,
+                "testFacilityActionsChooseTheNumberWithoutNavigating"
+                    | "testFacilityActionsChooseTheNumberInDarkAppearance"
+            );
+            if contrast {
+                logged(
+                    root,
+                    "enable-increase-contrast",
+                    Command::new("xcrun").args([
+                        "simctl",
+                        "ui",
+                        &identifier,
+                        "increase_contrast",
+                        "enabled",
+                    ]),
+                )?;
+            }
             let execution = logged(
                 root,
                 &case,
@@ -1274,6 +1301,19 @@ fn ui_test_on(
                     ))
                     .arg("test-without-building"),
             );
+            if contrast {
+                logged(
+                    root,
+                    "restore-increase-contrast",
+                    Command::new("xcrun").args([
+                        "simctl",
+                        "ui",
+                        &identifier,
+                        "increase_contrast",
+                        "disabled",
+                    ]),
+                )?;
+            }
             if dark {
                 appearance(root, &identifier, &case, "light")?;
             }

@@ -20,10 +20,15 @@ describe("product image fixture", () => {
       ),
     ).toBe(true);
     expect(
-      contacts.every((contact) =>
-        contact.phones.every((phone) => phone.display === "03-0000-0000"),
-      ),
-    ).toBe(true);
+      contacts.map(({ name, phones }) => [name, phones.map((p) => p.display)]),
+    ).toEqual([
+      ["みほん市民図書館", ["03-0000-0000"]],
+      ["みほん市立中央図書館", ["03-0000-0000", "03-0000-0001"]],
+      ["みほん市立北図書館", ["03-0000-0000"]],
+    ]);
+    expect(catalog.phones).toBe(
+      new Set(contacts.flatMap((c) => c.phones.map((p) => p.e164))).size,
+    );
     expect(
       contacts.every((contact) => contact.dataAsOf.startsWith("2099-")),
     ).toBe(true);

@@ -4,9 +4,10 @@ The SwiftUI app and its Call Directory extension live under `apps/ios/`.
 The deployment target is iOS 18.0.
 The app supports the iPhone and iPad device families.
 Search and its selected facility share an adaptive split view, which collapses to one column on narrow displays.
-The detail toolbar and search results expose `検索を消す`, which clears the query and selection and returns to search.
-Search uses a labeled 44-point clear action.
-The sidebar widens for accessibility text sizes.
+The system search field prompts for `施設名または電話番号` and includes the system clear button.
+The detail toolbar action `検索を消す` clears the query and selection and returns to search.
+The gear opens a settings sheet over the current search.
+Facility names and regions wrap as the text size increases.
 
 The paired Apple Watch app requires watchOS 11.0.
 It sends a search request to the iPhone and receives at most ten facilities with telephone numbers, publishers, and license links.
@@ -50,7 +51,8 @@ The generator inspects all six actual Xcode configurations and rejects missing o
 The app's property list declares a [launch screen](https://developer.apple.com/documentation/xcode/specifying-your-apps-launch-screen) with the `LaunchBackground` color from `apps/ios/Config/Launch.xcassets`.
 The launch color matches the first screen's surface, white in the light appearance and black in the dark one, following Apple's [launching guidelines](https://developer.apple.com/design/human-interface-guidelines/launching).
 The launch screen shows no text or logo.
-The app follows the system appearance by swapping the black and white of [the visual rules](design.md#visual-rules), as the [Dark Mode guidelines](https://developer.apple.com/design/human-interface-guidelines/dark-mode) ask.
+The system label color supplies the app accent in both appearances.
+SwiftUI supplies list backgrounds, separators, selection, and toolbar materials under the [iOS accent decision](adr/use-the-system-label-color-for-the-ios-accent.md).
 Icons scale with the text size through `@ScaledMetric` from their sizes at the default text size, and controls keep their 44-point targets.
 Every confirmation dialog titles its cancel button `キャンセル`, as the [Alerts guidelines](https://developer.apple.com/design/human-interface-guidelines/alerts) ask.
 The app ships without a String Catalog, because it supports Japanese alone and SwiftUI already treats each literal text as a localization key.
@@ -195,37 +197,39 @@ The small package resource works with existing saved search files and needs no r
 Results keep their deterministic name order and category previews.
 Changing the original written input starts a fresh search even when its folded key stays unchanged.
 Complete Japanese telephone numbers keep their existing exact matching path and name order.
-The start screen asks for a facility name with `施設の名前を入れてください。`.
+The start screen asks for a facility name or telephone number.
 While the saved search opens, a native activity indicator shows `検索の準備をしています`.
 The field remains available, and the model searches the current input after preparation completes.
 Apple's [progress guidance](https://developer.apple.com/design/human-interface-guidelines/progress-indicators) supports the activity indicator for work whose remaining duration is unknown.
-While iOS reports the Call Directory extension as off, a rule, two sentences, and an outline button that opens the app's iPhone settings follow that hint.
+When the Call Directory extension is off, the search screen explains caller identification and offers a button to open the app’s system settings.
 The sentences say what the feature shows and ask the reader to grant the app permission in the iPhone settings.
 The prompt stays hidden while the state is on, unknown, or still unread, and `PhonebookCore.CallerStatus` holds that decision.
 The app reads the state again whenever it returns to the foreground.
 The simulator reports no extension state, so debug builds read `PHONEBOOK_CALLER_STATUS` for the UI scenario that draws the on and off states.
 Results appear under category headings while the reader types, and each heading names the category and its count.
 A category shows up to three results, and its `もっと見る` button loads the next 20 in the same order.
-After the reader expands a category, reaching its last card loads the next 20.
+Each further press loads up to 20 more facilities until the category is complete.
 A category's position follows its first result.
 A replacement query or generation discards late search and page completions.
 VoiceOver announces the returned count once, 0.6 seconds after the results stop changing.
 The [category preview decision](adr/group-ranked-results-into-category-previews.md) records the presentation.
 Empty results show `あてはまる施設は0件です` and suggest part of a name or another word.
-Every result card shows the facility name as a heading, its prefecture and municipality, and each telephone number.
-Metadata wraps with Dynamic Type and stays inside the facility's accessibility container.
-The detail screen shows the full address and source information from the saved data.
-Each telephone number is large selectable text over a full-width call button, and the app draws no copy control.
-Below the telephone actions, one outline button opens the detail screen.
-Its label is `住所などを見る` when the facility has an address and `くわしい情報を見る` when it has none.
-VoiceOver reads the facility name before that label.
-The detail screen shows the address as selectable text, and an outline `地図で見る` button below it opens Apple Maps after a confirmation.
+A result row shows the facility name and region, followed by its number or the number of available telephone numbers.
+The facility action opens the detail and includes the name, region, and telephone summary in its accessibility label.
+The separate phone button sends a single number to iOS for call confirmation.
+When a facility lists two or more numbers, a system menu lets the caller choose a number or return to the same results.
+Both actions have targets of at least 44 by 44 points.
+The detail groups every selectable telephone number, the selectable address, and the source in list sections.
+The map action shows a confirmation before opening Apple Maps.
 VoiceOver reads that button as the facility name followed by `を地図で見る`, and a facility without an address has no map button.
 The app then geocodes the address once and opens that point in Apple Maps as a map item named after the facility, without a search by the facility name.
 iOS 26 and later use `MKGeocodingRequest`, and iOS 18 to 25 search MapKit for the address alone, because iOS 26 deprecates `CLGeocoder`.
 While the lookup runs, an activity indicator replaces the map pin, the label reads `場所をさがしています`, and VoiceOver reads the facility name followed by `の場所をさがしています`.
 A lookup that finds no place shows `場所を見つけられませんでした`.
-Settings holds the caller section, which shows a filled check circle with `許可しています` or an empty circle with `まだ許可していません`.
+The settings sheet groups caller identification, app information, sources, and the license in a form.
+The GitHub and privacy links show the purpose and host in the same sheet before opening the site.
+Cancel returns to About.
+The caller section shows a filled check circle with `許可しています` or an empty circle with `まだ許可していません`.
 When iOS refuses a reload, `PhonebookCore.CallerReply` decides the state from the [Call Directory error code](https://developer.apple.com/documentation/callkit/cxerrorcodecalldirectorymanagererror-swift.struct/code).
 `currentlyLoading` shows `許可しています・iPhoneが準備しています`, `extensionDisabled` shows the off state, and any other error shows `許可しています・次にアプリを開くと使えるようになります`.
 The app records no generation after a refusal, so the next launch compares the extension's own record with the saved generation and asks again.
@@ -234,13 +238,13 @@ Production builds discard trace events and compile out unified logging and signp
 The About screen shows the date that the app saved its data.
 
 The VerificationDebug and VerificationRelease configurations define the `PHONEBOOK_VERIFICATION_TOOLS` compile condition, and the other four configurations don't.
-Under that condition, the app menu adds `QA用の確認`, a screen for one test telephone number and its label.
+Under that condition, the settings form adds `QA用の確認`, a screen for one test telephone number and its label.
 The [Figma QA section](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=563-2290) holds its design.
 The screen reads the number in any spelling that search accepts, and the label starts as `確認用の番号`.
 The app saves both in `verification-number.json` in the App Group container, excludes the file from backups, and protects it until the first unlock.
 The app keeps both values out of logs and requests.
 A search that matches the label or the complete number shows the entry under a `QA用` heading with the standard call button.
-That button opens the iOS call confirmation, so the owner can check calling with their own number instead of a facility's.
+The button opens the iOS call confirmation for the saved test number.
 The Call Directory extension reads the file and merges the entry into the national caller numbers in ascending order while it loads them.
 After iOS accepts a load, the extension records the generation and the test entry that iOS holds in `callers-loaded`.
 An [incremental](https://developer.apple.com/documentation/callkit/cxcalldirectoryextensioncontext/isincremental) load checks whether the record names a caller file that the store still keeps.
@@ -260,12 +264,12 @@ A reload that meets `currentlyLoading` waits 3 seconds and asks again, up to fou
 The screen never asks the owner to press the button again.
 The screen also shows the saved data date, the last answered check, the next check time, a waiting transfer, and any problem.
 Its `いま受け取る` button starts a transfer as the person, which may use any path, or the first download before any data exists.
-The gate in `ios-check` scans every file of the unsigned Release app and extension for ten markers of QA code and fails on any of them.
+The gate in `ios-check` scans every file of the unsigned Release app and extension for QA code markers, including the telephone handoff test flag.
 The markers include the verification screen's type name, filenames, identifier, launch argument, diagnostic output, and three phrases.
 The gate rejects name-index, ranking, packed-search, mapping, and search declaration resources by filename, including empty resources.
-The gate requires all ten markers in the VerificationDebug build, which establishes the scan's detection control.
+The gate requires every marker in the VerificationDebug build, which establishes the scan's detection control.
 `mise x -- cargo run --locked --manifest-path tools/ios-check/Cargo.toml -- store-build-control` builds Release with the condition defined.
-It passes when the scan rejects that build with all ten markers.
+It passes when the scan rejects that build with every marker.
 The control plants empty forbidden search resources in its own build and requires filename detection before removing each fixture.
 The normal `ios-check` gate runs the negative control, and App Store export runs the same absence check.
 The about screens, privacy notes, data sources, and licenses are part of the app, and only facility, map, and source pages open in the browser after a confirmation.

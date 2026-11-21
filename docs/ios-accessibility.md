@@ -116,26 +116,47 @@ Follow [Apple's Reduced Motion criteria](https://developer.apple.com/help/app-st
 Run the common-task scenarios with the pinned project tools:
 
 ```sh
-mise x -- just ios-ui-test --test testCommonTasksPassAccessibilityAudits --test testCommonTasksPassAccessibilityAuditsAtLargestTextSize --test testCommonTasksPassAccessibilityAuditsInDarkAppearance
+mise x -- just ios-ui-test --test testNativeListTextFitsAtDefaultAndLargestSizes --test testCommonTasksPassAccessibilityAudits --test testCommonTasksPassAccessibilityAuditsAtLargestTextSize --test testCommonTasksPassAccessibilityAuditsInDarkAppearance
 ```
 
 The scenarios audit onboarding, caller settings, name and number results, facility details, the map confirmation, and source information.
 XCTest runs each audit with [`performAccessibilityAudit(for:_:)`](https://developer.apple.com/documentation/xcuiautomation/xcuiapplication/performaccessibilityaudit%28for%3A_%3A%29).
 The scenarios use the default appearance, the largest font size that Dynamic Type offers, and Dark Mode.
 Each audited screen has a screenshot attachment.
-External handoffs use the system's native alerts for prior consent, following Apple's [Alerts guidance](https://developer.apple.com/design/human-interface-guidelines/alerts).
+The map and facility links use native alerts for prior consent, following Apple's [Alerts guidance](https://developer.apple.com/design/human-interface-guidelines/alerts).
 The map confirmation checks its exact title, disclosure, opening action, and native cancellation behavior.
 Its audit preserves the existing exception for the system dialog's Dynamic Type report.
 Before and after each modal audit, the test matches the complete title and disclosure and requires both opening and cancellation actions to be reachable.
 The largest-text scenario requires the disclosure to exceed twice its default height and the native action targets to measure at least 44 points.
-App-owned screens keep every audit category enabled.
+At the largest text size on iOS 27.2, `UIAlertController` stalled during presentation over the settings sheet.
+Settings links confirm their purpose and destination in the sheet's [navigation stack](https://developer.apple.com/documentation/swiftui/navigationstack).
+The settings checks read the complete disclosure, audit every category, and verify the size and operation of the controls.
+App-owned screens run every audit category.
 App screens share the visible-content audit.
-When a target exists, scroll gestures follow its column.
-The number-search audit scrolls the call button into view and requires its complete frame inside the window.
-Visible-content audits inspect the remaining categories before Dynamic Type changes the layout.
+Scroll gestures follow the target's column and stay inside the presented settings sheet.
+In a full-height sheet the privacy audit centers the link so both the disclosure and the link are in view.
+In a floating sheet it scrolls to the disclosure, audits the visible text, and checks that the link fits before opening it.
+On iPadOS 27.2 the window-wide text detection audit can return an unidentified finding while dimmed search results remain visible around the sheet.
+The settings check verifies that background results can't receive taps.
+It matches each line Vision reads in the sheet's content column to an accessibility label at the same position.
+At a crop edge, Vision can misread a partial character if its text frame extends beyond the same edge.
+The three scroll positions require a visible match for the free-use heading, the source code link, and the data collection statement, respectively.
+The audit preserves every finding that identifies a specific element.
+The number-search audit brings the phone action into view and requires its complete frame inside the window.
+The row-action scenarios enable Increase Contrast and the largest Dynamic Type setting in both appearances on iPhone, iPhone Duo, and iPad.
+Each scenario checks that the facility and phone actions each measure at least 44 by 44 points, reads their accessibility labels, dismisses the number menu, and selects a number.
+The verification build captures the requested telephone URL so the test can check both call paths without placing a call.
+A standard SwiftUI form on iOS 27.2 reported clipping and unsupported Dynamic Type for a navigation link that moved below the viewport during the audit.
+The list text scenario scrolls the settings, facility, and source rows into view at the default and largest sizes.
+It compares the set of labels, measures each string with its text style and available column width, and requires each label to grow.
+At both sizes, [Vision text recognition](https://developer.apple.com/documentation/vision/vnrecognizetextrequest) reads the full Japanese search prompt and caller settings action from their screenshots.
+On iOS 27.2, a clipping report for either control on the empty search screen requires the complete text to appear in the control's image.
+On iOS and iPadOS 27.2 the measured rows supply the check for text-size findings on matching static text and for unidentified clipping reports in settings and source information.
+The audit checks contrast and other properties of the current layout before running the text-clipping and Dynamic Type checks.
 The audit can scroll clipped text into view before reporting a contrast finding.
 A frozen accessibility snapshot records text positions before auditing.
 Scrolling screens exclude a contrast finding when every snapshot match by identifier, label, and horizontal bounds extends beyond the initial viewport.
+The visible area follows the bounds of each enclosing sheet, scroll view, or list.
 The comparison tolerates floating-point differences below 0.001 point in each horizontal edge.
 Any fully visible match, unknown match, empty frame, or invalid frame keeps the finding fatal.
 Navigation-bar titles remain in the contrast audit.

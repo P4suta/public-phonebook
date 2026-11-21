@@ -42,9 +42,13 @@ Current mobile viewports are 390 by 844 pixels, with a 320 by 900 compact exampl
 Current iPhone app viewports are 393 by 852 points.
 Long data and result content remains inside vertically scrolling viewports.
 The 27 current web screens use symmetric content gutters.
-The 13 current iPhone screens and the two QA build screens span the full width, and their content frames set the side margins.
+The 24 current iPhone screens and two QA screens span the full width and include margins within the content.
 The QA section holds the verification screen and its search result from the VerificationDebug and VerificationRelease builds.
-The two external-link confirmation screens center the dialog component on an opaque white page.
+The results prototype links the single-number example to facility details and the two-number example to the number menu.
+The facility detail links to the [source detail component](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=673-3282).
+The About links open the [settings confirmation component](https://www.figma.com/design/86k2lR3poqbl2lU6bqQG8V/Public-Phonebook?node-id=681-3314) with the purpose and host of the selected link.
+The web confirmation screens center a dialog on an opaque white page.
+The iPhone map confirmation appears over the facility detail.
 Archived notes and earlier state studies preserve historical decisions and do not govern the current interface.
 
 The retained [layout audit](figma-layout.json) captures native bounds, intrinsic text measurements, text colors, and instance-reference counts.
@@ -55,26 +59,32 @@ Sections and nodes without visible children record `null` for both insets.
 Padding and a centered fixed-width content frame therefore both report the visible gutter, which matches the website's centered container with a width limit.
 The audit checks all six pages, including archived and future content.
 It measures an untruncated copy of each text node at its original width, then removes that temporary copy.
-It checks clipping, auto-layout sibling overlap, monochrome paints, opacity, effects, and text against the nearest opaque ancestor fill.
+It checks clipping, sibling overlap, and text contrast with the nearest opaque background.
+For iOS, it records the Apple library component keys, app paints, and toolbar appearance overrides for each current screen and shared native component.
+Text inside an Apple component records the system appearance because a toolbar or sheet can use material behind the text.
 Intentional vertical viewport overflow and absolute focus indicators are excluded from unintended clipping and sibling-overlap findings.
 Sibling-overlap findings also skip absolute overlays, such as the iPhone map confirmation alert.
-The retained capture contains 1,593 text measurements and 1,260 resolved instance references.
 Unit checks independently recompute canvas overlap and section containment, validate text fit and contrasting colors, and enforce canonical web and iPhone viewport sizes and gutters.
 The same overlap check detects all ten overlapping pairs in the original desktop arrangement.
 These checks cover the retained capture and cannot detect later Figma edits until the audit is refreshed.
 After a Figma edit, capture the changed subtrees' text measurements and placements in the audit's tuple form and run `node tools/figma-audit.ts merge CAPTURE_JSON`.
 The merge replaces every text inside a recaptured instance, so removed or swapped layers leave no stale measurements.
 A capture with `scope` set to `page` replaces the whole page entry, so deleted frames leave no stale placements.
+Run `node tools/figma-audit.ts inspect-native NODE_ID...` to generate the read-only Figma inspection for the selected screen and component IDs.
+Run the inspection in the design file and include its results under `nativeAppearance` in the layout capture.
 Layer occlusion and visual clarity still require direct visual review.
 
 ## Visual rules
 
-Use authored black and white only.
-The iPhone app follows the system appearance by swapping them: surfaces turn black, and text, rules, icons, and controls turn white.
-Its screens draw with two named colors, the surface and the ink, and the iOS gate refuses any other authored color in `apps/ios/App`.
-Exclude gray steps, gradients, shadows, translucent styling, filters, blending, and slogans.
+The iPhone and iPad apps use `labelColor` for the accent and let SwiftUI draw selection, separators, backgrounds, and navigation materials.
+The section headings use the app accent through SwiftUI’s [TintShapeStyle](https://developer.apple.com/documentation/swiftui/tintshapestyle).
+The Figma screens use matching components and semantic colors from Apple’s iOS and iPadOS 27 library.
+The iOS and Figma checks reject custom colors and toolbar backgrounds under the [accent decision](adr/use-the-system-label-color-for-the-ios-accent.md).
+
+The website uses authored black and white only.
+Exclude gray steps, gradients, shadows, translucent styling, filters, blending, and slogans from web components.
 Use size, weight, grouping, spacing, and solid borders to communicate structure.
-The initial heading is the service name.
+The initial web heading is the service name.
 The service name and the project information link below it start at the page's top padding and the content's start edge, 16 pixels apart.
 The search field row sits at the vertical center of the viewport, with its label directly above it.
 A viewport too short for that arrangement keeps the same order and derived spacing from the top and scrolls instead.
@@ -89,7 +99,8 @@ The search field has one visible label above it, with no hint, placeholder, or d
 The website uses typed Vanilla Extract styles and the generic sans-serif family, so text follows the reader's operating system and browser font settings without a font download.
 The [Digital Agency design system](https://design.digital.go.jp/dads/foundations/typography/) states that its Noto Sans JP choice doesn't restrict system fonts and that information must not depend on the font.
 Figma uses Noto Sans JP as the stand-in for the Android system font, because Figma can't render each reader's font.
-The website and the iPhone app draw category and action icons from the same [Figma masters](icons.md).
+The website and the native apps share the [facility category icons](icons.md).
+The iPhone and iPad apps use SF Symbols for actions.
 Every category has its own master with different icon geometry.
 The website offers only categories present in the active publication.
 Every size derives from the parameters in `apps/web/src/ui/foundations.ts`.
