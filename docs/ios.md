@@ -226,6 +226,7 @@ The app then geocodes the address once and opens that point in Apple Maps as a m
 iOS 26 and later use `MKGeocodingRequest`, and iOS 18 to 25 search MapKit for the address alone, because iOS 26 deprecates `CLGeocoder`.
 While the lookup runs, an activity indicator replaces the map pin, the label reads `場所をさがしています`, and VoiceOver reads the facility name followed by `の場所をさがしています`.
 A failed lookup shows `場所を見つけられませんでした` below the map button and announces how to retry with VoiceOver.
+Leaving the facility detail cancels a pending map lookup.
 The settings sheet groups caller identification, app information, sources, and the license in a form.
 The GitHub and privacy links show the purpose and host in the same sheet before opening the site.
 Cancel returns to About.

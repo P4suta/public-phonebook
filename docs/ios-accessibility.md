@@ -151,12 +151,16 @@ The list text scenario scrolls the settings, facility, and source rows into view
 It compares the set of labels, measures each string with its text style and available column width, and requires each label to grow.
 At both sizes, [Vision text recognition](https://developer.apple.com/documentation/vision/vnrecognizetextrequest) reads the full Japanese search prompt and caller settings action from their screenshots.
 On iOS 27.2, a clipping report for either control on the empty search screen requires the complete text to appear in the control's image.
-On iOS and iPadOS 27.2 the measured rows supply the check for text-size findings on matching static text and for unidentified clipping reports in settings and source information.
+On iOS and iPadOS 27.2, a Dynamic Type finding for an identified list label requires measurements at both the default and largest sizes before the scenario can pass.
+The scenario checks the reported label and accessibility identifier in the same list and orientation and requires the label to grow.
+The clipping check measures a fresh snapshot of the reported label.
+An unidentified clipping report in settings or source information requires a check of the whole list, its visible toolbar, and any adjoining search results.
 The audit checks contrast and other properties of the current layout before running the text-clipping and Dynamic Type checks.
 The audit can scroll clipped text into view before reporting a contrast finding.
 A frozen accessibility snapshot records text positions before auditing.
-Scrolling screens exclude a contrast finding when every snapshot match by identifier, label, and horizontal bounds extends beyond the initial viewport.
-The visible area follows the bounds of each enclosing sheet, scroll view, or list.
+Scrolling screens exclude a contrast finding when every snapshot match by identifier, label, and horizontal bounds falls outside the initial viewport in full.
+A label that crosses a scroll edge must pass a second contrast audit with its whole frame in view.
+The visible area follows the bounds of each enclosing sheet, scroll view, or list and the position of the fixed onboarding actions.
 The comparison tolerates floating-point differences below 0.001 point in each horizontal edge.
 Any fully visible match, unknown match, empty frame, or invalid frame keeps the finding fatal.
 Navigation-bar titles remain in the contrast audit.

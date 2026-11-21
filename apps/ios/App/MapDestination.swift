@@ -6,9 +6,18 @@ import MapKit
 enum MapDestination {
   static func open(name: String, address: String) async -> Bool {
     #if PHONEBOOK_VERIFICATION_TOOLS
-      if ProcessInfo.processInfo.arguments.contains("--verify-unavailable-map") { return false }
+      let arguments = ProcessInfo.processInfo.arguments
+      if let flag = arguments.firstIndex(of: "--verify-unavailable-map") {
+        if arguments.dropFirst(flag + 1).first == "pending" {
+          let (stream, continuation) = AsyncStream<Void>.makeStream()
+          var iterator = stream.makeAsyncIterator()
+          _ = await iterator.next()
+          continuation.finish()
+        }
+        return false
+      }
     #endif
-    guard let item = await geocode(address) else { return false }
+    guard let item = await geocode(address), !Task.isCancelled else { return false }
     item.name = name
     return item.openInMaps()
   }

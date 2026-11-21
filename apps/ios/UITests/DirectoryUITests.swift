@@ -6,6 +6,7 @@ final class DirectoryUITests: XCTestCase {
   private var service: ServiceFixture?
   /// A proxy to the fixture's next revision, which lists a delta from the bundled baseline.
   private var updated: ServiceFixture?
+  private var dynamicTypeFindings: [String: String] = [:]
 
   override func setUp() async throws {
     try await super.setUp()
@@ -629,7 +630,10 @@ final class DirectoryUITests: XCTestCase {
   }
 
   func testBackgroundForegroundPreservesSearchAndDetail() throws {
-    let app = prepared()
+    let app = application()
+    app.launchArguments += ["--verify-unavailable-map", "pending"]
+    app.launch()
+    onboard(app)
     search("試験", in: app)
     app.buttons["contact-detail"].firstMatch.tap()
     XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
@@ -637,6 +641,21 @@ final class DirectoryUITests: XCTestCase {
     XCTAssertTrue(app.wait(for: .runningBackground, timeout: 10))
     app.activate()
     XCTAssertTrue(app.navigationBars["施設の情報"].waitForExistence(timeout: 10))
+    let map = app.buttons["map-button"]
+    reveal(map, in: app)
+    let idleLabel = map.label
+    map.tap()
+    app.alerts.firstMatch.buttons["開く"].tap()
+    waitUntil("the map lookup starts", !map.isEnabled && map.label.hasSuffix("の場所をさがしています"))
+    let source = app.buttons["source-link"]
+    reveal(source, in: app)
+    source.tap()
+    XCTAssertTrue(app.navigationBars["電話番号のもとの情報"].waitForExistence(timeout: 5))
+    goBack(app)
+    reveal(map, in: app, towardTop: true)
+    waitForLabel(map, idleLabel)
+    XCTAssertTrue(map.isEnabled)
+    XCTAssertFalse(app.descendants(matching: .any)["map-error"].firstMatch.exists)
     goBack(app)
     waitForGroup("dental", "1件", in: app)
   }
@@ -927,9 +946,16 @@ final class DirectoryUITests: XCTestCase {
   }
 
   func testNativeListTextFitsAtDefaultAndLargestSizes() throws {
-    let regular = try measureNativeListText(at: .large, argument: "UICTContentSizeCategoryL")
+    try verifyListTextGrowth(orientation: .portrait)
+  }
+
+  private func verifyListTextGrowth(orientation: UIDeviceOrientation) throws {
+    let regular = try measureNativeListText(
+      at: .large, argument: "UICTContentSizeCategoryL", orientation: orientation)
     let enlarged = try measureNativeListText(
-      at: .accessibilityExtraExtraExtraLarge, argument: "UICTContentSizeCategoryAccessibilityXXXL")
+      at: .accessibilityExtraExtraExtraLarge, argument: "UICTContentSizeCategoryAccessibilityXXXL",
+      orientation: orientation)
+    XCTAssertTrue(Set(dynamicTypeFindings.keys).isSubset(of: Set(regular.keys)))
     XCTAssertEqual(Set(regular.keys), Set(enlarged.keys))
     for (label, size) in regular {
       let large = try XCTUnwrap(enlarged[label])
@@ -939,10 +965,11 @@ final class DirectoryUITests: XCTestCase {
     }
   }
 
-  private func measureNativeListText(at category: UIContentSizeCategory, argument: String) throws
-    -> [String: CGSize]
-  {
+  private func measureNativeListText(
+    at category: UIContentSizeCategory, argument: String, orientation: UIDeviceOrientation
+  ) throws -> [String: CGSize] {
     let app = application(textSize: argument)
+    XCUIDevice.shared.orientation = orientation
     app.launchEnvironment["PHONEBOOK_CALLER_STATUS"] = "off"
     app.launch()
     onboard(app)
@@ -1024,6 +1051,9 @@ final class DirectoryUITests: XCTestCase {
       }
       for text in visible {
         let frame = text.frame
+        if let reported = dynamicTypeFindings[identifier + "/" + text.label] {
+          XCTAssertEqual(text.identifier, reported, text.label)
+        }
         XCTAssertTrue(
           try listLabelFits(text, in: list, traits: traits, window: app.windows.firstMatch),
           "\(text.label) in \(frame)")
@@ -1038,9 +1068,9 @@ final class DirectoryUITests: XCTestCase {
       let origin = app.windows.firstMatch.coordinate(withNormalizedOffset: .zero)
       let step = viewport.height * 0.2
       let start = origin.withOffset(
-        CGVector(dx: viewport.midX, dy: viewport.midY + step / 2))
+        CGVector(dx: row.midX, dy: viewport.midY + step / 2))
       let end = origin.withOffset(
-        CGVector(dx: viewport.midX, dy: viewport.midY - step / 2))
+        CGVector(dx: row.midX, dy: viewport.midY - step / 2))
       start.press(
         forDuration: 0.01, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
     }
@@ -1397,8 +1427,6 @@ final class DirectoryUITests: XCTestCase {
     let window = app.windows.firstMatch
     let before = try window.snapshot()
     let system = ProcessInfo.processInfo.operatingSystemVersion
-    let list = try measuredList.map { try app.collectionViews[$0].firstMatch.snapshot() }
-    let nativeList = system.majorVersion == 27 && system.minorVersion == 2 ? list : nil
     let category: UIContentSizeCategory =
       app.launchArguments.contains("UICTContentSizeCategoryAccessibilityXXXL")
       ? .accessibilityExtraExtraExtraLarge : .large
@@ -1458,6 +1486,8 @@ final class DirectoryUITests: XCTestCase {
       }
       failAccessibilityIssue(issue)
     }
+    let list = try measuredList.map { try app.collectionViews[$0].firstMatch.snapshot() }
+    let nativeList = system.majorVersion == 27 && system.minorVersion == 2 ? list : nil
     var unnamed: [XCUIAccessibilityAuditIssue] = []
     for type in [XCUIAccessibilityAuditType.textClipped, .dynamicType] {
       let issues = try accessibilityIssues(in: app, for: type)
@@ -1481,7 +1511,12 @@ final class DirectoryUITests: XCTestCase {
             continue
           }
         }
-        if try measuredListText(issue, in: nativeList, traits: traits, app: app) { continue }
+        if type == .textClipped,
+          try measuredListText(issue, in: nativeList, traits: traits, app: app)
+        {
+          continue
+        }
+        if type == .dynamicType, try requiresTextGrowth(issue, in: nativeList) { continue }
         failAccessibilityIssue(issue)
       }
     }
@@ -1654,6 +1689,28 @@ final class DirectoryUITests: XCTestCase {
   }
 
   /// The list text scenario scrolls each native row into view at both real content sizes.
+  private func requiresTextGrowth(
+    _ issue: XCUIAccessibilityAuditIssue, in list: (any XCUIElementSnapshot)?
+  ) throws -> Bool {
+    guard let list, let reported = try issue.element?.snapshot(),
+      reported.elementType == .staticText, !reported.label.isEmpty
+    else { return false }
+    let matches = listTextSnapshots(in: list).filter { $0.label == reported.label }
+    guard matches.count == 1, let match = matches.first, match.identifier == reported.identifier,
+      sameHorizontalBounds(match.frame, reported.frame)
+    else { return false }
+    if dynamicTypeFindings.isEmpty {
+      let orientation = XCUIDevice.shared.orientation
+      addTeardownBlock { @MainActor [self] in
+        guard testRun?.totalFailureCount == 0 else { return }
+        XCUIApplication().terminate()
+        try verifyListTextGrowth(orientation: orientation)
+      }
+    }
+    dynamicTypeFindings[list.identifier + "/" + reported.label] = reported.identifier
+    return true
+  }
+
   private func measuredListText(
     _ issue: XCUIAccessibilityAuditIssue, in list: (any XCUIElementSnapshot)?,
     traits: UITraitCollection, app: XCUIApplication
@@ -1663,15 +1720,15 @@ final class DirectoryUITests: XCTestCase {
     else {
       return false
     }
-    guard
-      let match = listTextSnapshots(in: list).first(where: {
-        $0.label == reported.label && $0.identifier == reported.identifier
-          && sameHorizontalBounds($0.frame, reported.frame)
-      })
-    else { return false }
+    let collection = app.collectionViews[list.identifier].firstMatch
+    let matches = listTextSnapshots(in: try collection.snapshot()).filter {
+      $0.label == reported.label && $0.identifier == reported.identifier
+        && sameHorizontalBounds($0.frame, reported.frame)
+        && abs($0.frame.midY - reported.frame.midY) < 1
+    }
+    guard matches.count == 1, let current = matches.first else { return false }
     return try listLabelFits(
-      match, in: app.collectionViews[list.identifier].firstMatch, traits: traits,
-      window: app.windows.firstMatch)
+      current, in: collection, traits: traits, window: app.windows.firstMatch)
   }
 
   private func listLabelFits(

@@ -74,18 +74,20 @@ struct ContactScreen: View {
     .accessibilityHidden(confirmsMap || page != nil)
     .modifier(ExternalPageConfirmation(page: $page))
     .alert("地図を開きます", isPresented: $confirmsMap) {
-      Button("開く") {
-        openingMap = true
-        Task {
-          mapMissing = !(await MapDestination.open(name: contact.name, address: contact.address))
-          openingMap = false
-          if mapMissing { AccessibilityAnnouncement.post(mapError + "。" + mapRetry) }
-        }
-      }
+      Button("開く") { openingMap = true }
       Button("キャンセル", role: .cancel) {}
     } message: {
       Text("施設の名前と住所をAppleのマップに送ります。")
     }
+    .task(id: openingMap) {
+      guard openingMap else { return }
+      let opened = await MapDestination.open(name: contact.name, address: contact.address)
+      guard openingMap, !Task.isCancelled else { return }
+      openingMap = false
+      mapMissing = !opened
+      if mapMissing { AccessibilityAnnouncement.post(mapError + "。" + mapRetry) }
+    }
+    .onDisappear { openingMap = false }
     .navigationTitle("施設の情報").navigationBarTitleDisplayMode(.inline)
   }
 }
