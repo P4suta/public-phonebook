@@ -208,6 +208,7 @@ The historical data check covered 650933 contacts, 546133 phone numbers, and 724
 
 Follow [the fictional-city decision](adr/use-a-fictional-city-in-product-images.md) for every public product image.
 Use `みほん市民図書館` and other facilities from `みほん市` in the shared sample fixture.
+`みほん市民図書館` has one sample telephone number and `みほん市立中央図書館` has two, so the same publication covers both call actions.
 The fixture supplies sample addresses, publisher information, source links, telephone placeholders, and fixed dates in 2099.
 Sample labels appear in the displayed region, address, and publisher.
 Never call sample telephone numbers or publish private caller-identification captures.

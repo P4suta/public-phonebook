@@ -118,7 +118,16 @@ fn validate(
         );
     }
     let expected_bundle = match settings.target.as_str() {
-        "PublicPhonebook" => bundle.to_owned(),
+        "PublicPhonebook" => {
+            ensure!(
+                settings
+                    .build_settings
+                    .get("ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME")
+                    == Some(&json!("AccentColor")),
+                "The phone app must use its system label accent asset"
+            );
+            bundle.to_owned()
+        }
         "CallDirectory" => format!("{bundle}.CallDirectory"),
         "PhonebookWatch" => format!("{bundle}.watchkitapp"),
         _ => anyhow::bail!("Unexpected native target"),
@@ -318,6 +327,8 @@ pub(super) fn configurations(root: &Path) -> Result<()> {
             ];
             if target.target == "PhonebookWatch" {
                 keys.extend(["TARGETED_DEVICE_FAMILY", "WATCHOS_DEPLOYMENT_TARGET"]);
+            } else if target.target == "PublicPhonebook" {
+                keys.push("ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME");
             }
             for key in keys {
                 let previous = target

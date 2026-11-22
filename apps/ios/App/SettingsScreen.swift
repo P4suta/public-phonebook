@@ -4,43 +4,71 @@ import SwiftUI
 
 struct SettingsScreen: View {
   @Bindable var model: IntegrationModel
+  let directory: DirectoryModel
+  @Environment(\.dismiss) private var dismiss
+  #if PHONEBOOK_VERIFICATION_TOOLS
+    @Environment(VerificationNumberModel.self) private var verification
+  #endif
 
   var body: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 12) {
-        Text("電話の相手が分かるようにする").font(.headline).accessibilityAddTraits(.isHeader)
-        Text(
-          "設定で「\(AppIdentity.displayName)」を許可してください。"
-        )
-        .font(.callout)
-        Text("アプリにある番号から電話がかかってきたとき、施設の名前が出ます。")
-          .font(.callout)
+    Form {
+      Section {
         CallerStatusLabel(status: model.callerStatus)
-        Button {
-          model.openCallerSettings()
-        } label: {
-          IconLabel(icon: "settings", text: "設定を開く")
-        }
-        .buttonStyle(MonoButtonStyle())
-        .accessibilityIdentifier("caller-settings")
+        Text("アプリにある番号から電話がかかってきたとき、施設の名前が出ます。")
+          .fixedSize(horizontal: false, vertical: true)
+        Button("設定を開く", systemImage: "gearshape") { model.openCallerSettings() }
+          .accessibilityIdentifier("caller-settings")
+      } header: {
+        Text("着信時の施設名表示").foregroundStyle(TintShapeStyle())
+      } footer: {
+        Text("設定で「\(AppIdentity.displayName)」を許可してください。").font(.footnote)
+          .foregroundStyle(TintShapeStyle())
+          .fixedSize(horizontal: false, vertical: true)
       }
-      .padding(.vertical, 24).padding(.horizontal, 16)
-      .frame(maxWidth: .infinity, alignment: .leading)
-    }
-    .padding(.vertical, 1)
-    .accessibilityIdentifier("integration-content")
-    .background(.surface)
-    .safeAreaInset(edge: .top, spacing: 0) {
       if let problem = model.problem {
-        VStack(spacing: 0) {
-          Text(problem).font(.callout).fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading).padding(16)
-            .accessibilityIdentifier("sync-error")
-          Rectangle().fill(.ink).frame(height: 1)
-        }.foregroundStyle(.ink).background(.surface)
+        Text(problem).accessibilityIdentifier("sync-error")
+      }
+      Section {
+        NavigationLink {
+          AboutScreen(model: directory, integration: model)
+        } label: {
+          Label("Public Phonebookについて", systemImage: "info.circle")
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        NavigationLink {
+          SourcesScreen(categories: directory.categories)
+        } label: {
+          Label("データのもと", systemImage: "books.vertical")
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        NavigationLink {
+          LicenseScreen()
+        } label: {
+          Label("ライセンス", systemImage: "doc.text")
+            .fixedSize(horizontal: false, vertical: true)
+        }
+      }
+      #if PHONEBOOK_VERIFICATION_TOOLS
+        Section {
+          NavigationLink {
+            VerificationToolsScreen(model: verification, integration: model)
+          } label: {
+            Label("QA用の確認", systemImage: "wrench.and.screwdriver")
+              .fixedSize(horizontal: false, vertical: true)
+          }
+        }
+      #endif
+    }
+    .lineLimit(nil)
+    .accessibilityIdentifier("integration-content")
+    .navigationTitle("設定")
+    .navigationBarTitleDisplayMode(.inline)
+    .toolbar {
+      ToolbarItem(placement: .confirmationAction) {
+        Button("閉じる", systemImage: "xmark") { dismiss() }
+          .accessibilityIdentifier("close-settings")
       }
     }
-    .navigationTitle("設定").navigationBarTitleDisplayMode(.inline)
     .task { await model.refresh() }
   }
 }

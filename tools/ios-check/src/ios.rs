@@ -129,6 +129,20 @@ fn scenario_outcome(passed: bool, hung: bool) -> &'static str {
         FAILED
     }
 }
+
+fn scenario_with_cleanup(
+    test: Result<()>,
+    contrast: Result<()>,
+    appearance: Result<()>,
+) -> Result<()> {
+    let errors: Vec<_> = [test, contrast, appearance]
+        .into_iter()
+        .filter_map(Result::err)
+        .map(|error| format!("{error:#}"))
+        .collect();
+    ensure!(errors.is_empty(), "{}", errors.join("\n"));
+    Ok(())
+}
 /// Measures the process footprint, so it runs in its own invocation where no concurrent test allocates.
 const ISOLATED_FOOTPRINT_TEST: &str = "readerFootprintStaysFlatWhenRunAlone";
 const ARCHIVE_FOOTPRINT_TEST: &str = "archiveDigestUsesBoundedMemory";
@@ -139,14 +153,15 @@ const SANITIZED_CONTRACTS: [&str; 4] = [
     "cancellationBeforeAndDuringRealRequestsAlwaysCompletes",
     "firstRunAppliesTheListedDeltaToTheBundleOnce",
 ];
-const UI_TESTS: [&str; 30] = [
+const UI_TESTS: [&str; 32] = [
     "testRankedMetadataRemainsReadableAtLargestTextSize",
     "testOnboardingSavesTheDirectoryBeforeSearch",
     "testSearchGroupsRankedResultsAndShowsMore",
     "testTelephoneSearchFindsEveryRecordForTheNumber",
     "testEmptyResultsAndLargeText",
     "testContactDetailShowsRegionSourceAndExternalLinkConfirmation",
-    "testPhoneNumberIsTextOverTheCallButton",
+    "testFacilityActionsChooseTheNumberWithoutNavigating",
+    "testFacilityActionsChooseTheNumberInDarkAppearance",
     "testCallerPromptAppearsOnlyWhileCallerNamesAreOff",
     "testVerificationNumberAppearsInSearchAndClears",
     "testPortraitLandscapeRoundTrip",
@@ -161,43 +176,51 @@ const UI_TESTS: [&str; 30] = [
     "testDeltaNoticeReceivesOnlyTheDeltaFromTheBundle",
     "testNoTransferNoticePreparesTheBundledData",
     "testFirstRunWithTheServiceStoppedUsesTheBundledData",
-    "testDarkAppearanceSwapsBlackAndWhite",
-    "testLargestTextScalesIconsBesideTheirLabels",
+    "testDarkAppearanceUsesSystemSurfacesAndLabelAccent",
+    "testLargestTextKeepsOnboardingControlsReadable",
     "testSearchFieldShowsOneClearControl",
     "testClearingSearchFromDetailReturnsToTheInitialScreen",
-    "testNativeBackGesturePreservesSearchAndMenuNavigation",
+    "testNativeBackGestureAndSettingsPreserveSearch",
     "testNativeBackGestureReturnsThroughSetupSteps",
+    "testNativeListTextFitsAtDefaultAndLargestSizes",
     "testCommonTasksPassAccessibilityAudits",
     "testCommonTasksPassAccessibilityAuditsAtLargestTextSize",
     "testCommonTasksPassAccessibilityAuditsInDarkAppearance",
 ];
 /// The UI scenarios that run with the simulator in the dark appearance.
-const DARK_UI_TESTS: [&str; 2] = [
-    "testDarkAppearanceSwapsBlackAndWhite",
+const DARK_UI_TESTS: [&str; 3] = [
+    "testFacilityActionsChooseTheNumberInDarkAppearance",
+    "testDarkAppearanceUsesSystemSurfacesAndLabelAccent",
     "testCommonTasksPassAccessibilityAuditsInDarkAppearance",
 ];
 const AIR_UI_TESTS: [&str; 4] = [
-    "testNativeBackGesturePreservesSearchAndMenuNavigation",
+    "testNativeBackGestureAndSettingsPreserveSearch",
     "testNativeBackGestureReturnsThroughSetupSteps",
     "testPortraitLandscapeRoundTrip",
     "testLandscapeLargeTextSettings",
 ];
-const DUO_UI_TESTS: [&str; 8] = [
+const DUO_UI_TESTS: [&str; 11] = [
+    "testFacilityActionsChooseTheNumberWithoutNavigating",
+    "testFacilityActionsChooseTheNumberInDarkAppearance",
     "testPortraitLandscapeRoundTrip",
     "testSearchGroupsRankedResultsAndShowsMore",
     "testEmptyResultsAndLargeText",
     "testContactDetailShowsRegionSourceAndExternalLinkConfirmation",
     "testClearingSearchFromDetailReturnsToTheInitialScreen",
     "testSearchFieldShowsOneClearControl",
+    "testNativeListTextFitsAtDefaultAndLargestSizes",
     "testCommonTasksPassAccessibilityAudits",
     "testCommonTasksPassAccessibilityAuditsAtLargestTextSize",
 ];
-const IPAD_UI_TESTS: [&str; 7] = [
+const IPAD_UI_TESTS: [&str; 10] = [
+    "testFacilityActionsChooseTheNumberWithoutNavigating",
+    "testFacilityActionsChooseTheNumberInDarkAppearance",
     "testPortraitLandscapeRoundTrip",
     "testLandscapeLargeTextSettings",
     "testSearchFieldShowsOneClearControl",
     "testContactDetailShowsRegionSourceAndExternalLinkConfirmation",
     "testClearingSearchFromDetailReturnsToTheInitialScreen",
+    "testNativeListTextFitsAtDefaultAndLargestSizes",
     "testCommonTasksPassAccessibilityAudits",
     "testCommonTasksPassAccessibilityAuditsAtLargestTextSize",
 ];
@@ -1260,23 +1283,54 @@ fn ui_test_on(
             let mut scenario = ui_command(root, &identifier);
             scenario.envs(runner_ports.iter().map(|(variable, port)| (variable, port)));
             let dark = DARK_UI_TESTS.contains(&name);
-            if dark {
-                appearance(root, &identifier, &case, "dark")?;
-            }
-            let execution = logged(
-                root,
-                &case,
-                scenario
-                    .arg("-resultBundlePath")
-                    .arg(&result)
-                    .arg(format!(
-                        "-only-testing:PhonebookUITests/DirectoryUITests/{name}"
-                    ))
-                    .arg("test-without-building"),
+            let contrast = matches!(
+                name,
+                "testFacilityActionsChooseTheNumberWithoutNavigating"
+                    | "testFacilityActionsChooseTheNumberInDarkAppearance"
             );
-            if dark {
-                appearance(root, &identifier, &case, "light")?;
-            }
+            let set_contrast = |step, setting| {
+                logged(
+                    root,
+                    step,
+                    Command::new("xcrun").args([
+                        "simctl",
+                        "ui",
+                        &identifier,
+                        "increase_contrast",
+                        setting,
+                    ]),
+                )
+                .map(|_| ())
+            };
+            let execution = (|| {
+                if dark {
+                    appearance(root, &identifier, &case, "dark")?;
+                }
+                if contrast {
+                    set_contrast("enable-increase-contrast", "enabled")?;
+                }
+                logged(
+                    root,
+                    &case,
+                    scenario
+                        .arg("-resultBundlePath")
+                        .arg(&result)
+                        .arg(format!(
+                            "-only-testing:PhonebookUITests/DirectoryUITests/{name}"
+                        ))
+                        .arg("test-without-building"),
+                )
+            })();
+            let restored_contrast = if contrast {
+                set_contrast("restore-increase-contrast", "disabled")
+            } else {
+                Ok(())
+            };
+            let restored_appearance = if dark {
+                appearance(root, &identifier, &case, "light")
+            } else {
+                Ok(())
+            };
             let read_result = |kind| -> Result<Value> {
                 let output = logged(
                     root,
@@ -1290,6 +1344,7 @@ fn ui_test_on(
             let verdict = execution.and_then(|_| {
                 require_ui_case(&read_result("summary")?, &read_result("tests")?, name)
             });
+            let verdict = scenario_with_cleanup(verdict, restored_contrast, restored_appearance);
             let error = verdict.as_ref().err().map(|error| format!("{error:#}"));
             let mut hung = error.as_deref().is_some_and(exceeded_allowance);
             let evidence = error.as_ref().map(|error| {
@@ -1996,6 +2051,20 @@ fn coverage(root: &Path) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn scenario_and_simulator_restoration_failures_are_reported_together() {
+        let result = scenario_with_cleanup(
+            Err(anyhow::anyhow!("assertion failed")),
+            Err(anyhow::anyhow!("contrast reset failed")),
+            Err(anyhow::anyhow!("appearance reset failed")),
+        );
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "assertion failed\ncontrast reset failed\nappearance reset failed"
+        );
+        assert!(scenario_with_cleanup(Ok(()), Ok(()), Ok(())).is_ok());
+    }
 
     #[test]
     fn mutation_workers_stay_within_the_native_capacity() {

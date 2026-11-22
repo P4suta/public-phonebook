@@ -25,7 +25,12 @@ const contacts = facilities.map(([id, name]) =>
     prefectureCode: "13",
     municipalityCode: "13001",
     address: "みほん県みほん市本町1-2-3（サンプル）",
-    phones: [{ display: "03-0000-0000", e164: "+81300000000" }],
+    phones: [
+      { display: "03-0000-0000", e164: "+81300000000" },
+      ...(id === "central-library"
+        ? [{ display: "03-0000-0001", e164: "+81300000001" }]
+        : []),
+    ],
     website: `${origin}/${id}`,
     sourceId: "sample-city",
     sourceRecordId: id,
@@ -45,7 +50,7 @@ export const sampleCityDirectory = {
     snapshot: "0".repeat(digestLength),
     generatedAt,
     contacts: contacts.length,
-    phones: 1,
+    phones: new Set(contacts.flatMap((c) => c.phones.map((p) => p.e164))).size,
     sourceCount: 1,
     categories: [
       {

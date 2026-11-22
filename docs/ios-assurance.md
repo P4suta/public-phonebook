@@ -87,8 +87,8 @@ Telephone numbers, labels, queries, and error descriptions never appear as publi
 Text scanners don't establish the behavior of an SDK, indirect call, or future unrecognized spelling.
 
 Built-property-list checks cover the launch screen and each configuration's selected transport declaration.
-Release scans reject experimental search resources and six QA marker strings.
-Verification builds must contain all six markers, and a contaminated Release control must fail.
+Release scans reject experimental search resources and QA marker strings.
+Verification builds must contain every marker, and a contaminated Release control must fail.
 The control plants empty forbidden resources in its own build to check filename detection.
 Icon checks bind Figma sources to derived assets and validate SVG boundaries and mask geometry.
 Visual meaning, actual device appearance, carrier calls, and natural background delivery remain distinct observations.

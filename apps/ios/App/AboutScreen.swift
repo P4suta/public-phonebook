@@ -17,15 +17,17 @@ struct AboutScreen: View {
         section("無料で使えます")
         Text("プログラムも公開しています。")
         if let url = URL(string: "https://github.com/P4suta/public-phonebook") {
-          ExternalLink(url: url, destination: .sourceCode) {
-            IconLabel(icon: "external", text: "プログラムを見る")
+          NavigationLink {
+            SettingsLinkConfirmation(page: ExternalPage(url: url, destination: .sourceCode))
+          } label: {
+            Label("プログラムを見る", systemImage: "arrow.up.right.square")
           }
-          .buttonStyle(MonoButtonStyle())
+          .buttonStyle(.borderless)
           .accessibilityIdentifier("source-code-link")
         }
 
         section("使い方")
-        Text("検索欄に施設の名前を入れてください。")
+        Text("検索欄に施設名または電話番号を入力してください。")
         Text("電話の相手を表示するには、「設定」で許可してください。")
 
         section("データについて")
@@ -39,19 +41,23 @@ struct AboutScreen: View {
         if integration.needsNewerApp {
           Text(IntegrationModel.newerAppLine).accessibilityIdentifier("newer-app")
         }
-        NavigationLink(value: SearchRoute.sources) {
-          IconLabel(icon: "info", text: "データのもとを見る")
+        NavigationLink {
+          SourcesScreen(categories: model.categories)
+        } label: {
+          Label("データのもとを見る", systemImage: "info.circle")
         }
-        .buttonStyle(MonoButtonStyle())
+        .buttonStyle(.borderless)
         .accessibilityIdentifier("sources-link")
 
         section("データの収集")
         Text("ありません。").accessibilityIdentifier("privacy-collection")
         if let url = URL(string: "https://www.dial.page/privacy") {
-          ExternalLink(url: url, destination: .other) {
-            IconLabel(icon: "file", text: "プライバシーについて読む")
+          NavigationLink {
+            SettingsLinkConfirmation(page: ExternalPage(url: url, destination: .other))
+          } label: {
+            Label("プライバシーについて読む", systemImage: "doc.text")
           }
-          .buttonStyle(MonoButtonStyle())
+          .buttonStyle(.borderless)
           .accessibilityIdentifier("privacy-policy-link")
         }
 
@@ -61,15 +67,17 @@ struct AboutScreen: View {
         Button {
           if let url = URL(string: "mailto:support@dial.page") { openURL(url) }
         } label: {
-          IconLabel(icon: "messages-square", text: "メールを送る")
+          Label("メールを送る", systemImage: "envelope")
         }
-        .buttonStyle(MonoButtonStyle())
+        .buttonStyle(.borderless)
         .accessibilityHint("メールアプリを開きます。")
 
-        NavigationLink(value: SearchRoute.license) {
-          IconLabel(icon: "file", text: "ライセンスを見る")
+        NavigationLink {
+          LicenseScreen()
+        } label: {
+          Label("ライセンスを見る", systemImage: "doc.text")
         }
-        .buttonStyle(MonoButtonStyle())
+        .buttonStyle(.borderless)
         .accessibilityIdentifier("license-link")
         Text(
           "バージョン \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")"
@@ -78,13 +86,41 @@ struct AboutScreen: View {
       }
       .padding(20).frame(maxWidth: .infinity, alignment: .leading)
     }
-    .background(.surface)
     .navigationTitle("Public Phonebookについて").navigationBarTitleDisplayMode(.inline)
     .accessibilityIdentifier("about-content")
   }
 
   private func section(_ title: String) -> some View {
     Text(title).font(.title2.bold()).padding(.top, 12).accessibilityAddTraits(.isHeader)
+  }
+}
+
+private struct SettingsLinkConfirmation: View {
+  let page: ExternalPage
+  @Environment(\.dismiss) private var dismiss
+  @Environment(\.openURL) private var openURL
+
+  var body: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 16) {
+        Text(page.message)
+          .fixedSize(horizontal: false, vertical: true)
+          .accessibilityLabel(page.destination.description)
+          .accessibilityValue(page.hostLine)
+          .accessibilityIdentifier("external-page-disclosure")
+        Button("開く", systemImage: "arrow.up.right.square") {
+          dismiss()
+          openURL(page.url)
+        }
+        .buttonStyle(.borderedProminent)
+        Button("キャンセル", role: .cancel) { dismiss() }
+          .buttonStyle(.bordered)
+      }
+      .controlSize(.large)
+      .padding(20)
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .navigationTitle("ページを開きます").navigationBarTitleDisplayMode(.inline)
   }
 }
 
@@ -104,11 +140,10 @@ struct SourcesScreen: View {
           }
           .padding(.vertical, 12)
           .accessibilityElement(children: .combine)
-          Rectangle().fill(.ink).frame(height: 1)
+          Divider()
         }
       }.padding(20)
     }
-    .background(.surface)
     .navigationTitle("データのもと").navigationBarTitleDisplayMode(.inline)
   }
 }
@@ -126,7 +161,6 @@ struct LicenseScreen: View {
       Text(notices).font(.callout).textSelection(.enabled)
         .frame(maxWidth: .infinity, alignment: .leading).padding(16)
     }
-    .foregroundStyle(.ink).background(.surface)
     .navigationTitle("ライセンス").navigationBarTitleDisplayMode(.inline)
     .accessibilityIdentifier("license-content")
   }

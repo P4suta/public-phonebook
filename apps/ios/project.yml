@@ -71,7 +71,7 @@ targets:
       - Native
       - path: GeneratedAssets.xcassets
         buildPhase: resources
-      # The icon generator rewrites GeneratedAssets.xcassets, so the launch color lives in its own catalog.
+      # Keep the launch and accent colors outside the generated icon catalog.
       - path: Config/Launch.xcassets
         buildPhase: resources
       - path: Config/PrivacyInfo.xcprivacy
@@ -104,6 +104,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(PHONEBOOK_BUNDLE_ID)
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         PROVISIONING_PROFILE_SPECIFIER: $(PHONEBOOK_APP_PROFILE)
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_ENTITLEMENTS: Config/Shared.entitlements

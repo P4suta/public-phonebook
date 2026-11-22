@@ -32,10 +32,12 @@ struct PhonebookApp: App {
   var body: some Scene {
     WindowGroup {
       if Self.measuresDevice {
-        Rectangle().fill(.surface)
+        Rectangle().hidden()
       } else if let directory, let integration {
         RootView(directory: directory, integration: integration)
-          .tint(.ink)
+          #if PHONEBOOK_VERIFICATION_TOOLS
+            .modifier(VerificationCallHandoff())
+          #endif
       } else {
         Text(startupError ?? "アプリを開けませんでした。アプリを開き直してください。")
           .padding()

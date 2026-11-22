@@ -3,6 +3,36 @@
   import PhonebookKit
   import SwiftUI
 
+  /// Captures the requested telephone URL during simulator UI tests.
+  struct VerificationCallHandoff: ViewModifier {
+    @State private var telephoneURL: URL?
+
+    func body(content: Content) -> some View {
+      if ProcessInfo.processInfo.arguments.contains("--verify-call-handoff") {
+        content
+          .environment(
+            \.openURL,
+            OpenURLAction { url in
+              guard url.scheme == "tel" else { return .systemAction }
+              telephoneURL = url
+              return .handled
+            }
+          )
+          .alert(
+            "Call handoff",
+            isPresented: Binding(
+              get: { telephoneURL != nil }, set: { if !$0 { telephoneURL = nil } })
+          ) {
+            Button("OK", role: .cancel) {}
+          } message: {
+            Text(telephoneURL?.absoluteString ?? "")
+          }
+      } else {
+        content
+      }
+    }
+  }
+
   /// The QA build's test number, which the owner saves to check calling and caller names on a real iPhone.
   @Observable @MainActor
   final class VerificationNumberModel {
@@ -107,58 +137,49 @@
     @Bindable var integration: IntegrationModel
 
     var body: some View {
-      ScrollView {
-        VStack(alignment: .leading, spacing: 0) {
-          VStack(alignment: .leading, spacing: 12) {
-            Text("確認用の電話番号").font(.headline).accessibilityAddTraits(.isHeader)
-            Text("入れた番号と名前は、iPhoneの中に保存します。").font(.callout)
-            Text("保存した名前が、検索の結果と着信時の画面に出ます。").font(.callout)
-            LabeledField(
-              label: "電話番号", text: $model.telephone, telephone: true,
-              identifier: "verification-telephone")
-            LabeledField(label: "名前", text: $model.label, identifier: "verification-label")
-            if let message = model.message {
-              Text(message).fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("verification-message")
-            }
-            Button {
-              Task { await model.save(integration) }
-            } label: {
-              IconLabel(icon: "check", text: "保存する")
-            }
-            .buttonStyle(MonoButtonStyle(prominent: true))
-            .disabled(model.working)
-            .accessibilityIdentifier("verification-save")
-            Button {
-              Task { await model.clear(integration) }
-            } label: {
-              IconLabel(icon: "x", text: "消す")
-            }
-            .buttonStyle(MonoButtonStyle())
-            .disabled(model.working)
-            .accessibilityIdentifier("verification-clear")
-            Text("確認用の差分で、施設名の再登録を試します。")
-              .font(.callout)
-            Button {
-              Task { await model.verifyReplacement(integration) }
-            } label: {
-              IconLabel(icon: "check", text: "全件の再登録を確認する")
-            }
-            .buttonStyle(MonoButtonStyle())
-            .disabled(model.working)
-            .accessibilityIdentifier("verification-caller-replacement")
+      Form {
+        Section("確認用の電話番号") {
+          Text("入れた番号と名前は、iPhoneの中に保存します。").font(.callout)
+          Text("保存した名前が、検索の結果と着信時の画面に出ます。").font(.callout)
+          LabeledField(
+            label: "電話番号", text: $model.telephone, telephone: true,
+            identifier: "verification-telephone")
+          LabeledField(label: "名前", text: $model.label, identifier: "verification-label")
+          if let message = model.message {
+            Text(message).fixedSize(horizontal: false, vertical: true)
+              .accessibilityIdentifier("verification-message")
           }
-          .padding(.vertical, 24)
-          Rectangle().fill(.ink).frame(height: 1)
-          AutomaticUpdateStatus(integration: integration).padding(.vertical, 24)
-          Rectangle().fill(.ink).frame(height: 1)
-          Text("QA用のアプリで使う画面です。").font(.footnote).padding(.vertical, 24)
+          Button {
+            Task { await model.save(integration) }
+          } label: {
+            Label("保存する", systemImage: "checkmark")
+          }
+          .disabled(model.working)
+          .accessibilityIdentifier("verification-save")
+          Button {
+            Task { await model.clear(integration) }
+          } label: {
+            Label("消す", systemImage: "xmark")
+          }
+          .disabled(model.working)
+          .accessibilityIdentifier("verification-clear")
+          Text("確認用の差分で、施設名の再登録を試します。")
+            .font(.callout)
+          Button {
+            Task { await model.verifyReplacement(integration) }
+          } label: {
+            Label("全件の再登録を確認する", systemImage: "checkmark")
+          }
+          .disabled(model.working)
+          .accessibilityIdentifier("verification-caller-replacement")
         }
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        Section {
+          AutomaticUpdateStatus(integration: integration)
+        } footer: {
+          Text("QA用のアプリで使う画面です。")
+        }
       }
       .scrollDismissesKeyboard(.interactively)
-      .background(.surface)
       .accessibilityIdentifier("verification-tools")
       .navigationTitle("QA用の確認")
       .navigationBarTitleDisplayMode(.inline)
@@ -179,9 +200,7 @@
           .textContentType(telephone ? .telephoneNumber : nil)
           .autocorrectionDisabled()
           .textInputAutocapitalization(.never)
-          .padding(.horizontal, 14)
           .frame(minHeight: 44)
-          .overlay { Rectangle().strokeBorder(.ink, lineWidth: 1) }
           .accessibilityLabel(label)
           .accessibilityIdentifier(identifier)
       }
@@ -230,9 +249,8 @@
         Button {
           integration.updateNow()
         } label: {
-          IconLabel(icon: "download", text: integration.busy ? "受け取っています" : "いま受け取る")
+          Label(integration.busy ? "受け取っています" : "いま受け取る", systemImage: "arrow.down.circle")
         }
-        .buttonStyle(MonoButtonStyle())
         .disabled(integration.busy)
         .accessibilityIdentifier("verification-update")
       }
@@ -244,26 +262,18 @@
     let entry: CallerEntry
 
     var body: some View {
-      VStack(alignment: .leading, spacing: 0) {
-        HStack(spacing: 6) {
-          DesignIcon(name: "phone", size: 16)
-          Text("QA用").bold()
-          Text("1件")
+      Section("QA用 1件") {
+        let phone = Phone(display: entry.display, e164: entry.phone)
+        HStack {
+          VStack(alignment: .leading) {
+            Text(entry.label).font(.headline)
+            Text(phone.nationalDisplay).monospacedDigit().accessibilityIdentifier("phone-number")
+          }
+          Spacer()
+          CallButton(phone: phone, iconOnly: true)
         }
-        .font(.title3).padding(.top, 24).padding(.bottom, 8)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("QA用 1件")
-        .accessibilityAddTraits(.isHeader)
-        Rectangle().fill(.ink).frame(height: 2)
-        VStack(alignment: .leading, spacing: 10) {
-          Text(entry.label).font(.title3.bold()).multilineTextAlignment(.leading)
-            .accessibilityAddTraits(.isHeader)
-          PhoneActions(phone: Phone(display: entry.display, e164: entry.phone))
-        }
-        .padding(.vertical, 16)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("verification-result")
-        Rectangle().fill(.ink).frame(height: 1)
       }
     }
   }

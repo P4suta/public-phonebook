@@ -76,7 +76,7 @@ The OS decides its scheduling conditions.
 ## Carrier identification and system compatibility
 
 A real incoming-call test needs a controlled originating line and an approved test number represented in the saved QA data.
-The QA build supplies that number through its `QA用の確認` screen, which the app menu opens.
+In the QA build, open settings from the search screen and choose `QA用の確認` to enter a test number.
 Enter the controlled line's number and a label there, and press `保存する`.
 The app keeps both on the QA iPhone, and the Call Directory extension adds them to the caller names.
 Turn the extension on in the iPhone settings, call the QA iPhone from the controlled line, and check the label on the incoming call screen.

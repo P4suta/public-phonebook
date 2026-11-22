@@ -3,49 +3,92 @@ import SwiftUI
 
 struct ContactScreen: View {
   let contact: Contact
+  @State private var page: ExternalPage?
+  @State private var confirmsMap = false
+  @State private var openingMap = false
+  @State private var mapMissing = false
+  private let mapError = "場所を見つけられませんでした"
+  private let mapRetry = "インターネットにつながっているかたしかめて、もう一度試してください。"
 
   var body: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 20) {
-        HStack(spacing: 6) {
-          DesignIcon(name: IconCatalog.categories[contact.categoryKey] ?? "file", size: 16)
-          Text(contact.category)
-        }.font(.subheadline)
-        Text(contact.name).font(.largeTitle.bold()).textSelection(.enabled)
+    List {
+      Section {
+        Text(contact.name).font(.title.bold()).textSelection(.enabled)
           .accessibilityAddTraits(.isHeader)
-        ForEach(contact.phones, id: \.e164) { PhoneActions(phone: $0, large: true) }
-        VStack(alignment: .leading, spacing: 12) {
-          VStack(alignment: .leading, spacing: 6) {
-            Text("住所").font(.headline)
-            Text(contact.address.isEmpty ? contact.region : contact.address).font(.callout)
-              .textSelection(.enabled)
-              .accessibilityIdentifier("contact-address")
+      } header: {
+        Label {
+          Text(contact.category)
+        } icon: {
+          DesignIcon(name: IconCatalog.categories[contact.categoryKey] ?? "file", size: 16)
+        }
+        .foregroundStyle(TintShapeStyle())
+      }
+      Section {
+        ForEach(contact.phones, id: \.e164) { PhoneActions(phone: $0) }
+      } header: {
+        Text("電話番号").foregroundStyle(TintShapeStyle())
+      }
+      Section {
+        Text(contact.address.isEmpty ? contact.region : contact.address)
+          .textSelection(.enabled)
+          .accessibilityIdentifier("contact-address")
+        if !contact.address.isEmpty {
+          MapButton(name: contact.name, opening: openingMap) {
+            mapMissing = false
+            confirmsMap = true
           }
-          if !contact.address.isEmpty {
-            MapButton(name: contact.name, address: contact.address)
+          if mapMissing {
+            VStack(alignment: .leading) {
+              Text(mapError).font(.headline)
+              Text(mapRetry)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("map-error")
           }
         }
-        if let raw = contact.website, let url = WebAddress.url(raw) {
-          ExternalLink(url: url, destination: .facility) {
-            IconLabel(icon: "external", text: "施設のホームページを開く")
-          }.buttonStyle(MonoButtonStyle())
+      } header: {
+        Text("住所").foregroundStyle(TintShapeStyle())
+      }
+      if let raw = contact.website, let url = WebAddress.url(raw) {
+        ExternalLink(url: url, destination: .facility, page: $page) {
+          Label("施設のホームページを開く", systemImage: "arrow.up.right.square")
         }
-        Rectangle().fill(.ink).frame(height: 1)
-        Text("電話番号のもとの情報").font(.title2.bold()).accessibilityAddTraits(.isHeader)
+      }
+      Section {
         Text("\(contact.provenance.publisher)が公開したデータです。")
         if let date = DateText.japanese(contact.provenance.dataAsOf) {
-          Text("データの日付：\(date)").accessibilityIdentifier("source-data-date")
+          Text("データの日付：\(date)").font(.body)
+            .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier(
+              "source-data-date")
         }
         NavigationLink(value: SearchRoute.source(contact)) {
-          IconLabel(icon: "info", text: "もとの情報を見る")
+          Label("もとの情報を見る", systemImage: "info.circle").font(.body)
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .buttonStyle(MonoButtonStyle())
         .accessibilityIdentifier("source-link")
-      }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
+      } header: {
+        Text("電話番号のもとの情報").foregroundStyle(TintShapeStyle())
+      }
     }
-    .background(.surface).navigationTitle("施設の情報").navigationBarTitleDisplayMode(.inline)
-    .toolbarBackground(.surface, for: .navigationBar)
-    .toolbarBackgroundVisibility(.visible, for: .navigationBar)
+    .accessibilityIdentifier("contact-content")
+    .accessibilityHidden(confirmsMap || page != nil)
+    .modifier(ExternalPageConfirmation(page: $page))
+    .alert("地図を開きます", isPresented: $confirmsMap) {
+      Button("開く") { openingMap = true }
+      Button("キャンセル", role: .cancel) {}
+    } message: {
+      Text("施設の名前と住所をAppleのマップに送ります。")
+    }
+    .task(id: openingMap) {
+      guard openingMap else { return }
+      let opened = await MapDestination.open(name: contact.name, address: contact.address)
+      guard openingMap, !Task.isCancelled else { return }
+      openingMap = false
+      mapMissing = !opened
+      if mapMissing { AccessibilityAnnouncement.post(mapError + "。" + mapRetry) }
+    }
+    .onDisappear { openingMap = false }
+    .navigationTitle("施設の情報").navigationBarTitleDisplayMode(.inline)
   }
 }
 
@@ -59,6 +102,7 @@ enum DateText {
 
 struct SourceScreen: View {
   let contact: Contact
+  @State private var page: ExternalPage?
 
   private var licenseName: String {
     switch contact.provenance.license {
@@ -71,44 +115,52 @@ struct SourceScreen: View {
 
   var body: some View {
     let provenance = contact.provenance
-    ScrollView {
-      VStack(alignment: .leading, spacing: 20) {
-        Text("電話番号のもとの情報").font(.title.bold()).accessibilityAddTraits(.isHeader)
-        Text(contact.name).font(.headline)
-        ForEach(contact.phones, id: \.e164) { Text($0.display).font(.title.bold()) }
+    List {
+      Section {
+        ForEach(contact.phones, id: \.e164) { phone in
+          Text(phone.nationalDisplay).monospacedDigit().textSelection(.enabled)
+        }
+      } header: {
+        Text(contact.name).foregroundStyle(TintShapeStyle())
+      }
+      Section {
         Text("\(provenance.publisher)が公開したデータです。")
         let publications = provenance.publications.filter { $0 != provenance.sourceURL }
         ForEach(Array(publications.enumerated()), id: \.offset) { index, raw in
           if let url = WebAddress.url(raw) {
-            ExternalLink(url: url, destination: .publication) {
-              IconLabel(
-                icon: "external",
-                text: publications.count == 1
-                  ? "データのページを開く" : "データのページを開く（\(index + 1)）")
-            }.buttonStyle(MonoButtonStyle())
+            ExternalLink(url: url, destination: .publication, page: $page) {
+              Label(
+                publications.count == 1 ? "データのページを開く" : "データのページを開く（\(index + 1)）",
+                systemImage: "arrow.up.right.square")
+            }
           }
         }
         if let date = DateText.japanese(provenance.dataAsOf) {
-          Text("データの日付：\(date)").accessibilityIdentifier("source-data-date")
+          Text("データの日付：\(date)").font(.body)
+            .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier(
+              "source-data-date")
         }
         if let date = DateText.japanese(provenance.retrievedAt) { Text("データを集めた日：\(date)") }
         Text("使うときの決まり：\(licenseName)")
           .fixedSize(horizontal: false, vertical: true)
           .accessibilityIdentifier("source-license")
         if let url = WebAddress.url(provenance.licenseURL) {
-          ExternalLink(url: url, destination: .license) {
-            IconLabel(icon: "external", text: "使うときの決まりを見る")
-          }.buttonStyle(MonoButtonStyle())
+          ExternalLink(url: url, destination: .license, page: $page) {
+            Label("使うときの決まりを見る", systemImage: "arrow.up.right.square")
+          }
         }
         if let raw = provenance.sourceURL, let url = WebAddress.url(raw) {
-          ExternalLink(url: url, destination: .source) {
-            IconLabel(icon: "external", text: "もとの資料を開く")
-          }.buttonStyle(MonoButtonStyle())
+          ExternalLink(url: url, destination: .source, page: $page) {
+            Label("もとの資料を開く", systemImage: "arrow.up.right.square")
+          }
         }
-      }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
+      } header: {
+        Text("公開元").foregroundStyle(TintShapeStyle())
+      }
     }
-    .background(.surface).navigationTitle("電話番号のもとの情報").navigationBarTitleDisplayMode(.inline)
-    .toolbarBackground(.surface, for: .navigationBar)
-    .toolbarBackgroundVisibility(.visible, for: .navigationBar)
+    .accessibilityIdentifier("source-content")
+    .accessibilityHidden(page != nil)
+    .modifier(ExternalPageConfirmation(page: $page))
+    .navigationTitle("電話番号のもとの情報").navigationBarTitleDisplayMode(.inline)
   }
 }
