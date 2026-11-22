@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.2.0](https://github.com/P4suta/public-phonebook/compare/ios-v1.1.0...ios-v1.2.0) (2026-11-22)
+
+
+### Features
+
+* **ios:** use native search and calling controls ([#446](https://github.com/P4suta/public-phonebook/issues/446)) ([d78fbe3](https://github.com/P4suta/public-phonebook/commit/d78fbe39c7192cd0cb6cbc42b1ec8e7377e37e55))
+
+
+### Bug Fixes
+
+* **ci:** use preinstalled Xcode simulator runtimes ([#412](https://github.com/P4suta/public-phonebook/issues/412)) ([291080d](https://github.com/P4suta/public-phonebook/commit/291080d53af7199fd3fb467529dce1c847e9b20e))
+* **ci:** verify staged sources and compatible simulators ([#405](https://github.com/P4suta/public-phonebook/issues/405)) ([20a86a9](https://github.com/P4suta/public-phonebook/commit/20a86a9ba43c54e3e232fac38f0a1140219e7c40))
+* **copy:** use plain Japanese across the product ([#421](https://github.com/P4suta/public-phonebook/issues/421)) ([0ae0dd9](https://github.com/P4suta/public-phonebook/commit/0ae0dd9c24887ef28f02a419ca2eab1bf337bbbb))
+* **images:** use a fictional city for product screenshots ([#422](https://github.com/P4suta/public-phonebook/issues/422)) ([5cdb604](https://github.com/P4suta/public-phonebook/commit/5cdb604f91383c39f38385b644ab4dbd6f9efb9d))
+* **ios:** keep inactive navigation paths empty ([#432](https://github.com/P4suta/public-phonebook/issues/432)) ([84bad3f](https://github.com/P4suta/public-phonebook/commit/84bad3f472c0ae7173623f9c0cf8865aac7c57da))
+* **ios:** keep search reachable after scrolling ([#420](https://github.com/P4suta/public-phonebook/issues/420)) ([3a846ea](https://github.com/P4suta/public-phonebook/commit/3a846ea9863f5959d3f2c103c5c7246328ed88e7))
+* **ios:** preserve cancellation results during task completion ([#434](https://github.com/P4suta/public-phonebook/issues/434)) ([2b5aed8](https://github.com/P4suta/public-phonebook/commit/2b5aed8d329842bb46a9f4d118671405448b8a62))
+* **ios:** restore native navigation across window sizes ([#430](https://github.com/P4suta/public-phonebook/issues/430)) ([46c7015](https://github.com/P4suta/public-phonebook/commit/46c70157010e908e828ec702d40dec7286b88bb7))
+* **ios:** stabilize navigation and release verification ([#437](https://github.com/P4suta/public-phonebook/issues/437)) ([98da510](https://github.com/P4suta/public-phonebook/commit/98da5102316b1f9d42b55cfa558ffaa0612cfa30))
+* **ui:** align controls and keep search beside details ([#417](https://github.com/P4suta/public-phonebook/issues/417)) ([5cacb46](https://github.com/P4suta/public-phonebook/commit/5cacb46a6d5b6e091440ea8f4f62113abae60102))
+* **web:** preserve existing Cloudflare domain connections ([#408](https://github.com/P4suta/public-phonebook/issues/408)) ([6101207](https://github.com/P4suta/public-phonebook/commit/6101207998b00f75d37be0fe7c8b3d90e5bb6d48))
+* **web:** restore search text before the index loads ([#415](https://github.com/P4suta/public-phonebook/issues/415)) ([b68201d](https://github.com/P4suta/public-phonebook/commit/b68201d9e39ce0e3558c9d36b1aeabea1d92280e))
+
 ## [1.1.0](https://github.com/P4suta/public-phonebook/compare/ios-v1.0.0...ios-v1.1.0) (2026-11-09)
 
 
