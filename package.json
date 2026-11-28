@@ -36,27 +36,27 @@
     "@public-phonebook/directory": "*",
     "@public-phonebook/data": "*",
     "@public-phonebook/cloudflare": "*",
-    "@tanstack/react-query": "5.107.1",
+    "@tanstack/react-query": "5.108.4",
     "@tanstack/react-router": "1.170.46",
     "@tanstack/react-start": "1.169.4",
     "@vanilla-extract/css": "1.21.3",
     "csv-stringify": "6.9.0",
     "drizzle-orm": "0.45.4",
-    "hono": "4.13.16",
-    "libphonenumber-js": "1.13.15",
+    "hono": "4.13.22",
+    "libphonenumber-js": "1.13.17",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "valibot": "1.5.0"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.14.0",
+    "@axe-core/playwright": "4.14.1",
     "@cloudflare/vite-plugin": "2.0.0-beta.v.12",
     "@cloudflare/workers-types": "5.20261107.1",
-    "@playwright/test": "1.65.0",
+    "@playwright/test": "1.65.1",
     "@swc/core": "1.16.22",
-    "@types/node": "26.6.6",
+    "@types/node": "26.6.10",
     "@types/proper-lockfile": "4.1.4",
-    "@types/react": "19.3.0",
+    "@types/react": "19.3.3",
     "@types/react-dom": "19.3.0",
     "@vanilla-extract/vite-plugin": "5.2.6",
     "@vitejs/plugin-react": "6.2.1",
@@ -64,28 +64,28 @@
     "cf": "1.0.0-beta.28",
     "cheerio": "1.2.0",
     "csv-parse": "7.0.3",
-    "dependency-cruiser": "18.7.2",
-    "fast-check": "4.10.2",
+    "dependency-cruiser": "18.9.0",
+    "fast-check": "4.11.0",
     "fflate": "0.8.3",
-    "lemmascript": "0.6.6",
+    "lemmascript": "0.6.12",
     "miniflare": "5.20261023.3-beta",
-    "oxlint": "1.91.0",
-    "oxlint-tsgolint": "7.0.2006",
+    "oxlint": "1.95.0",
+    "oxlint-tsgolint": "7.0.2008",
     "pdfjs-dist": "6.5.438",
     "proper-lockfile": "4.1.2",
     "release-please": "17.11.2",
     "typescript": "7.0.2",
     "vite": "8.3.6",
-    "vitest": "5.1.0",
+    "vitest": "5.1.2",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "yaml": "2.9.1"
   },
   "overrides": {
     "@google-automations/git-file-utils": {
-      "minimatch": "11.0.5"
+      "minimatch": "11.0.9"
     },
     "@ts-morph/common": {
-      "minimatch": "11.0.5"
+      "minimatch": "11.0.9"
     }
   },
   "allowScripts": {
